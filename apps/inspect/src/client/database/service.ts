@@ -61,7 +61,7 @@ const sampleIdsForLookup = (id: string | number): (string | number)[] => {
 export class OpenDatabase {
   private readonly db: AppDatabase;
 
-  constructor(db: AppDatabase) {
+  private constructor(db: AppDatabase) {
     this.db = db;
   }
 

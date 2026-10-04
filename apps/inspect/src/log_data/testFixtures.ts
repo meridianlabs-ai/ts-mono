@@ -17,7 +17,6 @@ import {
 import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
-import { AppDatabase, OpenDatabase } from "../client/database";
 
 import {
   ChunkByteStore,
@@ -27,6 +26,7 @@ import {
   type ChunkedSample,
   type SampleSkeleton,
 } from "./chunked";
+import { type EngineDatabase } from "./fetchEngine";
 import { type EvalSampleData } from "./sampleData";
 
 const encoder = new TextEncoder();
@@ -78,15 +78,21 @@ export {
   testSampleSummary,
 } from "../client/api/testClientApi";
 
+const notStubbed = (method: string) => () =>
+  Promise.reject(new Error(`testEngineDatabase: ${method} is not stubbed`));
+
 /**
- * A real OpenDatabase over a never-opened connection with the given methods
- * overridden — un-overridden calls fail loudly with a Dexie error rather than
- * silently missing.
+ * An in-memory engine database with the given reads overridden. Un-overridden
+ * reads reject, so a test never silently falls through to IndexedDB.
  */
-export const testDatabaseService = (
-  overrides: Partial<OpenDatabase> = {}
-): OpenDatabase =>
-  Object.assign(new OpenDatabase(new AppDatabase()), overrides);
+export const testEngineDatabase = (
+  overrides: Partial<EngineDatabase> = {}
+): EngineDatabase => ({
+  readLogs: notStubbed("readLogs"),
+  readLogRow: notStubbed("readLogRow"),
+  getCacheStats: notStubbed("getCacheStats"),
+  ...overrides,
+});
 
 /** A model event whose input/output messages carry the given ids. */
 export const testModelEventWithIds = (
