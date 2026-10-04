@@ -34,10 +34,10 @@ const holder = vi.hoisted(() => ({
   api: null as ClientAPI | null,
 }));
 vi.mock("./databaseInstance", () => ({
-  acquireDatabase: () => {
-    if (!holder.service) throw new Error("test service not initialized");
-    return Promise.resolve(holder.service);
-  },
+  acquireDatabase: () =>
+    holder.service
+      ? Promise.resolve(holder.service)
+      : Promise.reject(new Error("test service not initialized")),
   currentDatabase: () => holder.service,
 }));
 vi.mock("../app_config", () => ({
