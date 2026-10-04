@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -176,6 +176,9 @@ describe("useSampleSummaries during a running eval", () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a hook re-rendering during teardown would otherwise
+    // read the api after the holder is reset.
+    cleanup();
     deactivateFetchEngine();
     fetchEngine.stop();
     db.close();
