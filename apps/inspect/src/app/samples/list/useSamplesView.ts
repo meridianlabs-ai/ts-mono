@@ -4,6 +4,7 @@ import { type TaskSamplesView } from "@tsmono/inspect-common/types";
 
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import { getFieldKey, type PickerColumn } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 import { SCORE_FIELD_RAW_PREFIX } from "../../shared/samples-grid/columns";
@@ -29,7 +30,7 @@ function useEvalDefaultSamplesView(): TaskSamplesView | undefined {
  *  currently-selected log file so customizations don't bleed across logs
  *  with different scorers / eval config. */
 function useResolvedSamplesView(): SamplesViewState {
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const stored = useStore((state) =>
     logFile ? state.logs.samplesListState.byLog[logFile] : undefined
   );
@@ -123,7 +124,7 @@ export function useSamplesView(
 
   const evalDefault = useEvalDefaultSamplesView();
   const view = useResolvedSamplesView();
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const setSampleListViewAction = useStore(
     (state) => state.logsActions.setSampleListView
   );
