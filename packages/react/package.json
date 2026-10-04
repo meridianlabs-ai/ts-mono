@@ -13,6 +13,7 @@
     "./state": "./src/state/index.ts",
     "./routing": "./src/routing.ts",
     "./testing": "./src/test/index.ts",
+    "./testing/webview": "./src/test/webview.ts",
     "./virtual": "./src/virtual/index.ts"
   },
   "scripts": {

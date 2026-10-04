@@ -54,7 +54,7 @@ test("route identity survives cross-log navigation, Back, and reload without a s
   await expect(
     page.getByText("First epoch response", { exact: true })
   ).toBeVisible();
-  await page.getByRole("button", { name: "Next sample", exact: true }).click();
+  await page.getByRole("link", { name: "Next sample", exact: true }).click();
   await expect(page).toHaveURL(/same-id\/2\/messages/);
   await expect(
     page.getByText("Second epoch response", { exact: true })

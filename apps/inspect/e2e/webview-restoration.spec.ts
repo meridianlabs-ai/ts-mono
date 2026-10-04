@@ -1,9 +1,11 @@
 import { http, HttpResponse } from "msw";
 
+// The subpath, not the testing barrel: Playwright loads specs in Node, where
+// the barrel's component helpers pull in CSS modules it can't parse.
 import {
   installWebviewHost,
   withWebviewBootstrap,
-} from "@tsmono/react/testing";
+} from "@tsmono/react/testing/webview";
 
 import { expect, test } from "./fixtures/app";
 import { pathParam } from "./fixtures/handlers";
@@ -53,7 +55,7 @@ test("webview recreation restores sample identity and accepts a different host c
   await page.goto("/");
   await page.getByRole("tab", { name: "Messages", exact: true }).click();
   await expect(page.getByText("First epoch", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Next sample", exact: true }).click();
+  await page.getByRole("link", { name: "Next sample", exact: true }).click();
   await expect(
     page.getByText("Restored second epoch", { exact: true })
   ).toBeVisible();
