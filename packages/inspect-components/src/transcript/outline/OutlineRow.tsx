@@ -2,8 +2,13 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
-import { PulsingDots } from "@tsmono/react/components";
-import { formatDateTime, formatTime, parsePackageName } from "@tsmono/util";
+import { isNewTabClick, PulsingDots } from "@tsmono/react/components";
+import {
+  formatDateTime,
+  formatTime,
+  isVscode,
+  parsePackageName,
+} from "@tsmono/util";
 
 import { TranscriptIcons } from "../icons";
 import { kSandboxSignalName } from "../transform/fixups";
@@ -63,7 +68,15 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         data-unsearchable={true}
         role="button"
         tabIndex={0}
-        onClick={activate}
+        onClick={(e) => {
+          // A new-tab gesture on the label link opens the event in another
+          // tab; don't also jump this transcript to it. (The VS Code webview
+          // has no browser tabs, so there the row still jumps.)
+          const link =
+            e.target instanceof Element ? e.target.closest("a[href]") : null;
+          if (link && isNewTabClick(e) && !isVscode()) return;
+          activate();
+        }}
         onKeyDown={(e) => {
           // Only the row itself: Enter/Space bubbling up from a nested
           // control must keep its own default action.
@@ -214,20 +227,19 @@ const labelForNode = (node: EventNode): string => {
       case "subtask":
         return node.event.name;
       case "approval":
-        switch (node.event.decision) {
-          case "approve":
-            return "approved";
-          case "reject":
-            return "rejected";
-          case "escalate":
-            return "escalated";
-          case "modify":
-            return "modified";
-          case "terminate":
-            return "terminated";
-          default:
-            return node.event.decision;
-        }
+        return {
+          approve: "approved",
+          reject: "rejected",
+          escalate: "escalated",
+          modify: "modified",
+          terminate: "terminated",
+        }[node.event.decision];
+      case "review":
+        return {
+          continue: "reviewed",
+          escalate: "escalated",
+          terminate: "terminated",
+        }[node.event.decision];
       case "model":
         return `model${node.event.role ? ` (${node.event.role})` : ""}`;
       case "score":

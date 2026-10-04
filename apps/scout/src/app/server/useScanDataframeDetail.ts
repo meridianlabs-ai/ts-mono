@@ -6,33 +6,11 @@ import { AsyncData } from "@tsmono/util";
 import { ScanResultDetail } from "../../api/api";
 import { useApi } from "../../state/store";
 
-type ScanDataframeDetailParams = {
-  scansDir: string;
-  scanPath: string;
-  scanner: string;
-  uuid: string;
-};
+import { ScanDataframeDetailParams, scanDataframeDetailQuery } from "./queries";
 
 export const useScanDataframeDetail = (
   params: ScanDataframeDetailParams | typeof skipToken
 ): AsyncData<ScanResultDetail> => {
   const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey:
-      params === skipToken
-        ? [skipToken]
-        : ["scanDataframeDetail", params, "scans-inv"],
-    queryFn:
-      params === skipToken
-        ? skipToken
-        : () =>
-            api.getScannerDataframeDetail(
-              params.scansDir,
-              params.scanPath,
-              params.scanner,
-              params.uuid
-            ),
-    staleTime: Infinity,
-  });
+  return useAsyncDataFromQuery(scanDataframeDetailQuery(api, params));
 };

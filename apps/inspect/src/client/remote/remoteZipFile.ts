@@ -1,22 +1,10 @@
-import { fetchRange } from "@tsmono/util";
+import { fetchRange, logFetchInit } from "@tsmono/util";
 
 import { ProgressCallback } from "../api/types";
 
 import { decompressData } from "./decompression";
 
 export type { ProgressCallback };
-
-export interface ZipFileEntry {
-  versionNeeded: number;
-  bitFlag: number;
-  compressionMethod: number;
-  crc32: number;
-  compressedSize: number;
-  uncompressedSize: number;
-  filenameLength: number;
-  extraFieldLength: number;
-  data: Uint8Array;
-}
 
 export interface CentralDirectoryEntry {
   filename: string;
@@ -46,73 +34,55 @@ export class FileSizeLimitError extends Error {
   }
 }
 
-const PARALLEL_CHUNK_THRESHOLD = 8 * 1024 * 1024; // 8MB
-const PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per chunk
+// Keep the existing 2 GiB sample ceiling, applied to each materialized ZIP
+// entry or directory. Large archives remain readable one entry at a time.
+export const MAX_ZIP_READ_BYTES = 2048 * 1024 * 1024;
+const PARALLEL_CHUNK_SIZE = 8 * 1024 * 1024;
 const MAX_PARALLEL_CHUNKS = 10;
 
-const fetchBytesParallel = async (
-  fetchFn: (url: string, start: number, end: number) => Promise<Uint8Array>,
-  url: string,
+function validateRange(
   start: number,
-  end: number,
-  onProgress?: ProgressCallback
-): Promise<Uint8Array> => {
-  const totalSize = end - start + 1;
-
-  if (totalSize <= PARALLEL_CHUNK_THRESHOLD) {
-    return fetchFn(url, start, end);
+  size: number,
+  contentLength: number
+): void {
+  if (
+    !Number.isSafeInteger(start) ||
+    start < 0 ||
+    !Number.isSafeInteger(size) ||
+    size < 0 ||
+    start > contentLength ||
+    size > contentLength - start
+  ) {
+    throw new Error("ZIP byte range is outside the archive");
   }
+}
 
-  // Split into chunks
-  const chunks: { start: number; end: number; index: number }[] = [];
-  let offset = start;
-  while (offset <= end) {
-    const chunkEnd = Math.min(offset + PARALLEL_CHUNK_SIZE - 1, end);
-    chunks.push({ start: offset, end: chunkEnd, index: chunks.length });
-    offset = chunkEnd + 1;
+function validateSize(
+  size: number,
+  file: string,
+  maxBytes = MAX_ZIP_READ_BYTES
+): void {
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new Error(`Invalid ZIP size for ${file}`);
   }
-
-  // Cap concurrency
-  const concurrency = Math.min(chunks.length, MAX_PARALLEL_CHUNKS);
-
-  // Fetch chunks with bounded concurrency
-  const results = new Array<Uint8Array>(chunks.length);
-  let nextChunk = 0;
-  let bytesLoaded = 0;
-
-  if (onProgress) {
-    onProgress(0, totalSize);
+  if (size > Math.min(maxBytes, MAX_ZIP_READ_BYTES)) {
+    throw new FileSizeLimitError(file, Math.min(maxBytes, MAX_ZIP_READ_BYTES));
   }
+}
 
-  const worker = async () => {
-    while (nextChunk < chunks.length) {
-      const idx = nextChunk++;
-      const chunk = chunks[idx];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      results[idx] = await fetchFn(url, chunk.start, chunk.end);
-      if (onProgress) {
-        bytesLoaded += results[idx].length;
-        onProgress(bytesLoaded, totalSize);
-      }
-    }
-  };
+function dataView(bytes: Uint8Array): DataView {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-  // Concatenate
-  const combined = new Uint8Array(totalSize);
-  let pos = 0;
-  for (const chunk of results) {
-    combined.set(chunk, pos);
-    pos += chunk.length;
+function zip64Number(view: DataView, offset: number): number {
+  const value = Number(view.getBigUint64(offset, true));
+  if (!Number.isSafeInteger(value)) {
+    throw new Error("ZIP64 value exceeds the safe integer range");
   }
-  return combined;
-};
+  return value;
+}
 
-/**
- * Opens a remote ZIP file from the specified URL, fetches and parses the central directory,
- * and provides a method to read files within the ZIP.
- */
+/** Opens a remote ZIP archive and reads individual entries with bounded allocations. */
 export const openRemoteZipFile = async (
   url: string,
   contentLength?: number,
@@ -129,239 +99,132 @@ export const openRemoteZipFile = async (
     onProgress?: ProgressCallback
   ) => Promise<Uint8Array>;
 }> => {
-  contentLength = contentLength ?? (await fetchSize(url));
-
-  // Read the end of central directory record
-  const eocdrBuffer = await fetchBytes(
-    url,
-    contentLength - 22,
-    contentLength - 1
-  );
-  const eocdrView = new DataView(eocdrBuffer.buffer);
-
-  // Check signature to make sure we found the EOCD record
-  if (eocdrView.getUint32(0, true) !== 0x06054b50) {
-    if (eocdrBuffer.length !== 22) {
-      // The range request seems like it was ignored because more bytes than
-      // were requested were returned.
-      throw new Error(
-        "Unexpected central directory size - does the HTTP server serving this file support HTTP range requests?"
-      );
-    } else {
-      throw new Error("End of central directory record not found");
-    }
+  const length = contentLength ?? (await fetchSize(url));
+  if (!Number.isSafeInteger(length) || length < 22) {
+    throw new Error("Invalid ZIP archive length");
   }
 
-  let centralDirOffset = eocdrView.getUint32(16, true);
-  let centralDirSize = eocdrView.getUint32(12, true);
-
-  // Check if we need to use ZIP64 format
-  const needsZip64 =
-    centralDirOffset === 0xffffffff || centralDirSize === 0xffffffff;
-
-  if (needsZip64) {
-    // We need to locate and read the ZIP64 EOCD record and locator
-    // First, read the ZIP64 EOCD locator which is just before the standard EOCD
-    // Standard EOCD (22 bytes) + Locator (20 bytes)
-    const locatorBuffer = await fetchBytes(
-      url,
-      contentLength - 22 - 20,
-      contentLength - 23
-    );
-    const locatorView = new DataView(locatorBuffer.buffer);
-
-    // Verify the ZIP64 EOCD locator signature
-    if (locatorView.getUint32(0, true) !== 0x07064b50) {
-      throw new Error("ZIP64 End of central directory locator not found");
-    }
-
-    // Get the offset to the ZIP64 EOCD record
-    const zip64EOCDOffset = Number(locatorView.getBigUint64(8, true));
-
-    // Now read the ZIP64 EOCD record
-    const zip64EOCDBuffer = await fetchBytes(
-      url,
-      zip64EOCDOffset,
-      zip64EOCDOffset + 56
-    );
-    const zip64EOCDView = new DataView(zip64EOCDBuffer.buffer);
-
-    // Verify the ZIP64 EOCD signature
-    if (zip64EOCDView.getUint32(0, true) !== 0x06064b50) {
-      throw new Error("ZIP64 End of central directory record not found");
-    }
-
-    // Get the 64-bit central directory size and offset
-    centralDirSize = Number(zip64EOCDView.getBigUint64(40, true));
-    centralDirOffset = Number(zip64EOCDView.getBigUint64(48, true));
-  }
-
-  // Fetch and parse the central directory
-  const centralDirBuffer = await fetchBytesParallel(
-    fetchBytes,
-    url,
-    centralDirOffset,
-    centralDirOffset + centralDirSize - 1
-  );
-  const centralDirectory = parseCentralDirectory(centralDirBuffer);
-
-  return {
-    centralDirectory: centralDirectory,
-    readFile: async (file, maxBytes, onProgress?): Promise<Uint8Array> => {
-      const entry = centralDirectory.get(file);
-      if (!entry) {
-        throw new Error(`File not found: ${file}`);
-      }
-
-      const headerSize = 30;
-      // 256 bytes covers ZIP64 extended info (28 bytes), timestamps, and
-      // other common extra field extensions.
-      const extraFieldPadding = 256;
-      const estimatedSize =
-        headerSize +
-        entry.filenameLength +
-        extraFieldPadding +
-        entry.compressedSize;
-
-      // Check maxBytes against the compressedSize lower bound before fetching
-      if (
-        maxBytes &&
-        headerSize + entry.filenameLength + entry.compressedSize > maxBytes
-      ) {
-        throw new FileSizeLimitError(file, maxBytes);
-      }
-
-      // Single fetch with estimated size
-      let fileData = await fetchBytesParallel(
-        fetchBytes,
-        url,
-        entry.fileOffset,
-        entry.fileOffset + estimatedSize - 1,
-        onProgress
-      );
-
-      // Parse actual extraFieldLength from the fetched header
-      if (fileData.length < headerSize) {
-        throw new Error(`File entry header is truncated for ${file}`);
-      }
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      const actualExtraFieldLength = fileData[28] + (fileData[29] << 8);
-      const actualTotal =
-        headerSize +
-        entry.filenameLength +
-        actualExtraFieldLength +
-        entry.compressedSize;
-
-      // Exact maxBytes check with real extra field length
-      if (maxBytes && actualTotal > maxBytes) {
-        throw new FileSizeLimitError(file, maxBytes);
-      }
-
-      // Re-fetch only if actual size exceeds our estimate (rare).
-      // Pass undefined for onProgress to avoid double-counting.
-      if (actualTotal > estimatedSize) {
-        fileData = await fetchBytesParallel(
-          fetchBytes,
-          url,
-          entry.fileOffset,
-          entry.fileOffset + actualTotal - 1
+  const read = async (
+    start: number,
+    size: number,
+    onProgress?: ProgressCallback
+  ): Promise<Uint8Array> => {
+    validateRange(start, size, length);
+    validateSize(size, url);
+    if (size === 0) return new Uint8Array();
+    const fetchChunk = async (offset: number, count: number) => {
+      const result = await fetchBytes(url, offset, offset + count - 1);
+      if (result.length !== count) {
+        throw new Error(
+          "Unexpected ZIP range response length; HTTP range support is required"
         );
       }
+      return result;
+    };
+    if (size <= PARALLEL_CHUNK_SIZE) return fetchChunk(start, size);
 
-      // Parse and decompress the entry
-      const zipFileEntry = await parseZipFileEntry(file, fileData);
+    // Derive at most 256 chunk indices from the validated read size; do not
+    // build a metadata-sized work list before the first asynchronous read.
+    const combined = new Uint8Array(size);
+    const chunkCount = Math.ceil(size / PARALLEL_CHUNK_SIZE);
+    let nextChunk = 0;
+    let bytesLoaded = 0;
+    onProgress?.(0, size);
+    const worker = async () => {
+      while (nextChunk < chunkCount) {
+        const offset = nextChunk++ * PARALLEL_CHUNK_SIZE;
+        const chunk = await fetchChunk(
+          start + offset,
+          Math.min(PARALLEL_CHUNK_SIZE, size - offset)
+        );
+        combined.set(chunk, offset);
+        bytesLoaded += chunk.length;
+        onProgress?.(bytesLoaded, size);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(chunkCount, MAX_PARALLEL_CHUNKS) }, worker)
+    );
+    return combined;
+  };
+
+  const eocd = dataView(await read(length - 22, 22));
+  if (eocd.getUint32(0, true) !== 0x06054b50) {
+    throw new Error("End of central directory record not found");
+  }
+  let centralDirOffset = eocd.getUint32(16, true);
+  let centralDirSize = eocd.getUint32(12, true);
+  if (centralDirOffset === 0xffffffff || centralDirSize === 0xffffffff) {
+    const locator = dataView(await read(length - 42, 20));
+    if (locator.getUint32(0, true) !== 0x07064b50) {
+      throw new Error("ZIP64 End of central directory locator not found");
+    }
+    const zip64 = dataView(await read(zip64Number(locator, 8), 56));
+    if (zip64.getUint32(0, true) !== 0x06064b50) {
+      throw new Error("ZIP64 End of central directory record not found");
+    }
+    centralDirSize = zip64Number(zip64, 40);
+    centralDirOffset = zip64Number(zip64, 48);
+  }
+  const centralDirectory = parseCentralDirectory(
+    await read(centralDirOffset, centralDirSize)
+  );
+  for (const entry of centralDirectory.values()) {
+    validateRange(
+      entry.fileOffset,
+      30 + entry.filenameLength + entry.compressedSize,
+      length
+    );
+  }
+
+  return {
+    centralDirectory,
+    readFile: async (file, maxBytes, onProgress): Promise<Uint8Array> => {
+      const entry = centralDirectory.get(file);
+      if (!entry) throw new Error(`File not found: ${file}`);
+      validateSize(entry.uncompressedSize, file, maxBytes);
+      const minimumSize = 30 + entry.filenameLength + entry.compressedSize;
+      validateSize(minimumSize, file, maxBytes);
+      // Padding avoids a separate local-header request for typical archives,
+      // but may extend past EOF for small archives and must be clamped.
+      const estimatedSize = Math.min(
+        minimumSize + 256,
+        length - entry.fileOffset,
+        MAX_ZIP_READ_BYTES
+      );
+      let fileData = await read(entry.fileOffset, estimatedSize, onProgress);
+      const view = dataView(fileData);
+      const actualTotal =
+        30 +
+        view.getUint16(26, true) +
+        view.getUint16(28, true) +
+        entry.compressedSize;
+      validateRange(entry.fileOffset, actualTotal, length);
+      validateSize(actualTotal, file, maxBytes);
+      if (actualTotal > fileData.length) {
+        fileData = await read(entry.fileOffset, actualTotal);
+      }
+      const payload = parseZipFileEntry(file, fileData, entry);
       return decompressData(
-        zipFileEntry.data,
-        zipFileEntry.compressionMethod,
-        zipFileEntry.uncompressedSize,
+        payload,
+        entry.compressionMethod,
+        entry.uncompressedSize,
         file
       );
     },
   };
 };
 
-/**
- * Opens an in-memory ZIP buffer and provides a method to read files within it.
- */
-export const openZipFileFromBuffer = (
-  bytes: Uint8Array
-): Promise<{
-  centralDirectory: Map<string, CentralDirectoryEntry>;
-  readFile: (file: string, maxBytes?: number) => Promise<Uint8Array>;
-}> => {
-  const contentLength = bytes.length;
-  if (contentLength < 22) {
-    throw new Error("Buffer too small to be a ZIP file");
-  }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-  // Assumes no ZIP comment (true for segments written by SampleBufferFilestore).
-  const eocdrStart = contentLength - 22;
-  if (view.getUint32(eocdrStart, true) !== 0x06054b50) {
-    throw new Error("End of central directory record not found");
-  }
-
-  let centralDirOffset = view.getUint32(eocdrStart + 16, true);
-  let centralDirSize = view.getUint32(eocdrStart + 12, true);
-
-  if (centralDirOffset === 0xffffffff || centralDirSize === 0xffffffff) {
-    const locatorStart = eocdrStart - 20;
-    if (view.getUint32(locatorStart, true) !== 0x07064b50) {
-      throw new Error("ZIP64 End of central directory locator not found");
-    }
-    const zip64EOCDOffset = Number(view.getBigUint64(locatorStart + 8, true));
-    if (view.getUint32(zip64EOCDOffset, true) !== 0x06064b50) {
-      throw new Error("ZIP64 End of central directory record not found");
-    }
-    centralDirSize = Number(view.getBigUint64(zip64EOCDOffset + 40, true));
-    centralDirOffset = Number(view.getBigUint64(zip64EOCDOffset + 48, true));
-  }
-
-  // slice() rather than subarray() because parseCentralDirectory and
-  // parseZipFileEntry build a DataView from `buffer` without a byteOffset.
-  const centralDirectory = parseCentralDirectory(
-    bytes.slice(centralDirOffset, centralDirOffset + centralDirSize)
+/** Opens an in-memory ZIP archive using the same metadata validation as remote reads. */
+export const openZipFileFromBuffer = (bytes: Uint8Array) =>
+  openRemoteZipFile("in-memory ZIP", bytes.length, (_url, start, end) =>
+    // Copy: a worker may transfer this buffer, which must not detach the archive.
+    Promise.resolve(bytes.slice(start, end + 1))
   );
-
-  return Promise.resolve({
-    centralDirectory,
-    readFile: async (file: string, maxBytes?: number): Promise<Uint8Array> => {
-      const entry = centralDirectory.get(file);
-      if (!entry) {
-        throw new Error(`File not found: ${file}`);
-      }
-      const headerSize = 30;
-      if (entry.fileOffset + headerSize > bytes.length) {
-        throw new Error(`File entry header is truncated for ${file}`);
-      }
-      const extraFieldLength =
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        bytes[entry.fileOffset + 28] + (bytes[entry.fileOffset + 29] << 8);
-      const totalSize =
-        headerSize +
-        entry.filenameLength +
-        extraFieldLength +
-        entry.compressedSize;
-      if (maxBytes && totalSize > maxBytes) {
-        throw new FileSizeLimitError(file, maxBytes);
-      }
-      const zipFileEntry = await parseZipFileEntry(
-        file,
-        bytes.slice(entry.fileOffset, entry.fileOffset + totalSize)
-      );
-      return decompressData(
-        zipFileEntry.data,
-        zipFileEntry.compressionMethod,
-        zipFileEntry.uncompressedSize,
-        file
-      );
-    },
-  });
-};
 
 export const fetchSize = async (url: string): Promise<number> => {
   // Make a HEAD request to find whether the server supports range requests
-  const acceptResponse = await fetch(url, { method: "HEAD" });
+  const acceptResponse = await fetch(url, { ...logFetchInit, method: "HEAD" });
   const acceptsRanges = acceptResponse.headers.get("Accept-Ranges");
   if (acceptsRanges === "bytes") {
     // attempt a range request to get the content length
@@ -369,6 +232,7 @@ export const fetchSize = async (url: string): Promise<number> => {
     // HEAD requests may return compressed content-length which doesn't
     // match the actual file size needed for downstream operations.
     const getResponse = await fetch(`${url}`, {
+      ...logFetchInit,
       method: "GET",
       headers: { Range: "bytes=0-0" },
     });
@@ -396,190 +260,127 @@ export const fetchSize = async (url: string): Promise<number> => {
 
 export { fetchRange };
 
-/**
- * Extracts and parses the header and data of a compressed ZIP entry from raw binary data.
- */
-const parseZipFileEntry = (
+function zip64Values(
+  view: DataView,
+  start: number,
+  size: number,
+  values: number[]
+): number[] {
+  if (!values.includes(0xffffffff)) return values;
+  const end = start + size;
+  validateRange(start, size, view.byteLength);
+  for (let offset = start; offset < end;) {
+    validateRange(offset, 4, end);
+    const tag = view.getUint16(offset, true);
+    const fieldSize = view.getUint16(offset + 2, true);
+    offset += 4;
+    validateRange(offset, fieldSize, end);
+    if (tag === 1) {
+      let cursor = offset;
+      return values.map((value) => {
+        if (value !== 0xffffffff) return value;
+        validateRange(cursor, 8, offset + fieldSize);
+        const result = zip64Number(view, cursor);
+        cursor += 8;
+        return result;
+      });
+    }
+    offset += fieldSize;
+  }
+  throw new Error("Missing ZIP64 size or offset");
+}
+
+function parseZipFileEntry(
   file: string,
-  rawData: Uint8Array
-): Promise<ZipFileEntry> => {
-  // Parse ZIP entry header
-  const view = new DataView(rawData.buffer);
-  let offset = 0;
-  const signature = view.getUint32(offset, true);
-  if (signature !== 0x04034b50) {
+  rawData: Uint8Array,
+  entry: CentralDirectoryEntry
+): Uint8Array {
+  const view = dataView(rawData);
+  if (view.getUint32(0, true) !== 0x04034b50) {
     throw new Error(`Invalid ZIP entry signature for ${file}`);
   }
-  offset += 4;
-
-  const versionNeeded = view.getUint16(offset, true);
-  offset += 2;
-  const bitFlag = view.getUint16(offset, true);
-  offset += 2;
-  const compressionMethod = view.getUint16(offset, true);
-  offset += 2;
-  offset += 4; // Skip last mod time and date
-  const crc32 = view.getUint32(offset, true);
-  offset += 4;
-
-  // Get initial sizes from standard header
-  let compressedSize = view.getUint32(offset, true);
-  offset += 4;
-  let uncompressedSize = view.getUint32(offset, true);
-  offset += 4;
-
-  const filenameLength = view.getUint16(offset, true);
-  offset += 2;
-  const extraFieldLength = view.getUint16(offset, true);
-  offset += 2;
-
-  // The original header offset
-  const headerOffset = offset;
-
-  // Check if we need to look for ZIP64 extra fields
-  const needsZip64 =
-    compressedSize === 0xffffffff || uncompressedSize === 0xffffffff;
-
-  if (needsZip64) {
-    // Skip the filename
-    offset += filenameLength;
-
-    // Look through extra fields for ZIP64 data
-    const extraFieldEnd = offset + extraFieldLength;
-    while (offset < extraFieldEnd) {
-      const tag = view.getUint16(offset, true);
-      const size = view.getUint16(offset + 2, true);
-
-      if (tag === 0x0001) {
-        // ZIP64 Extra Field
-        // Position in the extra field data
-        let zip64Offset = offset + 4;
-
-        // Read values in the order they appear in the ZIP64 extra field
-        if (
-          uncompressedSize === 0xffffffff &&
-          zip64Offset + 8 <= extraFieldEnd
-        ) {
-          uncompressedSize = Number(view.getBigUint64(zip64Offset, true));
-          zip64Offset += 8;
-        }
-
-        if (compressedSize === 0xffffffff && zip64Offset + 8 <= extraFieldEnd) {
-          compressedSize = Number(view.getBigUint64(zip64Offset, true));
-        }
-
-        break;
-      }
-      offset += 4 + size;
-    }
-
-    // Reset offset
-    offset = headerOffset;
+  const bitFlag = view.getUint16(6, true);
+  const compressionMethod = view.getUint16(8, true);
+  const filenameLength = view.getUint16(26, true);
+  const extraFieldLength = view.getUint16(28, true);
+  const dataOffset = 30 + filenameLength + extraFieldLength;
+  validateRange(dataOffset, entry.compressedSize, rawData.length);
+  if (
+    compressionMethod !== entry.compressionMethod ||
+    filenameLength !== entry.filenameLength
+  ) {
+    throw new Error(`Inconsistent ZIP entry header for ${file}`);
   }
+  // With a data descriptor (bit 3), local sizes may be zero/placeholders.
+  // The central directory is authoritative and already bounded in readFile.
+  if ((bitFlag & 8) === 0) {
+    const [uncompressedSize, compressedSize] = zip64Values(
+      view,
+      30 + filenameLength,
+      extraFieldLength,
+      [view.getUint32(22, true), view.getUint32(18, true)]
+    );
+    if (
+      uncompressedSize !== entry.uncompressedSize ||
+      compressedSize !== entry.compressedSize
+    ) {
+      throw new Error(`Inconsistent ZIP entry sizes for ${file}`);
+    }
+  }
+  if (
+    compressionMethod === 0 &&
+    entry.compressedSize !== entry.uncompressedSize
+  ) {
+    throw new Error(`Inconsistent stored ZIP entry sizes for ${file}`);
+  }
+  return rawData.subarray(dataOffset, dataOffset + entry.compressedSize);
+}
 
-  // Skip filename and extra field to get to the data
-  offset += filenameLength + extraFieldLength;
-
-  const data = rawData.subarray(offset, offset + compressedSize);
-  return Promise.resolve({
-    versionNeeded,
-    bitFlag,
-    compressionMethod,
-    crc32,
-    compressedSize,
-    uncompressedSize,
-    filenameLength,
-    extraFieldLength,
-    data,
-  });
-};
-
-const kFileHeaderSize = 46;
-/**
- * Parses the central directory of a ZIP file from the provided buffer and returns a map of entries.
- */
-const parseCentralDirectory = (
+function parseCentralDirectory(
   buffer: Uint8Array
-): Map<string, CentralDirectoryEntry> => {
-  let offset = 0;
-  const view = new DataView(buffer.buffer);
+): Map<string, CentralDirectoryEntry> {
+  const view = dataView(buffer);
   const entries = new Map<string, CentralDirectoryEntry>();
-
-  while (offset < buffer.length) {
-    // Central Directory signature
-    if (view.getUint32(offset, true) !== 0x02014b50) break;
-
+  for (let offset = 0; offset < buffer.length;) {
+    validateRange(offset, 46, buffer.length);
+    if (view.getUint32(offset, true) !== 0x02014b50) {
+      throw new Error("Invalid ZIP central directory entry");
+    }
     const filenameLength = view.getUint16(offset + 28, true);
     const extraFieldLength = view.getUint16(offset + 30, true);
     const fileCommentLength = view.getUint16(offset + 32, true);
-
-    // Get initial 32-bit values
-    let compressedSize = view.getUint32(offset + 20, true);
-    let uncompressedSize = view.getUint32(offset + 24, true);
-    let fileOffset = view.getUint32(offset + 42, true);
-
+    const entrySize =
+      46 + filenameLength + extraFieldLength + fileCommentLength;
+    validateRange(offset, entrySize, buffer.length);
     const filename = new TextDecoder().decode(
-      buffer.subarray(
-        offset + kFileHeaderSize,
-        offset + kFileHeaderSize + filenameLength
-      )
+      buffer.subarray(offset + 46, offset + 46 + filenameLength)
     );
-
-    // Check if we need to use ZIP64 extra fields
-    const needsZip64 =
-      fileOffset === 0xffffffff ||
-      compressedSize === 0xffffffff ||
-      uncompressedSize === 0xffffffff;
-
-    if (needsZip64) {
-      // Move to extra field
-      let extraOffset = offset + kFileHeaderSize + filenameLength;
-      const extraEnd = extraOffset + extraFieldLength;
-
-      // Look through extra fields until we find zip64 extra field
-      while (extraOffset < extraEnd) {
-        const tag = view.getUint16(extraOffset, true);
-        const size = view.getUint16(extraOffset + 2, true);
-
-        if (tag === 0x0001) {
-          // ZIP64 Extra Field
-          // Position in the extra field data
-          let zip64Offset = extraOffset + 4;
-
-          // Read values in the order they appear in the ZIP64 extra field
-          if (uncompressedSize === 0xffffffff && zip64Offset + 8 <= extraEnd) {
-            uncompressedSize = Number(view.getBigUint64(zip64Offset, true));
-            zip64Offset += 8;
-          }
-
-          if (compressedSize === 0xffffffff && zip64Offset + 8 <= extraEnd) {
-            compressedSize = Number(view.getBigUint64(zip64Offset, true));
-            zip64Offset += 8;
-          }
-
-          if (fileOffset === 0xffffffff && zip64Offset + 8 <= extraEnd) {
-            fileOffset = Number(view.getBigUint64(zip64Offset, true));
-          }
-
-          break;
-        }
-        extraOffset += 4 + size;
-      }
+    const [uncompressedSize, compressedSize, fileOffset] = zip64Values(
+      view,
+      offset + 46 + filenameLength,
+      extraFieldLength,
+      [
+        view.getUint32(offset + 24, true),
+        view.getUint32(offset + 20, true),
+        view.getUint32(offset + 42, true),
+      ]
+    );
+    if (
+      uncompressedSize === undefined ||
+      compressedSize === undefined ||
+      fileOffset === undefined
+    ) {
+      throw new Error("Missing ZIP entry sizes");
     }
-
-    const entry = {
+    entries.set(filename, {
       filename,
       compressionMethod: view.getUint16(offset + 10, true),
       compressedSize,
       uncompressedSize,
       fileOffset,
       filenameLength,
-    };
-
-    entries.set(filename, entry);
-    offset +=
-      kFileHeaderSize + filenameLength + extraFieldLength + fileCommentLength;
+    });
+    offset += entrySize;
   }
-
   return entries;
-};
+}

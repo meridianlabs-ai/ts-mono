@@ -391,10 +391,7 @@ export function useTranscriptTimeline(
   const hasTimeline =
     timeline.root.content.length > 0 &&
     (timeline.root.content.some(
-      (item) =>
-        item.type === "span" ||
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        (item.type === "event" && item.event.event === "span_begin")
+      (item) => item.type === "span" || item.event.event === "span_begin"
     ) ||
       timeline.root.branches.length > 0);
 

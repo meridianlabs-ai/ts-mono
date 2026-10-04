@@ -17,8 +17,9 @@ function makeRef(
 }
 
 function link(ordinal: string, id: string, href?: string): string {
-  const h = href ? ` href="${href}"` : "";
-  return `<a${h} class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
+  return href
+    ? `<a href="${href}" class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`
+    : `<span class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</span>`;
 }
 
 describe("injectReferenceLinks", () => {
@@ -150,17 +151,17 @@ describe("injectReferenceLinks attribute escaping", () => {
     ["injects a style attribute", 'x" style="position:fixed" x="'],
     ["injects an event handler", 'x" onmouseover="alert(1)'],
     ["single quotes and ampersands", "a'b&c"],
-  ])("renders a ref id that %s as a single anchor", (_label, id) => {
+  ])("renders a ref id that %s as a single reference", (_label, id) => {
     const refs = [makeRef("M1", id)];
     const html = injectReferenceLinks("See [M1]", refs, CITE_CLASS);
     const root = parse(html);
 
-    const anchors = root.querySelectorAll("a");
-    expect(anchors).toHaveLength(1);
+    const cites = root.querySelectorAll("[data-ref-id]");
+    expect(cites).toHaveLength(1);
     expect(root.querySelectorAll("*")).toHaveLength(1);
-    expect(anchors[0]?.getAttribute("data-ref-id")).toBe(id);
-    expect(anchors[0]?.hasAttribute("href")).toBe(false);
-    expect(anchors[0]?.attributes).toHaveLength(2);
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(cites[0]?.getAttribute("data-ref-id")).toBe(id);
+    expect(cites[0]?.attributes).toHaveLength(2);
     expect(root.textContent).toBe("See [M1]");
   });
 
@@ -173,5 +174,37 @@ describe("injectReferenceLinks attribute escaping", () => {
     expect(root.querySelectorAll("*")).toHaveLength(1);
     expect(anchor?.getAttribute("href")).toBe(citeUrl);
     expect(anchor?.attributes).toHaveLength(3);
+  });
+});
+
+describe("injectReferenceLinks on adversarial input", () => {
+  it("runs in linear time on a long run of unclosed brackets", () => {
+    const refs = [makeRef("M1", "msg-1")];
+    const html = "[".repeat(250_000);
+    const start = performance.now();
+    const result = injectReferenceLinks(html, refs, CITE_CLASS);
+    const ms = performance.now() - start;
+    expect(result).toBe(html);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("runs in linear time on a long run of ordinals with no closing bracket", () => {
+    const refs = [makeRef("M1", "msg-1")];
+    const html = "[" + "M1 ".repeat(100_000);
+    const start = performance.now();
+    const result = injectReferenceLinks(html, refs, CITE_CLASS);
+    const ms = performance.now() - start;
+    expect(result).toBe(html);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("links every ordinal in a bracket that spans lines and nested brackets", () => {
+    const refs = [makeRef("M1", "msg-1"), makeRef("E2", "evt-2")];
+    expect(injectReferenceLinks("[a\n[M1, E2] tail", refs, CITE_CLASS)).toBe(
+      `[a\n[${link("M1", "msg-1")}, ${link("E2", "evt-2")}] tail`
+    );
+    expect(injectReferenceLinks("[x] [M1]", refs, CITE_CLASS)).toBe(
+      `[x] [${link("M1", "msg-1")}]`
+    );
   });
 });

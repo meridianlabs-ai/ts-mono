@@ -41,6 +41,7 @@ type Events = EvalSample["events"];
 function createModelEvent(overrides?: {
   uuid?: string;
   content?: string;
+  messageId?: string;
   startSec?: number;
   endSec?: number;
   tokens?: number;
@@ -56,6 +57,10 @@ function createModelEvent(overrides?: {
     },
     time: overrides?.endSec ? overrides.endSec - (overrides.startSec ?? 0) : 3,
   };
+  const outputMessage = output.choices[0]?.message;
+  if (outputMessage && overrides?.messageId) {
+    outputMessage.id = overrides.messageId;
+  }
 
   return {
     event: "model",
@@ -114,6 +119,7 @@ async function openTranscriptWithTimeline(
     sampleId?: number | string;
     events?: Events;
     timelines?: Timeline[];
+    deepLink?: `?event=${string}` | `?message=${string}`;
   }
 ) {
   const sampleId = options?.sampleId ?? 1;
@@ -187,7 +193,7 @@ async function openTranscriptWithTimeline(
 
   const encodedFile = encodeURIComponent(LOG_FILE);
   await page.goto(
-    `/#/logs/${encodedFile}/samples/sample/${sampleId}/1/transcript`
+    `/#/logs/${encodedFile}/samples/sample/${sampleId}/1/transcript${options?.deepLink ?? ""}`
   );
 }
 
@@ -242,6 +248,63 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
   // The Explore agent's content should no longer be visible
   await expect(page.getByText("Exploring the code")).not.toBeVisible();
 });
+
+for (const deepLink of [
+  { query: "?event=evt-target", selector: "#event-panel-evt-target" },
+  {
+    query: "?message=message-target",
+    selector: "[data-message-id='message-target']",
+  },
+] as const) {
+  test(`${deepLink.query.split("=")[0]} deep link selects and scrolls to a sub-agent node`, async ({
+    page,
+    network,
+  }) => {
+    const events: Events = [
+      createModelEvent({ uuid: "evt-root", content: "Root event" }),
+      ...Array.from({ length: 24 }, (_, i) =>
+        createModelEvent({
+          uuid: i === 20 ? "evt-target" : `evt-agent-${i}`,
+          content: i === 20 ? "Deep-link target" : `Agent step ${i}`,
+          messageId: i === 20 ? "message-target" : undefined,
+          startSec: i + 1,
+          endSec: i + 2,
+        })
+      ),
+    ];
+    const timeline: Timeline = {
+      name: "default",
+      description: "Sub-agent deep-link timeline",
+      root: testTimelineSpan({
+        id: "root",
+        name: "Transcript",
+        content: [
+          testTimelineEvent({ event: "evt-root" }),
+          testTimelineSpan({
+            id: "agent-a",
+            name: "Agent A",
+            span_type: "agent",
+            content: events
+              .slice(1)
+              .map((event) => testTimelineEvent({ event: event.uuid! })),
+          }),
+        ],
+      }),
+    };
+
+    await openTranscriptWithTimeline(page, network, {
+      events,
+      timelines: [timeline],
+      deepLink: deepLink.query,
+    });
+
+    const target = page.locator(deepLink.selector);
+    await expect(target).toBeVisible();
+    await expect(target).toBeInViewport();
+    await expect(page.getByText("Deep-link target").first()).toBeVisible();
+    await expect(page.getByText("Root event")).not.toBeVisible();
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Characterization: minimap

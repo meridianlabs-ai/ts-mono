@@ -17,7 +17,7 @@ import {
   synthesizeErroredSampleFromSummary,
 } from "./sampleFetch";
 import { kSampleGcTimeMs, sampleQueryKey } from "./sampleQuery";
-import { readSettledSummaries } from "./samplesListing";
+import { hasCompletedSettledSummary } from "./samplesListing";
 import {
   createSampleStreamSession,
   SampleEvent,
@@ -135,21 +135,16 @@ const slotFor = (
 
 /** The opened log's settled summaries report the sample completed (finalize
  *  input) — no pending merge, mirroring what the log file itself records. */
-const hasCompletedLogSummary = async (
+const hasCompletedLogSummary = (
   logDir: string,
   handle: SampleHandle
-): Promise<boolean> => {
-  const summaries = await readSettledSummaries(
+): Promise<boolean> =>
+  hasCompletedSettledSummary(
     logDir,
-    resolveLogKey(logDir, handle.logFile)
+    resolveLogKey(logDir, handle.logFile),
+    handle.id,
+    handle.epoch
   );
-  return summaries.some(
-    (summary) =>
-      sampleIdsEqual(summary.id, handle.id) &&
-      summary.epoch === handle.epoch &&
-      summary.completed !== false
-  );
-};
 
 const findLiveSummary = async (
   logDir: string,

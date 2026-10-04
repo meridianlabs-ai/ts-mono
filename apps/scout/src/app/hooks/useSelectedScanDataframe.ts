@@ -3,9 +3,9 @@ import { ColumnTable } from "arquero";
 
 import { AsyncData } from "@tsmono/util";
 
+import { useScanRoute } from "../../router/useScanRoute";
 import { useScanDataframe } from "../server/useScanDataframe";
 
-import { useScanRoute } from "./useScanRoute";
 import { useSelectedScanner } from "./useSelectedScanner";
 
 export const useSelectedScanDataframe = (): AsyncData<ColumnTable> => {

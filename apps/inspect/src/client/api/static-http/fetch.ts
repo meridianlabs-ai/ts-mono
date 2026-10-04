@@ -1,7 +1,7 @@
-import { asyncJsonParse, encodePathParts } from "@tsmono/util";
+import { asyncJsonParse, encodePathParts, logFetchInit } from "@tsmono/util";
 
-import { normalizeEvalLog } from "../../utils/normalize";
-import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
+import { normalizeEvalLog, normalizeLogListing } from "../../utils/normalize";
+import { LogContents, LogFilesFetchResponse } from "../types";
 
 /**
  * Fetches a file from the specified URL as a string
@@ -11,7 +11,10 @@ export async function fetchTextFile(
   handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const response = await fetch(`${safe_url}`, {
+    ...logFetchInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return text;
@@ -36,7 +39,10 @@ export async function fetchFile<T>(
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const response = await fetch(`${safe_url}`, {
+    ...logFetchInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return await parse(text);
@@ -70,14 +76,16 @@ export const fetchLogFile = async (
 };
 
 /**
- * Fetches a log file and parses its content, updating the log structure if necessary.
+ * Fetches a log dir's `listing.json` manifest. The listing is written by
+ * whichever inspect_ai bundled the logs, so it is normalized at this boundary
+ * (#555) like the `.eval` files are.
  */
 export const fetchManifest = async (
   log_dir: string
 ): Promise<LogFilesFetchResponse | undefined> => {
   const parseListing = async (text: string): Promise<LogFilesFetchResponse> => {
-    const parsed = await asyncJsonParse<Record<string, LogPreview>>(text);
-    return { raw: text, parsed };
+    const listing = await asyncJsonParse<unknown>(text);
+    return { raw: text, parsed: normalizeLogListing(listing) };
   };
   return await fetchFile<LogFilesFetchResponse>(
     log_dir + "/listing.json",

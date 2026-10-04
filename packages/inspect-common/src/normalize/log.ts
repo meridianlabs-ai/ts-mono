@@ -1,6 +1,13 @@
 import { isRecord } from "@tsmono/util";
 
-import type { ConfigUpdate, EvalPlan, EvalResults, EvalSpec } from "../types";
+import type {
+  ConfigUpdate,
+  EvalMetric,
+  EvalPlan,
+  EvalResults,
+  EvalScore,
+  EvalSpec,
+} from "../types";
 
 /**
  * Normalize a raw EvalSpec: apply the same legacy migrations as pydantic's
@@ -58,6 +65,58 @@ export const normalizeEvalPlan = (raw: unknown): EvalPlan => {
   return plan as unknown as EvalPlan;
 };
 
+const isEvalMetric = (value: unknown): value is EvalMetric =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["value"] === "number" &&
+  isRecord(value["params"]);
+
+// Metrics are keyed by name in the map, so a missing name fills from the key;
+// `params` postdates `options` (the 2024 shape) and defaults to {} upstream.
+const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
+  if (!isRecord(raw)) {
+    return {};
+  }
+  const metrics: Record<string, EvalMetric> = {};
+  for (const [name, entry] of Object.entries(raw)) {
+    if (!isRecord(entry)) continue;
+    const filled = {
+      ...entry,
+      name: typeof entry["name"] === "string" ? entry["name"] : name,
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    if (isEvalMetric(filled)) metrics[name] = filled;
+  }
+  return metrics;
+};
+
+/**
+ * Normalize raw per-scorer results. Entries without a name drop (pydantic
+ * has no default); `scorer` predates multi-scorer logs and backfills from
+ * the name, as the v1 migration does; `metrics`/`params` default to {}.
+ */
+const normalizeEvalScores = (raw: unknown): EvalScore[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const entries = raw as unknown[];
+  const scores: EvalScore[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue;
+    const name = entry["name"];
+    if (typeof name !== "string") continue;
+    const filled: EvalScore = {
+      ...entry,
+      name,
+      scorer: typeof entry["scorer"] === "string" ? entry["scorer"] : name,
+      metrics: normalizeEvalMetrics(entry["metrics"]),
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    scores.push(filled);
+  }
+  return scores;
+};
+
 /**
  * Normalize raw EvalResults. Returns null for absent results (in-progress
  * logs legitimately have none).
@@ -71,7 +130,7 @@ export const normalizeEvalResults = (raw: unknown): EvalResults | null => {
     results["total_samples"] = 0;
   if (typeof results["completed_samples"] !== "number")
     results["completed_samples"] = 0;
-  if (!Array.isArray(results["scores"])) results["scores"] = [];
+  results["scores"] = normalizeEvalScores(results["scores"]);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return results as unknown as EvalResults;
 };

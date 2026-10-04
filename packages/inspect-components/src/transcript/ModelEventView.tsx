@@ -11,6 +11,7 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
+import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -66,12 +67,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const totalUsage = event.output.usage?.total_tokens;
   const callTime = event.output.time;
 
-  // Note: despite the type system saying otherwise, this has appeared empirically
-  // to sometimes be undefined
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-  const outputMessages = event.output?.choices?.map((choice) => {
-    return choice.message;
-  });
+  const outputMessages = event.output.choices.map((choice) => choice.message);
 
   const entries: Record<string, unknown> = { ...event.config };
   delete entries["max_connections"];
@@ -111,10 +107,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     // "no visible content".
     const outputs =
       event.pending || isCancelled
-        ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-          (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
-        : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-          outputMessages || [];
+        ? outputMessages.filter((m) => !isLivePlaceholderMessage(m))
+        : outputMessages;
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
@@ -267,8 +261,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       <div data-name="Messages" className={styles.container}>
         <ChatView
           id={`${eventNode.id}-model-input-full`}
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-          messages={[...event.input, ...(outputMessages || [])]}
+          messages={[...event.input, ...outputMessages]}
           tools={{
             collapseToolMessages: context?.hasToolEvents !== false,
           }}
@@ -309,13 +302,14 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-    return JSON.stringify(call.request, undefined, 2) ?? "";
+    return JSON.stringify(call.request, undefined, 2);
   }, [call.request]);
 
   const responseCode = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-    return JSON.stringify(call.response, undefined, 2) ?? "";
+    // JSON.stringify(undefined) is undefined despite the lib typing it string.
+    return call.response === undefined
+      ? ""
+      : JSON.stringify(call.response, undefined, 2);
   }, [call.response]);
 
   return (
@@ -346,12 +340,11 @@ export const APICodeCell: FC<APICodeCellProps> = ({ id, sourceCode }) => {
   return (
     <div ref={sourceCodeRef} className={clsx("model-call")}>
       <pre className={clsx(styles.codePre)}>
-        <code
+        <ContentCode
           id={id}
           className={clsx("language-json", styles.code, "text-size-small")}
-        >
-          {sourceCode}
-        </code>
+          text={sourceCode}
+        />
       </pre>
     </div>
   );

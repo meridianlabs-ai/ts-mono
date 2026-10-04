@@ -16,6 +16,7 @@ import type {
   ChatMessageTool,
   ChatMessageUser,
   CompactionEvent,
+  ConnectionLimitChange,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -35,6 +36,7 @@ import type {
   ModelEvent,
   ModelOutput,
   ModelUsage,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -390,6 +392,19 @@ export const testApprovalEvent = (
   ...overrides,
 });
 
+export const testReviewEvent = (
+  overrides: Partial<ReviewEvent> = {}
+): ReviewEvent => ({
+  event: "review",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  reviewer: "test-reviewer",
+  call: testToolCall(),
+  decision: "continue",
+  message: "",
+  ...overrides,
+});
+
 export const testSandboxEvent = (
   overrides: Partial<SandboxEvent> = {}
 ): SandboxEvent => ({
@@ -501,6 +516,17 @@ export const testEvalPlan = (overrides: Partial<EvalPlan> = {}): EvalPlan => ({
   name: "plan",
   steps: [],
   config: {},
+  ...overrides,
+});
+
+export const testConnectionLimitChange = (
+  overrides?: Partial<ConnectionLimitChange>
+): ConnectionLimitChange => ({
+  model: "test/model",
+  timestamp: Date.parse(TEST_TIMESTAMP) / 1000,
+  old_limit: 1,
+  new_limit: 2,
+  reason: "rate_limit",
   ...overrides,
 });
 

@@ -24,6 +24,7 @@ export const kWorkspaceTabs = [
 export const kSampleMessagesTabId = `messages`;
 export const kSampleTranscriptTabId = `transcript`;
 export const kSampleScoringTabId = `scoring`;
+export const kSampleActivityTabId = `activity`;
 export const kSampleMetdataTabId = `metadata`;
 export const kSampleUsageTabId = `usage`;
 export const kSampleErrorTabId = `error`;
@@ -38,6 +39,7 @@ export const kSampleTabIds = [
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
   kSampleScoringTabId,
+  kSampleActivityTabId,
   kSampleUsageTabId,
   kSampleMetdataTabId,
   kSampleErrorTabId,

@@ -4,9 +4,9 @@
 // consumers need to re-render on that change (see e.g. the navigation hooks).
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
-import { isUri, join, prettyDirUri } from "@tsmono/util";
+import { prettyDirUri } from "@tsmono/util";
 
-import { getAppConfig } from "../app_config";
+import { getAppConfig, resolveRouteLogFile } from "../app_config";
 import { imperativeLogData } from "../log_data";
 
 import { storeImplementation, StoreState } from "./store";
@@ -21,9 +21,7 @@ const state = (): StoreState => {
 /** Select a log file, absolutizing a relative name against the resolved log
  *  dir (the slice stores only the absolute path). */
 export const selectLogFile = (logFile: string) => {
-  state().logsActions.setSelectedLogFile(
-    isUri(logFile) ? logFile : join(logFile, getAppConfig().logDir)
-  );
+  state().logsActions.setSelectedLogFile(resolveRouteLogFile(logFile));
 };
 
 /** Select a sample, absolutizing a route-relative log name against the
@@ -37,7 +35,7 @@ export const selectSample = (
   state().logActions.selectSample(
     sampleId,
     epoch,
-    isUri(logFile) ? logFile : join(logFile, getAppConfig().logDir)
+    resolveRouteLogFile(logFile)
   );
 };
 

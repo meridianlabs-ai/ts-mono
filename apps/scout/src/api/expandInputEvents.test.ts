@@ -61,6 +61,22 @@ describe("expandInputEvents", () => {
     });
   });
 
+  it("fills messages/timelines/metadata a legacy transcript omits", () => {
+    const result = expandInputEvents(
+      { transcript_id: "t1", events: [legacyStepEvent] },
+      "transcript",
+      null
+    );
+
+    expect(result).toEqual({
+      transcript_id: "t1",
+      events: [{ ...legacyStepEvent, working_start: 0, timestamp: "" }],
+      messages: [],
+      timelines: [],
+      metadata: {},
+    });
+  });
+
   it("normalizes bare event-list inputs when input_data is absent", () => {
     const result = expandInputEvents([legacyModelEvent], "events", null);
 

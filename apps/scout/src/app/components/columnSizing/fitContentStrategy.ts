@@ -4,9 +4,7 @@
 
 import { ColumnSizingState } from "@tanstack/react-table";
 
-import { isRecord } from "@tsmono/util";
-
-import { valueAsString } from "../../utils/format";
+import { isRecord, valueAsString } from "@tsmono/util";
 
 import {
   clampSize,
@@ -28,7 +26,7 @@ function measureTextWidth(
   span.style.cssText = `white-space: nowrap; font: ${font}; visibility: hidden; position: absolute;`;
   span.textContent = text;
   measureContainer.appendChild(span);
-  const width = span.offsetWidth;
+  const width = Math.ceil(span.getBoundingClientRect().width);
   measureContainer.removeChild(span);
   return width;
 }
@@ -37,7 +35,9 @@ function measureTextWidth(
  * Measure the extra width needed for header elements.
  */
 function measureHeaderExtraWidth(tableElement: HTMLTableElement): number {
-  const headerCell = tableElement.querySelector("th");
+  const headerCell = tableElement.querySelector(
+    "th[data-column-id], th:not(:empty)"
+  );
   if (!headerCell) return 40;
 
   const headerStyle = getComputedStyle(headerCell);
@@ -45,10 +45,14 @@ function measureHeaderExtraWidth(tableElement: HTMLTableElement): number {
   const paddingRight = parseFloat(headerStyle.paddingRight) || 0;
   const gap = parseFloat(headerStyle.gap) || 0;
 
-  const filterButton = headerCell.querySelector("button");
+  const filterButton = headerCell.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Filter "]'
+  );
   const filterButtonWidth = filterButton ? filterButton.offsetWidth : 0;
 
-  const sortIcon = headerCell.querySelector("i");
+  const sortIcon = headerCell.querySelector<HTMLElement>(
+    "button:not([aria-label]) i"
+  );
   const sortIconWidth = sortIcon
     ? sortIcon.offsetWidth + 4
     : parseFloat(headerStyle.fontSize) || 12;
@@ -98,7 +102,9 @@ export const fitContentStrategy: SizingStrategy = {
     document.body.appendChild(measureContainer);
 
     try {
-      const headerElement = tableElement.querySelector("th");
+      const headerElement = tableElement.querySelector(
+        "th[data-column-id], th:not(:empty)"
+      );
       const cellElement = tableElement.querySelector("td");
 
       const headerStyle = headerElement
@@ -121,7 +127,8 @@ export const fitContentStrategy: SizingStrategy = {
         const accessorKey = columnAccessorKey(column);
         if (!id || !accessorKey) continue;
 
-        const headerText = String(column.header || "");
+        const headerText =
+          typeof column.header === "string" ? column.header : id;
         const headerTextWidth = measureTextWidth(
           headerText,
           headerFont,

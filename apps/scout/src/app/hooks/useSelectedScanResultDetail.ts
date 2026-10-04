@@ -3,9 +3,9 @@ import { skipToken } from "@tanstack/react-query";
 import { AsyncData } from "@tsmono/util";
 
 import { ScanResultDetail } from "../../api/api";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useScanDataframeDetail } from "../server/useScanDataframeDetail";
 
-import { useScanRoute } from "./useScanRoute";
 import { useSelectedScanner } from "./useSelectedScanner";
 
 export const useSelectedScanResultDetail = (

@@ -17,6 +17,7 @@ export type ScaledVirtualizerOptions = {
   estimateSize: () => number;
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
+  useFlushSync?: boolean;
   scrollPaddingStart?: number;
   /** Offset (px) of the list within its scroll element, for embedded lists
    *  with content above them in a shared scroller. Item coordinates include
@@ -97,6 +98,7 @@ export function useScaledVirtualizer(
     estimateSize: opts.estimateSize,
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
+    useFlushSync: opts.useFlushSync,
     scrollPaddingStart: opts.scrollPaddingStart ?? 0,
     scrollMargin: opts.scrollMargin ?? 0,
     observeElementOffset: scaledObserveElementOffset,

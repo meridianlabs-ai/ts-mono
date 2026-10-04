@@ -35,6 +35,12 @@ const approvalDecisionLabels: Record<string, string> = {
   modify: "Modified",
 };
 
+const reviewDecisionLabels: Record<string, string> = {
+  continue: "Reviewed",
+  terminate: "Terminated",
+  escalate: "Escalated",
+};
+
 /**
  * Returns the base title string for any event type.
  * Used by both event rendering components and search text extraction.
@@ -97,6 +103,8 @@ export const eventTitle = (event: EventType): string => {
       return "Input";
     case "approval":
       return approvalDecisionLabels[event.decision] ?? event.decision;
+    case "review":
+      return reviewDecisionLabels[event.decision] ?? event.decision;
     case "sandbox":
       return `Sandbox: ${event.action}`;
     default:

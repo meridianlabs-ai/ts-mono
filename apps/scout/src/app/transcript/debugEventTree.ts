@@ -92,6 +92,9 @@ function label(ev: Event): string {
     case "approval":
       return `approval ${ev.decision} approver=${ev.approver}`;
 
+    case "review":
+      return `review ${ev.decision} reviewer=${ev.reviewer}`;
+
     case "compaction":
       return `compaction${ev.source ? ` source=${ev.source}` : ""}`;
 

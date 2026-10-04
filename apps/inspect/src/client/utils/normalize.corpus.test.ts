@@ -20,6 +20,7 @@ import {
 } from "@tsmono/inspect-common/normalize";
 import { isRecord } from "@tsmono/util";
 
+import { installNodeBlobWorker } from "../../test/nodeBlobWorker";
 import { openZipFileFromBuffer } from "../remote/remoteZipFile";
 
 import { normalizeEvalHeader, normalizeLogStart } from "./normalize";
@@ -171,3 +172,5 @@ describe("normalization over the real .eval fixture corpus", () => {
     }
   });
 });
+
+installNodeBlobWorker();

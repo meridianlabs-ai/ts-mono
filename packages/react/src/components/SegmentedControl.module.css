@@ -13,7 +13,8 @@
   color: var(--bs-emphasis-color);
 }
 
-button.segment {
+/* Segments with an href render as <a>; they share the button styling. */
+:is(button, a).segment {
   margin: 1px;
   background-color: var(--bs-body-bg);
   border-radius: var(--bs-border-radius);
@@ -25,16 +26,25 @@ button.segment {
   height: calc(100% - 2px);
 }
 
+a.segment {
+  /* Centre the label vertically like a <button> does, and match its focus
+     ring. */
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  outline-offset: 0;
+}
+
 .segment i {
   margin-right: 0.2em;
 }
 
-button.segment.compact {
+:is(button, a).segment.compact {
   padding-inline-start: 4px;
   padding-inline-end: 4px;
 }
 
-button.segment.compact i {
+:is(button, a).segment.compact i {
   margin-right: 0;
 }
 

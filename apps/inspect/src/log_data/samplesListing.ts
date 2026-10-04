@@ -4,6 +4,7 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
+import { sampleIdsEqual } from "../app/shared/sample";
 import {
   Log,
   LogHeader,
@@ -180,6 +181,27 @@ export const readSettledSummaries = async (
   return cached?.map((row) => row.summary) ?? [];
 };
 
+/** Whether one settled sample is complete, without materializing its file's
+ *  full summary list when IndexedDB is available. */
+export const hasCompletedSettledSummary = async (
+  logDir: string,
+  logFile: string,
+  id: string | number,
+  epoch: number
+): Promise<boolean> => {
+  const db = getDatabaseService();
+  if (db.opened()) {
+    return db.hasCompletedSampleSummary(logFile, id, epoch);
+  }
+  const summaries = await readSettledSummaries(logDir, logFile);
+  return summaries.some(
+    (summary) =>
+      sampleIdsEqual(summary.id, id) &&
+      summary.epoch === epoch &&
+      summary.completed !== false
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Sink integration (called by the logsContent seam at ingestion time).
 // ---------------------------------------------------------------------------
@@ -199,7 +221,7 @@ export const pushFileSamples = async (
   rows: SamplesListingRow[]
 ): Promise<void> => {
   const key = samplesListingKey({ logDir, scope: { file: logFile } });
-  if (!queryClient.getQueryCache().find({ queryKey: key })) {
+  if (!queryClient.getQueryState(key)) {
     return;
   }
   // A mount-time fetch still in flight would commit over this push (it read

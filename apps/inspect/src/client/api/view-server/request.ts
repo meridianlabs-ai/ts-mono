@@ -1,17 +1,9 @@
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { ApiError, asyncJsonParse, isRecord } from "@tsmono/util";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 export const VIEW_REQUEST_HEADER = "X-Inspect-View-Request";
 export const VIEW_REQUEST_HEADER_VALUE = "true";
-
-export class ApiError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
 
 /**
  * Unwrap a FastAPI `HTTPException` body — wire-encoded as

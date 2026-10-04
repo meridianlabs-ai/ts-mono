@@ -40,9 +40,13 @@ dir change rebuilds the config — new instance, new dir, published together —
 rather than mutating either in place.
 
 **Surface** — `app_config/useAppConfig.ts` (`useAppConfig`, `AppConfigGate`,
-`useApi` passthrough), `app_config/useLogDir.ts` (logDir accessors over the
-config cache entry; the one post-resolution mutation is embedded VS Code
-live-nav via `setLogRoot`), and the sanctioned non-React escape hatches on
+`useApi` passthrough), `app_config/LogLocationGate.tsx` (mounted above the
+config gate: holds resolution while a link-named location on another origin
+awaits the user's approval, #615), `resolveRouteLogFile` (route names are
+untrusted input; browser-direct backends keep them inside the resolved dir),
+`app_config/useLogDir.ts` (logDir accessors over the config cache entry; the
+one post-resolution mutation is embedded VS Code live-nav via `setLogRoot`),
+and the sanctioned non-React escape hatches on
 `app_config/appConfig.ts` (`getAppConfig` asserting, `peekAppConfig` non-asserting).
 Priority order for reading config: `useAppConfig` (or a passthrough like
 `useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig` /
@@ -55,6 +59,7 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 | Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; parsed exactly once by `resolveBootstrap()`, never consulted after config resolution.                                                                                                                         | `app_config/urlLogSource.ts`               |
 | Backend selection     | Choosing the view-server / static-http / vscode backend from the invocation. Pure function, invoked once during bootstrap; yields a `BackendBootstrap` — dir discovery (`resolveLogRoot` / `resolveConfiguredDir`) plus per-dir construction (`createApi(logDir)`) — because no api can exist before the dir is known. | `app_config/resolveBackend.ts`             |
 | Single-file detection | Whether the invocation names a single log file. Exposed downstream only as the `singleFileMode` flag on resolved config.                                                                                                                                                                                               | `app_config/singleFileMode.ts`             |
+| Log location trust    | Who may _set_ the log location (embedded config, the VS Code host) versus merely _propose_ one (`?log_dir=` / `?log_file=`, hash routes). A proposal on another origin that the browser would fetch directly is surfaced on the bootstrap for `LogLocationGate`; same-origin proposals are the page's own scope.       | `app_config/logLocationTrust.ts`           |
 | Bootstrap config      | The sync-knowable prefix of the config: `backend`, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path has something honest to read — its only consumer outside resolution is the composition root (`main.tsx`), which is exempt (see below).                                                      | `app_config/appConfig.ts` (`getBootstrap`) |
 
 ### Log-data acquisition

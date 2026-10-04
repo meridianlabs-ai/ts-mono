@@ -46,7 +46,6 @@ const scoreGridFeatures = tableFeatures({
 
 type ScoreGridFeatures = typeof scoreGridFeatures;
 
-const kScorerColWidth = 180;
 const kMetricColWidth = 120;
 const kScorerColWidthCompact = 110;
 const kMetricColWidthCompact = 64;
@@ -90,14 +89,16 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
   showReducer,
   compact,
 }) => {
-  const scorerColWidth = compact ? kScorerColWidthCompact : kScorerColWidth;
+  // The full view's scorer column is content-sized (its minimum lives in
+  // CSS): a fixed <col> width also caps an auto-layout column's width.
+  const scorerColWidth = compact ? kScorerColWidthCompact : undefined;
   const metricColWidth = compact ? kMetricColWidthCompact : kMetricColWidth;
   // Compact card isn't sortable: it's a truncated view — sorting a partial
   // set misleads.
   const sortable = !compact;
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const { rows, columns, naturalWidth } = useMemo(() => {
+  const { rows, columns, compactWidth } = useMemo(() => {
     // All scorers in a scoreGroup share the same metric signature, so the
     // first scorer's metrics define the column set and metrics align by
     // index across scorers (dict-keys may differ, e.g. simple-list vs
@@ -175,9 +176,10 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
     return {
       rows,
       columns,
-      naturalWidth: scorerColWidth + metrics.length * metricColWidth,
+      compactWidth:
+        kScorerColWidthCompact + metrics.length * kMetricColWidthCompact,
     };
-  }, [scoreGroup, showReducer, sortable, scorerColWidth, metricColWidth]);
+  }, [scoreGroup, showReducer, sortable]);
 
   const table = useTable({
     features: scoreGridFeatures,
@@ -196,7 +198,7 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
     <div className={styles.groupGrid}>
       <table
         className={clsx(styles.table, compact && styles.compact)}
-        style={{ width: naturalWidth }}
+        style={compact ? { width: compactWidth } : undefined}
       >
         <colgroup>
           {leafColumns.map((col) => (
@@ -217,6 +219,7 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
                     key={header.id}
                     header={header}
                     isLast={header.column.id === lastLeafId}
+                    compact={compact}
                   />
                 ))}
               </tr>
@@ -231,6 +234,9 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
                       key={header.id}
                       colSpan={header.colSpan}
                       className={clsx(labeled && styles.groupLabel)}
+                      title={
+                        labeled ? compactTitle(header, compact) : undefined
+                      }
                     >
                       {labeled
                         ? flexRender(
@@ -257,6 +263,11 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
                       : styles.numericCell,
                     cell.column.id === lastLeafId && styles.lastCell
                   )}
+                  title={
+                    compact && cell.column.id === "scorer"
+                      ? cell.row.original.scorer
+                      : undefined
+                  }
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
@@ -269,22 +280,37 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
   );
 };
 
+// The compact card's fixed columns ellipsize long names; the title keeps the
+// full text reachable on hover. The full view never truncates, so it skips it.
+const compactTitle = (
+  header: Header<ScoreGridFeatures, ScoreGridRow, unknown>,
+  compact: boolean | undefined
+): string | undefined => {
+  const label = header.column.columnDef.header;
+  return compact && typeof label === "string" ? label : undefined;
+};
+
 const LeafHeader = ({
   header,
   isLast,
+  compact,
 }: {
   header: Header<ScoreGridFeatures, ScoreGridRow, unknown>;
   isLast: boolean;
+  compact: boolean | undefined;
 }): ReactElement => {
   const sorted = header.column.getIsSorted();
   const canSort = header.column.getCanSort();
   const isScorer = header.column.id === "scorer";
   const label = flexRender(header.column.columnDef.header, header.getContext());
-  const arrow = sorted && (
+  // Sortable headers reserve the arrow's slot even when unsorted: the full
+  // view's columns are content-sized, so an arrow popping in would widen one.
+  const arrow = canSort && (
     <i
       className={clsx(
         sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
-        styles.sortIcon
+        styles.sortIcon,
+        !sorted && styles.sortIconIdle
       )}
       aria-hidden="true"
     />
@@ -300,6 +326,7 @@ const LeafHeader = ({
         sorted ? (sorted === "asc" ? "ascending" : "descending") : undefined
       }
       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+      title={compactTitle(header, compact)}
     >
       {/* Arrow goes on the label's un-anchored side — left for right-aligned
           numeric headers, right for the left-aligned scorer — so the text

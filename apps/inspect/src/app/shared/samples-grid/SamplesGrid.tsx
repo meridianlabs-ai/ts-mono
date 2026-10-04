@@ -63,6 +63,8 @@ interface SamplesGridProps {
    *  collapse on scroll. */
   scrollRef?: RefObject<HTMLDivElement | null>;
   onRowOpen: (row: SampleRow) => void;
+  /** Row link target (see DataGrid's `getRowHref`). */
+  getRowHref?: (row: SampleRow) => string | undefined;
   loading?: boolean;
   /**
    * Controlled column filters. When provided, the grid renders funnel state
@@ -122,6 +124,7 @@ export const SamplesGrid = ({
   onRowSelect,
   scrollRef,
   onRowOpen,
+  getRowHref,
   loading,
   columnFilters,
   onColumnFilterChange,
@@ -247,6 +250,7 @@ export const SamplesGrid = ({
       onSelectedRowChange={onRowSelect}
       scrollRef={scrollRef}
       onRowActivate={onRowOpen}
+      getRowHref={getRowHref}
       rowHeight={rowHeight}
       multiline={multiline}
       loading={loading}

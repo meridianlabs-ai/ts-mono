@@ -10,9 +10,9 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../icons";
+import { GRID_STATE_NAME } from "../../state/dataframeState";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
-import { GRID_STATE_NAME } from "../components/DataframeView";
 import { ResultGroup } from "../types";
 import { resultIdentifierStr, resultLog } from "../utils/results";
 
@@ -59,7 +59,9 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
   );
 
   const gridFilter = useStore(
-    (state) => state.gridStates[GRID_STATE_NAME]?.filter
+    (state) =>
+      Object.keys(state.gridStates[GRID_STATE_NAME]?.columnFilters ?? {})
+        .length > 0
   );
 
   // Use a callback ref to capture the button element and trigger re-renders
@@ -102,14 +104,12 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
 
   // Figure out whether grouping should be shown
   const groupOptions: Array<ResultGroup> = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!visibleScannerResults || visibleScannerResults.length === 0) {
+    if (visibleScannerResults.length === 0) {
       return [];
     }
 
     const hasLabel = visibleScannerResults.some(
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      (summary) => summary.label !== undefined && summary.label !== null
+      (summary) => summary.label !== undefined
     );
 
     const logCount = visibleScannerResults.reduce((logs, summary) => {
@@ -191,7 +191,9 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
     }
 
     if (selectedResultsView === kSegmentDataframe && gridFilter) {
-      tools.push(<ScannerDataframeClearFiltersButton />);
+      tools.push(
+        <ScannerDataframeClearFiltersButton key="scan-dataframe-clear-filters" />
+      );
     }
 
     if (selectedResultsView === kSegmentList && groupOptions.length > 0) {

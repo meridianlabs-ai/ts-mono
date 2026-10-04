@@ -1,15 +1,7 @@
 import { skipToken } from "@tanstack/react-query";
 import { VscodeSplitLayout } from "@vscode-elements/react-elements";
 import { clsx } from "clsx";
-import {
-  FC,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -19,20 +11,20 @@ import {
   TabSet,
   ToolButton,
 } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../icons";
 import {
-  getScannerParam,
   getValidationParam,
   openRouteInNewTab,
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
+import { useScannerParam } from "../../router/useScannerParam";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
 import { useEnsureVisibleScannerResults } from "../hooks/useEnsureVisibleScannerResults";
-import { useScanRoute } from "../hooks/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useSelectedScanResultData } from "../hooks/useSelectedScanResultData";
 import { useSelectedScanResultDetail } from "../hooks/useSelectedScanResultDetail";
@@ -62,6 +54,26 @@ const kTabIdInfo = "Info";
 const kTabIdJson = "JSON";
 const kTabIdTranscript = "transcript";
 const kTabIdMetadata = "Metadata";
+
+const kUrlSelectableTabs = [
+  kTabIdResult,
+  kTabIdInput,
+  kTabIdInfo,
+  kTabIdJson,
+  kTabIdTranscript,
+];
+
+// The tab the URL asks for, if any. Deep-link params (message/event) imply
+// the Result tab and win over an explicit ?tab; an unknown ?tab is ignored.
+const tabFromSearchParams = (
+  searchParams: URLSearchParams
+): string | undefined => {
+  if (searchParams.get("message") || searchParams.get("event")) {
+    return kTabIdResult;
+  }
+  const tab = searchParams.get("tab");
+  return tab && kUrlSelectableTabs.includes(tab) ? tab : undefined;
+};
 
 export const ScannerResultPanel: FC = () => {
   const headerCollapsedRef = useRef(false);
@@ -132,32 +144,20 @@ export const ScannerResultPanel: FC = () => {
   const { loading: scanLoading, data: selectedScan } = useSelectedScan();
   const { displayScansDir, resolvedScansDirSource, setScansDir } =
     useScansDir(true);
-  // Sync URL query param with store state
-  const setSelectedScanner = useStore((state) => state.setSelectedScanner);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const scannerParam = getScannerParam(searchParams);
-    if (scannerParam) {
-      setSelectedScanner(scannerParam);
-    }
-  }, [searchParams, setSelectedScanner]);
+  useScannerParam();
 
-  // Sync displayed result with URL - this ensures both selectedScanResult
-  // (for list highlighting) and displayedScanResult (for route restoration)
-  // stay in sync with what's actually being viewed
+  // The viewed result drives both selectedScanResult (list highlighting)
+  // and displayedScanResult (route restoration).
   const setSelectedScanResult = useStore(
     (state) => state.setSelectedScanResult
   );
   const setDisplayedScanResult = useStore(
     (state) => state.setDisplayedScanResult
   );
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (scanResultUuid) {
-      setSelectedScanResult(scanResultUuid);
-      setDisplayedScanResult(scanResultUuid);
-    }
-  }, [scanResultUuid, setSelectedScanResult, setDisplayedScanResult]);
+  useMirrorToStore(scanResultUuid, (uuid) => {
+    setSelectedScanResult(uuid);
+    setDisplayedScanResult(uuid);
+  });
 
   const appConfig = useAppConfig();
 
@@ -204,31 +204,8 @@ export const ScannerResultPanel: FC = () => {
         : { id: selectedResult.transcriptId, location: resolvedTranscriptsDir }
     );
 
-  // Deep-link params for message/event navigation
-  const messageParam = searchParams.get("message");
-  const eventParam = searchParams.get("event");
-
-  // Resolve the effective tab from URL params. Deep-link params (message/event)
-  // imply the Result tab, overriding an explicit ?tab param. An explicit ?tab
-  // param overrides the store. This single derivation replaces two competing
-  // effects that could fight each other across async URL updates.
-  const validTabs = useMemo(
-    () => [kTabIdResult, kTabIdInput, kTabIdInfo, kTabIdJson, kTabIdTranscript],
-    []
-  );
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // Deep-link params take priority — they imply the Result tab
-    if (messageParam || eventParam) {
-      setSelectedResultTab(kTabIdResult);
-      return;
-    }
-    // Otherwise, sync from explicit ?tab param
-    const tabParam = searchParams.get("tab");
-    if (tabParam && validTabs.includes(tabParam)) {
-      setSelectedResultTab(tabParam);
-    }
-  }, [searchParams, messageParam, eventParam, validTabs, setSelectedResultTab]);
+  // The URL overrides the store's tab whenever it names one.
+  useMirrorToStore(tabFromSearchParams(searchParams), setSelectedResultTab);
 
   const handleTabChange = useCallback(
     (tabId: string) => {

@@ -338,10 +338,14 @@
   background: var(--bs-body-bg);
   cursor: pointer;
   user-select: none;
+  /* Rows with an href render as <a>; keep them looking like plain rows. */
+  color: inherit;
+  text-decoration: none;
 }
 
 .row:hover {
   background: var(--bs-light);
+  color: inherit;
 }
 
 .rowSelected {

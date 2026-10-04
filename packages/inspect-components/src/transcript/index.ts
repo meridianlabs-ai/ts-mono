@@ -151,6 +151,7 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 // Event view components
 export { AnchorEventView } from "./AnchorEventView";
 export { ApprovalEventView } from "./ApprovalEventView";
+export { ReviewEventView } from "./ReviewEventView";
 export { BranchEventView } from "./BranchEventView";
 export {
   BranchPoint,

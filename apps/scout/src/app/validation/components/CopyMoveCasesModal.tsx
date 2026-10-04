@@ -1,4 +1,4 @@
-import { skipToken, useQueryClient } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 import {
   VscodeButton,
   VscodeOption,
@@ -9,14 +9,13 @@ import { FC, useCallback, useMemo, useState } from "react";
 
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
 import { ValidationCase } from "../../../types/api-types";
 import {
   useBulkDeleteValidationCases,
+  useCopyValidationCases,
   useCreateValidationSet,
   useValidationCases,
   useValidationSets,
-  validationQueryKeys,
 } from "../../server/useValidations";
 import { eventValue } from "../../utils/formEvents";
 import {
@@ -70,9 +69,6 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
   onHide,
   onSuccess,
 }) => {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
   // Target selection state
   const [targetUri, setTargetUri] = useState<string | undefined>(undefined);
   // Default to keeping original splits
@@ -104,6 +100,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
   // Mutations
   const createSetMutation = useCreateValidationSet();
+  const copyCasesMutation = useCopyValidationCases();
   const deleteCasesMutation = useBulkDeleteValidationCases(sourceUri);
 
   // Reset state when modal opens/closes
@@ -191,37 +188,33 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     return targetSplit;
   };
 
-  // Copy cases to target
+  // Copy cases to target. Partial success still counts as success so a move
+  // goes on to delete from the source; only total failure aborts.
   const copyCasesToTarget = async (destUri: string): Promise<boolean> => {
-    const results = await Promise.allSettled(
-      selectedCases.map((c) =>
-        api.upsertValidationCase(destUri, getCaseKey(c.id), {
-          id: c.id,
-          target: c.target,
-          labels: c.labels,
-          split: getSplitForCase(c),
-          predicate: c.predicate ?? undefined,
-        })
-      )
-    );
-
-    const succeeded = results.filter((r) => r.status === "fulfilled").length;
-    const failed = results.filter((r) => r.status === "rejected").length;
-
-    if (failed > 0 && succeeded === 0) {
-      setError(`All ${failed} copy operations failed`);
+    try {
+      const { succeeded, failed } = await copyCasesMutation.mutateAsync({
+        destUri,
+        cases: selectedCases.map((c) => ({
+          caseId: getCaseKey(c.id),
+          data: {
+            id: c.id,
+            target: c.target,
+            labels: c.labels,
+            split: getSplitForCase(c),
+            predicate: c.predicate ?? undefined,
+          },
+        })),
+      });
+      if (failed > 0) {
+        setError(
+          `Warning: ${failed} of ${selectedIds.length} cases failed to copy. ${succeeded} succeeded.`
+        );
+      }
+      return true;
+    } catch (err) {
+      setError(errorMessage(err, "Failed to copy cases"));
       return false;
     }
-
-    if (failed > 0) {
-      // Partial success - show warning but continue
-      setError(
-        `Warning: ${failed} of ${selectedIds.length} cases failed to copy. ${succeeded} succeeded.`
-      );
-      // Still return true to proceed with move deletion if applicable
-    }
-
-    return true;
   };
 
   const performSubmit = async () => {
@@ -245,12 +238,6 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     if (!copySuccess) {
       return;
     }
-
-    // Invalidate target set cache to show new cases
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    queryClient.invalidateQueries({
-      queryKey: validationQueryKeys.cases(finalTargetUri),
-    });
 
     // If move mode, delete from source
     if (mode === "move") {

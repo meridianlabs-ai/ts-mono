@@ -4,24 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { testToolEvent } from "@tsmono/inspect-common/testing";
 import type { JsonValue, ToolEvent } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
 import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { ResizeObserverStub } from "@tsmono/react/testing";
+  ComponentNavigationProvider,
+  ContentTrustProvider,
+} from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { ToolEventView } from "./ToolEventView";
 import { EventNode } from "./types";
-
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 
 function makeNode(
   fn: string,
@@ -43,9 +34,11 @@ function makeNode(
 
 const renderView = (fn: string, args: Record<string, JsonValue>) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <ToolEventView eventNode={makeNode(fn, args)} childNodes={[]} />
+        <ContentTrustProvider value="trusted">
+          <ToolEventView eventNode={makeNode(fn, args)} childNodes={[]} />
+        </ContentTrustProvider>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );

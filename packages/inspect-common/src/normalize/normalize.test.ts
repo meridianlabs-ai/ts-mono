@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { expectEvent } from "../testing";
+import {
+  expectEvent,
+  testEvalMetric,
+  testEvalScore,
+  testUserMessage,
+} from "../testing";
 import type { ModelEvent } from "../types";
+import { inputString } from "../utils";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
@@ -13,6 +19,8 @@ import {
   normalizeEvalSpec,
   normalizeEvent,
   normalizeEvents,
+  normalizeTimelines,
+  type WireTimeline,
 } from "./index";
 
 describe("normalizeEvalSample on a real Nov-2024 log", () => {
@@ -65,6 +73,37 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     expect(plan.name).toBe(legacyHeader.plan.name);
   });
 
+  it("drops malformed results.scores entries and fills score defaults", () => {
+    const results = normalizeEvalResults({
+      total_samples: 1,
+      completed_samples: 1,
+      scores: [
+        null,
+        1,
+        { scorer: "nameless" },
+        { name: "legacy" },
+        {
+          name: "match",
+          scorer: "match",
+          params: {},
+          metrics: {
+            gone: null,
+            text: { name: "text", value: "1" },
+            accuracy: { name: "accuracy", value: 1, params: {} },
+          },
+        },
+      ],
+    })!;
+    expect(results.scores).toEqual([
+      testEvalScore({ name: "legacy", scorer: "legacy" }),
+      testEvalScore({
+        name: "match",
+        scorer: "match",
+        metrics: { accuracy: testEvalMetric({ value: 1 }) },
+      }),
+    ]);
+  });
+
   it("returns null results for in-progress logs", () => {
     expect(normalizeEvalResults(undefined)).toBeNull();
     expect(normalizeEvalResults(null)).toBeNull();
@@ -97,6 +136,16 @@ describe("legacy shape migrations", () => {
       score: { value: "C" },
     });
     expect(sample.scores).toEqual({ scorer: { value: "C" } });
+  });
+
+  it("drops a null legacy score instead of lifting it", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      score: null,
+    });
+    expect(sample.scores).toEqual({});
   });
 
   it("migrates a sandbox tuple to a spec object", () => {
@@ -154,6 +203,45 @@ describe("normalizeEvents", () => {
     expect(event.tools).toEqual([]);
   });
 
+  it("model: fills stop_reason on choices and drops non-record choices", () => {
+    const message = { role: "assistant", content: "hi", source: "generate" };
+    const event = expectEvent(
+      normalizeEvent({
+        event: "model",
+        timestamp: "t",
+        model: "m",
+        output: {
+          model: "m",
+          choices: [{ message }, "bogus", { message, stop_reason: "stop" }],
+          completion: "hi",
+        },
+      }),
+      "model"
+    );
+    expect(event.output.choices).toEqual([
+      { message, stop_reason: "unknown" },
+      { message, stop_reason: "stop" },
+    ]);
+  });
+
+  it("model: keeps output identity when every choice is complete", () => {
+    const output = {
+      model: "m",
+      choices: [
+        {
+          message: { role: "assistant", content: "hi", source: "generate" },
+          stop_reason: "stop",
+        },
+      ],
+      completion: "hi",
+    };
+    const event = expectEvent(
+      normalizeEvent({ event: "model", timestamp: "t", model: "m", output }),
+      "model"
+    );
+    expect(event.output).toBe(output);
+  });
+
   it("fills usage token counts when usage is present but partial", () => {
     const event = expectEvent(
       normalizeEvent({
@@ -187,6 +275,35 @@ describe("normalizeEvents", () => {
       "state"
     );
     expect(event.changes).toEqual([]);
+  });
+
+  it("fills value/replaced on change rows and drops non-record rows", () => {
+    const event = expectEvent(
+      normalizeEvent({
+        event: "store",
+        timestamp: "t",
+        working_start: 0,
+        changes: [{ op: "add", path: "/k" }, "junk"],
+      }),
+      "store"
+    );
+    expect(event.changes).toEqual([
+      { op: "add", path: "/k", value: null, replaced: null },
+    ]);
+  });
+
+  it("keeps the changes array identity when every row is complete", () => {
+    const changes = [{ op: "add", path: "/k", value: 1, replaced: null }];
+    const event = expectEvent(
+      normalizeEvent({
+        event: "state",
+        timestamp: "t",
+        working_start: 0,
+        changes,
+      }),
+      "state"
+    );
+    expect(event.changes).toBe(changes);
   });
 });
 
@@ -279,6 +396,28 @@ describe("normalizeEvalSample input validation", () => {
     ]);
   });
 
+  it("drops malformed input messages so inputString stays unguarded", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [1, null, { role: "user" }, { role: "user", content: "q" }],
+    });
+    expect(sample.input).toEqual([testUserMessage({ content: "q" })]);
+    expect(inputString(sample.input)).toEqual(["q"]);
+  });
+
+  it("drops malformed model_fallbacks elements", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      model_fallbacks: [null, 1, { model: "a", fallback_model: "b" }],
+    });
+    expect(sample.model_fallbacks).toEqual([
+      { model: "a", fallback_model: "b", count: 1 },
+    ]);
+  });
+
   it("normalizes retry-error events recursively", () => {
     const sample = normalizeEvalSample({
       id: 1,
@@ -333,6 +472,38 @@ describe("per-event-type read-time defaults", () => {
     expect(event).toMatchObject({
       score: { value: "", history: [] },
       intermediate: false,
+    });
+  });
+
+  it("score_edit: fills score_name and the UNCHANGED edit sentinels", () => {
+    const event = normalizeEvent({
+      ...base,
+      event: "score_edit",
+      edit: { answer: "b", metadata: null },
+    });
+    expect(event).toMatchObject({
+      score_name: "",
+      edit: { answer: "b", value: "UNCHANGED", metadata: "UNCHANGED" },
+    });
+  });
+
+  it("score_edit: keeps a complete edit's identity", () => {
+    const edit = { value: 1, metadata: { by: "reviewer" } };
+    const event = expectEvent(
+      normalizeEvent({ ...base, event: "score_edit", score_name: "s", edit }),
+      "score_edit"
+    );
+    expect(event.edit).toBe(edit);
+  });
+
+  it("score: fills value and history on a score that omits them", () => {
+    const event = normalizeEvent({
+      ...base,
+      event: "score",
+      score: { answer: "A" },
+    });
+    expect(event).toMatchObject({
+      score: { answer: "A", value: "", history: [] },
     });
   });
 
@@ -484,5 +655,85 @@ describe("normalizeEvalPlan on garbage input", () => {
       steps: [],
       config: {},
     });
+  });
+});
+
+describe("normalizeTimelines", () => {
+  // A span as an early writer serialized it: no type tags, no flags, and the
+  // list fields dropped when empty.
+  const legacyTimeline: WireTimeline = {
+    name: "main",
+    description: "",
+    root: {
+      id: "root",
+      name: "root",
+      content: [
+        { event: "e1" },
+        { id: "child", name: "child", branches: [{ id: "b", name: "b" }] },
+      ],
+    },
+  };
+
+  it("fills type tags, flags, and empty lists recursively", () => {
+    const [timeline] = normalizeTimelines([legacyTimeline]);
+    expect(timeline?.root).toEqual({
+      id: "root",
+      name: "root",
+      type: "span",
+      tool_invoked: false,
+      utility: false,
+      branches: [],
+      content: [
+        { event: "e1", type: "event" },
+        {
+          id: "child",
+          name: "child",
+          type: "span",
+          tool_invoked: false,
+          utility: false,
+          content: [],
+          branches: [
+            {
+              id: "b",
+              name: "b",
+              type: "span",
+              tool_invoked: false,
+              utility: false,
+              branches: [],
+              content: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("preserves a current-format timeline", () => {
+    const current: WireTimeline = {
+      name: "main",
+      description: "d",
+      root: {
+        id: "root",
+        name: "root",
+        type: "span",
+        tool_invoked: true,
+        utility: false,
+        span_type: "agent",
+        branches: [],
+        content: [{ event: "e1", type: "event" }],
+      },
+    };
+    expect(normalizeTimelines([current])).toEqual([current]);
+  });
+
+  it("normalizeEvalSample normalizes timelines when present and drops junk", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      timelines: [legacyTimeline, "junk", { name: "no-root" }],
+    });
+    expect(sample.timelines).toHaveLength(1);
+    expect(sample.timelines?.[0]?.root.tool_invoked).toBe(false);
+    expect(normalizeEvalSample({ id: 1, epoch: 1 }).timelines).toBeUndefined();
   });
 });

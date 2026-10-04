@@ -136,8 +136,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-  const scanners = status.summary.scanners || {};
+  const scanners = status.summary.scanners;
   for (const scanner of Object.keys(scanners)) {
     // The summary
     const summary = scanners[scanner];
@@ -147,9 +146,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-      const params = scanInfo.params || {};
-      for (const [key, value] of Object.entries(params)) {
+      for (const [key, value] of Object.entries(scanInfo.params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
       }
     }
@@ -198,20 +195,16 @@ const resolveValidations = (
   const result: Record<string, number> = {};
 
   // Add metrics in display order: accuracy, precision, recall, f1
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-  if (m.accuracy !== null && m.accuracy !== undefined) {
+  if (m.accuracy !== null) {
     result["accuracy"] = m.accuracy;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-  if (m.precision !== null && m.precision !== undefined) {
+  if (m.precision !== null) {
     result["precision"] = m.precision;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-  if (m.recall !== null && m.recall !== undefined) {
+  if (m.recall !== null) {
     result["recall"] = m.recall;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
-  if (m.f1 !== null && m.f1 !== undefined) {
+  if (m.f1 !== null) {
     result["f1"] = m.f1;
   }
 

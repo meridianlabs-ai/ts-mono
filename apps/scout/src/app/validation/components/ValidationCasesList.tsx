@@ -6,7 +6,7 @@ import { Modal } from "@tsmono/react/components";
 import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
-import { useTranscriptsByIds } from "../hooks/useTranscriptsByIds";
+import { useTranscriptsByIds } from "../../server/useTranscriptsByIds";
 import { extractUniqueSplits, getCaseKey, getIdText } from "../utils";
 
 import { CopyMoveCasesModal } from "./CopyMoveCasesModal";

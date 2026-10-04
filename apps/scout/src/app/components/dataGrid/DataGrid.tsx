@@ -37,6 +37,7 @@ import {
   getCellTitleValue,
 } from "../columnTypes";
 
+import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import styles from "./DataGrid.module.css";
 import { dataGridFeatures } from "./tableFeatures";
 import type { DataGridProps, DataGridTableState } from "./types";
@@ -210,8 +211,7 @@ export function DataGrid<
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (columnOrder && columnOrder.length > 0) {
+    if (columnOrder.length > 0) {
       return columnOrder;
     }
     // Default to column order from column definitions
@@ -704,19 +704,21 @@ export function DataGrid<
                         onOpenChange={onFilterColumnChange}
                       />
                     ) : null}
-                    {/* Pointer-only drag handle — column widths also reset
-                        from the header menu, so nothing is keyboard-only here. */}
-                    <div
-                      className={clsx(
-                        styles.resizer,
-                        header.column.getIsResizing() && styles.resizerActive
-                      )}
-                      role="presentation"
+                    <ColumnResizeHandle
+                      name={header.column.id}
+                      size={header.getSize()}
+                      minSize={header.column.columnDef.minSize ?? 40}
+                      maxSize={header.column.columnDef.maxSize ?? 600}
+                      resizing={header.column.getIsResizing()}
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
-                      onDoubleClick={() =>
-                        onResetColumnSize?.(header.column.id)
+                      onResize={(size) =>
+                        handleColumnSizingChange((previous) => ({
+                          ...previous,
+                          [header.column.id]: size,
+                        }))
                       }
+                      onReset={() => onResetColumnSize?.(header.column.id)}
                     />
                   </th>
                 );

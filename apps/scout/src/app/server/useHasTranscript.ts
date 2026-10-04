@@ -5,22 +5,11 @@ import { AsyncData } from "@tsmono/util";
 
 import { useApi } from "../../state/store";
 
-type HasTranscriptParams = {
-  location: string;
-  id: string;
-};
+import { hasTranscriptQuery, TranscriptParams } from "./queries";
 
 export const useHasTranscript = (
-  params: HasTranscriptParams | typeof skipToken
+  params: TranscriptParams | typeof skipToken
 ): AsyncData<boolean> => {
   const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey: params === skipToken ? [skipToken] : ["has_transcript", params],
-    queryFn:
-      params === skipToken
-        ? skipToken
-        : () => api.hasTranscript(params.location, params.id),
-    staleTime: Infinity,
-  });
+  return useAsyncDataFromQuery(hasTranscriptQuery(api, params));
 };

@@ -1,6 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { testEvalLog } from "@tsmono/inspect-common/testing";
+import {
+  testEvalLog,
+  testEvalSample,
+  testEvalSpec,
+} from "@tsmono/inspect-common/testing";
 
 import { openRemoteLogFile, RemoteLogFile } from "../remote/remoteLogFile";
 import { DirectFetchError } from "../remote/remotePendingSampleData";
@@ -9,6 +13,7 @@ import { clientApi } from "./client-api";
 import { notImplemented, testLogDetails } from "./testClientApi";
 import {
   EditLogResult,
+  LogContents,
   LogDetails,
   LogPreview,
   LogViewAPI,
@@ -62,6 +67,87 @@ const baseApi = (): LogViewAPI => ({
   get_app_config: vi
     .fn()
     .mockResolvedValue({ inspect_version: "test", scout_version: null }),
+});
+
+describe("concurrent JSON log reads", () => {
+  const contents = (task: string): LogContents => {
+    const parsed = testEvalLog({
+      eval: testEvalSpec({ task }),
+      samples: [
+        testEvalSample({
+          id: 1,
+          epoch: 1,
+          messages: [{ role: "assistant", content: task }],
+        }),
+      ],
+    });
+    return { raw: JSON.stringify(parsed), parsed };
+  };
+
+  test.each(["red", "blue"])(
+    "keeps logs isolated when %s finishes first",
+    async (first) => {
+      const red = Promise.withResolvers<LogContents>();
+      const blue = Promise.withResolvers<LogContents>();
+      const fetch = vi.fn((file: string) =>
+        file === "red.json" ? red.promise : blue.promise
+      );
+      const client = clientApi({ ...baseApi(), get_log_contents: fetch });
+      const redDetail = client.get_log_details("red.json");
+      const blueDetail = client.get_log_details("blue.json");
+      const blueSample = client.get_log_sample("blue.json", 1, 1);
+      if (first === "red") {
+        red.resolve(contents("red"));
+        await redDetail;
+        blue.resolve(contents("blue"));
+      } else {
+        blue.resolve(contents("blue"));
+        // Flush resolution without waiting on a possibly misrouted client read.
+        await blue.promise;
+        red.resolve(contents("red"));
+      }
+      const [a, b, sample] = await Promise.all([
+        redDetail,
+        blueDetail,
+        blueSample,
+      ]);
+      expect(a.eval.task).toBe("red");
+      expect(b.eval.task).toBe("blue");
+      expect(sample?.messages[0]?.content).toBe("blue");
+      expect(fetch.mock.calls.map(([file]) => file)).toEqual([
+        "red.json",
+        "blue.json",
+      ]);
+    }
+  );
+
+  test("a failing log does not fail another log and can be retried", async () => {
+    const red = Promise.withResolvers<LogContents>();
+    const blue = Promise.withResolvers<LogContents>();
+    let attempts = 0;
+    const client = clientApi({
+      ...baseApi(),
+      get_log_contents: (file) => {
+        if (file === "blue.json") return blue.promise;
+        return ++attempts === 1
+          ? red.promise
+          : Promise.resolve(contents("red"));
+      },
+    });
+    const reads = Promise.allSettled([
+      client.get_log_details("red.json"),
+      client.get_log_details("blue.json"),
+    ]);
+    red.reject(new Error("red failed"));
+    blue.resolve(contents("blue"));
+    const results = await reads;
+    expect(results[0].status).toBe("rejected");
+    expect(results[1]).toMatchObject({
+      status: "fulfilled",
+      value: { eval: { task: "blue" } },
+    });
+    expect((await client.get_log_details("red.json")).eval.task).toBe("red");
+  });
 });
 
 describe("clientApi.get_log_sample_data path selection", () => {

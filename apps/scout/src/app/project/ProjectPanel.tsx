@@ -10,7 +10,9 @@ import { Modal } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
+import { useApi } from "../../state/store";
 import { AppConfig, ProjectConfigInput } from "../../types/api-types";
+import { projectConfigQuery } from "../server/queries";
 import { appAliasedPath } from "../server/useAppConfig";
 import {
   ProjectConfigWithEtag,
@@ -102,6 +104,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   }, []);
 
   const queryClient = useQueryClient();
+  const api = useApi();
   const { loading, error, data } = useProjectConfig();
   const mutation = useUpdateProjectConfig();
 
@@ -286,8 +289,9 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setOriginalConfig(null);
     // Reset expected etag so the init effect will re-initialize from server
     lastSavedEtagRef.current = null;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    queryClient.invalidateQueries({ queryKey: ["project-config-inv"] });
+    queryClient
+      .invalidateQueries({ queryKey: projectConfigQuery(api).queryKey })
+      .catch(console.error);
   };
 
   return (

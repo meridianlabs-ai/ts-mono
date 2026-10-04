@@ -1,4 +1,3 @@
-import { GridApi } from "ag-grid-community";
 import {
   createContext,
   FC,
@@ -8,9 +7,17 @@ import {
   useState,
 } from "react";
 
+export interface DataframeGridApi {
+  getDataAsCsv: (options: { columnKeys: string[] }) => string;
+  exportDataAsCsv: (options: {
+    fileName: string;
+    columnKeys: string[];
+  }) => void;
+}
+
 interface DataframeGridApiContextValue {
-  gridApi: GridApi | null;
-  setGridApi: (api: GridApi | null) => void;
+  gridApi: DataframeGridApi | null;
+  setGridApi: (api: DataframeGridApi | null) => void;
 }
 
 const DataframeGridApiContext =
@@ -19,9 +26,9 @@ const DataframeGridApiContext =
 export const DataframeGridApiProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [gridApi, setGridApiState] = useState<GridApi | null>(null);
+  const [gridApi, setGridApiState] = useState<DataframeGridApi | null>(null);
 
-  const setGridApi = useCallback((api: GridApi | null) => {
+  const setGridApi = useCallback((api: DataframeGridApi | null) => {
     setGridApiState(api);
   }, []);
 
@@ -32,7 +39,7 @@ export const DataframeGridApiProvider: FC<{ children: ReactNode }> = ({
   );
 };
 
-export const useDataframeGridApi = (): GridApi | null => {
+export const useDataframeGridApi = (): DataframeGridApi | null => {
   const context = useContext(DataframeGridApiContext);
   if (!context) {
     // Return null if not within provider - buttons will be disabled
@@ -41,7 +48,9 @@ export const useDataframeGridApi = (): GridApi | null => {
   return context.gridApi;
 };
 
-export const useSetDataframeGridApi = (): ((api: GridApi | null) => void) => {
+export const useSetDataframeGridApi = (): ((
+  api: DataframeGridApi | null
+) => void) => {
   const context = useContext(DataframeGridApiContext);
   if (!context) {
     // Return no-op if not within provider

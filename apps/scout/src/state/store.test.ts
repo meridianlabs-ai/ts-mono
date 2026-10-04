@@ -1,8 +1,44 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../api/api-scout-server";
+import { createVSCodeStore } from "../api/vscode-storage";
 
+import {
+  emptyDataframeState,
+  GRID_STATE_NAME,
+  type DataframeState,
+} from "./dataframeState";
 import { createStore } from "./store";
+
+const kStorageKey = "inspect-scout-storage";
+
+const createMemoryStorage = () => {
+  const blobs = new Map<string, string>();
+  return {
+    blobs,
+    storage: {
+      getItem: (key: string) => blobs.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        blobs.set(key, value);
+      },
+      removeItem: (key: string) => {
+        blobs.delete(key);
+      },
+    },
+  };
+};
+
+const readPersistedState = (blobs: Map<string, string>) => {
+  const raw = blobs.get(kStorageKey);
+  if (raw === undefined) throw new Error("nothing persisted");
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed) || !isRecord(parsed.state)) {
+    throw new Error("unexpected persisted shape");
+  }
+  return parsed.state;
+};
 
 // Property groups are named by component ids, and transcript panels use the
 // event uuid straight from the log. An id or property name that is an
@@ -121,5 +157,122 @@ describe("store properties prototype safety", () => {
     store.removeAllProperties("constructor");
     expect(store.getPropertyValue("constructor", "a", "gone")).toBe("gone");
     expect(Object.hasOwn(Object.prototype, "a")).toBe(false);
+  });
+});
+
+describe("dataframe state lifetime", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const dataframe: DataframeState = {
+    ...emptyDataframeState,
+    sorting: [{ id: "value", desc: true }],
+    columnOrder: ["value", "transcript_id"],
+    columnSizing: { value: 120 },
+    columnPinning: { start: ["value"], end: [] },
+    columnFilters: {
+      value: {
+        columnId: "value",
+        filterType: "number",
+        spec: { operator: ">", value: "0" },
+      },
+    },
+    scroll: { top: 8500, left: 100 },
+  };
+
+  it("restores current dataframe state when VS Code recreates the webview", () => {
+    let webviewState: unknown;
+    const vscode = {
+      getState: () => webviewState,
+      setState: (state: unknown) => {
+        webviewState = structuredClone(state);
+      },
+      postMessage: () => {},
+    };
+    const api = { ...apiScoutServer(), storage: createVSCodeStore(vscode) };
+    const original = createStore(api);
+    original.getState().setGridState(GRID_STATE_NAME, dataframe);
+    original.getState().setSelectedResultRow(5);
+    vi.runAllTimers();
+
+    const restored = createStore(api);
+    expect(restored.getState().gridStates[GRID_STATE_NAME]).toEqual(dataframe);
+    expect(restored.getState().selectedResultRow).toBe(5);
+    restored.getState().setGridState(GRID_STATE_NAME, (previous) => ({
+      ...previous,
+      sorting: [],
+    }));
+    expect(restored.getState().gridStates[GRID_STATE_NAME]?.sorting).toEqual(
+      []
+    );
+    vi.runAllTimers();
+  });
+
+  it("starts fresh when the normal browser store is recreated", () => {
+    const api = apiScoutServer();
+    const original = createStore(api);
+    original.getState().setGridState(GRID_STATE_NAME, dataframe);
+    original.getState().setSelectedResultRow(5);
+    vi.runAllTimers();
+
+    const recreated = createStore(api);
+    expect(recreated.getState().gridStates[GRID_STATE_NAME]).toBeUndefined();
+    expect(recreated.getState().selectedResultRow).toBeUndefined();
+  });
+});
+
+describe("persisted state", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  // The keys written to storage are the contract with VS Code webview state
+  // (the browser build uses NoPersistence); a slice refactor must not move
+  // them.
+  const kPersistedKeys = [
+    "gridStates",
+    "highlightLabeled",
+    "properties",
+    "scansTableState",
+    "scopedErrors",
+    "searchPanelStates",
+    "transcriptCollapsedEvents",
+    "transcriptState",
+    "transcriptsTableState",
+    "validationCaseSelection",
+    "visibleScannerResultsCount",
+  ];
+
+  it("persists exactly the contracted keys, one action per slice", () => {
+    const { blobs, storage } = createMemoryStorage();
+    const store = createStore({ ...apiScoutServer(), storage });
+    const state = store.getState();
+
+    state.setShowFind(true);
+    state.setHasInitializedRouting(true);
+    state.setSelectedScanLocation("scans/one");
+    state.setVisibleScanJobCount(3);
+    state.setSelectedScanner("scanner-a");
+    state.setVisibleScannerResults([]);
+    state.setPropertyValue("panel", "open", true);
+    state.setTranscriptsDir("transcripts/dir");
+    state.setSelectedTranscriptTab("events");
+    state.setSelectedValidationSetUri("validation://set");
+    vi.runAllTimers();
+
+    const persisted = readPersistedState(blobs);
+    expect(Object.keys(persisted).sort()).toEqual(
+      [
+        ...kPersistedKeys,
+        "selectedScanLocation",
+        "selectedScanner",
+        "selectedTranscriptTab",
+        "selectedValidationSetUri",
+        "showFind",
+        "transcriptsDir",
+        "visibleScanJobCount",
+      ].sort()
+    );
+    expect(persisted.selectedScanner).toBe("scanner-a");
+    expect(persisted.properties).toEqual({ panel: { open: true } });
   });
 });

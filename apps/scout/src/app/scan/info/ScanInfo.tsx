@@ -48,14 +48,8 @@ const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
   if (selectedScan.spec.revision?.commit) {
     record["Commit"] = selectedScan.spec.revision.commit;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (selectedScan.spec.packages) {
-    record["Packages"] = selectedScan.spec.packages;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (selectedScan.spec.options) {
-    record["Options"] = selectedScan.spec.options;
-  }
+  record["Packages"] = selectedScan.spec.packages;
+  record["Options"] = selectedScan.spec.options;
 
   return (
     <InfoCard

@@ -13,10 +13,14 @@ import type {
   ContentToolUse,
   ContentVideo,
 } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import {
+  ContentCode,
+  ExpandablePanel,
+  RequireMedia,
+} from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
-import { isJson, isRecord, isRenderableImageSource } from "@tsmono/util";
+import { isRenderableImageSource, parseJsonRecord } from "@tsmono/util";
 
 import {
   useDisplayMode,
@@ -96,16 +100,13 @@ export const MessageContent: FC<MessageContentProps> = ({
           references
         );
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (content) {
-          return renderContent(
-            `text-${content.type}-${index}`,
-            content,
-            index === normalized.length - 1,
-            displayMode,
-            references
-          );
-        }
+        return renderContent(
+          `text-${content.type}-${index}`,
+          content,
+          index === normalized.length - 1,
+          displayMode,
+          references
+        );
       }
     });
   } else {
@@ -148,9 +149,9 @@ const renderContent = (
         return undefined;
       }
 
-      if (displayMode === "rendered" && isJson(c.text)) {
-        const parsed: unknown = JSON.parse(c.text);
-        if (isRecord(parsed)) {
+      if (displayMode === "rendered") {
+        const parsed = parseJsonRecord(c.text);
+        if (parsed) {
           return <JsonMessageContent id={`${key}-json`} json={parsed} />;
         }
       }
@@ -188,12 +189,9 @@ const renderContent = (
         }
       }
 
-      // Detect OpenRouter-style reasoning (JSON array format)
-      const renderReasoningCode = isOpenRouterReasoning(text);
-
-      const codeFormatted = renderReasoningCode
-        ? JSON.stringify(jsonParse(text), null, 2)
-        : text;
+      const openRouterCode = formatOpenRouterReasoning(text);
+      const renderReasoningCode = openRouterCode !== undefined;
+      const codeFormatted = openRouterCode ?? text;
 
       return (
         <div
@@ -223,12 +221,13 @@ const renderContent = (
       const c = content;
       if (isRenderableImageSource(c.image)) {
         return (
-          <img
-            src={c.image}
-            alt="Message attachment"
-            className={styles.contentImage}
-            key={key}
-          />
+          <RequireMedia kind="image" key={key}>
+            <img
+              src={c.image}
+              alt="Message attachment"
+              className={styles.contentImage}
+            />
+          </RequireMedia>
         );
       } else {
         return <MediaReference source={c.image} key={key} />;
@@ -240,12 +239,14 @@ const renderContent = (
         return <MediaReference source={c.audio} key={key} />;
       }
       return (
-        // Log content carries no caption track and none can be synthesised
-        // here; the audio is model input being replayed, not authored media.
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio controls key={key}>
-          <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
-        </audio>
+        <RequireMedia kind="audio" key={key}>
+          {/* Log content carries no caption track and none can be synthesised
+              here; the audio is model input being replayed, not authored media. */}
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls>
+            <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
+          </audio>
+        </RequireMedia>
       );
     }
     case "video": {
@@ -254,10 +255,12 @@ const renderContent = (
         return <MediaReference source={c.video} key={key} />;
       }
       return (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above
-        <video width="500" height="375" controls key={key}>
-          <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
-        </video>
+        <RequireMedia kind="video" key={key}>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above */}
+          <video width="500" height="375" controls>
+            <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
+          </video>
+        </RequireMedia>
       );
     }
     case "tool": {
@@ -412,17 +415,18 @@ const isCitationWithRange = (
   cited_text: [number, number];
 } => Array.isArray(citation.cited_text);
 
-const isOpenRouterReasoning = (text: string): boolean => {
-  return text.startsWith("[{'format'");
-};
-
-const jsonParse = (text: string): unknown => {
+/** Pretty-prints OpenRouter-style reasoning (a Python-repr JSON array of
+ * `{'format': ..., 'text': ...}`); undefined when the text merely starts like
+ * one but does not parse, so it falls through to the markdown renderer. */
+const formatOpenRouterReasoning = (text: string): string | undefined => {
+  if (!text.startsWith("[{'format'")) {
+    return undefined;
+  }
   try {
-    const result: unknown = JSON.parse(text);
-    return result;
+    const parsed: unknown = JSON5.parse(text);
+    return JSON.stringify(parsed, null, 2);
   } catch {
-    const result: unknown = JSON5.parse(text);
-    return result;
+    return undefined;
   }
 };
 
@@ -438,7 +442,7 @@ const CodePanel: FC<{ code: string; language?: string }> = ({
   return (
     <div ref={codeContainerRef} className={clsx(styles.codePanel)}>
       <pre className={clsx(styles.codePanelPre)}>
-        <code className={clsx(`language-${language}`)}>{code}</code>
+        <ContentCode className={clsx(`language-${language}`)} text={code} />
       </pre>
     </div>
   );

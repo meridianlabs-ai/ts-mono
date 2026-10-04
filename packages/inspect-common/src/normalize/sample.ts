@@ -3,7 +3,13 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
-import { normalizeModelUsageMap } from "./summary";
+import { normalizeSampleScores } from "./scores";
+import {
+  normalizeModelFallbacks,
+  normalizeModelUsageMap,
+  normalizeSampleInput,
+} from "./summary";
+import { isWireTimeline, normalizeTimelines } from "./timeline";
 
 /**
  * Normalize a raw EvalSample of any vintage into the current shape:
@@ -36,9 +42,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  if (typeof sample["input"] !== "string" && !Array.isArray(sample["input"])) {
-    sample["input"] = "";
-  }
+  sample["input"] = normalizeSampleInput(sample["input"]);
   if (
     typeof sample["target"] !== "string" &&
     !Array.isArray(sample["target"])
@@ -47,7 +51,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   }
   if (!Array.isArray(sample["messages"])) sample["messages"] = [];
   sample["output"] = normalizeModelOutput(sample["output"]);
-  if (!isRecord(sample["scores"])) sample["scores"] = null;
+  sample["scores"] = normalizeSampleScores(sample["scores"]);
   for (const field of ["metadata", "store", "attachments"]) {
     if (!isRecord(sample[field])) sample[field] = {};
   }
@@ -56,15 +60,22 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     sample[field] = normalizeModelUsageMap(sample[field]);
   }
   sample["events"] = normalizeEvents(sample["events"]);
+  // Timelines are optional on a sample — absent stays absent — but each span
+  // present carries required-with-default fields the timeline renderers read
+  // unguarded. Entries that aren't timeline-shaped are dropped, as pydantic
+  // would refuse them.
+  const timelines = sample["timelines"];
+  if (Array.isArray(timelines)) {
+    sample["timelines"] = normalizeTimelines(
+      (timelines as unknown[]).filter(isWireTimeline)
+    );
+  }
 
   // `count` on fallbacks and the traceback pair on retry errors default
   // upstream; fill them so their renderers can read them unguarded.
-  if (Array.isArray(sample["model_fallbacks"])) {
-    sample["model_fallbacks"] = sample["model_fallbacks"].map(
-      (fallback: unknown) =>
-        isRecord(fallback) && typeof fallback["count"] !== "number"
-          ? { ...fallback, count: 1 }
-          : fallback
+  if ("model_fallbacks" in sample) {
+    sample["model_fallbacks"] = normalizeModelFallbacks(
+      sample["model_fallbacks"]
     );
   }
   if (Array.isArray(sample["error_retries"])) {

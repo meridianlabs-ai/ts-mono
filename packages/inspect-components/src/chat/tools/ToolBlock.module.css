@@ -6,12 +6,16 @@
   border-left: var(--inspect-tool-block-edge);
 }
 
+/* `clip`, not `hidden`: both round the corners, but `hidden` makes this
+   frame a scroll container, which traps the sticky "less…" toggle of the
+   ExpandablePanels inside at the block's bottom edge — off screen for any
+   output taller than the viewport. */
 .standalone {
   border-top: 1px solid var(--bs-light-border-subtle);
   border-right: 1px solid var(--bs-light-border-subtle);
   border-bottom: 1px solid var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
-  overflow: hidden;
+  overflow: clip;
 }
 
 .header {
@@ -71,6 +75,13 @@
 .inputZone {
   background-color: var(--inspect-tool-block-input-bg);
   padding: 0 0.5rem 0.2rem 0.5rem;
+}
+
+/* Horizontal scrolling for wide input lives on the rendered input itself,
+   inside the ExpandablePanel's content — a scroll container on the zone
+   would sit between the panel and the transcript scroller and trap its
+   sticky toggle (see `.standalone`). */
+.inputZone :global(.tool-call-input) {
   overflow-x: auto;
 }
 

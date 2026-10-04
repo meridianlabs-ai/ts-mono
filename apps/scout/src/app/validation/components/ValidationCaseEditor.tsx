@@ -1,4 +1,4 @@
-import { skipToken, useQueryClient } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 import {
   VscodeDivider,
   VscodeRadio,
@@ -38,7 +38,6 @@ import {
   useValidationCase,
   useValidationCases,
   useValidationSets,
-  validationQueryKeys,
 } from "../../server/useValidations";
 import { eventValue } from "../../utils/formEvents";
 import {
@@ -158,10 +157,11 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
       {!error && (
         <>
           <LoadingBar loading={loading} />
-          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
-          {showPanel && setsData && (
+          {showPanel && (
             <ValidationCaseEditorComponent
-              key={validatedSetUri}
+              // Remount per (set, transcript) so per-case UI state — the
+              // unsaved draft in particular — never carries across cases.
+              key={`${validatedSetUri ?? ""}|${transcriptId}`}
               transcriptId={transcriptId}
               taskId={taskId}
               taskRepeat={taskRepeat}
@@ -199,13 +199,12 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
   taskRepeat,
   validationSets,
   editorValidationSetUri,
-  validationCase: caseData,
+  validationCase: serverCase,
   validationCases,
   className,
   onClose,
 }) => {
   const config = useAppConfig();
-  const queryClient = useQueryClient();
   const setEditorSelectedValidationSetUri = useStore(
     (state) => state.setEditorSelectedValidationSetUri
   );
@@ -226,6 +225,13 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
 
   // Track when "other" mode is selected in the target editor
   const [isOtherModeSelected, setIsOtherModeSelected] = useState(false);
+
+  // Local stand-in while the server has no case for this transcript: the
+  // not-yet-saveable new case (no target, no labels) and the first save
+  // before its refetch lands. Server truth wins whenever it exists, so the
+  // query cache only ever holds what the server has.
+  const [draftCase, setDraftCase] = useState<ValidationCase | null>(null);
+  const caseData = serverCase ?? draftCase;
 
   // Track whether user is editing a target or labels.
   // null = no user override yet, derive from data; non-null = user's explicit choice.
@@ -292,15 +298,11 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       const isNewEmptyCase =
         hasEmptyTarget && updatedCase.labels == null && !hadPreviousTarget;
 
+      if (serverCase == null) {
+        setDraftCase(updatedCase);
+      }
       if (isNewEmptyCase) {
-        // Update cache for UI but don't save to server yet
-        queryClient.setQueryData(
-          validationQueryKeys.case({
-            url: editorValidationSetUri,
-            caseId: transcriptId,
-          }),
-          updatedCase
-        );
+        // Nothing worth persisting yet; the draft alone drives the UI.
         return;
       }
 
@@ -340,7 +342,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       editorValidationSetUri,
       transcriptId,
       caseData,
-      queryClient,
+      serverCase,
       updateValidationCaseMutation,
       taskId,
       taskRepeat,
@@ -427,20 +429,15 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
     deleteCaseMutation
       .mutateAsync(transcriptId)
       .then(() => {
+        // The server layer resets the case query to null; the panel stays
+        // open on the empty case, so drop any local draft too.
         setShowDeleteModal(false);
-        // Reset cache to null after deletion (keeps panel open)
-        queryClient.setQueryData(
-          validationQueryKeys.case({
-            url: editorValidationSetUri,
-            caseId: transcriptId,
-          }),
-          null
-        );
+        setDraftCase(null);
       })
       .catch(() => {
         // Error is handled by mutation state - modal stays open
       });
-  }, [transcriptId, editorValidationSetUri, deleteCaseMutation, queryClient]);
+  }, [transcriptId, editorValidationSetUri, deleteCaseMutation]);
 
   const isEditable =
     caseData?.target === undefined ||
@@ -482,8 +479,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
           <SecondaryDisplayValue label="ID" value={transcriptId} />
           <Field label="Validation Set">
             <ValidationSetSelector
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              validationSets={validationSets || []}
+              validationSets={validationSets}
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}

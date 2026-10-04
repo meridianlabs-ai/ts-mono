@@ -1,27 +1,26 @@
 import { ColumnTable } from "arquero";
 import clsx from "clsx";
-import { FC, useMemo } from "react";
+import { FC } from "react";
 import { useSearchParams } from "react-router";
 
 import { ErrorPanel, NoContentsPanel } from "@tsmono/react/components";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
+import { useScanRoute } from "../../../../router/useScanRoute";
 import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
 import { DataframeView } from "../../../components/DataframeView";
-import { useScanRoute } from "../../../hooks/useScanRoute";
+import type { DataframeData } from "../../../components/useDataframeData";
 import { kSegmentDataframe, kSegmentList } from "../../ScanPanelBody";
 import { ScannerResultsList } from "../list/ScannerResultsList";
-import { defaultColumns } from "../types";
 
 import styles from "./ScannerResultsBody.module.css";
-
-const columnOrder = ["transcript_id", "value", "explanation", "metadata"];
 
 export const ScannerResultsBody: FC<{
   selectedScan: Status;
   scannerId: string;
+  dataframe: DataframeData;
   selectedScanner: {
     columnTable: ColumnTable | undefined;
     isLoading: boolean;
@@ -29,6 +28,7 @@ export const ScannerResultsBody: FC<{
   };
 }> = ({
   scannerId,
+  dataframe,
   selectedScan,
   selectedScanner: { columnTable, error, isLoading: isLoadingData },
 }) => {
@@ -37,23 +37,11 @@ export const ScannerResultsBody: FC<{
 
   const hasScanner = (columnTable?.numRows() || 0) > 0;
   const dataframeWrapText = useStore((state) => state.dataframeWrapText);
-  const setVisibleScannerResultsCount = useStore(
-    (state) => state.setVisibleScannerResultsCount
-  );
 
   // Navigation setup
   const navigate = useLoggingNavigate("ScannerResultsBody");
   const [searchParams] = useSearchParams();
   const { scansDir, scanPath } = useScanRoute();
-
-  const dataframeFilterColumns = useStore(
-    (state) => state.dataframeFilterColumns
-  );
-
-  const sortedColumns = useMemo(() => {
-    const cols = dataframeFilterColumns || defaultColumns;
-    return [...cols].sort(sortColumns);
-  }, [dataframeFilterColumns]);
 
   return (
     <div className={clsx(styles.scrollContainer)}>
@@ -68,15 +56,12 @@ export const ScannerResultsBody: FC<{
           )}
           {selectedResultsView === kSegmentDataframe && (
             <DataframeView
-              options={{ maxStrLen: 1024 }}
-              columnTable={columnTable}
-              sortedColumns={sortedColumns}
-              showRowNumbers={true}
+              dataframe={dataframe}
               wrapText={dataframeWrapText}
               onRowDoubleClicked={(row) => {
                 // Navigate to the result detail view
-                const identifier = (row as { identifier?: string }).identifier;
-                if (identifier && scansDir) {
+                const identifier = row.identifier;
+                if (typeof identifier === "string" && identifier && scansDir) {
                   const route = scanResultRoute(
                     scansDir,
                     scanPath,
@@ -87,7 +72,6 @@ export const ScannerResultsBody: FC<{
                   navigate(route);
                 }
               }}
-              onVisibleRowCountChanged={setVisibleScannerResultsCount}
             />
           )}
         </div>
@@ -103,19 +87,4 @@ export const ScannerResultsBody: FC<{
       )}
     </div>
   );
-};
-
-const sortColumns = (a: string, b: string) => {
-  const indexA = columnOrder.indexOf(a);
-  const indexB = columnOrder.indexOf(b);
-  if (indexA === -1 && indexB === -1) {
-    // leave in natural order
-    return 0;
-  } else if (indexA === -1) {
-    return 1;
-  } else if (indexB === -1) {
-    return -1;
-  } else {
-    return indexA - indexB;
-  }
 };

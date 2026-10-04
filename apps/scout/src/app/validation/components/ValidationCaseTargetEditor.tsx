@@ -7,8 +7,8 @@ import { FC, useEffect, useState } from "react";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { useDebouncedCallback } from "@tsmono/react/hooks";
+import { valueAsString } from "@tsmono/util";
 
-import { valueAsString } from "../../utils/format";
 import { eventValue } from "../../utils/formEvents";
 
 const kTargetModes = ["true", "false", "other", "unset"] as const;

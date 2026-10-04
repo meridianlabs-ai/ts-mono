@@ -7,6 +7,7 @@ import {
   OnChangeFn,
   Row,
   RowData,
+  SortDirection,
   SortingState,
   useTable,
 } from "@tanstack/react-table";
@@ -32,7 +33,11 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { isRecord } from "@tsmono/util";
+import { isNewTabClick } from "@tsmono/react/components";
+import { isRecord, isVscode } from "@tsmono/util";
+
+import { openHrefInNewTab } from "../openInNewTab";
+import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
@@ -78,6 +83,26 @@ function makeSortKeyDownHandler<TRow extends RowData>(
   };
 }
 
+/** Mouse-down handler for a column's resize divider. It cancels the press's
+ *  default action: once the resize moves the divider off the press point,
+ *  that point is over a draggable header label (the column's own when
+ *  widening, its neighbour's when narrowing), and the browser would start a
+ *  column drag from it — reordering columns and swallowing the mouseup that
+ *  ends the resize, which then follows the pointer. Cancelling also skips
+ *  the press's default focus, so focus the grid as the press used to (arrow
+ *  keys keep working after a resize). */
+function startColumnResize<TRow extends RowData>(
+  header: Header<DataGridFeatures, TRow, unknown>
+): (e: MouseEvent<HTMLElement>) => void {
+  const resize = header.getResizeHandler();
+  return (e) => {
+    e.preventDefault();
+    const grid = e.currentTarget.closest('[role="grid"]');
+    if (grid instanceof HTMLElement) grid.focus({ preventScroll: true });
+    resize(e);
+  };
+}
+
 /** Rendered width of an element's contents, measured with a Range so bare
  *  text nodes count (a cell's clientWidth is the truncated box, not the
  *  content). Guarded: jsdom's Range has no layout — measure as 0 there. */
@@ -91,23 +116,22 @@ function measureContentWidth(el: Element): number {
   }
 }
 
-/** Header sort indicator: direction arrow plus, when several columns are
- *  sorted, this column's 1-based position in the sort order (the number is
- *  noise for a single sort, so it only appears for multi-sorts — matching
- *  the previous AG grid). */
-function SortIndicator<TRow extends RowData>({
-  header,
+/** Header sort indicator: direction arrow plus, when set, this column's
+ *  1-based position in a multi-column sort. Takes plain values rather than
+ *  the header: `header` keeps its identity across sort changes, so the
+ *  compiled component would reuse an indicator read off it. */
+function SortIndicator({
+  sorted,
+  sortOrder,
 }: {
-  header: Header<DataGridFeatures, TRow, unknown>;
+  sorted: false | SortDirection;
+  sortOrder: number | undefined;
 }): ReactElement | null {
-  const sorted = header.column.getIsSorted();
   if (!sorted) return null;
-  const sortIndex = header.column.getSortIndex();
-  const multiSorted = header.getContext().table.store.state.sorting.length > 1;
   return (
     <span className={styles.sortIndicator}>
-      {multiSorted && sortIndex >= 0 && (
-        <span className={styles.sortOrder}>{sortIndex + 1}</span>
+      {sortOrder !== undefined && (
+        <span className={styles.sortOrder}>{sortOrder}</span>
       )}
       <i
         className={clsx(
@@ -132,6 +156,57 @@ const kAfterRotatedGap = 24;
 // scrollbar. Rows stretch over the reserve (min-width: 100%), so it's
 // invisible.
 const kFitSlack = 4;
+
+/** Per visible column, in display order: rendered width (including any
+ *  after-rotated gap) and, when left-pinned, sticky offset. `byId` is a Map
+ *  because column ids can come from log content (scorer names). */
+interface ColumnLayout<TRow extends RowData> {
+  /** The table's visible leaf columns. Compared by identity so the layout
+   *  also changes when column defs do (new cell renderers or styles at the
+   *  same widths), since rows read their cells through it. */
+  columns: Column<DataGridFeatures, TRow, unknown>[];
+  byId: ReadonlyMap<string, { width: number; pinnedLeft: number | undefined }>;
+}
+
+function buildColumnLayout<TRow extends RowData>(
+  columns: Column<DataGridFeatures, TRow, unknown>[],
+  afterRotatedIds: ReadonlySet<string>
+): ColumnLayout<TRow> {
+  return {
+    columns,
+    byId: new Map(
+      columns.map((column) => [
+        column.id,
+        {
+          width:
+            column.getSize() +
+            (afterRotatedIds.has(column.id) ? kAfterRotatedGap : 0),
+          pinnedLeft:
+            column.getIsPinned() === "start"
+              ? column.getStart("start")
+              : undefined,
+        },
+      ])
+    ),
+  };
+}
+
+function isSameColumnLayout<TRow extends RowData>(
+  a: ColumnLayout<TRow>,
+  b: ColumnLayout<TRow>
+): boolean {
+  if (a.columns !== b.columns) return false;
+  for (const [id, layout] of a.byId) {
+    const other = b.byId.get(id);
+    if (
+      other?.width !== layout.width ||
+      other.pinnedLeft !== layout.pinnedLeft
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export interface DataGridProps<TRow extends RowData> {
   data: TRow[];
@@ -174,9 +249,14 @@ export interface DataGridProps<TRow extends RowData> {
    *  one so a parent can observe scrolling (e.g. title-bar collapse-on-scroll
    *  via `useScrollDirection`). */
   scrollRef?: RefObject<HTMLDivElement | null>;
-  /** Plain left-click on a row (modifier/middle clicks are left to in-cell
-   *  links). */
+  /** Plain left-click / Enter on a row. */
   onRowActivate: (row: TRow) => void;
+  /** Link target for a row. When set, the row renders as an `<a>` so native
+   *  link gestures (cmd/ctrl/shift/middle-click, context menu, hover
+   *  preview) open it in a new tab; plain clicks still go to
+   *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too.
+   *  Ignored inside the VS Code webview, where browser tabs don't exist. */
+  getRowHref?: (row: TRow) => string | undefined;
   rowHeight?: number;
   headerHeight?: number;
   /** Tall, wrapping rows (list mode). Top-aligns cell content so a single-line
@@ -225,6 +305,7 @@ export function DataGrid<TRow extends RowData>({
   onSelectedRowChange,
   scrollRef,
   onRowActivate,
+  getRowHref: getRowHrefProp,
   rowHeight = kRowHeight,
   headerHeight = kHeaderHeight,
   multiline = false,
@@ -235,6 +316,7 @@ export function DataGrid<TRow extends RowData>({
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const getRowHref = isVscode() ? undefined : getRowHrefProp;
 
   // Attach both the internal scroll ref (virtualizer / focus / scroll-into-
   // view) and the optional external one to the container element.
@@ -369,35 +451,6 @@ export function DataGrid<TRow extends RowData>({
     dragGhostRef.current?.remove();
     dragGhostRef.current = null;
   }, []);
-
-  const handleHeaderDragStart = useCallback(
-    (e: DragEvent<HTMLElement>, colId: string, label: string) => {
-      e.dataTransfer.effectAllowed = "move";
-      // Firefox won't start a drag with an empty data store.
-      e.dataTransfer.setData("text/plain", colId);
-      // Chromium snapshots the drag image from the source element, which for
-      // the 45°-rotated labels is unusable (transformed paint, huge bounds).
-      // Hand it an unrotated chip with the column name instead — also what
-      // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
-      if (typeof e.dataTransfer.setDragImage === "function") {
-        const chip = document.createElement("div");
-        chip.className = styles.dragGhost;
-        chip.textContent = label;
-        document.body.appendChild(chip);
-        e.dataTransfer.setDragImage(chip, 12, 14);
-        dragGhostRef.current = chip;
-      }
-      // Defer the state flip: it re-renders the header (dim the source, flip
-      // rotated-label pointer-events) and mutating the DOM while Chromium is
-      // still establishing the drag session aborts the drag outright. The
-      // session ref voids the deferred set if the drag ends first.
-      dragSessionRef.current = colId;
-      setTimeout(() => {
-        if (dragSessionRef.current === colId) setDraggedColId(colId);
-      }, 0);
-    },
-    []
-  );
 
   const handleHeaderDragOver = useCallback(
     (e: DragEvent<HTMLElement>, colId: string) => {
@@ -610,13 +663,62 @@ export function DataGrid<TRow extends RowData>({
     onColumnSizingChange: handleColumnSizingChange,
   });
 
+  // `table` is a fresh object every render; its store is the stable handle.
+  const tableStore = table.store;
+  const handleHeaderDragStart = useCallback(
+    (e: DragEvent<HTMLElement>, colId: string, label: string) => {
+      // Backstop for `startColumnResize`: a drag that starts mid-resize would
+      // take the mouseup that ends it. Cancelling dragstart is the one
+      // drag-abort every browser honors.
+      if (tableStore.state.columnResizing.isResizingColumn !== false) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox won't start a drag with an empty data store.
+      e.dataTransfer.setData("text/plain", colId);
+      // Chromium snapshots the drag image from the source element, which for
+      // the 45°-rotated labels is unusable (transformed paint, huge bounds).
+      // Hand it an unrotated chip with the column name instead — also what
+      // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
+      if (typeof e.dataTransfer.setDragImage === "function") {
+        const chip = document.createElement("div");
+        chip.className = styles.dragGhost;
+        chip.textContent = label;
+        document.body.appendChild(chip);
+        e.dataTransfer.setDragImage(chip, 12, 14);
+        dragGhostRef.current = chip;
+      }
+      // Defer the state flip: it re-renders the header (dim the source, flip
+      // rotated-label pointer-events) and mutating the DOM while Chromium is
+      // still establishing the drag session aborts the drag outright. The
+      // session ref voids the deferred set if the drag ends first.
+      dragSessionRef.current = colId;
+      setTimeout(() => {
+        if (dragSessionRef.current === colId) setDraggedColId(colId);
+      }, 0);
+    },
+    [tableStore]
+  );
+
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
 
-  // Kept for GridRow's memo cache key: `getVisibleLeafColumns` keeps its
-  // identity until visibility/order change, so rows skip re-rendering on
-  // unrelated grid-state changes.
   const visibleColumns = table.getVisibleLeafColumns();
+  // The sort-order number is noise for a single sort, so it only appears for
+  // multi-sorts — matching the previous AG grid.
+  const multiSorted = table.store.state.sorting.length > 1;
+
+  // Header and body cells both place themselves from this, and rows must
+  // read it rather than `getSize()`: widths can shift between columns at a
+  // constant total (a resize absorbed by flex columns), which changes no
+  // other GridRow prop, so a row reading the table would stay stale under
+  // memo and the React Compiler. Stabilized so rows skip re-rendering on
+  // unrelated grid-state changes.
+  const columnLayout = useStableValue(
+    buildColumnLayout(visibleColumns, afterRotatedIds),
+    isSameColumnLayout
+  );
 
   // The sticky header occupies layout space at the top of the scroll
   // container, so the virtualized rows start `headerHeight` px down. Two knobs
@@ -661,13 +763,24 @@ export function DataGrid<TRow extends RowData>({
   }, [selectedId, rows, rowVirtualizer]);
 
   const handleRowClick = useCallback(
-    (e: MouseEvent<HTMLDivElement>, rowId: string, row: TRow) => {
-      // Modifier / middle clicks are handled by the in-cell <a> overlay
-      // (native open-in-new-tab); a plain left click selects + activates.
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-      // Pull focus to the grid so arrow-key navigation works after a click
-      // (relevant when onRowActivate doesn't navigate away).
+    (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => {
+      // A link rendered inside a cell (e.g. markdown in list mode) keeps its
+      // own click rather than opening the row.
+      const link =
+        e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (link && link !== e.currentTarget) return;
+      // Pull focus to the grid so arrow-key navigation works after a click.
+      // Clicking a row link focuses it, and focus would drop to <body> once
+      // the virtualizer unmounts that row.
       containerRef.current?.focus();
+      // A new-tab gesture is left to the row's native <a> (which opens a
+      // background tab, unlike window.open); just move the selection onto
+      // the row so it's clear which one was opened.
+      if (isNewTabClick(e)) {
+        selectRow(rowId, row);
+        return;
+      }
+      e.preventDefault();
       selectRow(rowId, row);
       onRowActivate(row);
     },
@@ -700,7 +813,13 @@ export function DataGrid<TRow extends RowData>({
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         const row = currentIndex === -1 ? undefined : rows[currentIndex];
-        if (row) onRowActivate(row.original);
+        if (!row) return;
+        const href =
+          e.key === "Enter" && (e.metaKey || e.ctrlKey || e.shiftKey)
+            ? getRowHref?.(row.original)
+            : undefined;
+        if (href) openHrefInNewTab(href);
+        else onRowActivate(row.original);
         return;
       }
 
@@ -723,7 +842,7 @@ export function DataGrid<TRow extends RowData>({
       // pending scrollToIndex, so the effect's call wins anyway).
       selectRow(targetRow.id, targetRow.original);
     },
-    [rows, selectedId, onRowActivate, selectRow]
+    [rows, selectedId, onRowActivate, getRowHref, selectRow]
   );
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -798,6 +917,10 @@ export function DataGrid<TRow extends RowData>({
                   dropTarget?.colId === header.column.id
                     ? dropTarget.side
                     : null;
+                const sorted = header.column.getIsSorted();
+                const sortIndex = header.column.getSortIndex();
+                const sortOrder =
+                  multiSorted && sortIndex >= 0 ? sortIndex + 1 : undefined;
 
                 // Rotated (compact score) header: a 45° label hosting text +
                 // sort caret + filter funnel. Rendered by a subcomponent so
@@ -809,6 +932,9 @@ export function DataGrid<TRow extends RowData>({
                     <RotatedHeaderCell
                       key={header.id}
                       header={header}
+                      width={columnLayout.byId.get(header.column.id)?.width}
+                      sorted={sorted}
+                      sortOrder={sortOrder}
                       ariaColIndex={colIndex + 1}
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
@@ -828,8 +954,9 @@ export function DataGrid<TRow extends RowData>({
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
                 const pinned = header.column.getIsPinned() === "start";
-                const sorted = header.column.getIsSorted();
-                const sortCaret = <SortIndicator header={header} />;
+                const sortCaret = (
+                  <SortIndicator sorted={sorted} sortOrder={sortOrder} />
+                );
                 const headerLabel = header.isPlaceholder
                   ? null
                   : flexRender(
@@ -875,14 +1002,11 @@ export function DataGrid<TRow extends RowData>({
                       dropSide === "right" && styles.headerCellDropRight
                     )}
                     style={{
-                      width:
-                        header.getSize() +
-                        (afterRotatedIds.has(header.column.id)
-                          ? kAfterRotatedGap
-                          : 0),
+                      width: columnLayout.byId.get(header.column.id)?.width,
                       ...(pinned && {
                         position: "sticky" as const,
-                        left: header.column.getStart("start"),
+                        left: columnLayout.byId.get(header.column.id)
+                          ?.pinnedLeft,
                         zIndex: 3,
                       }),
                     }}
@@ -968,7 +1092,7 @@ export function DataGrid<TRow extends RowData>({
                             styles.resizeHandleActive
                         )}
                         onClick={(e) => e.stopPropagation()}
-                        onMouseDown={header.getResizeHandler()}
+                        onMouseDown={startColumnResize(header)}
                         onTouchStart={header.getResizeHandler()}
                         onDoubleClick={() => autoSizeColumn(header.column)}
                       />
@@ -997,7 +1121,6 @@ export function DataGrid<TRow extends RowData>({
                 // aria-rowindex is 1-based over all rows incl. the header row
                 // (index 1), so the first data row is 2.
                 ariaRowIndex={virtualRow.index + 2}
-                visibleColumns={visibleColumns}
                 isSelected={row.id === selectedId}
                 rowHeight={rowHeight}
                 width={totalWidth + gapExtra}
@@ -1005,7 +1128,8 @@ export function DataGrid<TRow extends RowData>({
                 // the tbody already sits below the in-flow header, so
                 // subtract it.
                 top={virtualRow.start - effectiveHeaderHeight}
-                afterRotatedIds={afterRotatedIds}
+                columnLayout={columnLayout}
+                href={getRowHref?.(row.original)}
                 onRowClick={handleRowClick}
               />
             );
@@ -1024,16 +1148,16 @@ export function DataGrid<TRow extends RowData>({
 interface GridRowProps<TRow extends RowData> {
   row: Row<DataGridFeatures, TRow>;
   ariaRowIndex: number;
-  /** Not read directly (`row.getVisibleCells()` re-derives the cells) — a
-   *  memo cache key so the row re-renders on visibility/order changes that
-   *  don't move `width` (e.g. reordering columns keeps the total size). */
-  visibleColumns: Column<DataGridFeatures, TRow, unknown>[];
   isSelected: boolean;
   rowHeight: number;
   width: number;
   top: number;
-  afterRotatedIds: ReadonlySet<string>;
-  onRowClick: (e: MouseEvent<HTMLDivElement>, rowId: string, row: TRow) => void;
+  /** Read for every cell, so a change to it re-renders the row's cells
+   *  under memo and the React Compiler alike — including visibility, order,
+   *  and column-def changes that don't move the row's total `width`. */
+  columnLayout: ColumnLayout<TRow>;
+  href?: string;
+  onRowClick: (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => void;
 }
 
 function GridRowInner<TRow extends RowData>({
@@ -1043,58 +1167,90 @@ function GridRowInner<TRow extends RowData>({
   rowHeight,
   width,
   top,
-  afterRotatedIds,
+  columnLayout,
+  href,
   onRowClick,
 }: GridRowProps<TRow>): ReactElement {
+  const className = clsx(styles.row, isSelected && styles.rowSelected);
+  const style = {
+    height: rowHeight,
+    width,
+    transform: `translateY(${top}px)`,
+  };
+  const handleClick = (e: MouseEvent<HTMLElement>) =>
+    onRowClick(e, row.id, row.original);
+  const cells = row.getVisibleCells().map((cell, colIndex) => {
+    const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
+    const align = cellDef.meta?.align;
+    const cellStyle = cellDef.meta?.cellStyle?.(row.original);
+    const layout = columnLayout.byId.get(cell.column.id);
+    const pinned = layout?.pinnedLeft !== undefined;
+    return (
+      <div
+        key={cell.id}
+        className={clsx(
+          styles.cell,
+          align === "center" && styles.cellCenter,
+          pinned && styles.cellPinned
+        )}
+        style={{
+          width: layout?.width,
+          ...(pinned && {
+            position: "sticky" as const,
+            left: layout.pinnedLeft,
+            zIndex: 1,
+          }),
+          ...cellStyle,
+        }}
+        title={cellDef.titleValue?.(row.original)}
+        role="gridcell"
+        aria-colindex={colIndex + 1}
+        data-col-id={cell.column.id}
+      >
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </div>
+    );
+  });
+
+  if (href) {
+    return (
+      // A real link so the browser owns new-tab gestures. Keyboard focus and
+      // activation stay with the grid container (arrows / Enter), so the row
+      // is kept out of the tab order; draggable={false} stops a mouse drag
+      // from dragging the URL. List-mode markdown cells can nest their own
+      // <a> in here (invalid HTML, but the innermost link owns activation and
+      // handleRowClick defers to it).
+      <a
+        className={className}
+        style={style}
+        href={href}
+        tabIndex={-1}
+        draggable={false}
+        onClick={handleClick}
+        onAuxClick={(e) => {
+          if (e.button === 1) handleClick(e);
+        }}
+        role="row"
+        aria-rowindex={ariaRowIndex}
+        aria-selected={isSelected}
+      >
+        {cells}
+      </a>
+    );
+  }
   return (
     // Row selection from the keyboard is the grid container's arrow-key
     // handler; the row click is the mouse path onto the same action.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
     <div
-      className={clsx(styles.row, isSelected && styles.rowSelected)}
-      style={{
-        height: rowHeight,
-        width,
-        transform: `translateY(${top}px)`,
-      }}
-      onClick={(e) => onRowClick(e, row.id, row.original)}
+      className={className}
+      style={style}
+      onClick={handleClick}
       role="row"
       aria-rowindex={ariaRowIndex}
       aria-selected={isSelected}
     >
-      {row.getVisibleCells().map((cell, colIndex) => {
-        const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
-        const align = cellDef.meta?.align;
-        const cellStyle = cellDef.meta?.cellStyle?.(row.original);
-        const pinned = cell.column.getIsPinned() === "start";
-        return (
-          <div
-            key={cell.id}
-            className={clsx(
-              styles.cell,
-              align === "center" && styles.cellCenter,
-              pinned && styles.cellPinned
-            )}
-            style={{
-              width:
-                cell.column.getSize() +
-                (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
-              ...(pinned && {
-                position: "sticky" as const,
-                left: cell.column.getStart("start"),
-                zIndex: 1,
-              }),
-              ...cellStyle,
-            }}
-            title={cellDef.titleValue?.(row.original)}
-            role="gridcell"
-            aria-colindex={colIndex + 1}
-            data-col-id={cell.column.id}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </div>
-        );
-      })}
+      {cells}
     </div>
   );
 }
@@ -1116,6 +1272,9 @@ const GridRow = memo(GridRowInner) as typeof GridRowInner;
  */
 function RotatedHeaderCell<TRow extends RowData>({
   header,
+  width,
+  sorted,
+  sortOrder,
   ariaColIndex,
   filterSpec,
   onColumnFilterChange,
@@ -1130,6 +1289,14 @@ function RotatedHeaderCell<TRow extends RowData>({
   onAutoSize,
 }: {
   header: Header<DataGridFeatures, TRow, unknown>;
+  /** From the grid's column layout, not `header.getSize()`: `header` keeps
+   *  its identity across resizes, so the compiled component would reuse a
+   *  width read off it. */
+  width: number | undefined;
+  /** From the grid, like `width`: `header` keeps its identity across sort
+   *  changes too. */
+  sorted: false | SortDirection;
+  sortOrder: number | undefined;
   ariaColIndex: number;
   filterSpec: FilterSpec | null;
   onColumnFilterChange?: (
@@ -1154,7 +1321,6 @@ function RotatedHeaderCell<TRow extends RowData>({
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
   const filterType = columnDef.meta?.filterType;
-  const sorted = header.column.getIsSorted();
   const headerLabel = header.isPlaceholder
     ? null
     : flexRender(header.column.columnDef.header, header.getContext());
@@ -1171,7 +1337,7 @@ function RotatedHeaderCell<TRow extends RowData>({
         dropSide === "left" && styles.headerCellDropLeft,
         dropSide === "right" && styles.headerCellDropRight
       )}
-      style={{ width: header.getSize() }}
+      style={{ width }}
       role="columnheader"
       aria-colindex={ariaColIndex}
       aria-sort={
@@ -1217,7 +1383,7 @@ function RotatedHeaderCell<TRow extends RowData>({
         onClick={header.column.getToggleSortingHandler()}
       >
         <span className={styles.rotatedText}>{headerLabel}</span>
-        <SortIndicator header={header} />
+        <SortIndicator sorted={sorted} sortOrder={sortOrder} />
         {columnDef.meta?.filterable && filterType && !hideColumnFilters && (
           // The popover is portaled, but React events bubble through the
           // component tree — so clicks inside the filter would reach the
@@ -1258,7 +1424,7 @@ function RotatedHeaderCell<TRow extends RowData>({
             styles.resizeHandleRotated,
             header.column.getIsResizing() && styles.resizeHandleActive
           )}
-          onMouseDown={header.getResizeHandler()}
+          onMouseDown={startColumnResize(header)}
           onTouchStart={header.getResizeHandler()}
           onDoubleClick={onAutoSize}
         />

@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render as renderUi } from "@testing-library/react";
 import { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ComponentNavigationProvider } from "@tsmono/react/components";
-import {
-  ComponentStateProvider,
-  type ComponentStateHooks,
-} from "@tsmono/react/state";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, TrustedContentWrapper } from "@tsmono/react/testing";
 
 import {
   AnnotatedScreenshot,
@@ -16,6 +14,10 @@ import {
   renderSvgAnnotation,
 } from "./AnnotatedScreenshot";
 import type { ToolAnnotation } from "./browserActionUtils";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 afterEach(() => {
   cleanup();
@@ -30,19 +32,9 @@ function loadImage(img: HTMLImageElement, width = 1440, height = 900) {
   fireEvent.load(img);
 }
 
-// MessageContent's text rendering reads component state via context.
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
-
 const renderWithState = (ui: ReactNode) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
         {ui}
       </ComponentNavigationProvider>

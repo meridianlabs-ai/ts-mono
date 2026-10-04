@@ -1,7 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
-import { expandEvents } from "@tsmono/inspect-common/utils";
 import {
   ApiError,
   asyncJsonParse,
@@ -15,7 +14,6 @@ import {
   AppConfig,
   CreateValidationSetRequest,
   InvalidationTopic,
-  MessagesEventsResponse,
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
@@ -30,7 +28,6 @@ import {
   SearchResponse,
   Status,
   Transcript,
-  TranscriptInfo,
   TranscriptsResponse,
   ValidationCase,
   ValidationCaseRequest,
@@ -46,6 +43,15 @@ import {
 } from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
 import { expandInputEvents } from "./expandInputEvents";
+import {
+  normalizeActiveScans,
+  normalizeStatus,
+  normalizeTranscript,
+  type WireActiveScansResponse,
+  type WireMessagesEvents,
+  type WireStatus,
+  type WireTranscriptInfo,
+} from "./normalize";
 import { serverRequestApi } from "./request";
 
 export type HeaderProvider = () => Promise<Record<string, string>>;
@@ -203,39 +209,40 @@ export const apiScoutServer = (
       ]);
 
       const [info, parsed] = await Promise.all([
-        asyncJsonParse<TranscriptInfo>(infoResult.raw),
-        asyncJsonParse<MessagesEventsResponse>(messagesEventsJson),
+        asyncJsonParse<WireTranscriptInfo>(infoResult.raw),
+        asyncJsonParse<WireMessagesEvents>(messagesEventsJson),
       ]);
 
-      const { messages, timelines, attachments } = parsed;
       // Boundary normalization (#555): transcripts can come from old logs
-      // whose events omit fields the types declare required.
-      const events = expandEvents(
-        normalizeEvents(parsed.events),
-        parsed.events_data ?? null
+      // that omit fields the types declare required.
+      const transcript = normalizeTranscript(
+        {
+          ...info,
+          messages: parsed.messages,
+          events: parsed.events,
+          timelines: parsed.timelines,
+        },
+        parsed.events_data
       );
 
-      return {
-        ...info,
-        ...(attachments && Object.keys(attachments).length > 0
-          ? {
-              messages: resolveAttachments(messages, attachments),
-              events: resolveAttachments(events, attachments),
-              timelines,
-            }
-          : { messages, events, timelines }),
-      };
+      const { attachments } = parsed;
+      return attachments && Object.keys(attachments).length > 0
+        ? {
+            ...transcript,
+            messages: resolveAttachments(transcript.messages, attachments),
+            events: resolveAttachments(transcript.events, attachments),
+          }
+        : transcript;
     },
     getTranscriptsColumnValues: async (
       transcriptsDir: string,
       column: string,
-      filter: Condition
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const result = await requestApi.fetchString(
         "POST",
         `/transcripts/${encodeBase64Url(transcriptsDir)}/distinct`,
         {},
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         JSON.stringify({ column, filter: filter ?? null })
       );
       return asyncJsonParse<ScalarValue[]>(result.raw);
@@ -246,7 +253,9 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}`
       );
 
-      return asyncJsonParse<Status>(result.raw);
+      // Boundary normalization (#555): status is read back from scan files
+      // written by many inspect_scout versions.
+      return normalizeStatus(await asyncJsonParse<WireStatus>(result.raw));
     },
     downloadScan: async (scansDir: string, scanPath: string): Promise<Blob> => {
       const result = await requestApi.fetchBytes(
@@ -334,8 +343,10 @@ export const apiScoutServer = (
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
-      asyncJsonParse<ActiveScansResponse>(
-        (await requestApi.fetchString("GET", `/scans/active`)).raw
+      normalizeActiveScans(
+        await asyncJsonParse<WireActiveScansResponse>(
+          (await requestApi.fetchString("GET", `/scans/active`)).raw
+        )
       ),
     postSearch: async (
       transcriptDir: string,
@@ -434,15 +445,17 @@ export const apiScoutServer = (
       return { config: response.parsed, etag: newEtag };
     },
     startScan: async (config: ScanJobConfig): Promise<Status> =>
-      asyncJsonParse<Status>(
-        (
-          await requestApi.fetchString(
-            "POST",
-            `/startscan`,
-            {},
-            JSON.stringify(config)
-          )
-        ).raw
+      normalizeStatus(
+        await asyncJsonParse<WireStatus>(
+          (
+            await requestApi.fetchString(
+              "POST",
+              `/startscan`,
+              {},
+              JSON.stringify(config)
+            )
+          ).raw
+        )
       ),
     getScanners: async (): Promise<ScannersResponse> => {
       const result = await requestApi.fetchString("GET", `/scanners`);

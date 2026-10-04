@@ -14,6 +14,7 @@ import {
   InputEvent,
   LoggerEvent,
   ModelEvent,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -190,6 +191,7 @@ export type Event =
   | ModelEvent
   | ToolEvent
   | ApprovalEvent
+  | ReviewEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { TopicVersions } from "../../api/api";
 import { useApi } from "../../state/store";
 
+import { isInvalidationTopic, topicQueries } from "./queries";
+
 /**
  * Monitors topic updates via SSE and invalidates dependent queries on change.
  *
- * For each topic whose timestamp changes, invalidates all queries containing
- * that topic name in their query key.
+ * For each topic whose timestamp changes, invalidates every query whose key
+ * carries that topic's tag (see `topicTag` in ./queries).
  *
  * Call once at app root level.
  *
@@ -23,15 +25,11 @@ export const useTopicInvalidation = (): boolean => {
   useEffect(() => {
     if (versions === undefined) return;
 
-    const changedTopics = Object.entries(versions).filter(
-      ([topic, timestamp]) => prevVersionsRef.current?.[topic] !== timestamp
-    );
-    for (const [topic] of changedTopics) {
-      const invKey = `${topic}-inv`;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey.includes(invKey),
-      });
+    for (const [topic, timestamp] of Object.entries(versions)) {
+      // A newer server may announce topics this client has no queries for.
+      if (!isInvalidationTopic(topic)) continue;
+      if (prevVersionsRef.current?.[topic] === timestamp) continue;
+      queryClient.invalidateQueries(topicQueries(topic)).catch(console.error);
     }
 
     prevVersionsRef.current = versions;

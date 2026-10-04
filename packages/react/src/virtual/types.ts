@@ -40,6 +40,8 @@ export interface VirtualListComponents {
 
 export interface VirtualListProps<T> {
   persistenceKey: string;
+  /** Set false when the host owns scroll persistence and restoration. */
+  persistScroll?: boolean;
   ref?: Ref<VirtualListHandle>;
   /** DOM id applied to the list's root element. */
   id?: string;
@@ -54,6 +56,8 @@ export interface VirtualListProps<T> {
   estimatedItemHeight?: number;
   /** Rows rendered beyond the visible range (items, not px). */
   overscan?: number;
+  /** Disable synchronous React flushing when the host changes rows during a commit. */
+  useFlushSync?: boolean;
   /** The list shares an external scroll container with content ABOVE it:
    *  measure the list's offset in the container and feed it to the
    *  virtualizer (TanStack scrollMargin) so windowing lines up with the
@@ -79,6 +83,8 @@ export interface VirtualListProps<T> {
   followRequested?: boolean;
   showProgress?: boolean;
   initialIndex?: number;
+  /** Initial content offset supplied by a host that owns scroll persistence. */
+  initialScrollOffset?: number;
   /** Offset (px) subtracted from scroll-to-index landings, e.g. to clear sticky
    * chrome. Forwarded to the virtualizer's scrollPaddingStart so it survives
    * tanstack's scroll reconcile. */

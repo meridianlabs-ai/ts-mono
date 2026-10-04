@@ -1,23 +1,130 @@
 .gridWrapper {
   height: 100%;
   width: 100%;
+  overflow: auto;
+  position: relative;
+  outline: none;
+  font-size: 12px;
 }
-
-/* Hide sort index numbers in multi-column sort */
-.gridWrapper :global(.ag-header-cell .ag-sort-order) {
-  display: none;
+.table {
+  display: grid;
+  border-collapse: collapse;
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
-
-/* Set line height for grid cells */
-.gridWrapper :global(.ag-cell) {
+.header {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bs-light-bg-subtle);
+}
+.headerRow {
+  display: flex;
+  height: 32px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.headerCell {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+  padding: 0 8px;
+  gap: 4px;
+  font-weight: 500;
+  color: var(--bs-secondary);
+  font-size: var(--inspect-font-size-small);
+}
+.headerLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+}
+.headerLabel span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.headerLabel:focus-visible {
+  outline: 2px solid var(--bs-primary);
+}
+.pinned {
+  position: sticky;
+  z-index: 2;
+  background: inherit;
+}
+.headerCell.pinned {
+  background: var(--bs-light-bg-subtle);
+}
+.dragOver {
+  box-shadow: inset 3px 0 var(--bs-primary);
+}
+.row {
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+}
+.alternate {
+  background: color-mix(in srgb, var(--bs-body-bg), var(--bs-body-color) 2%);
+}
+.row:hover,
+.selected {
+  background: var(--bs-secondary-bg-subtle) !important;
+}
+.cell {
+  flex-shrink: 0;
+  padding: 7px 8px;
   line-height: 1.1em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-
-/* Row numbers cell styling */
-.gridWrapper :global(.ag-cell.row-number-cell) {
+.wrapped .cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rowNumber {
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: inherit;
+  border-right: 1px solid var(--bs-border-color);
+  padding: 7px 12px 7px 0;
+  line-height: 1.1em;
+  text-align: right;
+}
+.row .rowNumber {
   cursor: pointer;
 }
-
-.gridWrapper :global(.ag-cell.row-number-cell:hover) {
+.row .rowNumber:hover {
   text-decoration: underline;
+}
+.empty {
+  position: sticky;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  padding: 2rem;
+}
+
+.rowNumberButton {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  width: 100%;
+  text-align: right;
 }

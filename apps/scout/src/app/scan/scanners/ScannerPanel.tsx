@@ -6,6 +6,7 @@ import { LoadingBar } from "@tsmono/react/components";
 import { useStore } from "../../../state/store";
 import { Status } from "../../../types/api-types";
 import { Footer } from "../../components/Footer";
+import { useDataframeData } from "../../components/useDataframeData";
 import { useSelectedScanDataframe } from "../../hooks/useSelectedScanDataframe";
 import { useSelectedScanner } from "../../hooks/useSelectedScanner";
 
@@ -26,6 +27,10 @@ export const ScannerPanel: FC<{ selectedScan: Status }> = ({
     loading: isLoading,
     error,
   } = useSelectedScanDataframe();
+  const isDataframe = useStore(
+    (state) => state.selectedResultsView === "dataframe"
+  );
+  const dataframe = useDataframeData(isDataframe ? columnTable : undefined);
   const selectedScannerInfo = {
     columnTable,
     isLoading,
@@ -42,12 +47,13 @@ export const ScannerPanel: FC<{ selectedScan: Status }> = ({
           // nothing prevents two scanners from having the same name.
           scannerId={selectedScanner.data ?? "unknown"}
           selectedScan={selectedScan}
+          dataframe={dataframe}
           selectedScanner={selectedScannerInfo}
         />
       </div>
       <Footer
         id={"scanner-panel-footer"}
-        itemCount={visibleItemsCount}
+        itemCount={isDataframe ? dataframe.rows.length : visibleItemsCount}
         paginated={false}
         labels={{
           singular: "result",
