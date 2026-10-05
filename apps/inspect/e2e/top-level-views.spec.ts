@@ -213,6 +213,81 @@ test.describe("Sorting", () => {
     await taskHeader.click();
     await expect.poll(() => firstRowText(page)).toContain("task-gamma");
   });
+
+  test("a compact (rotated) score header shows the sort it toggles", async ({
+    page,
+    network,
+  }) => {
+    const logFile = "compact-scores.json";
+    const score = (value: number) => ({ value, history: [] });
+    const sample = (id: number, accuracy: number, quality: number) => ({
+      ...createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      }),
+      scores: { accuracy: score(accuracy), quality: score(quality) },
+    });
+    const evalScore = (name: string) => ({
+      name,
+      scorer: name,
+      params: {},
+      metrics: {},
+    });
+    serveEvalLog(
+      network,
+      {
+        ...createEvalLog({
+          samples: [sample(1, 0, 1), sample(2, 1, 0)],
+          eval: {
+            viewer: {
+              scanner_result_view: {},
+              task_samples_view: { name: "default", compact_scores: true },
+            },
+          },
+        }),
+        results: {
+          completed_samples: 2,
+          total_samples: 2,
+          scores: [evalScore("accuracy"), evalScore("quality")],
+        },
+      },
+      logFile
+    );
+    await page.goto(`/#/logs/${logFile}`);
+
+    const accuracy = columnHeader(page, "accuracy");
+    const quality = columnHeader(page, "quality");
+    const arrows = "i.bi-arrow-up, i.bi-arrow-down";
+    // Precondition: these are the rotated headers, not upright ones.
+    await expect(accuracy.locator('[class*="rotatedLabel"]')).toHaveCount(1);
+    await expect(accuracy.locator(arrows)).toHaveCount(0);
+
+    await accuracy.getByText("accuracy", { exact: true }).click();
+    await expect(accuracy).toHaveAttribute("aria-sort", "ascending");
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(1);
+
+    await accuracy.getByText("accuracy", { exact: true }).click();
+    await expect(accuracy).toHaveAttribute("aria-sort", "descending");
+    await expect(accuracy.locator("i.bi-arrow-down")).toHaveCount(1);
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(0);
+
+    // Sorting another column moves the arrow off this one.
+    await quality.getByText("quality", { exact: true }).click();
+    await expect(quality).toHaveAttribute("aria-sort", "ascending");
+    await expect(quality.locator("i.bi-arrow-up")).toHaveCount(1);
+    await expect(accuracy).toHaveAttribute("aria-sort", "none");
+    await expect(accuracy.locator(arrows)).toHaveCount(0);
+
+    // A multi-sort numbers each sorted column by its position.
+    const sortOrder = '[class*="sortOrder"]';
+    await expect(quality.locator(sortOrder)).toHaveCount(0);
+    await accuracy
+      .getByText("accuracy", { exact: true })
+      .click({ modifiers: ["Shift"] });
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(1);
+    await expect(accuracy.locator(sortOrder)).toHaveText("2");
+    await expect(quality.locator(sortOrder)).toHaveText("1");
+  });
 });
 
 test.describe("Filtering", () => {
@@ -544,6 +619,114 @@ test("resizes a column by dragging its divider", async ({ page, network }) => {
   expect(after).toBeGreaterThan(before + 60);
 });
 
+test("dragging a column divider resizes without reordering columns", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const id = columnHeader(page, "Id");
+  await expect(id).toBeVisible();
+  const headerOrder = () =>
+    page
+      .getByRole("columnheader")
+      .evaluateAll((cells) => cells.map((c) => c.textContent.trim()));
+  const width = async () => Math.round((await id.boundingBox())?.width ?? 0);
+  const order = await headerOrder();
+  const before = await width();
+
+  // Resizing moves the divider off the press point, onto a draggable
+  // header label — the column's own when widening, its neighbour's when
+  // narrowing. The browser must not start a column drag from there.
+  await dragResize(page, "sampleId", 60);
+  expect(await headerOrder()).toEqual(order);
+  const resized = await width();
+  expect(resized).toBeGreaterThan(before + 40);
+  const input = columnHeader(page, "Input");
+  const inputBefore = (await input.boundingBox())?.width ?? 0;
+  await dragResize(page, "input", -80);
+  expect(await headerOrder()).toEqual(order);
+  expect((await input.boundingBox())?.width ?? 0).toBeLessThan(
+    inputBefore - 40
+  );
+  // The press still moves focus to the grid, so arrow keys keep working.
+  await page.getByRole("textbox").first().focus();
+  await dragResize(page, "input", 20);
+  await expect(page.getByRole("grid")).toBeFocused();
+
+  // With the button released, moving the pointer no longer resizes.
+  const box = (await id.boundingBox())!;
+  await page.mouse.move(box.x + 400, box.y + 200, { steps: 10 });
+  await page.mouse.move(box.x + 10, box.y + 200, { steps: 10 });
+  expect(await width()).toBe(resized);
+});
+
+test("a header drag that starts mid-resize is cancelled", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const label = columnHeader(page, "Id").getByText("Id", { exact: true });
+  await expect(label).toBeVisible();
+  // A browser that ignores the divider's cancelled mousedown would start a
+  // drag from the label under the press point; dispatch that dragstart.
+  const box = (await page
+    .getByLabel("Resize sampleId", { exact: true })
+    .boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + box.height / 2, { steps: 4 });
+  const cancelledMidResize = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  await page.mouse.up();
+  expect(cancelledMidResize).toBe(true);
+
+  // Once the resize ends, the label drags again.
+  const cancelledAfter = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  expect(cancelledAfter).toBe(false);
+  await label.dispatchEvent("dragend");
+});
+
 test("keeps a resized width after navigating into a log and back", async ({
   page,
   network,
@@ -566,4 +749,86 @@ test("keeps a resized width after navigating into a log and back", async ({
   await expect(header).toBeVisible();
   const restored = (await header.boundingBox())!.width;
   expect(Math.abs(restored - resized)).toBeLessThan(3);
+});
+
+test.describe("Compact scores", () => {
+  test("toggling compact scores resets score column widths only", async ({
+    page,
+    network,
+  }) => {
+    const logFile = "compact-widths.json";
+    // Same-length names, so both score columns share a default width.
+    const scorers = ["alpha", "gamma"];
+    const sample = (id: number) => ({
+      ...createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      }),
+      scores: Object.fromEntries(
+        scorers.map((name) => [name, { value: id, history: [] }])
+      ),
+    });
+    serveEvalLog(
+      network,
+      {
+        ...createEvalLog({
+          samples: [sample(1), sample(2)],
+          eval: {
+            viewer: {
+              scanner_result_view: {},
+              task_samples_view: { name: "default", compact_scores: true },
+            },
+          },
+        }),
+        results: {
+          completed_samples: 2,
+          total_samples: 2,
+          scores: scorers.map((name) => ({
+            name,
+            scorer: name,
+            params: {},
+            metrics: {},
+          })),
+        },
+      },
+      logFile
+    );
+    await page.goto(`/#/logs/${logFile}`);
+
+    const resized = columnHeader(page, "alpha");
+    const untouched = columnHeader(page, "gamma");
+    const tokens = columnHeader(page, "Tokens");
+    const width = async (header: Locator) =>
+      Math.round((await header.boundingBox())?.width ?? 0);
+    const setCompact = async (on: boolean) => {
+      const view = page.getByRole("button", { name: /^\W*View\W*$/ });
+      await view.click();
+      await page
+        .getByRole("checkbox", { name: "Compact scores" })
+        .setChecked(on);
+      await view.click();
+    };
+
+    await expect(resized.locator('[class*="rotatedLabel"]')).toHaveCount(1);
+    const compactDefault = await width(untouched);
+    await dragResize(page, "score__alpha__alpha", 50);
+    await expect
+      .poll(() => width(resized))
+      .toBeGreaterThan(compactDefault + 30);
+    await dragResize(page, "tokens", 60);
+    const tokensResized = await width(tokens);
+
+    // A score width set in one mode doesn't carry into the other; other
+    // columns keep theirs.
+    await setCompact(false);
+    await expect(resized.locator('[class*="rotatedLabel"]')).toHaveCount(0);
+    const uprightDefault = await width(untouched);
+    expect(uprightDefault).toBeGreaterThan(compactDefault);
+    await expect.poll(() => width(resized)).toBe(uprightDefault);
+    expect(await width(tokens)).toBe(tokensResized);
+
+    await setCompact(true);
+    await expect.poll(() => width(resized)).toBe(compactDefault);
+    expect(await width(tokens)).toBe(tokensResized);
+  });
 });

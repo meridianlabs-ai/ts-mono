@@ -11,6 +11,12 @@ import {
   parseDataUri,
 } from "@tsmono/util";
 
+import {
+  defaultMarkdownRenderer,
+  escapeHtmlCharacters,
+  type MarkdownRenderer,
+} from "./markdownText";
+
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
@@ -38,10 +44,6 @@ export const hasMathContent = (text: string): boolean =>
 
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
-
-export type MarkdownRenderer = "full" | "textOnly" | "fragment";
-
-export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
 /** Unescape HTML entities within math token content before MathJax processing.
  *  This is safe because MathJax renders TeX to SVG/MathML, not raw HTML. */
@@ -150,27 +152,6 @@ export const getMarkdownInstance = async (
   mdInstanceCache[cacheKey] = md;
 
   return md;
-};
-
-export const escapeHtmlCharacters = (content: string): string => {
-  if (!content) return content;
-
-  return content.replace(/[<>&'"]/g, (c: string): string => {
-    switch (c) {
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "&":
-        return "&amp;";
-      case "'":
-        return "&apos;";
-      case '"':
-        return "&quot;";
-      default:
-        throw new Error("Matched a value that isn't replaceable");
-    }
-  });
 };
 
 export const protectBackslashesInLatex = (content: string): string => {

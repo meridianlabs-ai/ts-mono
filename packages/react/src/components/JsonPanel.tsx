@@ -5,6 +5,7 @@ import { isRecord, maybeBase64 } from "@tsmono/util";
 
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
 
+import { ContentCode } from "./ContentTrust";
 import styles from "./JsonPanel.module.css";
 
 interface JSONPanelProps {
@@ -45,9 +46,11 @@ export const JSONPanel: FC<JSONPanelProps> = ({
         )}
         style={style}
       >
-        <code id={id} className={clsx("source-code", "language-javascript")}>
-          {sourceCode}
-        </code>
+        <ContentCode
+          id={id}
+          className={clsx("source-code", "language-javascript")}
+          text={sourceCode}
+        />
       </pre>
     </div>
   );

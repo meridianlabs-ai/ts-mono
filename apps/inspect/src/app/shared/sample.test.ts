@@ -23,7 +23,7 @@ describe("isCurrentSample", () => {
 
 describe("isSampleOpenInRoute", () => {
   it("is false when no sample is in the route (log list showing)", () => {
-    // Regression: selectedSampleHandle persists after navigating back to the
+    // Regression: highlightedSample persists after navigating back to the
     // log, but no sample is in the route — re-clicking must not be skipped.
     expect(isSampleOpenInRoute(undefined, undefined, "s1", 0)).toBe(false);
   });

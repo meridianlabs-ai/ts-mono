@@ -31,7 +31,8 @@ interface TimelineLinkProps {
   className?: string;
 }
 
-/** The "View on timeline" affordance shared by the config/usage surfaces. */
+/** The "View on activity" affordance shared by the config/usage surfaces
+ *  (targets the log-level Activity tab, formerly labeled Timeline). */
 export const TimelineLink: FC<TimelineLinkProps> = ({
   onClick,
   href,
@@ -43,7 +44,7 @@ export const TimelineLink: FC<TimelineLinkProps> = ({
     className={clsx(styles.timelineLink, className)}
   >
     <i className="bi bi-graph-up" aria-hidden="true" />
-    View on timeline
+    View on activity
   </InAppLink>
 );
 

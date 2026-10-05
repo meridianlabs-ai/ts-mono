@@ -1,3 +1,5 @@
+import type { NetworkFixture } from "@msw/playwright";
+import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
 
 import type { EvalScore } from "@tsmono/inspect-common/types";
@@ -29,10 +31,11 @@ const makeScore = (index: number): EvalScore => ({
   ),
 });
 
-test("many metrics stay bounded in the title and scroll in the dialog", async ({
-  page,
-  network,
-}) => {
+const openLogWithScores = async (
+  page: Page,
+  network: NetworkFixture,
+  scores: EvalScore[]
+) => {
   const sample = createEvalSample({
     id: 1,
     messages: [
@@ -48,7 +51,7 @@ test("many metrics stay bounded in the title and scroll in the dialog", async ({
     results: {
       total_samples: 2,
       completed_samples: 2,
-      scores: Array.from({ length: 5 }, (_, index) => makeScore(index + 1)),
+      scores,
     },
   };
   const details = createLogDetails(evalLog);
@@ -82,6 +85,15 @@ test("many metrics stay bounded in the title and scroll in the dialog", async ({
   );
 
   await page.goto(`/#/logs/${encodeURIComponent(LOG_FILE)}`);
+};
+
+test("many metrics stay bounded in the title and scroll in the dialog", async ({
+  page,
+  network,
+}) => {
+  await openLogWithScores(page, network, [
+    ...Array.from({ length: 5 }, (_, index) => makeScore(index + 1)),
+  ]);
 
   const moreButton = page.getByRole("button", { name: "All scoring..." });
   await expect(moreButton).toBeVisible();
@@ -114,4 +126,105 @@ test("many metrics stay bounded in the title and scroll in the dialog", async ({
   }));
   expect(scrollState.overflowX).toBe("auto");
   expect(scrollState.scrollWidth).toBeGreaterThan(scrollState.clientWidth);
+});
+
+// Mirrors a report where two scorers sharing a long prefix, each emitting a
+// dict-valued metric group, were indistinguishable in both the title card
+// and the dialog.
+const groupedScore = (name: string, values: [number, number]): EvalScore => ({
+  name,
+  scorer: name,
+  scored_samples: 2,
+  unscored_samples: 0,
+  params: {},
+  metrics: {
+    grouped_Cbase_O: {
+      name: "Cbase_O",
+      group: "grouped",
+      value: values[0],
+      params: {},
+    },
+    grouped_T2_O: {
+      name: "T2_O",
+      group: "grouped",
+      value: values[1],
+      params: {},
+    },
+  },
+});
+
+const longNames = [
+  "cryptanalysis_bench_scorer_with_full_context",
+  "cryptanalysis_bench_scorer_with_partial_context",
+];
+
+const isEllipsized = (element: HTMLElement) =>
+  element.scrollWidth > element.clientWidth;
+
+// rows are a fixed 32px; a cell taller than this has wrapped
+const kWrappedHeight = 40;
+
+test("long scorer names read in full in the dialog and on hover in the title", async ({
+  page,
+  network,
+}) => {
+  await openLogWithScores(page, network, [
+    groupedScore(longNames[0]!, [0, 0.193]),
+    groupedScore(longNames[1]!, [0, 0.034]),
+    // a second metric signature forms a second group, which seats the
+    // "All scoring..." link that opens the dialog
+    makeScore(1),
+  ]);
+
+  const moreButton = page.getByRole("button", { name: "All scoring..." });
+  await expect(moreButton).toBeVisible();
+  const summary = moreButton.locator("..");
+  for (const name of longNames) {
+    await expect(summary.getByRole("cell", { name })).toHaveAttribute(
+      "title",
+      name
+    );
+  }
+
+  await moreButton.click();
+  const dialog = page.getByRole("dialog", { name: "Scoring Detail" });
+  await expect(dialog).toBeVisible();
+  for (const name of longNames) {
+    const cell = dialog.getByRole("cell", { name });
+    await expect(cell).toBeVisible();
+    expect(await cell.evaluate(isEllipsized)).toBe(false);
+    // the dialog has room to grow, so the name shouldn't need to wrap
+    expect((await cell.boundingBox())!.height).toBeLessThan(kWrappedHeight);
+  }
+  await expect(
+    dialog.getByRole("columnheader", { name: "Cbase_O" })
+  ).toBeVisible();
+});
+
+test("a scorer name too long for the dialog wraps instead of truncating", async ({
+  page,
+  network,
+}) => {
+  const hugeName = Array.from(
+    { length: 12 },
+    (_, i) => `very_long_scorer_segment_${i}`
+  ).join("_");
+  await openLogWithScores(page, network, [
+    groupedScore(hugeName, [0.5, 0.25]),
+    makeScore(1),
+  ]);
+
+  await page.getByRole("button", { name: "All scoring..." }).click();
+  const dialog = page.getByRole("dialog", { name: "Scoring Detail" });
+  const cell = dialog.getByRole("cell", { name: hugeName });
+  await expect(cell).toBeVisible();
+  expect(await cell.evaluate(isEllipsized)).toBe(false);
+
+  const dialogBounds = await dialog.boundingBox();
+  expect(dialogBounds).not.toBeNull();
+  expect(dialogBounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect((await cell.boundingBox())!.height).toBeGreaterThan(kWrappedHeight);
+  await expect(
+    dialog.getByRole("columnheader", { name: "T2_O" })
+  ).toBeInViewport();
 });

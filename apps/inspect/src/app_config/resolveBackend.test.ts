@@ -187,6 +187,18 @@ describe("resolveBackend selection", () => {
     expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
   });
 
+  it("#log_dir_context with trust_content → passes it in the static app config", () => {
+    addLogDirContext({ log_dir: "/embedded/logs", trust_content: false });
+    const backend = resolveBackend(noneSource);
+
+    backend.createApi("/embedded/logs");
+    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", {
+      inspect_version: "unknown",
+      scout_version: null,
+      trust_content: false,
+    });
+  });
+
   it("#log_dir_context with log_file → static-http single-file with derived dir", () => {
     addLogDirContext({ log_file: "/embedded/logs/task.eval" });
     const backend = resolveBackend(noneSource);

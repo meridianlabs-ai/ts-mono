@@ -41,8 +41,7 @@ vi.mock("../../../state/store", async (importOriginal) => {
       selectedOutlineId: undefined,
     },
     app: { ...base.app, propertyBags: {} },
-    logs: { ...base.logs, selectedLogFile: undefined },
-    log: { ...base.log, selectedSampleHandle: undefined },
+    log: { ...base.log, highlightedSample: undefined },
   };
   return {
     ...actual,
@@ -154,3 +153,8 @@ describe("TranscriptPanel linking", () => {
     expect(screen.getByRole("link").getAttribute("href")).toBe(kEventRoute);
   });
 });
+
+vi.mock("../../routing/currentSelection", () => ({
+  useCurrentLogFile: () => undefined,
+  useCurrentSampleHandle: () => undefined,
+}));

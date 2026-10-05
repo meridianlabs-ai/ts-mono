@@ -18,40 +18,22 @@ const state = (): StoreState => {
   return storeImplementation.getState();
 };
 
-/** Select a log file, absolutizing a relative name against the resolved log
- *  dir (the slice stores only the absolute path). */
-export const selectLogFile = (logFile: string) => {
-  state().logsActions.setSelectedLogFile(resolveRouteLogFile(logFile));
-};
-
-/** Select a sample, absolutizing a route-relative log name against the
- *  resolved log dir (the handle stores only the absolute path — acquisition
- *  and the view server reject relative names). */
-export const selectSample = (
+/** Remember a grid highlight independently of the sample currently open. */
+export const highlightSample = (
   sampleId: string | number,
   epoch: number,
   logFile: string
 ) => {
-  state().logActions.selectSample(
+  state().logActions.highlightSample(
     sampleId,
     epoch,
     resolveRouteLogFile(logFile)
   );
 };
 
-/** Clear the selected/loaded log. */
-export const unloadLog = () => {
-  const s = state();
-  s.logsActions.clearSelectedLogFile();
-  s.logActions.clearLog();
-};
-
 /** Re-fetch the selected log's details and reset filtering. */
-export const refreshLog = () => {
-  imperativeLogData.invalidateLogDetail(
-    getAppConfig().logDir,
-    state().logs.selectedLogFile
-  );
+export const refreshLog = (logFile: string | undefined) => {
+  imperativeLogData.invalidateLogDetail(getAppConfig().logDir, logFile);
   state().logActions.resetFiltering();
 };
 

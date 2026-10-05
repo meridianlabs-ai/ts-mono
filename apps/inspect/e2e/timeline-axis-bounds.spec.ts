@@ -47,7 +47,7 @@ for (const start of [2 ** 57, -(2 ** 57), Infinity]) {
       );
     }
     await page.goto("/#/logs/invalid-timeline.json");
-    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+    await page.getByRole("tab", { name: "Activity", exact: true }).click();
     await expect(page.getByText("Unable to display timeline")).toBeVisible();
     await expect(page.getByTestId("error-panel")).toContainText(
       "connection history contains an invalid or out-of-range timestamp"
@@ -86,7 +86,7 @@ test("ordinary connection history still renders the axis and bands", async ({
   });
   serveEvalLog(network, log, "valid-timeline.json");
   await page.goto("/#/logs/valid-timeline.json");
-  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+  await page.getByRole("tab", { name: "Activity", exact: true }).click();
   await expect(
     page.locator("svg text").filter({ hasText: "Connections" }).first()
   ).toBeVisible();
@@ -110,7 +110,7 @@ test("legacy stats without connection history still open the timeline", async ({
     )
   );
   await page.goto("/#/logs/legacy-timeline.json");
-  const tab = page.getByRole("tab", { name: "Timeline", exact: true });
+  const tab = page.getByRole("tab", { name: "Activity", exact: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("error-panel")).not.toBeVisible();
@@ -133,7 +133,7 @@ for (const history of ["history", [null], [{ timestamp: "123" }]]) {
       )
     );
     await page.goto("/#/logs/malformed-timeline.json");
-    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+    await page.getByRole("tab", { name: "Activity", exact: true }).click();
     await expect(page.getByText("Unable to display timeline")).toBeVisible();
     await expect(page.getByTestId("error-panel")).toContainText(
       "Invalid connection history"

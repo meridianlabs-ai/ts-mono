@@ -21,14 +21,14 @@ const click = (el: HTMLElement, init: MouseEventInit) => {
 describe("TimelineLink", () => {
   it("links to the timeline when given its URL", () => {
     render(<TimelineLink onClick={vi.fn()} href="#/logs/a.eval/timeline" />);
-    const link = screen.getByRole("link", { name: "View on timeline" });
+    const link = screen.getByRole("link", { name: "View on activity" });
     expect(link.getAttribute("href")).toBe("#/logs/a.eval/timeline");
   });
 
   it("shows the timeline in place on a plain click", () => {
     const onClick = vi.fn();
     render(<TimelineLink onClick={onClick} href="#/logs/a.eval/timeline" />);
-    const link = screen.getByRole("link", { name: "View on timeline" });
+    const link = screen.getByRole("link", { name: "View on activity" });
     expect(click(link, { button: 0 })).toBe(true);
     expect(onClick).toHaveBeenCalledOnce();
   });
@@ -36,7 +36,7 @@ describe("TimelineLink", () => {
   it("leaves cmd/ctrl-click to the browser", () => {
     const onClick = vi.fn();
     render(<TimelineLink onClick={onClick} href="#/logs/a.eval/timeline" />);
-    const link = screen.getByRole("link", { name: "View on timeline" });
+    const link = screen.getByRole("link", { name: "View on activity" });
     expect(click(link, { button: 0, metaKey: true })).toBe(false);
     expect(click(link, { button: 0, ctrlKey: true })).toBe(false);
     expect(onClick).not.toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe("TimelineLink", () => {
   it("is a button without a URL", () => {
     const onClick = vi.fn();
     render(<TimelineLink onClick={onClick} />);
-    fireEvent.click(screen.getByRole("button", { name: "View on timeline" }));
+    fireEvent.click(screen.getByRole("button", { name: "View on activity" }));
     expect(onClick).toHaveBeenCalledOnce();
   });
 });
