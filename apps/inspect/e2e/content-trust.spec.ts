@@ -154,11 +154,19 @@ const openView = async (page: Page, url: string, ready: RegExp) => {
 };
 
 /**
- * Open a view in a new document, so each view in a walk is a direct landing
- * rather than an in-app navigation from the previous one.
+ * Open a view in a new document with the origin's storage cleared, so each
+ * view in a walk is a cold, direct landing, as in a new browser, rather than
+ * an in-app navigation or a load from data earlier views cached.
  */
 const openViewFresh = async (page: Page, url: string, ready: RegExp) => {
   await page.goto("about:blank");
+  const origin = new URL(url, test.info().project.use.baseURL).origin;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Storage.clearDataForOrigin", {
+    origin,
+    storageTypes: "indexeddb,local_storage",
+  });
+  await cdp.detach();
   await openView(page, url, ready);
 };
 
@@ -204,14 +212,20 @@ const recordRichContent = async (page: Page) => {
       attributeFilter: ["href", "src"],
     });
   }, PNG_MARKERS);
-  return (label: Label) =>
-    page.evaluate(
+  return async (label: Label) => {
+    const seen = await page.evaluate(
       (logLabel) =>
         (window as Window & { __richContent?: RichContentLog }).__richContent?.[
           logLabel
-        ] ?? [],
+        ],
       label
     );
+    // An empty record must mean nothing rendered, not that nothing recorded.
+    if (seen === undefined) {
+      throw new Error("The rich content recorder isn't running on this page");
+    }
+    return seen;
+  };
 };
 
 // Modules that interpret content richly (and the libraries behind them). They
@@ -292,6 +306,7 @@ test.describe("an untrusted log", () => {
     page,
     network,
   }) => {
+    test.slow();
     serveFixtures(network);
     const recorded = await recordRichContent(page);
     await expectPlainInEveryView(page, "untrusted", recorded);
@@ -324,6 +339,7 @@ test.describe("an untrusted log", () => {
     "never loads the rich-rendering libraries or renders richly between views",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveFixtures(network);
       const requested = recordRichRenderingModules(page);
       const recorded = await recordRichContent(page);
@@ -362,7 +378,10 @@ test.describe("an untrusted log", () => {
 
 test.describe("a trusted log", () => {
   test("renders richly in every view", async ({ page, network }) => {
+    test.slow();
     serveFixtures(network);
+    // The positive control for the plain walks' transient checks.
+    const recorded = await recordRichContent(page);
     for (const view of VIEWS) {
       await test.step(view.name, async () => {
         await openViewFresh(page, view.url("trusted"), view.ready);
@@ -371,6 +390,14 @@ test.describe("a trusted log", () => {
           expect
             .soft(markers[marker], `${view.name}: ${marker}`)
             .toBeGreaterThan(0);
+        }
+        if (
+          view.trustedShows.includes("links") ||
+          view.trustedShows.includes("images")
+        ) {
+          expect
+            .soft(await recorded("trusted"), `${view.name}, recorded`)
+            .not.toEqual([]);
         }
       });
     }
@@ -388,6 +415,7 @@ test.describe("a trusted log", () => {
     "loads the rich-rendering libraries it needs",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveFixtures(network);
       const requested = recordRichRenderingModules(page);
       for (const view of VIEWS) {
@@ -465,6 +493,7 @@ test.describe("a viewer started with --no-trust-content", () => {
     page,
     network,
   }) => {
+    test.slow();
     serveUntrustedViewer(network);
     const recorded = await recordRichContent(page);
     await expectPlainInEveryView(page, "trusted", recorded);
@@ -474,6 +503,7 @@ test.describe("a viewer started with --no-trust-content", () => {
     "never loads the rich-rendering libraries or renders richly between views",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveUntrustedViewer(network);
       const requested = recordRichRenderingModules(page);
       const recorded = await recordRichContent(page);
