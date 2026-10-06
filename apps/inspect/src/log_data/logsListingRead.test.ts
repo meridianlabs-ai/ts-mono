@@ -2,7 +2,7 @@
  * readLogsListing: source dispatch (database vs cache), retried marking, and
  * parity with the in-memory engine — the same fixtures through
  * `applyListingQuery` and the seam must agree (the migration safety net).
- * Uses fake-indexeddb (see setupTests) behind a real DatabaseService.
+ * Uses fake-indexeddb (see setupTests) behind a real OpenDatabase.
  */
 
 import Dexie from "dexie";
@@ -15,10 +15,7 @@ import { applyListingQuery } from "../app/log-list/listing/applyListingQuery";
 import { createListingPlan } from "../app/log-list/listing/planner";
 import type { Log, LogPreview } from "../client/api/types";
 import { DB_NAME } from "../client/database/schema";
-import {
-  createDatabaseService,
-  type DatabaseService,
-} from "../client/database/service";
+import { OpenDatabase } from "../client/database/service";
 
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { setRows, writeListing } from "./logsContent";
@@ -29,12 +26,12 @@ import {
 } from "./logsListingRead";
 
 const holder = vi.hoisted(() => {
-  const state: { service: DatabaseService | null } = { service: null };
+  const state: { service: OpenDatabase | null } = { service: null };
   return state;
 });
 
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => holder.service,
+vi.mock("./databaseInstance", () => ({
+  currentDatabase: () => holder.service,
 }));
 
 const preview = (overrides: Partial<LogPreview>): LogPreview => ({
@@ -65,20 +62,15 @@ const getValue = (row: Log, column: string): unknown =>
   isRecord(row) ? row[column] : undefined;
 
 describe("readLogsListing", () => {
-  let databaseService: DatabaseService;
+  let databaseService: OpenDatabase;
 
   beforeEach(async () => {
-    databaseService = createDatabaseService();
+    databaseService = await OpenDatabase.open();
     holder.service = databaseService;
-    await databaseService.openDatabase();
   });
 
   afterEach(async () => {
-    try {
-      await databaseService.closeDatabase();
-    } catch {
-      // Already closed in the cache-dispatch test.
-    }
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
@@ -162,12 +154,12 @@ describe("readLogsListing", () => {
     expect(all.total_count).toBe(2);
   });
 
-  test("serves from the react-query cache when the database is not open", async () => {
+  test("serves from the react-query cache when the session has no database", async () => {
     setRows("/cache/logs", [
       testLogRow("/cache/logs/a.json"),
       testLogRow("/cache/logs-other/b.json"),
     ]);
-    await databaseService.closeDatabase();
+    holder.service = null;
 
     const result = await readLogsListing(
       "/cache/logs",
@@ -203,16 +195,15 @@ describe("readLogsListing", () => {
 });
 
 describe("readLogsOverview", () => {
-  let databaseService: DatabaseService;
+  let databaseService: OpenDatabase;
 
   beforeEach(async () => {
-    databaseService = createDatabaseService();
+    databaseService = await OpenDatabase.open();
     holder.service = databaseService;
-    await databaseService.openDatabase();
   });
 
   afterEach(async () => {
-    await databaseService.closeDatabase();
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
@@ -297,16 +288,15 @@ describe("readLogsOverview", () => {
 });
 
 describe("readLogsListingMatches", () => {
-  let databaseService: DatabaseService;
+  let databaseService: OpenDatabase;
 
   beforeEach(async () => {
-    databaseService = createDatabaseService();
+    databaseService = await OpenDatabase.open();
     holder.service = databaseService;
-    await databaseService.openDatabase();
   });
 
   afterEach(async () => {
-    await databaseService.closeDatabase();
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
