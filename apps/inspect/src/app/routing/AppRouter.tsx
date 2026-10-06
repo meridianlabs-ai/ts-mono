@@ -1,11 +1,5 @@
-import { useEffect, useMemo } from "react";
-import {
-  createHashRouter,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from "react-router";
+import { useMemo } from "react";
+import { Navigate, Outlet, useNavigate } from "react-router";
 
 import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
@@ -13,20 +7,29 @@ import {
   ComponentNavigationProvider,
   ContentTrustCeilingProvider,
 } from "@tsmono/react/components";
+import { createRestorableHashRouter } from "@tsmono/react/routing";
+import { basename, isUri } from "@tsmono/util";
 
-import { useAppConfig } from "../../app_config";
+import {
+  getAppConfig,
+  readEmbeddedStartupState,
+  useAppConfig,
+} from "../../app_config";
+import { webviewStorage } from "../../client/storage";
 import { kSampleEventTabId } from "../../constants";
-import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
 import { SelectionContentTrustProvider } from "../shared/contentTrust";
 
+import { CurrentSelectionProvider } from "./currentSelection";
+import { hostDestinationRoute } from "./hostNavigation";
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
 import {
+  baseUrl,
   kLogRouteUrlPattern,
   kLogsRoutUrlPattern as kLogsRouteUrlPattern,
   kTaskRouteUrlPattern,
@@ -34,9 +37,7 @@ import {
   useLogRouteParams,
 } from "./url";
 
-// Create a layout component that includes the RouteTracker
 const AppLayout = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const componentNavigation = useMemo(
     () => ({
@@ -45,14 +46,6 @@ const AppLayout = () => {
     }),
     [navigate]
   );
-
-  // Track changes to routes
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (storeImplementation) {
-      storeImplementation.getState().appActions.setUrlHash(location.pathname);
-    }
-  }, [location]);
 
   // Get route params to check for sample detail routes
   const { sampleId, epoch, sampleTabId, sampleUuid } = useLogRouteParams();
@@ -84,59 +77,79 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderMounts>
-          <ContentTrustCeilingProvider
-            value={trustContentSetting(appConfig.trust_content)}
-          >
-            <SelectionContentTrustProvider>
-              {content}
-            </SelectionContentTrustProvider>
-          </ContentTrustCeilingProvider>
-        </LoaderMounts>
+        <CurrentSelectionProvider>
+          <LoaderMounts>
+            <ContentTrustCeilingProvider
+              value={trustContentSetting(appConfig.trust_content)}
+            >
+              <SelectionContentTrustProvider>
+                {content}
+              </SelectionContentTrustProvider>
+            </ContentTrustCeilingProvider>
+          </LoaderMounts>
+        </CurrentSelectionProvider>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );
 };
 
 // Create router with our routes (using hash router for static deployments)
-export const AppRouter = createHashRouter(
-  [
+const createAppRouter = () => {
+  const embedded = readEmbeddedStartupState();
+  const log = getAppConfig().logFile;
+  const initialPath = embedded?.url
+    ? hostDestinationRoute(embedded)
+    : log
+      ? baseUrl(isUri(log) ? basename(log) : log)
+      : undefined;
+  return createRestorableHashRouter(
+    [
+      {
+        path: "/",
+        element: <AppLayout />,
+        children: [
+          {
+            index: true, // This will match exactly the "/" path
+            element: <LogsPanel mode="tasks" maybeShowSingleLog={true} />,
+          },
+          {
+            path: kLogsRouteUrlPattern,
+            element: <LogsPanel />,
+          },
+          {
+            // This matches all /logs/* paths including sample detail URLs
+            // The RouteDispatcher parses the path and routes to the appropriate component
+            path: kLogRouteUrlPattern,
+            element: <RouteDispatcher />,
+          },
+          {
+            path: kTasksRouteUrlPattern,
+            element: <LogsPanel mode="tasks" />,
+          },
+          {
+            path: kTaskRouteUrlPattern,
+            element: <RouteDispatcher mode="tasks" />,
+          },
+          {
+            path: "/samples/*",
+            element: <SamplesRouter />,
+          },
+        ],
+      },
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
+      },
+    ],
     {
-      path: "/",
-      element: <AppLayout />,
-      children: [
-        {
-          index: true, // This will match exactly the "/" path
-          element: <LogsPanel mode="tasks" maybeShowSingleLog={true} />,
-        },
-        {
-          path: kLogsRouteUrlPattern,
-          element: <LogsPanel />,
-        },
-        {
-          // This matches all /logs/* paths including sample detail URLs
-          // The RouteDispatcher parses the path and routes to the appropriate component
-          path: kLogRouteUrlPattern,
-          element: <RouteDispatcher />,
-        },
-        {
-          path: kTasksRouteUrlPattern,
-          element: <LogsPanel mode="tasks" />,
-        },
-        {
-          path: kTaskRouteUrlPattern,
-          element: <RouteDispatcher mode="tasks" />,
-        },
-        {
-          path: "/samples/*",
-          element: <SamplesRouter />,
-        },
-      ],
+      storage: webviewStorage,
+      key: "inspect-route-v1",
+      initialPath,
     },
-    {
-      path: "*",
-      element: <Navigate to="/" replace />,
-    },
-  ],
-  { basename: "" }
-);
+    { basename: "" }
+  );
+};
+
+// The app owns one router per webview lifetime, including StrictMode remounts.
+let appRouter: ReturnType<typeof createAppRouter> | undefined;
+export const getAppRouter = () => (appRouter ??= createAppRouter());

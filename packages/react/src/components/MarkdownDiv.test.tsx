@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { TrustedContentWrapper } from "../test/content-trust";
 
 import { richContentPolicy } from "./contentRenderingPolicy";
-import { ContentPolicyProvider } from "./ContentTrust";
+import { ContentPolicyProvider } from "./ContentTrustContext";
 import { MarkdownDiv, MarkdownRenderQueue } from "./MarkdownDiv";
 
 // These tests exercise the rich rendering path, which needs trusted content.

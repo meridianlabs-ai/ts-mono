@@ -6,7 +6,8 @@ import { stripAnsi } from "@tsmono/util";
 import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import styles from "./AnsiDisplay.module.css";
-import { useContentPolicy, usePlainText } from "./ContentTrust";
+import { usePlainText } from "./ContentTrust";
+import { useContentPolicy } from "./ContentTrustContext";
 
 // Loaded on first trusted use, so ansi-output never loads for untrusted content.
 const richRenderer = onDemandModule(() => import("./AnsiDisplayRich"));

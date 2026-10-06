@@ -1,11 +1,12 @@
-import { FC, useEffect, useMemo } from "react";
+import { FC, useMemo } from "react";
 import { useNavigate } from "react-router";
 
-import { navigateAndForget } from "@tsmono/react/hooks";
+import { navigateAndForget, useUnmount } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import {
   samplesSampleUrl,
   samplesUrl,
@@ -21,7 +22,6 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  * This component handles:
  * - Navigation state calculation using displayedSamples from samples grid
  * - Navigation callbacks (handlePrevious, handleNext)
- * - Cleanup on unmount (clears log state since this is a standalone view)
  *
  * Rendering is delegated to SampleDetailComponent.
  */
@@ -37,15 +37,14 @@ export const SampleDetailView: FC = () => {
   } = useSamplesRouteParams();
   const navigate = useNavigate();
 
-  // Get store state for navigation
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  // The grid remembers its visible order for cross-log navigation.
+  const selectedLogFile = useCurrentLogFile();
   const logDir = useLogDir();
   const displayedSamples = useStore(
     (state) => state.logs.samplesListState.displayedSamples
   );
 
   // Cleanup actions
-  const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
 
   // Find current sample in displayed samples list
@@ -91,14 +90,7 @@ export const SampleDetailView: FC = () => {
     if (nextRoute) navigateAndForget(navigate, nextRoute);
   };
 
-  // Cleanup on unmount - clear log state since this is a standalone view
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearLog();
-      clearSampleTab();
-    };
-  }, [clearLog, clearSampleTab]);
+  useUnmount(clearSampleTab);
 
   return (
     <SampleDetailComponent

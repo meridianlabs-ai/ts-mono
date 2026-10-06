@@ -28,6 +28,26 @@ async function seedDataframeState(page: Page, patch: Partial<DataframeState>) {
 
 const fixture = "/e2e/fixtures/dataframe/";
 
+test("copy and download preserve complete explanations beyond the display limit", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(fixture);
+  await page.getByRole("button", { name: /Copy CSV/ }).click();
+  await expect(page.getByRole("button", { name: /Copied/ })).toBeVisible();
+  const csv = await page.evaluate(() => navigator.clipboard.readText());
+  const exported = fromCSV(csv, { autoType: false });
+  expect(exported.array("explanation")[5]).toBe(
+    "Long explanation ".repeat(100)
+  );
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download CSV/ }).click();
+  const download = await downloading;
+  const path = await download.path();
+  if (!path) throw new Error("Download has no local file");
+  expect(await readFile(path, "utf8")).toBe(`\ufeff${csv}`);
+});
+
 test.beforeEach(({ page }) => {
   page.on("pageerror", (error) => {
     throw error;

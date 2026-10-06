@@ -33,3 +33,4 @@ export * from "./sync";
 export * from "./type";
 export * from "./uri";
 export * from "./vscode";
+export * from "./webviewStorage";
