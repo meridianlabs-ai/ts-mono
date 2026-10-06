@@ -49,7 +49,7 @@
     "./styles/index.css": "./lib/styles/index.css"
   },
   "devDependencies": {
-    "@msw/playwright": "^0.7.0",
+    "@msw/playwright": "^0.6.7",
     "@playwright/test": "^1.63.0",
     "@swc/core": "^1.16.12",
     "@tanstack/react-devtools": "^0.10.13",
