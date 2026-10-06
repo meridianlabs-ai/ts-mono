@@ -1051,5 +1051,9 @@ test("log-level tab is relabeled Activity", async ({ page, network }) => {
 
   const encodedFile = encodeURIComponent(LOG_FILE);
   await page.goto(`/#/logs/${encodedFile}`);
-  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
+  // The sample's own Activity tab can still be mounted mid-navigation.
+  const logActivityTab = page
+    .getByRole("tab", { name: "Activity" })
+    .and(page.locator(`[href$="/logs/${encodedFile}/timeline"]`));
+  await expect(logActivityTab).toBeVisible();
 });
