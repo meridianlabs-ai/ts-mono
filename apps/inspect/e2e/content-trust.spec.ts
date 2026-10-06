@@ -224,6 +224,10 @@ const RICH_RENDERING_MODULES = [
   "asciinema-player",
 ];
 
+// The production build bundles these into shared chunks, so tests that watch
+// for their requests run against the dev server.
+const DEV_SERVER = { tag: "@dev-server" };
+
 /** Record every rich-rendering module the page requests. */
 const recordRichRenderingModules = (page: Page) => {
   const requested = new Set<string>();
@@ -305,19 +309,20 @@ test.describe("an untrusted log", () => {
     expect(await recorded("untrusted")).toEqual([]);
   });
 
-  test("never loads the rich-rendering libraries", async ({
-    page,
-    network,
-  }) => {
-    serveFixtures(network);
-    const requested = recordRichRenderingModules(page);
-    for (const view of VIEWS) {
-      await openView(page, view.url("untrusted"), view.ready);
-      await collectMarkers(page);
+  test(
+    "never loads the rich-rendering libraries",
+    DEV_SERVER,
+    async ({ page, network }) => {
+      serveFixtures(network);
+      const requested = recordRichRenderingModules(page);
+      for (const view of VIEWS) {
+        await openView(page, view.url("untrusted"), view.ready);
+        await collectMarkers(page);
+      }
+      await openEventFocus(page, "untrusted");
+      expect(requested()).toEqual([]);
     }
-    await openEventFocus(page, "untrusted");
-    expect(requested()).toEqual([]);
-  });
+  );
 
   test("stays plain when navigated to from a trusted log", async ({
     page,
@@ -361,29 +366,30 @@ test.describe("a trusted log", () => {
     expect(markers.markdown).toBeGreaterThan(0);
   });
 
-  test("loads the rich-rendering libraries it needs", async ({
-    page,
-    network,
-  }) => {
-    serveFixtures(network);
-    const requested = recordRichRenderingModules(page);
-    for (const view of VIEWS) {
-      await openView(page, view.url("trusted"), view.ready);
-      await collectMarkers(page);
+  test(
+    "loads the rich-rendering libraries it needs",
+    DEV_SERVER,
+    async ({ page, network }) => {
+      serveFixtures(network);
+      const requested = recordRichRenderingModules(page);
+      for (const view of VIEWS) {
+        await openView(page, view.url("trusted"), view.ready);
+        await collectMarkers(page);
+      }
+      expect(requested()).toEqual(
+        expect.arrayContaining([
+          "AnsiDisplayRich",
+          "ansi-output",
+          "dompurify",
+          "markdown-it",
+          "markdownPipeline",
+          "mathjax",
+          "prismHighlighter",
+          "prismjs",
+        ])
+      );
     }
-    expect(requested()).toEqual(
-      expect.arrayContaining([
-        "AnsiDisplayRich",
-        "ansi-output",
-        "dompurify",
-        "markdown-it",
-        "markdownPipeline",
-        "mathjax",
-        "prismHighlighter",
-        "prismjs",
-      ])
-    );
-  });
+  );
 
   test("renders richly when navigated to from an untrusted log", async ({
     page,
@@ -448,18 +454,19 @@ test.describe("a viewer started with --no-trust-content", () => {
     });
   }
 
-  test("never loads the rich-rendering libraries", async ({
-    page,
-    network,
-  }) => {
-    serveUntrustedViewer(network);
-    const requested = recordRichRenderingModules(page);
-    for (const view of VIEWS) {
-      await openView(page, view.url("trusted"), view.ready);
-      await collectMarkers(page);
+  test(
+    "never loads the rich-rendering libraries",
+    DEV_SERVER,
+    async ({ page, network }) => {
+      serveUntrustedViewer(network);
+      const requested = recordRichRenderingModules(page);
+      for (const view of VIEWS) {
+        await openView(page, view.url("trusted"), view.ready);
+        await collectMarkers(page);
+      }
+      expect(requested()).toEqual([]);
     }
-    expect(requested()).toEqual([]);
-  });
+  );
 
   test("never renders a trusted log's content richly, even transiently", async ({
     page,

@@ -36,6 +36,10 @@ const viewServerUrl = "http://127.0.0.1:7575";
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
+  // The e2e build is served by `vite preview`; it gets its own outDir and
+  // isn't copied into the Python repo, so running e2e locally leaves the
+  // shipped dist untouched.
+  const isE2e = mode === "e2e";
 
   const baseConfig = {
     plugins: [
@@ -135,7 +139,7 @@ export default defineConfig(({ mode }) => {
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
-        copyToPythonRepo(),
+        ...(isE2e ? [] : [copyToPythonRepo()]),
       ],
       mode: "development",
       base: "",
@@ -153,7 +157,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       build: {
-        outDir: "dist",
+        outDir: isE2e ? "dist-e2e" : "dist",
         emptyOutDir: true,
         minify: false,
         rollupOptions: {
