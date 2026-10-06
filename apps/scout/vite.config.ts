@@ -96,10 +96,7 @@ export default defineConfig(({ mode }) => {
           external: (id: string) =>
             /^(react|react-dom|@tanstack\/react-query|use-sync-external-store)(\/|$)/.test(
               id
-            ) ||
-            id === "mathjax-full" ||
-            id.startsWith("mathjax-full/") ||
-            id === "markdown-it-mathjax3",
+            ) || id === "markdown-it-mathjax3",
           output: {
             globals: {
               react: "React",
