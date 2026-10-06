@@ -50,3 +50,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # One PR per action for a major bump, covering both directories, so a
+      # major is never applied to workflows but not composite actions.
+      github-actions-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+        group-by: dependency-name
