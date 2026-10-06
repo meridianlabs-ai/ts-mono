@@ -40,7 +40,8 @@ export default defineConfig({
       command:
         "pnpm exec vite build --mode e2e && pnpm exec vite preview --mode e2e --port 5175 --strictPort",
       url: previewURL,
-      reuseExistingServer: !process.env.CI,
+      // A reused server would serve a stale build; fail on the port instead.
+      reuseExistingServer: false,
     },
     {
       command: "pnpm dev --port 5177",

@@ -133,7 +133,7 @@ export default defineConfig(({ mode }) => {
       base: "",
       server: {
         // Pinned so `pnpm dev` from the root always gives scout 5174 and
-        // inspect 5173 regardless of startup order (e2e uses 5175/5176).
+        // inspect 5173 regardless of startup order (e2e uses 5175–5177).
         port: 5174,
         strictPort: true,
         proxy: {
