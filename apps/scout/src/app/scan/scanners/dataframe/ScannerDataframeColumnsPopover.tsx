@@ -37,6 +37,7 @@ const columnsGroups = {
     "transcript_total_tokens",
     "transcript_error",
     "transcript_limit",
+    "transcript_trust_content",
   ],
   Scan: [
     "scan_id",

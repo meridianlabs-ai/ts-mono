@@ -3,7 +3,12 @@ import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
-import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
+import {
+  ContentTrustProvider,
+  ErrorPanel,
+  LoadingBar,
+} from "@tsmono/react/components";
 import {
   useChromeNavOwnership,
   useDocumentTitle,
@@ -105,7 +110,9 @@ export const TranscriptPanel: FC = () => {
       <LoadingBar loading={loading} />
 
       {!error && transcript && (
-        <>
+        <ContentTrustProvider
+          value={trustContentSetting(transcript.trust_content)}
+        >
           <div
             className={clsx(
               styles.titleHeadroom,
@@ -125,7 +132,7 @@ export const TranscriptPanel: FC = () => {
               onHeadroomSetHidden={onHeadroomSetHidden}
             />
           </div>
-        </>
+        </ContentTrustProvider>
       )}
       {error && (
         <ErrorPanel

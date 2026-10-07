@@ -755,6 +755,9 @@ export interface components {
         /**
          * AppConfig
          * @description Application configuration returned by GET /config.
+         *
+         *     `trust_content` is the viewer-wide cap: the lowest of the `scout view`
+         *     option (or `SCOUT_VIEW_TRUST_CONTENT`) and the project's setting.
          */
         AppConfig: {
             /** Filter */
@@ -804,6 +807,8 @@ export interface components {
             /** Tags */
             tags?: string[] | null;
             transcripts?: components["schemas"]["AppDir"] | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -2580,6 +2585,8 @@ export interface components {
             tags?: string[] | null;
             /** Transcripts */
             transcripts?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -2640,6 +2647,8 @@ export interface components {
             tags?: string[] | null;
             /** Transcripts */
             transcripts?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -4200,6 +4209,8 @@ export interface components {
             total_tokens?: number | null;
             /** Transcript Id */
             transcript_id: string;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * TranscriptField
@@ -4265,6 +4276,8 @@ export interface components {
             total_tokens?: number | null;
             /** Transcript Id */
             transcript_id: string;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * TranscriptsRequest

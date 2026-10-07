@@ -17,10 +17,12 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./app/App.css";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
+  ContentTrustCeilingProvider,
   ContentTrustProvider,
   ExtendedFindProvider,
   FindTargetProvider,
@@ -95,7 +97,12 @@ const useThemePreferenceSync = () => {
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
-  const router = useAppRouter(mode);
+  const { data: appConfig } = useAppConfigAsync();
+  const router = useMemo(
+    () => (appConfig ? createAppRouter({ mode, config: appConfig }) : null),
+    [mode, appConfig]
+  );
+  const trustCeiling = trustContentSetting(appConfig?.trust_content);
 
   return router ? (
     <AppErrorBoundary>
@@ -104,12 +111,13 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
           <AppModeContext.Provider value={mode}>
             <ExtendedFindProvider>
               <FindTargetProvider>
-                {/* Scout doesn't yet know which eval log a transcript came from,
-                    so it can't honor a log's trust_content setting; its content
-                    renders as trusted, as it did before that setting existed. */}
-                <ContentTrustProvider value="trusted">
-                  <RouterProvider router={router} />
-                </ContentTrustProvider>
+                {/* Transcript views provide their own trust under the ceiling;
+                    the key remounts everything when the ceiling changes. */}
+                <ContentTrustCeilingProvider value={trustCeiling}>
+                  <ContentTrustProvider value="trusted">
+                    <RouterProvider key={trustCeiling} router={router} />
+                  </ContentTrustProvider>
+                </ContentTrustCeilingProvider>
               </FindTargetProvider>
             </ExtendedFindProvider>
           </AppModeContext.Provider>
@@ -117,12 +125,4 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
       </ComponentIconProvider>
     </AppErrorBoundary>
   ) : null;
-};
-
-const useAppRouter = (mode: "scans" | "workbench") => {
-  const { data: appConfig } = useAppConfigAsync();
-  return useMemo(
-    () => (appConfig ? createAppRouter({ mode, config: appConfig }) : null),
-    [mode, appConfig]
-  );
 };

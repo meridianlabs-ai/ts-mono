@@ -27,6 +27,7 @@ import {
   deepCopy,
   initializeEditedConfig,
   mergeInFlightEdits,
+  ownField,
 } from "./configUtils";
 import styles from "./ProjectPanel.module.css";
 import { SettingsContent } from "./SettingsContent";
@@ -54,6 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: "scanning", label: "Scanning" },
       { id: "concurrency", label: "Concurrency" },
       { id: "miscellaneous", label: "Miscellaneous" },
+      { id: "viewer", label: "Viewer" },
     ],
   },
   {
@@ -376,6 +378,11 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
             <SettingsContent
               config={editedConfig}
               onChange={handleConfigChange}
+              trustContentOverridden={
+                config.trust_content === false &&
+                (data ? ownField(data.config, "trust_content") : undefined) !==
+                  false
+              }
             />
           </div>
         </div>
