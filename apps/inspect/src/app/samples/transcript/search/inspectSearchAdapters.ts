@@ -18,6 +18,7 @@ import {
 } from "../../../../constants";
 import { useStore } from "../../../../state/store";
 import { useUserSettings } from "../../../../state/userSettings";
+import { useCurrentLogFile } from "../../../routing/currentSelection";
 import {
   makeLogsPath,
   sampleEventUrl,
@@ -65,7 +66,7 @@ export const useInspectSearchContext = (
   sample: EvalSample | undefined
 ): InspectSearchContext | null => {
   const api = getApi();
-  const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const logDir = useLogDir();
   const { logPath: urlLogPath } = useLogOrSampleRouteParams();
 

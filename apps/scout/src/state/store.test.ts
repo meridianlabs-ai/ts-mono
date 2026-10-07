@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { isRecord } from "@tsmono/util";
+import { createWebviewStorage, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../api/api-scout-server";
-import { createVSCodeStore } from "../api/vscode-storage";
 
 import {
   emptyDataframeState,
@@ -189,7 +188,7 @@ describe("dataframe state lifetime", () => {
       },
       postMessage: () => {},
     };
-    const api = { ...apiScoutServer(), storage: createVSCodeStore(vscode) };
+    const api = { ...apiScoutServer(), storage: createWebviewStorage(vscode) };
     const original = createStore(api);
     original.getState().setGridState(GRID_STATE_NAME, dataframe);
     original.getState().setSelectedResultRow(5);
@@ -248,7 +247,6 @@ describe("persisted state", () => {
     const state = store.getState();
 
     state.setShowFind(true);
-    state.setHasInitializedRouting(true);
     state.setSelectedScanLocation("scans/one");
     state.setVisibleScanJobCount(3);
     state.setSelectedScanner("scanner-a");

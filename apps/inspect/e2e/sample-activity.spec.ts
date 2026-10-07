@@ -1051,5 +1051,10 @@ test("log-level tab is relabeled Activity", async ({ page, network }) => {
 
   const encodedFile = encodeURIComponent(LOG_FILE);
   await page.goto(`/#/logs/${encodedFile}`);
-  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
+  // A single-sample log shows its sample inline, and that sample's tab bar
+  // has an Activity tab too.
+  const logActivityTab = page
+    .getByRole("tab", { name: "Activity" })
+    .and(page.locator(`[href$="/logs/${encodedFile}/timeline"]`));
+  await expect(logActivityTab).toBeVisible();
 });

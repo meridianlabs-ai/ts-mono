@@ -12,10 +12,10 @@
     }
   },
   "peerDependencies": {
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "devDependencies": {
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   }
 }
