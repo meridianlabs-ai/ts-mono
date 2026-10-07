@@ -378,6 +378,10 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
             <SettingsContent
               config={editedConfig}
               onChange={handleConfigChange}
+              // App config's trust_content combines the CLI flag, env var,
+              // scout.yaml and scout.local.yaml; data.config is scout.yaml as
+              // saved. Plain text that scout.yaml didn't ask for means another
+              // source forces it (undetectable when scout.yaml also says false).
               trustContentOverridden={
                 config.trust_content === false &&
                 (data ? ownField(data.config, "trust_content") : undefined) !==
