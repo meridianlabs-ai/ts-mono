@@ -43,6 +43,10 @@ export function recentInputMessages(
         (msg.role === "tool" && !shownByToolEvent(msg, options))
       ) {
         result.unshift(msg);
+      } else if (msg.role === "tool" && options.toolEventIds !== undefined) {
+        // with per-call coverage, a result its tool event shows is skipped
+        // rather than ending the turn, so the turn's other results still show
+        continue;
       } else {
         break;
       }

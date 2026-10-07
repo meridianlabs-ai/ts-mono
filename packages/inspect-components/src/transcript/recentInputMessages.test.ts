@@ -135,6 +135,37 @@ describe("recentInputMessages (tool events at the model's level)", () => {
     ).toEqual([agentRun]);
   });
 
+  it.each([
+    ["host result first", ["host_1", "agent_1"], ["agent_1"]],
+    ["agent result first", ["agent_1", "host_1"], ["agent_1"]],
+    ["interleaved", ["agent_1", "host_1", "agent_2"], ["agent_1", "agent_2"]],
+  ])(
+    "shows the turn's uncovered results whatever their order (%s)",
+    (_order, callIds, shown) => {
+      const results = callIds.map(result);
+      const input = [msg("assistant"), ...results];
+      expect(
+        recentInputMessages(input, {
+          ...defaults,
+          hasToolEvents: true,
+          toolEventIds: new Set(["host_1"]),
+        }).map((m) => (m.role === "tool" ? m.tool_call_id : m.role))
+      ).toEqual(shown);
+    }
+  );
+
+  it("stops at the assistant message that made the calls", () => {
+    const earlier = result("agent_0");
+    const input = [earlier, msg("assistant"), result("host_1")];
+    expect(
+      recentInputMessages(input, {
+        ...defaults,
+        hasToolEvents: true,
+        toolEventIds: new Set(["host_1"]),
+      })
+    ).toEqual([]);
+  });
+
   it("hides every result that has a tool event", () => {
     const user = msg("user");
     const input = [msg("assistant"), result("a"), result("b"), user];

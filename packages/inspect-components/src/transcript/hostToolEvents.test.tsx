@@ -56,6 +56,12 @@ const agentCall = testToolCall({
   arguments: { command: "agent-listing" },
 });
 
+const secondAgentCall = testToolCall({
+  id: "agent_2",
+  function: "Bash",
+  arguments: { command: "agent-status" },
+});
+
 let clock = 0;
 const at = () => ({
   timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, clock++)).toISOString(),
@@ -234,6 +240,20 @@ describe("host tool events in a bridged turn", () => {
     ]);
   });
 
+  it("surfaces agent-run results on both sides of a host result", () => {
+    const calls = [agentCall, hostCall, secondAgentCall];
+    const nodes = flatNodes([
+      proposingModel(calls, null),
+      ...hostExecution("host_1", null, true),
+      resultModel(calls, null),
+    ]);
+
+    expect(recentFor(nodes, "model_result").map((m) => m.id)).toEqual([
+      "result_agent_1",
+      "result_agent_2",
+    ]);
+  });
+
   it("covers both executions of a proposal run on two indistinct tools", () => {
     const nodes = flatNodes([
       proposingModel([hostCall], null),
@@ -300,17 +320,30 @@ describe("ModelEventView with tool events at its level", () => {
     expect(screen.queryAllByText(/host-notes\.txt/)).toEqual([]);
   });
 
-  it("shows an agent-run result in the summary", () => {
-    renderModel(resultModel([hostCall, agentCall], null), true, {
-      hasToolEvents: true,
-      toolEventIds: new Set(["host_1"]),
-    });
+  it.each([
+    ["host result first", [hostCall, agentCall], ["agent_1"]],
+    ["agent result first", [agentCall, hostCall], ["agent_1"]],
+    [
+      "interleaved",
+      [agentCall, hostCall, secondAgentCall],
+      ["agent_1", "agent_2"],
+    ],
+  ])(
+    "shows the agent-run results in the summary (%s)",
+    (_order, calls, shown) => {
+      renderModel(resultModel(calls, null), true, {
+        hasToolEvents: true,
+        toolEventIds: new Set(["host_1"]),
+      });
 
-    expect(screen.queryAllByText(/result of agent_1/).length).toBeGreaterThan(
-      0
-    );
-    expect(screen.queryAllByText(/result of host_1/)).toEqual([]);
-  });
+      for (const id of shown) {
+        expect(
+          screen.queryAllByText(new RegExp(`result of ${id}`)).length
+        ).toBeGreaterThan(0);
+      }
+      expect(screen.queryAllByText(/result of host_1/)).toEqual([]);
+    }
+  );
 
   it("omits every call when no coverage is given and the next node is a tool", () => {
     renderModel(proposingModel([hostCall, agentCall], null), false, {
