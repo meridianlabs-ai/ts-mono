@@ -405,6 +405,27 @@ describe("token burn", () => {
     expect(data.agentRows[0]?.spans[0]?.inputTokens).toBeUndefined();
   });
 
+  it("reads input_context_tokens when the call has no usage", () => {
+    const output = testModelOutput({ usage: undefined });
+    output.input_context_tokens = 1000;
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.contextSeries[0]?.value).toBe(1000);
+    expect(data.contextPeak).toBe(1000);
+    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(1000);
+    // no usage, so nothing burned
+    expect(data.totalTokens).toBe(0);
+  });
+
   it("skips model calls without usage (pending, errored)", () => {
     const events: Event[] = [
       testModelEvent({
