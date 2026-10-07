@@ -317,3 +317,22 @@ test("an untrusted viewer shows trusted scan results as plain text", async ({
   await expect(page.getByText("**input claim**").first()).toBeVisible();
   await expect(page.locator("strong", { hasText: "claim" })).toHaveCount(0);
 });
+
+for (const viewer of [null, false] as const) {
+  test(`scan JSON is app data: ${viewer === false ? "plain under an untrusted viewer" : "highlighted"}`, async ({
+    page,
+    network,
+  }) => {
+    mockScan(network, viewer);
+    await page.goto(scanRoute);
+    await page.getByRole("tab", { name: "JSON" }).click();
+
+    const json = page.locator("#task-json-contents");
+    await expect(json).toContainText("scan_id");
+    if (viewer === false) {
+      await expect(json.locator(".token")).toHaveCount(0);
+    } else {
+      await expect(json.locator(".token").first()).toBeVisible();
+    }
+  });
+}

@@ -23,7 +23,6 @@ import {
   ComponentIconProvider,
   ComponentIcons,
   ContentTrustCeilingProvider,
-  ContentTrustProvider,
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
@@ -109,12 +108,11 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
           <AppModeContext.Provider value={mode}>
             <ExtendedFindProvider>
               <FindTargetProvider>
-                {/* Transcript views provide their own trust under the ceiling;
-                    the key remounts everything when the ceiling changes. */}
+                {/* Content is untrusted unless a nearer provider says otherwise
+                    (a transcript's own trust, or app-owned data); the key
+                    remounts everything when the ceiling changes. */}
                 <ContentTrustCeilingProvider value={trustCeiling}>
-                  <ContentTrustProvider value="trusted">
-                    <RouterProvider key={trustCeiling} router={router} />
-                  </ContentTrustProvider>
+                  <RouterProvider key={trustCeiling} router={router} />
                 </ContentTrustCeilingProvider>
               </FindTargetProvider>
             </ExtendedFindProvider>
