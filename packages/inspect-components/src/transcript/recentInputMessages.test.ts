@@ -117,6 +117,50 @@ describe("recentInputMessages (existing behavior)", () => {
   });
 });
 
+// A bridged agent's own tool calls have no tool event; host tools the bridge
+// runs for it do. Only a result some tool event shows hides here.
+describe("recentInputMessages (tool events at the model's level)", () => {
+  const result = (callId: string): ChatMessage =>
+    testToolMessage({ id: `m${nextId++}`, tool_call_id: callId });
+
+  it("shows a result whose call has no tool event", () => {
+    const agentRun = result("agent_1");
+    const input = [msg("assistant"), result("host_1"), agentRun];
+    expect(
+      recentInputMessages(input, {
+        ...defaults,
+        hasToolEvents: true,
+        toolEventIds: new Set(["host_1"]),
+      })
+    ).toEqual([agentRun]);
+  });
+
+  it("hides every result that has a tool event", () => {
+    const user = msg("user");
+    const input = [msg("assistant"), result("a"), result("b"), user];
+    expect(
+      recentInputMessages(input, {
+        ...defaults,
+        hasToolEvents: true,
+        toolEventIds: new Set(["a", "b"]),
+      })
+    ).toEqual([user]);
+  });
+
+  it("shows every result when there are no tool events at all", () => {
+    const first = result("a");
+    const second = result("b");
+    const input = [msg("assistant"), first, second];
+    expect(
+      recentInputMessages(input, {
+        ...defaults,
+        hasToolEvents: false,
+        toolEventIds: new Set(),
+      })
+    ).toEqual([first, second]);
+  });
+});
+
 // Multi-Agent V2 fork boundary: a forked child's first call contains the
 // parent's entire context as user/system messages (no assistant/tool message
 // to stop at), so the walk-back degenerates to "everything is recent". The
