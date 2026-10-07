@@ -208,10 +208,13 @@ test.describe("project settings trust toggle", () => {
   });
 });
 
-test("scan results rows each follow their own transcript's trust", async ({
-  page,
-  network,
-}) => {
+const SCANS_DIR = "/home/test/project/.scans";
+const scanRoute = `/#/scan/${encodeBase64Url(SCANS_DIR)}/scan_id=aBcDeFgHiJkLmNoPqRsTuV?scanner=trust`;
+
+const mockScan = (
+  network: Parameters<Parameters<typeof test>[2]>[0]["network"],
+  viewer: boolean | null
+) => {
   const row = (uuid: string, trust: boolean | null) => ({
     uuid,
     identifier: uuid,
@@ -231,6 +234,9 @@ test("scan results rows each follow their own transcript's trust", async ({
     row("unrecorded", null),
   ]);
   network.use(
+    http.get("*/api/v2/app-config", () =>
+      HttpResponse.json<AppConfig>(createAppConfig({ trust_content: viewer }))
+    ),
     http.get("*/api/v2/scans/:dir/:scanPath", () =>
       HttpResponse.json<Status>(
         createStatus({
@@ -263,10 +269,14 @@ test("scan results rows each follow their own transcript's trust", async ({
       })
     )
   );
-  const dir = encodeBase64Url("/home/test/project/.scans");
-  await page.goto(
-    `/#/scan/${dir}/scan_id=aBcDeFgHiJkLmNoPqRsTuV?scanner=trust`
-  );
+};
+
+test("scan results rows each follow their own transcript's trust", async ({
+  page,
+  network,
+}) => {
+  mockScan(network, null);
+  await page.goto(scanRoute);
 
   await expect(
     page.locator("strong", { hasText: "trusted claim" }).first()
@@ -289,4 +299,21 @@ test("scan results rows each follow their own transcript's trust", async ({
   await expect(
     page.locator("strong", { hasText: "untrusted claim" })
   ).toHaveCount(0);
+});
+
+test("an untrusted viewer shows trusted scan results as plain text", async ({
+  page,
+  network,
+}) => {
+  mockScan(network, false);
+  await page.goto(scanRoute);
+
+  await expect(page.getByText("**trusted claim**").first()).toBeVisible();
+  await expect(page.getByText("**unrecorded claim**").first()).toBeVisible();
+  await expect(page.locator("strong", { hasText: "claim" })).toHaveCount(0);
+
+  await page.getByText("**trusted claim**").first().click();
+  await expect(page).toHaveURL(/\/trusted\?/);
+  await expect(page.getByText("**input claim**").first()).toBeVisible();
+  await expect(page.locator("strong", { hasText: "claim" })).toHaveCount(0);
 });

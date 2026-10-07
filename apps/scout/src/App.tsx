@@ -97,12 +97,10 @@ const useThemePreferenceSync = () => {
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
-  const { data: appConfig } = useAppConfigAsync();
-  const router = useMemo(
-    () => (appConfig ? createAppRouter({ mode, config: appConfig }) : null),
-    [mode, appConfig]
+  const router = useAppRouter(mode);
+  const trustCeiling = trustContentSetting(
+    useAppConfigAsync().data?.trust_content
   );
-  const trustCeiling = trustContentSetting(appConfig?.trust_content);
 
   return router ? (
     <AppErrorBoundary>
@@ -125,4 +123,12 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
       </ComponentIconProvider>
     </AppErrorBoundary>
   ) : null;
+};
+
+const useAppRouter = (mode: "scans" | "workbench") => {
+  const { data: appConfig } = useAppConfigAsync();
+  return useMemo(
+    () => (appConfig ? createAppRouter({ mode, config: appConfig }) : null),
+    [mode, appConfig]
+  );
 };
