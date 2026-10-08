@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode, useState } from "react";
+import { FC, ReactNode, useCallback, useState } from "react";
 
 import type { ToolCall } from "@tsmono/inspect-common/types";
 import { resolveToolInput, ToolInput } from "@tsmono/inspect-components/chat";
@@ -7,6 +7,7 @@ import {
   MarkdownDivWithReferences,
   type MarkdownReference,
 } from "@tsmono/react/components";
+import { useResizeObserver } from "@tsmono/react/hooks";
 import { isRecord } from "@tsmono/util";
 
 import styles from "./ToolCheckInset.module.css";
@@ -83,11 +84,19 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   clampReason,
 }) => {
   const [reasonOpen, setReasonOpen] = useState(false);
-  const clampable =
-    !!clampReason &&
-    !!reason &&
-    (reason.length > kClampChars || reason.includes("\n"));
-  const clamped = clampable && !reasonOpen;
+  const [overflows, setOverflows] = useState(false);
+  const clamped = !!clampReason && !reasonOpen;
+  // Measured only while clamped, so "less" stays once the reason is open.
+  const measureReason = useCallback(
+    (entry: ResizeObserverEntry) => {
+      const text = entry.target.firstElementChild;
+      if (!clamped || !(text instanceof HTMLElement)) return;
+      setOverflows(text.scrollHeight - text.clientHeight > 1);
+    },
+    [clamped]
+  );
+  const reasonRef = useResizeObserver(measureReason);
+  const clampable = !!clampReason && overflows;
   return (
     <div className={styles.summary}>
       <i
@@ -109,7 +118,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
       {error ? (
         <pre className={clsx(styles.reason, styles.error)}>{error}</pre>
       ) : reason ? (
-        <span className={styles.reasonWrap}>
+        <div ref={reasonRef} className={styles.reasonWrap}>
           <MarkdownDivWithReferences
             markdown={reason}
             references={references}
@@ -129,7 +138,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
               {reasonOpen ? "less" : "more"}
             </button>
           ) : null}
-        </span>
+        </div>
       ) : null}
       {flagged || failed || toggle ? (
         <span className={styles.trailing}>
@@ -186,9 +195,6 @@ export const sameArguments = (a: unknown, b: unknown): boolean => {
     keys.every((key) => Object.hasOwn(b, key) && sameArguments(a[key], b[key]))
   );
 };
-
-/** Reasons longer than this may wrap past the two-line clamp. */
-const kClampChars = 140;
 
 interface ReplacedCallProps {
   call: ToolCall;

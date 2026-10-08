@@ -169,6 +169,7 @@ describe("sentinel checks in a tool card", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -454,11 +455,41 @@ describe("sentinel checks in a tool card", () => {
     expect(container.textContent).toContain("RESULT_TEXT");
   });
 
-  it("renders the summary reason as markdown, clamping a long one with a toggle", async () => {
-    const long = `Uses **curl**. ${"More context. ".repeat(20)}`;
+  /** Lays out every element as `scrollHeight` tall in a box `clientHeight` tall, measured as soon as it is observed. */
+  const stubLayout = (scrollHeight: number, clientHeight: number) => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          const entry: ResizeObserverEntry = {
+            target,
+            contentRect: target.getBoundingClientRect(),
+            borderBoxSize: [],
+            contentBoxSize: [],
+            devicePixelContentBoxSize: [],
+          };
+          this.callback([entry], this);
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(
+      scrollHeight
+    );
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(
+      clientHeight
+    );
+  };
+
+  it("renders the summary reason as markdown, clamping one that overflows with a toggle", async () => {
+    stubLayout(60, 30);
     const { container } = renderTool([
       decision("rule", "rule", "no_network", "reject"),
-      decision("root", "", "concurrent", "reject", { explanation: long }),
+      decision("root", "", "concurrent", "reject", {
+        explanation: "Uses **curl**.",
+      }),
     ]);
     await waitFor(() => {
       expect(container.querySelector("strong")?.textContent).toBe("curl");
@@ -472,19 +503,16 @@ describe("sentinel checks in a tool card", () => {
     expect(reason()?.className).toContain("clamped");
   });
 
-  it("does not clamp a short reason", async () => {
+  it("offers no toggle for a reason that fits in the clamp", async () => {
+    stubLayout(30, 30);
+    const long = `Uses **curl**. ${"More context. ".repeat(20)}`;
     const { container } = renderTool([
       decision("rule", "rule", "no_network", "reject"),
-      decision("root", "", "concurrent", "reject", {
-        explanation: "Uses **curl**.",
-      }),
+      decision("root", "", "concurrent", "reject", { explanation: long }),
     ]);
     await waitFor(() => {
       expect(container.querySelector("strong")?.textContent).toBe("curl");
     });
-    expect(
-      container.querySelector("strong")!.closest('[class*="reason"]')?.className
-    ).not.toContain("clamped");
     expect(screen.queryByRole("button", { name: "more" })).toBeNull();
   });
 
