@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -13,11 +13,7 @@ import {
   PendingSampleResponse,
   SampleSummary,
 } from "../client/api/types";
-import {
-  createDatabaseService,
-  DatabaseService,
-  DB_NAME,
-} from "../client/database";
+import { DB_NAME, OpenDatabase } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
@@ -34,14 +30,15 @@ import {
 } from "./testFixtures";
 
 const holder = vi.hoisted(() => ({
-  service: null as DatabaseService | null,
+  service: null as OpenDatabase | null,
   api: null as ClientAPI | null,
 }));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => {
-    if (!holder.service) throw new Error("test service not initialized");
-    return holder.service;
-  },
+vi.mock("./databaseInstance", () => ({
+  acquireDatabase: () =>
+    holder.service
+      ? Promise.resolve(holder.service)
+      : Promise.reject(new Error("test service not initialized")),
+  currentDatabase: () => holder.service,
 }));
 vi.mock("../app_config", () => ({
   getApi: () => {
@@ -160,13 +157,12 @@ describe("useSampleSummaries during a running eval", () => {
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
+    db = await OpenDatabase.open();
     holder.service = db;
     holder.api = api;
-    await db.openDatabase();
     // What <FetchEngineController> does below the gate: start the engine
     // from a config snapshot (acquisition paths only await readiness).
     activateFetchEngine({
@@ -180,14 +176,43 @@ describe("useSampleSummaries during a running eval", () => {
   });
 
   afterEach(async () => {
+    // Unmount first: a hook re-rendering during teardown would otherwise
+    // read the api after the holder is reset.
+    cleanup();
     deactivateFetchEngine();
     fetchEngine.stop();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
     holder.service = null;
     holder.api = null;
     queryClient.clear();
     vi.clearAllMocks();
+  });
+
+  test("a log switch never hands back the previous log's summaries", async () => {
+    serverDetails = details([createSampleSummary({ id: "s1" })]);
+    serverBuffer = { etag: "e1", samples: [] };
+    serverInfo = { size: 100 };
+    // The next log's details never arrive, so the listing keeps the previous
+    // log's rows as placeholder data.
+    vi.mocked(api.get_log_details).mockImplementation((file: string) =>
+      file === "other.eval"
+        ? new Promise<LogDetails>(() => {})
+        : Promise.resolve(serverDetails)
+    );
+
+    const { result, rerender } = renderHook(
+      ({ file }: { file: string }) => useSampleSummaries(LOG_DIR, file),
+      { wrapper, initialProps: { file: FILE } }
+    );
+    await waitFor(
+      () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
+      { timeout: 3000 }
+    );
+
+    rerender({ file: "other.eval" });
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
   });
 
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {

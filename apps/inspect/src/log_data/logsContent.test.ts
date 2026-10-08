@@ -9,10 +9,7 @@ import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
 import { DB_NAME } from "../client/database/schema";
-import {
-  createDatabaseService,
-  DatabaseService,
-} from "../client/database/service";
+import { OpenDatabase } from "../client/database/service";
 import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
@@ -33,16 +30,15 @@ vi.mock("./databaseListings", async (importOriginal) => ({
 }));
 
 describe("writeListing", () => {
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
-    await db.openDatabase();
+    db = await OpenDatabase.open();
   });
 
   afterEach(async () => {
     queryClient.clear();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
   });
 
@@ -74,16 +70,15 @@ describe("writeListing", () => {
 });
 
 describe("writeDetails", () => {
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
-    await db.openDatabase();
+    db = await OpenDatabase.open();
   });
 
   afterEach(async () => {
     queryClient.clear();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
     vi.restoreAllMocks();
   });

@@ -327,7 +327,7 @@ const TimelineAction: FC<{ href?: string; onClick: () => void }> = ({
     href={href}
     onNavigate={onClick}
     className={styles.actionLink}
-    title="View on timeline"
+    title="View on activity"
   >
     <i className="bi bi-graph-up" aria-hidden="true" />
     Timeline

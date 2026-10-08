@@ -97,11 +97,7 @@ export const createStore = (api: ScoutApiV2) =>
           ),
           version: 1,
           partialize: (state) => {
-            const {
-              hasInitializedRouting,
-              visibleScannerResults,
-              ...persistedState
-            } = state;
+            const { visibleScannerResults, ...persistedState } = state;
             return persistedState;
           },
         }

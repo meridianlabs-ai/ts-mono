@@ -37,6 +37,7 @@ import { Events } from "../../../@types/extraInspect";
 import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   makeLogsPath,
   routeFromFullUrl,
@@ -370,7 +371,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     id: urlSampleId,
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const logDir = useLogDir();
 
   const getEventUrl = useCallback(

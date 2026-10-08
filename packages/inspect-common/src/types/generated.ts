@@ -581,6 +581,8 @@ export interface components {
             inspect_version: string;
             /** Scout Version */
             scout_version?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * ApprovalEvent
@@ -2831,6 +2833,10 @@ export interface components {
             output: components["schemas"]["ModelOutput"];
             /** Pending */
             pending?: boolean | null;
+            /** Request Ids */
+            request_ids?: components["schemas"]["ModelRequestId"][] | null;
+            /** Requested Model */
+            requested_model?: string | null;
             /** Retries */
             retries?: number | null;
             /** Role */
@@ -2897,9 +2903,23 @@ export interface components {
             } | null;
             /** Model */
             model: string;
+            /** Response Id */
+            response_id?: string | null;
             /** Time */
             time?: number | null;
             usage?: components["schemas"]["ModelUsage"] | null;
+        };
+        /**
+         * ModelRequestId
+         * @description Provider request id from an HTTP response.
+         */
+        ModelRequestId: {
+            /** Header */
+            header: string;
+            /** Id */
+            id: string;
+            /** Status */
+            status: number;
         };
         /**
          * ModelUsage
@@ -4247,7 +4267,8 @@ export interface components {
          * @description Top-level viewer configuration.
          *
          *     This allows per task customization of the
-         *     Task's sample list and each sample's score and scanner result display.
+         *     Task's sample list, each sample's score and scanner result display,
+         *     and whether log content is trusted enough to render richly.
          */
         ViewerConfig: {
             sample_score_view?: components["schemas"]["SampleScoreView"] | null;
@@ -4257,6 +4278,8 @@ export interface components {
             };
             /** Task Samples View */
             task_samples_view?: components["schemas"]["TaskSamplesView"] | components["schemas"]["TaskSamplesView"][] | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
     };
     responses: never;
