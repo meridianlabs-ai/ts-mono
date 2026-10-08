@@ -86,6 +86,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
     scrollRef,
     listHandle,
     slice,
+    checks,
     turnInfo,
     totalTurns,
     onPrev,
@@ -314,7 +315,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             // Slice starts at the focused model, so the per-node back-scan would
             // compute hasToolEvents=false and the model would inline + expand its
             // input tool messages. Force true so it renders the compact summary.
-            eventNodeContext={{ hasToolEvents: true }}
+            eventNodeContext={{ hasToolEvents: true, ...checks }}
           />
         </StickyScrollProvider>
       </div>

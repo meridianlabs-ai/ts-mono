@@ -1,6 +1,6 @@
 import { RefObject, useLayoutEffect } from "react";
 
-import { useContentPolicy } from "../components/ContentTrust";
+import { useContentPolicy } from "../components/ContentTrustContext";
 
 import { onDemandModule } from "./onDemandModule";
 

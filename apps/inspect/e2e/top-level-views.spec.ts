@@ -619,6 +619,114 @@ test("resizes a column by dragging its divider", async ({ page, network }) => {
   expect(after).toBeGreaterThan(before + 60);
 });
 
+test("dragging a column divider resizes without reordering columns", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const id = columnHeader(page, "Id");
+  await expect(id).toBeVisible();
+  const headerOrder = () =>
+    page
+      .getByRole("columnheader")
+      .evaluateAll((cells) => cells.map((c) => c.textContent.trim()));
+  const width = async () => Math.round((await id.boundingBox())?.width ?? 0);
+  const order = await headerOrder();
+  const before = await width();
+
+  // Resizing moves the divider off the press point, onto a draggable
+  // header label — the column's own when widening, its neighbour's when
+  // narrowing. The browser must not start a column drag from there.
+  await dragResize(page, "sampleId", 60);
+  expect(await headerOrder()).toEqual(order);
+  const resized = await width();
+  expect(resized).toBeGreaterThan(before + 40);
+  const input = columnHeader(page, "Input");
+  const inputBefore = (await input.boundingBox())?.width ?? 0;
+  await dragResize(page, "input", -80);
+  expect(await headerOrder()).toEqual(order);
+  expect((await input.boundingBox())?.width ?? 0).toBeLessThan(
+    inputBefore - 40
+  );
+  // The press still moves focus to the grid, so arrow keys keep working.
+  await page.getByRole("textbox").first().focus();
+  await dragResize(page, "input", 20);
+  await expect(page.getByRole("grid")).toBeFocused();
+
+  // With the button released, moving the pointer no longer resizes.
+  const box = (await id.boundingBox())!;
+  await page.mouse.move(box.x + 400, box.y + 200, { steps: 10 });
+  await page.mouse.move(box.x + 10, box.y + 200, { steps: 10 });
+  expect(await width()).toBe(resized);
+});
+
+test("a header drag that starts mid-resize is cancelled", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const label = columnHeader(page, "Id").getByText("Id", { exact: true });
+  await expect(label).toBeVisible();
+  // A browser that ignores the divider's cancelled mousedown would start a
+  // drag from the label under the press point; dispatch that dragstart.
+  const box = (await page
+    .getByLabel("Resize sampleId", { exact: true })
+    .boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + box.height / 2, { steps: 4 });
+  const cancelledMidResize = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  await page.mouse.up();
+  expect(cancelledMidResize).toBe(true);
+
+  // Once the resize ends, the label drags again.
+  const cancelledAfter = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  expect(cancelledAfter).toBe(false);
+  await label.dispatchEvent("dragend");
+});
+
 test("keeps a resized width after navigating into a log and back", async ({
   page,
   network,

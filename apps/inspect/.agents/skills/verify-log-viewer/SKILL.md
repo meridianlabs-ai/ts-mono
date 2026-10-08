@@ -30,7 +30,7 @@ Every command reads the same four env vars (defaults in parentheses):
   (viewer-rich, viewer-arithmetic, viewer-error, viewer-cancelled, …) — no
   model calls, so runs are free and reproducible.
 
-Ports 5173/5174 (the apps' own dev servers), 5175/5176 (the mocked e2e
+Ports 5173/5174 (the apps' own dev servers), 5175–5177 (the mocked e2e
 suites), and 7575 (the user's real `inspect view`) are deliberately NOT used.
 
 ## Doctor

@@ -17,6 +17,7 @@ import {
 } from "../../state/hooks";
 import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import { useLogNavigationAction } from "../routing/logNavigation";
 import { toFullUrlMaybe } from "../routing/url";
 
@@ -35,6 +36,7 @@ export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
   const navigation = useLogNavigationAction();
+  const logFile = useCurrentLogFile();
 
   const selectedLogDetails = useSelectedLogDetails();
   const logLoading = useSelectedLogLoading();
@@ -44,9 +46,8 @@ export const LogView: FC = () => {
   const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
-  const samplesTabConfig = useSamplesTabConfig(
-    selectedLogDetails?.status,
-    refreshLog
+  const samplesTabConfig = useSamplesTabConfig(selectedLogDetails?.status, () =>
+    refreshLog(logFile)
   );
 
   const intoTabConfig = useInfoTabConfig(

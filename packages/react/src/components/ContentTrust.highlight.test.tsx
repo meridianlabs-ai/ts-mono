@@ -3,7 +3,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { ReactNode, startTransition, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ContentTrustProvider, type ContentTrust } from "./ContentTrust";
+import { ContentTrustProvider, type ContentTrust } from "./ContentTrustContext";
 import { JSONPanel } from "./JsonPanel";
 import { SourceCodePanel } from "./SourceCodePanel";
 

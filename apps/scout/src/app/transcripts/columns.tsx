@@ -44,6 +44,7 @@ export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   message_count: "Messages",
   limit: "Limit",
   error: "Error",
+  trust_content: "Trust Content",
 };
 
 // Column header tooltips (matches headerTitle in column definitions)
@@ -75,6 +76,8 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   limit:
     'Limit that caused the task to exit (e.g. "tokens", "messages", etc.).',
   error: "Error message that terminated the task.",
+  trust_content:
+    "Whether model output may be rendered richly (false shows it as plain text).",
 };
 
 export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo> & {
@@ -609,6 +612,21 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       return value || "-";
     },
   }),
+  trust_content: createColumn({
+    accessorKey: "trust_content",
+    header: "Trust Content",
+    headerTitle:
+      "Whether model output may be rendered richly (false shows it as plain text).",
+    size: 100,
+    minSize: 60,
+    maxSize: 160,
+    meta: {
+      align: "center",
+      filterable: true,
+      filterType: "boolean",
+    },
+    cell: (value) => (value === false ? "untrusted" : "-"),
+  }),
 };
 
 // Default column order (matches current order in TranscriptsGrid)
@@ -634,6 +652,7 @@ export const DEFAULT_COLUMN_ORDER: Array<keyof TranscriptInfo> = [
   "message_count",
   "limit",
   "error",
+  "trust_content",
 ];
 
 // Default visible columns

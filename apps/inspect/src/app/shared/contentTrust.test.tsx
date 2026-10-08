@@ -25,16 +25,12 @@ const mocks = vi.hoisted(() => {
   return state;
 });
 
-vi.mock("../../state/store", () => ({
-  useStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      logs: { selectedLogFile: mocks.selectedLogFile },
-      log: {
-        selectedSampleHandle: mocks.sampleLogFile
-          ? { id: 1, epoch: 1, logFile: mocks.sampleLogFile }
-          : undefined,
-      },
-    }),
+vi.mock("../routing/currentSelection", () => ({
+  useCurrentLogFile: () => mocks.selectedLogFile,
+  useCurrentSampleHandle: () =>
+    mocks.sampleLogFile
+      ? { id: 1, epoch: 1, logFile: mocks.sampleLogFile }
+      : undefined,
 }));
 
 vi.mock("../../app_config", () => ({ useLogDir: () => "dir" }));

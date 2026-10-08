@@ -100,3 +100,49 @@
 .fallbackBadge {
   font-style: italic;
 }
+
+.providerIds {
+  display: grid;
+  grid-template-columns: auto auto auto max-content;
+  column-gap: 1em;
+}
+
+.providerIdRow {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  padding-block: 3px;
+  border-bottom: 1px dotted var(--bs-light-border-subtle);
+}
+
+.providerIdRow:last-child {
+  border-bottom: none;
+}
+
+.providerIdRow button {
+  padding: 0;
+  line-height: 1;
+  align-self: center;
+}
+
+.providerIdLabel {
+  font-family: var(--bs-font-monospace);
+  font-size: var(--inspect-font-size-smallest);
+  color: var(--bs-secondary);
+}
+
+.providerIdValue {
+  font-family: var(--bs-font-monospace);
+  color: var(--bs-body-color);
+  overflow-wrap: anywhere;
+}
+
+.providerIdStatus {
+  color: var(--bs-secondary);
+  font-feature-settings: "tnum";
+}
+
+.providerIdFailed {
+  color: var(--bs-danger);
+}

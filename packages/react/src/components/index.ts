@@ -42,6 +42,7 @@ export * from "./LightboxCarousel";
 export * from "./HumanBaselineView";
 export * from "./ComponentNavigationContext";
 export * from "./ContentTrust";
+export * from "./ContentTrustContext";
 export * from "./contentRenderingPolicy";
 export * from "./FindTargetContext";
 export * from "./FindBand";

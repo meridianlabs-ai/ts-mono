@@ -5,13 +5,13 @@
 
 import {
   createJsonRpcFetch,
+  createWebviewStorage,
   VSCodeApi,
   webViewJsonRpcClient,
 } from "@tsmono/util";
 
 import { ScoutApiV2 } from "./api";
 import { apiScoutServer } from "./api-scout-server";
-import { createVSCodeStore } from "./vscode-storage";
 
 export const apiVscode = (vscodeApi: VSCodeApi): ScoutApiV2 => {
   const rpcClient = webViewJsonRpcClient(vscodeApi);
@@ -21,7 +21,7 @@ export const apiVscode = (vscodeApi: VSCodeApi): ScoutApiV2 => {
   });
   return {
     ...serverApi,
-    storage: createVSCodeStore(vscodeApi),
+    storage: createWebviewStorage(vscodeApi),
     capability: "workbench",
   };
 };

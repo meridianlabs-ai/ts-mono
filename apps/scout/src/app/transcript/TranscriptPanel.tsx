@@ -3,7 +3,12 @@ import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
-import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
+import {
+  ContentTrustProvider,
+  ErrorPanel,
+  LoadingBar,
+} from "@tsmono/react/components";
 import {
   useChromeNavOwnership,
   useDocumentTitle,
@@ -33,6 +38,7 @@ export const TranscriptPanel: FC = () => {
   // Transcripts directory (resolved from route, user preference, or config)
   const {
     displayTranscriptsDir,
+    resolvedTranscriptsDir,
     resolvedTranscriptsDirSource,
     setTranscriptsDir,
   } = useTranscriptsDir(true);
@@ -44,8 +50,8 @@ export const TranscriptPanel: FC = () => {
     data: transcript,
     error,
   } = useTranscript(
-    config.transcripts
-      ? { location: config.transcripts.dir, id: transcriptId }
+    resolvedTranscriptsDir
+      ? { location: resolvedTranscriptsDir, id: transcriptId }
       : skipToken
   );
   const filter = Array.isArray(config.filter)
@@ -86,7 +92,7 @@ export const TranscriptPanel: FC = () => {
     forceHidden: onHeadroomSetHidden,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => !!(initialEventId || initialMessageId),
-    resetKey: transcriptId,
+    resetKey: `${resolvedTranscriptsDir}\u0000${transcriptId}`,
     findActiveRef,
     expandOnlyAtTop: true,
   });
@@ -104,7 +110,9 @@ export const TranscriptPanel: FC = () => {
       <LoadingBar loading={loading} />
 
       {!error && transcript && (
-        <>
+        <ContentTrustProvider
+          value={trustContentSetting(transcript.trust_content)}
+        >
           <div
             className={clsx(
               styles.titleHeadroom,
@@ -124,7 +132,7 @@ export const TranscriptPanel: FC = () => {
               onHeadroomSetHidden={onHeadroomSetHidden}
             />
           </div>
-        </>
+        </ContentTrustProvider>
       )}
       {error && (
         <ErrorPanel

@@ -1,10 +1,11 @@
 import { useCallback } from "react";
 
-import type { MarkdownReference } from "@tsmono/react/components";
 import {
-  readScannerReferences,
-  type ScannerRefType,
-} from "@tsmono/scout-components/sentinels";
+  citeReferences,
+  type MakeCiteUrl,
+} from "@tsmono/inspect-components/transcript";
+import type { MarkdownReference } from "@tsmono/react/components";
+import { readScannerReferences } from "@tsmono/scout-components/sentinels";
 
 import { kSampleTranscriptTabId } from "../../../constants";
 import {
@@ -20,21 +21,15 @@ type Metadata = Record<string, unknown> | null | undefined;
 
 export function buildScoreMarkdownRefs(
   metadata: Metadata,
-  makeUrl: (id: string, type: ScannerRefType) => string | undefined,
+  makeUrl: MakeCiteUrl,
   previewTable?: ScanReferencePreviews
 ): MarkdownReference[] {
-  return readScannerReferences(metadata).map((ref) => ({
-    id: ref.id,
-    cite: ref.cite,
-    citeUrl: makeUrl(ref.id, ref.type),
-    citePreview: previewTable?.get(ref.id),
-  }));
+  return citeReferences(readScannerReferences(metadata), makeUrl).map(
+    (ref) => ({ ...ref, citePreview: previewTable?.get(ref.id) })
+  );
 }
 
-export type MakeCiteUrl = (
-  id: string,
-  type: ScannerRefType
-) => string | undefined;
+export type { MakeCiteUrl };
 
 /**
  * Hook that returns a cite URL builder closing over the sample's events and

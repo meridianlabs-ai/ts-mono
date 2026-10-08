@@ -7,6 +7,10 @@ import { useStatefulScrollPosition, useVisitId } from "@tsmono/react/hooks";
 import { kSampleMessagesTabId, kSampleTranscriptTabId } from "../../constants";
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import {
+  useCurrentLogFile,
+  useCurrentSampleHandle,
+} from "../routing/currentSelection";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 
 import styles from "./InlineSampleDisplay.module.css";
@@ -43,8 +47,8 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   // sample's tab. Tab flips within the visit share the key (flipping back
   // restores), but a later RETURN to the same sample is a new visit and must
   // land at the top — identity-based keys would restore across visits.
-  const logFile = useStore((state) => state.logs.selectedLogFile);
-  const sampleHandle = useStore((state) => state.log.selectedSampleHandle);
+  const logFile = useCurrentLogFile();
+  const sampleHandle = useCurrentSampleHandle();
   const visitId = useVisitId(
     `${logFile}-${sampleHandle?.id}-${sampleHandle?.epoch}`
   );

@@ -17,7 +17,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   testModelEvent,
+  testSentinelEvent,
   testSpanBeginEvent,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeReactiveStateStore, makeStateHooks } from "@tsmono/react/testing";
@@ -534,5 +536,89 @@ describe("TranscriptViewNodes `f` focus targeting (following vs current turn)", 
     expect(opened).toHaveLength(1);
     expect(opened[0]).toContain("event=m2");
     expect(opened[0]).not.toContain("follow=1");
+  });
+});
+
+describe("TranscriptViewNodes sentinel rows", () => {
+  it("folds tool-stage sentinel events into their tool and keeps one row per other step", () => {
+    const sentinel = (id: string, stage: "tool_call" | "model_output") =>
+      new EventNode(
+        id,
+        testSentinelEvent({ uuid: id, stage, step_id: "call_1" }),
+        0
+      );
+    const eventNodes = [
+      model("m1"),
+      sentinel("s-call", "tool_call"),
+      new EventNode("t1", testToolEvent({ id: "call_1", uuid: "t1" }), 0),
+      sentinel("s-out-1", "model_output"),
+      sentinel("s-out-2", "model_output"),
+    ];
+    const ref = createRef<TranscriptViewNodesHandle>();
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <div ref={scrollRef}>
+        <TranscriptViewNodes
+          ref={ref}
+          id="test"
+          eventNodes={eventNodes}
+          defaultCollapsedIds={{}}
+          scrollRef={scrollRef}
+        />
+      </div>,
+      { wrapper: StateWrapper }
+    );
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "m1",
+      "t1",
+      "s-out-1",
+    ]);
+  });
+});
+
+describe("TranscriptViewNodes sentinel spans", () => {
+  it("hides a sentinel span and its monitor model calls behind the tool", () => {
+    const span = new EventNode(
+      "sen",
+      testSpanBeginEvent({ id: "sen", type: "sentinel", name: "sentinel" }),
+      0
+    );
+    span.children = [
+      new EventNode(
+        "monitor",
+        testModelEvent({ uuid: "monitor", role: "monitor" }),
+        1
+      ),
+      new EventNode(
+        "s-call",
+        testSentinelEvent({ uuid: "s-call", step_id: "call_1" }),
+        1
+      ),
+    ];
+    const eventNodes = [
+      model("m1"),
+      span,
+      new EventNode("t1", testToolEvent({ id: "call_1", uuid: "t1" }), 0),
+    ];
+    const ref = createRef<TranscriptViewNodesHandle>();
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <div ref={scrollRef}>
+        <TranscriptViewNodes
+          ref={ref}
+          id="test"
+          eventNodes={eventNodes}
+          defaultCollapsedIds={{}}
+          scrollRef={scrollRef}
+        />
+      </div>,
+      { wrapper: StateWrapper }
+    );
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "m1",
+      "t1",
+    ]);
   });
 });

@@ -11,7 +11,7 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import { ContentCode } from "@tsmono/react/components";
+import { ContentCode, CopyButton } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -255,6 +255,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
               <MetaDataGrid entries={entries} options={{ plain: true }} />
             </EventSection>
           )}
+
+          <ProviderIds event={event} />
         </div>
       </div>
 
@@ -289,6 +291,57 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </EventPanel>
   );
 };
+
+const ProviderIds: FC<{ event: ModelEvent }> = ({ event }) => {
+  const responseId = event.output.response_id;
+  const requestIds = event.request_ids ?? [];
+  if (!responseId && requestIds.length === 0) {
+    return null;
+  }
+
+  return (
+    <EventSection
+      title="Provider IDs"
+      className={clsx(styles.tableSelection, styles.config)}
+    >
+      <div className={clsx(styles.providerIds, "text-size-small")}>
+        {responseId ? (
+          <ProviderIdRow label="response" id={responseId} />
+        ) : undefined}
+        {requestIds.map((requestId, index) => (
+          <ProviderIdRow
+            key={`${requestId.header}-${requestId.id}-${index}`}
+            label={requestId.header}
+            id={requestId.id}
+            status={requestId.status}
+          />
+        ))}
+      </div>
+    </EventSection>
+  );
+};
+
+interface ProviderIdRowProps {
+  label: string;
+  id: string;
+  status?: number;
+}
+
+const ProviderIdRow: FC<ProviderIdRowProps> = ({ label, id, status }) => (
+  <div className={styles.providerIdRow}>
+    <div className={styles.providerIdLabel}>{label}</div>
+    <div className={styles.providerIdValue}>{id}</div>
+    <div
+      className={clsx(
+        styles.providerIdStatus,
+        status !== undefined && status >= 400 && styles.providerIdFailed
+      )}
+    >
+      {status}
+    </div>
+    <CopyButton value={id} ariaLabel={`Copy ${label}`} />
+  </div>
+);
 
 function formatFailureTime(event: ModelEvent): string {
   const sec = attemptDurationSec(event);
