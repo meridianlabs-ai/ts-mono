@@ -1951,6 +1951,63 @@ export interface components {
             task_id: string;
         };
         /**
+         * EvalShardEntry
+         * @description Ledger entry for one shard, as of the merge that last read it.
+         */
+        EvalShardEntry: {
+            /** Completed At */
+            completed_at: string | "";
+            error?: components["schemas"]["EvalError"] | null;
+            /** Etag */
+            etag?: string | null;
+            /** Eval Set Id */
+            eval_set_id?: string | null;
+            /** Log */
+            log: string;
+            /** Model Usage */
+            model_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Mtime */
+            mtime?: number | null;
+            /** Role Usage */
+            role_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Samples */
+            samples: number;
+            /** Selected */
+            selected: number;
+            /** Selection Digest */
+            selection_digest: string;
+            /** Shard */
+            shard: string;
+            /** Size */
+            size: number;
+            /** Started At */
+            started_at: string | "";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "started" | "success" | "cancelled" | "error";
+        };
+        /**
+         * EvalShards
+         * @description Provenance of a merged log: its shards and the ledger of the last merge.
+         */
+        EvalShards: {
+            /** Ledger */
+            ledger: components["schemas"]["EvalShardEntry"][];
+            /** Sample Count */
+            sample_count?: number | null;
+            /**
+             * Selection
+             * @enum {string}
+             */
+            selection: "ids" | "count" | "none";
+        };
+        /**
          * EvalSpec
          * @description Eval target and configuration.
          */
@@ -1997,6 +2054,7 @@ export interface components {
             sandbox?: components["schemas"]["SandboxEnvironmentSpec"] | null;
             /** Scorers */
             scorers?: components["schemas"]["EvalScorer"][] | null;
+            shards?: components["schemas"]["EvalShards"] | null;
             /** Solver */
             solver?: string | null;
             /** Solver Args */
