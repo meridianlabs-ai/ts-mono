@@ -388,22 +388,21 @@ describe("token burn", () => {
     ];
   };
 
-  it("falls back to usage when input_context_tokens is absent (older logs)", () => {
-    const data = deriveActivityData({ events: billedOnly() });
+  it.each([
+    ["absent (older logs)", undefined],
+    ["null (not known)", null],
+  ] as const)(
+    "falls back to usage when input_context_tokens is %s",
+    (_label, inputContextTokens) => {
+      const data = deriveActivityData({
+        events: billedOnly(inputContextTokens),
+      });
 
-    expect(data.totalTokens).toBe(3390);
-    expect(data.contextSeries[0]?.value).toBe(3300);
-    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
-  });
-
-  it("shows no context when input_context_tokens is null (unknown)", () => {
-    // e.g. a rejected request whose only usage is a billed capability probe
-    const data = deriveActivityData({ events: billedOnly(null) });
-
-    expect(data.totalTokens).toBe(3390);
-    expect(data.contextSeries).toHaveLength(0);
-    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBeUndefined();
-  });
+      expect(data.totalTokens).toBe(3390);
+      expect(data.contextSeries[0]?.value).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
+    }
+  );
 
   it("reads input_context_tokens when the call has no usage", () => {
     const output = testModelOutput({ usage: undefined });

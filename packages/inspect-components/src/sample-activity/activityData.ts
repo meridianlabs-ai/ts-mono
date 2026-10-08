@@ -177,7 +177,7 @@ export interface ActivitySpan {
   // Tooltip detail (handoff 11b) — model turns:
   inputTokens?: number;
   /** Cache reads of every request the call billed: set only when
-   *  inputTokens also comes from usage (logs without input_context_tokens),
+   *  inputTokens also comes from usage (input_context_tokens null or absent),
    *  since input_context_tokens counts one request. */
   cachedTokens?: number;
   outputTokens?: number;
@@ -570,15 +570,14 @@ const tokenCount = (value: number | null | undefined): number | undefined =>
 
 /** Input-side tokens for one model call (context occupancy). Prefers the
  *  recorded input_context_tokens: usage is billed, and for a call that made
- *  several requests it sums them. A null value means the size is unknown
- *  (e.g. a rejected request). Logs written before the field existed omit
- *  it and fall back to the shared total minus the output side: summing
+ *  several requests it sums them. When it is null or absent (not known, or
+ *  a log from before the field) this falls back to the shared total minus
+ *  the output side: summing
  *  input + cache categories directly would double-count on providers whose
  *  input_tokens already includes cached reads (OpenAI), and deriving from
  *  usageTotal keeps this surface consistent with the Usage tab. */
 const inputSideTokens = (event: ModelEvent): number | undefined => {
   const context = event.output.input_context_tokens;
-  if (context === null) return undefined;
   if (typeof context === "number") return tokenCount(context);
   const usage = event.output.usage;
   if (!usage) return undefined;
