@@ -124,10 +124,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const didRun =
     event.error?.type !== "approval" && !(blocker && !hasResult(event.result));
   // An approver's modify runs before the sentinel, which judges its replacement.
+  const approverReplacement =
+    finalApproval?.decision === "modify"
+      ? (finalApproval.modified ?? undefined)
+      : undefined;
   const judged: ToolCall | undefined =
-    finalApproval?.decision === "modify" && finalApproval.modified
-      ? finalApproval.modified
-      : sentinels?.proposed;
+    approverReplacement ?? sentinels?.proposed;
   const beforeInsets =
     approvals || before ? (
       <ToolBlockInset region="input">
@@ -138,6 +140,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
             region="input"
             context={context}
             judged={judged}
+            judgedReplaced={!!approverReplacement}
           />
         ) : null}
       </ToolBlockInset>

@@ -319,6 +319,10 @@ describe("ToolEventView approvals", () => {
       expect.stringContaining("ORIGINAL_CMD"),
       expect.stringContaining("APPROVER_CMD"),
     ]);
+    const labels = [...container.querySelectorAll('[class*="replaced"]')].map(
+      (el) => el.firstElementChild?.textContent
+    );
+    expect(labels).toEqual(["proposed", "replaced"]);
     expect(inputZone(container)?.textContent).toContain("SENTINEL_CMD");
   });
 

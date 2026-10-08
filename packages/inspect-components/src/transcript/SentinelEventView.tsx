@@ -38,6 +38,8 @@ interface SentinelInsetProps {
   context?: EventNodeContext;
   /** The call the step judged, which a modify that took effect shows struck through; unset when unknown. */
   judged?: ToolCall;
+  /** Whether the judged call is an approver's replacement rather than the model's proposal. */
+  judgedReplaced?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   region,
   context,
   judged,
+  judgedReplaced,
 }) => {
   const [collapsed, setCollapsed] = useCollapsedState(
     `${step.id}-sentinel-checks`,
@@ -86,7 +89,10 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
       modified &&
       judged &&
       !sameArguments(judged.arguments, modified.arguments) ? (
-        <ReplacedCall call={judged} />
+        <ReplacedCall
+          call={judged}
+          label={judgedReplaced ? "replaced" : "proposed"}
+        />
       ) : null}
       {!collapsed && single ? (
         <CheckDetail

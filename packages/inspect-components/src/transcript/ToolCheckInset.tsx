@@ -190,15 +190,24 @@ export const sameArguments = (a: unknown, b: unknown): boolean => {
 /** Reasons longer than this may wrap past the two-line clamp. */
 const kClampChars = 140;
 
+interface ReplacedCallProps {
+  call: ToolCall;
+  /** Names the struck call: the model's proposal unless an earlier check replaced it. */
+  label?: "proposed" | "replaced";
+}
+
 /** A call as the check was given it, struck through: the call that ran is the tool's input. */
-export const ReplacedCall: FC<{ call: ToolCall }> = ({ call }) => {
+export const ReplacedCall: FC<ReplacedCallProps> = ({
+  call,
+  label = "proposed",
+}) => {
   const { input, contentType, functionCall } = resolveToolInput(
     call.function,
     call.arguments
   );
   return (
     <div className={styles.replaced}>
-      <span className={clsx(styles.label, styles.modifyText)}>proposed</span>
+      <span className={clsx(styles.label, styles.modifyText)}>{label}</span>
       <div className={clsx(styles.code, styles.struck)}>
         {input !== undefined && input !== null && input !== "" ? (
           <ToolInput contentType={contentType} contents={input} />
