@@ -265,6 +265,11 @@ export type TranscriptState = Record<string, TranscriptEventState>;
  */
 export interface EventNodeContext {
   hasToolEvents?: boolean;
+  /** Ids of the tool events at this node's level. When set, a model event
+   *  leaves out (from its summary) only the tool calls and tool messages
+   *  these events show; when unset, `hasToolEvents` and the next node
+   *  decide for all of them. */
+  toolEventIds?: ReadonlySet<string>;
   turnInfo?: { turnNumber: number; totalTurns: number };
   /** True for the turn's first flattened event (its "capstone"). Only the
    *  capstone's header shows the turn-nav cluster while unstuck; other headers

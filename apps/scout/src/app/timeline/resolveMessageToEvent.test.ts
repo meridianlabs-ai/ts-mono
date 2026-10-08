@@ -451,6 +451,42 @@ describe("resolveMessageToEvent", () => {
       });
     });
 
+    it("redirects a host tool result inside an agent span to the host tool event", () => {
+      // The sandbox bridge records a host tool call in the span of the model
+      // event that proposed it, so it is a sibling of the model event whose
+      // input carries its result; the agent's own call has no tool event.
+      const host = testToolEvent({
+        uuid: "host-event",
+        id: "tc-host",
+        span_id: "agent-sub",
+        metadata: { bridge: { proposal_id: "tc-host", grant: "consumed" } },
+        timestamp: kBaseDate.toISOString(),
+      });
+      const model = makeModelEvent({
+        uuid: "model-after",
+        inputToolMessages: [
+          { id: "msg-host-result", tool_call_id: "tc-host", role: "tool" },
+          { id: "msg-agent-result", tool_call_id: "tc-agent", role: "tool" },
+        ],
+      });
+      const root = makeRoot([
+        makeSpan({
+          id: "agent-sub",
+          spanType: "agent",
+          content: [makeTimelineEvent(host), makeTimelineEvent(model)],
+        }),
+      ]);
+
+      expect(resolveMessageToEvent("msg-host-result", root)).toEqual({
+        eventId: "host-event",
+        agentSpanId: "agent-sub",
+      });
+      expect(resolveMessageToEvent("msg-agent-result", root)).toEqual({
+        eventId: "model-after",
+        agentSpanId: "agent-sub",
+      });
+    });
+
     it("agent card result wins over tool_call_id bridge", () => {
       // When the tool_call_id maps to an agent span, agent card result
       // (priority 2) should win over tool_call_id bridge (priority 3.5)

@@ -313,8 +313,10 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             eventCallbacks={eventCallbacks}
             // Slice starts at the focused model, so the per-node back-scan would
             // compute hasToolEvents=false and the model would inline + expand its
-            // input tool messages. Force true so it renders the compact summary.
-            eventNodeContext={{ hasToolEvents: true }}
+            // input tool messages. Force true so it renders the compact summary;
+            // the slice also lacks the tool events that showed those messages, so
+            // per-call coverage is turned off too.
+            eventNodeContext={{ hasToolEvents: true, toolEventIds: undefined }}
           />
         </StickyScrollProvider>
       </div>
