@@ -410,6 +410,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sentinelEvent.explanation) {
         fields.push(["explanation", sentinelEvent.explanation]);
       }
+      if (sentinelEvent.error) {
+        fields.push(["error", sentinelEvent.error]);
+      }
       break;
     }
 

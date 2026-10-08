@@ -175,11 +175,13 @@ export const kSampleTerminalEvents = new Set([
  * Focus-page nodes for `eventId`: its turn slice minus structural/noise
  * events. Takes the *unfiltered* flat list (`flatTree(eventNodes, null)`) —
  * filtering spans out first would drop the span_begin that ends a turn and
- * run the slice into later turns.
+ * run the slice into later turns. `keep` retains structural nodes that host a
+ * row of their own (e.g. a sentinel span standing in for its step).
  */
 export function focusedTurnNodes(
   flat: EventNode[],
-  eventId: string
+  eventId: string,
+  keep?: (node: EventNode) => boolean
 ): EventNode[] {
   const slice = turnSlice(flat, eventId);
   // The transcript renders the sample's error/limit card right after the last
@@ -195,7 +197,7 @@ export function focusedTurnNodes(
     ? flat.slice(end).filter((n) => kSampleTerminalEvents.has(n.event.event))
     : [];
   return [...slice, ...trailing].filter(
-    (n) => !kFocusExcludedEvents.has(n.event.event)
+    (n) => !kFocusExcludedEvents.has(n.event.event) || !!keep?.(n)
   );
 }
 

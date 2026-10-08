@@ -698,6 +698,25 @@ describe("eventSearchText", () => {
     expect(texts).toContain('bash(cmd="ls")');
   });
 
+  test("sentinel: a failed monitor includes its error", () => {
+    const event = testSentinelEvent({
+      path: "broken",
+      factory: "llm_suspicion",
+      function: "score",
+      kind: "observation",
+      status: "error",
+      action: null,
+      error: "RuntimeError: model unavailable",
+    });
+    expect(extractEventFields(event)).toContainEqual([
+      "error",
+      "RuntimeError: model unavailable",
+    ]);
+    expect(eventSearchText(makeNode(event))).toContain(
+      "RuntimeError: model unavailable"
+    );
+  });
+
   test("sentinel: a bypassed layer carries no report", () => {
     const texts = eventSearchText(
       makeNode(

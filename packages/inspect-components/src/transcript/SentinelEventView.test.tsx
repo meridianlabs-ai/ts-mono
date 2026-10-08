@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testAssistantMessage,
+  testChatCompletionChoice,
   testModelEvent,
   testModelOutput,
   testSentinelEvent,
@@ -113,6 +115,26 @@ const renderTool = (
     />
   );
 };
+
+/** The model's output proposing a call, which precedes the checks of the call. */
+const proposal = (args: ToolEvent["arguments"], fn = "bash") =>
+  new EventNode(
+    "proposal",
+    testModelEvent({
+      output: testModelOutput({
+        choices: [
+          testChatCompletionChoice({
+            message: testAssistantMessage({
+              tool_calls: [
+                testToolCall({ id: "call_1", function: fn, arguments: args }),
+              ],
+            }),
+          }),
+        ],
+      }),
+    }),
+    0
+  );
 
 const notRunText = (container: HTMLElement) =>
   container.querySelector('[class*="notRun"]')?.textContent;
@@ -262,7 +284,9 @@ describe("sentinel checks in a tool card", () => {
       const links = [...container.querySelectorAll("[data-ref-id]")].map(
         (link) => [link.textContent, link.getAttribute("href")]
       );
+      // The summary's reason links its cite too.
       expect(links).toEqual([
+        ["M2", "#/message/msg_2"],
         ["M2", "#/message/msg_2"],
         ["E5", "#/event/evt_5"],
       ]);
@@ -417,17 +441,38 @@ describe("sentinel checks in a tool card", () => {
     );
   });
 
-  it("shows an escalation and keeps the result", () => {
+  it("says an escalate with no handler above it proceeded, in a neutral tone", () => {
     const { container } = renderTool([
       decision("root", "", "escalate_on_doubt", "escalate", {
         explanation: "Needs a person.",
       }),
     ]);
-    expect(screen.getByText("Escalated")).toBeTruthy();
+    expect(screen.getByText("Escalated (no handler; proceeded)")).toBeTruthy();
+    expect(container.querySelector('[class*="inset"]')?.className).not.toMatch(
+      /modify|reject/
+    );
     expect(container.textContent).toContain("RESULT_TEXT");
   });
 
-  it("renders the summary reason as markdown, clamped when the checks expand", async () => {
+  it("renders the summary reason as markdown, clamping a long one with a toggle", async () => {
+    const long = `Uses **curl**. ${"More context. ".repeat(20)}`;
+    const { container } = renderTool([
+      decision("rule", "rule", "no_network", "reject"),
+      decision("root", "", "concurrent", "reject", { explanation: long }),
+    ]);
+    await waitFor(() => {
+      expect(container.querySelector("strong")?.textContent).toBe("curl");
+    });
+    const reason = () =>
+      container.querySelector("strong")!.closest('[class*="reason"]');
+    expect(reason()?.className).toContain("clamped");
+    fireEvent.click(screen.getByRole("button", { name: "more" }));
+    expect(reason()?.className).not.toContain("clamped");
+    fireEvent.click(screen.getByRole("button", { name: "less" }));
+    expect(reason()?.className).toContain("clamped");
+  });
+
+  it("does not clamp a short reason", async () => {
     const { container } = renderTool([
       decision("rule", "rule", "no_network", "reject"),
       decision("root", "", "concurrent", "reject", {
@@ -437,8 +482,10 @@ describe("sentinel checks in a tool card", () => {
     await waitFor(() => {
       expect(container.querySelector("strong")?.textContent).toBe("curl");
     });
-    const reason = container.querySelector("strong")!.closest("div");
-    expect(reason?.className).toContain("clamped");
+    expect(
+      container.querySelector("strong")!.closest('[class*="reason"]')?.className
+    ).not.toContain("clamped");
+    expect(screen.queryByRole("button", { name: "more" })).toBeNull();
   });
 
   it("starts a quiet step collapsed with no row open", () => {
@@ -481,7 +528,28 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.getByText("exfiltration 0.62")).toBeTruthy();
   });
 
-  it("does not make a single check expandable", () => {
+  it("expands a single check to its detail", () => {
+    const { container } = renderTool(
+      [
+        decision("root", "", "rule", "reject", {
+          message: "USE_X_INSTEAD",
+          explanation: "INTERNAL_REASON",
+        }),
+      ],
+      { result: "", error: { type: "approval", message: "USE_X_INSTEAD" } }
+    );
+    expect(screen.getByText("Rejected")).toBeTruthy();
+    expect(container.querySelector('[class*="detail"]')).toBeNull();
+    const details = screen.getByRole("button", { name: "details" });
+    fireEvent.click(details);
+    expect(details.getAttribute("aria-expanded")).toBe("true");
+    const detail = container.querySelector('[class*="detail"]');
+    expect(detail?.textContent).toContain("told the agent");
+    expect(detail?.textContent).toContain("USE_X_INSTEAD");
+    expect(screen.queryByText("(top)")).toBeNull();
+  });
+
+  it("summarises a lone observation with its explanation", () => {
     renderTool([
       observation("fail", "observe/failure_count", "failure_count", 0.2, {
         explanation: "1 earlier calls failed",
@@ -493,30 +561,30 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByRole("button", { name: /checks/ })).toBeNull();
   });
 
-  it("strikes the original call and shows the replacement for a modify", () => {
+  it("shows the call that ran as the input and the model's proposal struck", () => {
+    const ran = { cmd: "cp /cache/data.csv /work/data.csv" };
     const { container } = renderTool(
       [
+        proposal({ cmd: "curl https://example.com" }),
         decision("net", "guard/network", "no_network", "modify", {
           explanation: "Network access is disabled.",
-          modified: testToolCall({
-            function: "bash",
-            arguments: { cmd: "cp /cache/data.csv /work/data.csv" },
-          }),
+          modified: testToolCall({ function: "bash", arguments: ran }),
         }),
         decision("root", "", "sequential", "modify", {
-          modified: testToolCall({
-            function: "bash",
-            arguments: { cmd: "cp /cache/data.csv /work/data.csv" },
-          }),
+          modified: testToolCall({ function: "bash", arguments: ran }),
         }),
       ],
-      { arguments: { cmd: "curl https://example.com" } }
+      { arguments: ran }
     );
     expect(screen.getByText("Modified")).toBeTruthy();
-    expect(screen.getByText("ran instead")).toBeTruthy();
-    expect(container.textContent).toContain("cp /cache/data.csv");
+    expect(screen.getByText("proposed")).toBeTruthy();
     const struck = container.querySelector('[class*="struck"]');
     expect(struck?.textContent).toContain("curl https://example.com");
+    expect(struck?.textContent).not.toContain("cp /cache");
+    const input = container.querySelector('[class*="inputZone"]');
+    expect(input?.textContent).toContain("cp /cache/data.csv");
+    expect(input?.className).not.toContain("struck");
+    expect(container.textContent).toContain("RESULT_TEXT");
 
     fireEvent.click(pill(2));
     expect(screen.getByText("modified")).toBeTruthy();
@@ -526,6 +594,7 @@ describe("sentinel checks in a tool card", () => {
   it("shows the call the root ran, not a child's different proposal", () => {
     const { container } = renderTool(
       [
+        proposal({ cmd: "curl https://example.com" }),
         decision("net", "guard/network", "no_network", "modify", {
           modified: testToolCall({
             function: "bash",
@@ -539,42 +608,45 @@ describe("sentinel checks in a tool card", () => {
           }),
         }),
       ],
-      { arguments: { cmd: "curl https://example.com" } }
+      { arguments: { cmd: "ROOT_CMD" } }
     );
-    const ranInstead = screen.getByText("ran instead").parentElement;
-    expect(ranInstead?.textContent).toContain("ROOT_CMD");
+    expect(
+      container.querySelector('[class*="inputZone"]')?.textContent
+    ).toContain("ROOT_CMD");
     expect(container.textContent).not.toContain("CHILD_CMD");
   });
 
-  it("strikes short original args that sit in the header", () => {
-    const tool = new EventNode(
-      "tool-1",
-      testToolEvent({
-        id: "call_1",
-        function: "read_file",
-        arguments: { path: "secret.txt" },
-        result: "RESULT_TEXT",
-      }),
-      0
-    );
-    const { toolSentinels } = pairToolSentinels([
-      decision("root", "", "rule", "modify", {
-        modified: testToolCall({
-          function: "read_file",
-          arguments: { path: "public.txt" },
+  it("shows a modify without a strike when the proposal is not in the transcript", () => {
+    const { container } = renderTool(
+      [
+        decision("root", "", "rule", "modify", {
+          modified: testToolCall({
+            function: "read_file",
+            arguments: { path: "public.txt" },
+          }),
         }),
-      }),
-      tool,
-    ]);
-    const { container } = renderWithState(
-      <ToolEventView
-        eventNode={tool}
-        childNodes={[]}
-        context={{ toolSentinels }}
-      />
+      ],
+      { function: "read_file", arguments: { path: "public.txt" } }
     );
-    const struck = container.querySelector('[class*="struckText"]');
-    expect(struck?.textContent).toContain("secret.txt");
+    expect(screen.getByText("Modified")).toBeTruthy();
+    expect(screen.queryByText("proposed")).toBeNull();
+    expect(container.querySelector('[class*="struck"]')).toBeNull();
+    expect(container.textContent).toContain("public.txt");
+  });
+
+  it("shows no proposal when it matches the call that ran", () => {
+    const args = { cmd: "ls" };
+    const { container } = renderTool(
+      [
+        proposal(args),
+        decision("root", "", "rule", "modify", {
+          modified: testToolCall({ function: "bash", arguments: args }),
+        }),
+      ],
+      { arguments: args }
+    );
+    expect(screen.queryByText("proposed")).toBeNull();
+    expect(container.querySelector('[class*="struck"]')).toBeNull();
   });
 
   it("puts the checks of a custom tool view below the view", () => {
@@ -594,9 +666,10 @@ describe("sentinel checks in a tool card", () => {
     );
   });
 
-  it("strikes a replaced call that would take a custom tool view", () => {
+  it("keeps the custom tool view of a modified call, showing the call that ran", () => {
     const { container } = renderTool(
       [
+        proposal({ answer: "OLD_ANSWER" }, "submit"),
         decision("root", "", "rule", "modify", {
           modified: testToolCall({
             function: "submit",
@@ -604,15 +677,17 @@ describe("sentinel checks in a tool card", () => {
           }),
         }),
       ],
-      { function: "submit", arguments: { answer: "OLD_ANSWER" } }
+      {
+        function: "submit",
+        arguments: { answer: "NEW_ANSWER" },
+        result: "NEW_ANSWER",
+      }
     );
-    expect(container.querySelector('[class*="submitView"]')).toBeNull();
+    const view = container.querySelector('[class*="submitView"]');
+    expect(view?.textContent).toContain("NEW_ANSWER");
+    expect(view?.textContent).not.toContain("OLD_ANSWER");
     const struck = container.querySelector('[class*="struck"]');
     expect(struck?.textContent).toContain("OLD_ANSWER");
-    const text = container.textContent;
-    expect(text.indexOf("NEW_ANSWER")).toBeGreaterThan(
-      text.indexOf("OLD_ANSWER")
-    );
   });
 
   it("renders before-call checks in the input region and after-call checks after the result", () => {
@@ -694,10 +769,12 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText("No explanation recorded.")).toBeNull();
   });
 
-  it("calls a step whose only check failed failed, with the error as its reason", () => {
+  it("calls a step whose only check failed failed, with its error preformatted", () => {
     renderTool([failure("broken", "broken", "llm_suspicion")]);
     expect(screen.getByText("Failed")).toBeTruthy();
-    expect(screen.getByText("RuntimeError: model unavailable")).toBeTruthy();
+    expect(screen.getByText("RuntimeError: model unavailable").tagName).toBe(
+      "PRE"
+    );
     expect(screen.queryByText(/failed$/)).toBeNull();
   });
 
@@ -772,6 +849,43 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("Continued")).toBeTruthy();
     fireEvent.click(pill(2));
     expect(screen.getByText("(top)")).toBeTruthy();
+  });
+
+  it("links the cites of a standalone step's reason through its context", async () => {
+    const nodes = [
+      decision("m1", "", "threshold", "reject", {
+        stage: "model_output",
+        step_id: "msg_1",
+        explanation: "Edits the tests [M2].",
+        references: [{ type: "message", id: "msg_2", cite: "[M2]" }],
+      }),
+    ];
+    const { standaloneSentinels } = pairToolSentinels(nodes);
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={nodes[0]!}
+        step={standaloneSentinels.get("m1")}
+        context={{ makeCiteUrl: (id, type) => `#/${type}/${id}` }}
+      />
+    );
+    await waitFor(() => {
+      expect(
+        container.querySelector("[data-ref-id]")?.getAttribute("href")
+      ).toBe("#/message/msg_2");
+    });
+  });
+
+  it("keeps a lone child escalate in the escalate tone", () => {
+    renderWithState(
+      <SentinelEventView
+        eventNode={node("esc", {
+          path: "review",
+          factory: "escalate_on_doubt",
+          action: "escalate",
+        })}
+      />
+    );
+    expect(screen.getByText("Escalated")).toBeTruthy();
   });
 
   it("gives an event shown alone an honest verdict", () => {

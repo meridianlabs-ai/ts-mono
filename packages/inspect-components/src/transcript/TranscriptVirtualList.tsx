@@ -298,6 +298,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <SentinelEventView
           eventNode={eventNodeOf(node, "sentinel")}
           step={context?.standaloneSentinels?.get(node.id)}
+          context={context}
           className={className}
         />
       );

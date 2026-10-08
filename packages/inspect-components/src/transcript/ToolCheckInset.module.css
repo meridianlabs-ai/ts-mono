@@ -49,10 +49,39 @@
   font-family: var(--bs-font-monospace);
 }
 
-.reason {
+.reasonWrap,
+.error {
   flex: 1 1 200px;
   min-width: 0;
+}
+
+.reasonWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.reason {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 0;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.more {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.72rem;
+  color: var(--bs-link-color);
+  cursor: pointer;
 }
 
 .reason :global(p),
@@ -60,7 +89,8 @@
   margin-bottom: 0;
 }
 
-/* With the checks expandable, the full explanation is in the tree detail. */
+/* With the checks expandable, the full explanation is in the tree detail;
+   "more" shows it in place. */
 .clamped {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -167,7 +197,7 @@
   text-transform: uppercase;
 }
 
-.ranInstead {
+.replaced {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -186,17 +216,25 @@
   overflow-wrap: anywhere;
 }
 
-/* The replacement renders through the tool input view; flatten the boxed
+/* The proposal renders through the tool input view; flatten the boxed
    surface the readable variant gives it. */
-.ranInstead .code :global(pre.tool-call-input),
-.ranInstead .code :global(div.tool-call-input),
-.ranInstead .code :global(.tool-call-input) :global(pre[class*="language-"]) {
+.replaced .code :global(pre.tool-call-input),
+.replaced .code :global(div.tool-call-input),
+.replaced .code :global(.tool-call-input) :global(pre[class*="language-"]) {
   background-color: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
   font-size: inherit;
+}
+
+/* Struck through and without syntax colors, so the tool input reads as what ran. */
+.struck,
+.struck * {
+  color: rgba(var(--bs-body-color-rgb), 0.6) !important;
+  text-decoration: line-through;
+  text-decoration-color: rgba(var(--bs-body-color-rgb), 0.35);
 }
 
 .notRun {

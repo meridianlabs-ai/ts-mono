@@ -38,8 +38,6 @@ export interface ClientToolCallProps {
   afterInput?: ReactNode;
   /** Rendered after the output. */
   afterOutput?: ReactNode;
-  /** Strikes the input through, for a call that a check replaced. */
-  inputStruck?: boolean;
   /** Rendered in place of the output, for a call that never ran. */
   outputReplacement?: ReactNode;
 }
@@ -66,7 +64,6 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   getCustomToolView,
   afterInput,
   afterOutput,
-  inputStruck,
   outputReplacement,
 }) => {
   const customContent = useCustomContent();
@@ -85,17 +82,15 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     selfAnnotation,
     inputScreenshot,
   };
-  // A call a check replaced or blocked takes the standard block, which can
-  // strike its input and stand in for its result.
-  const customView =
-    customContent && !inputStruck && !outputReplacement
-      ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
-      : undefined;
+  const customView = customContent
+    ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
+    : undefined;
   if (customView) {
     return (
       <div className={clsx(styles.custom, className)}>
         {customView}
         {afterInput}
+        {outputReplacement}
         {afterOutput}
       </div>
     );
@@ -122,11 +117,10 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       icon={iconForTool(tool)}
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
-      summaryStruck={inputStruck}
       className={className}
     >
       {hasInput || argsInInputZone ? (
-        <ToolBlockInput struck={inputStruck}>
+        <ToolBlockInput>
           <ExpandablePanel
             id={`${id}-tool-input`}
             collapse={true}

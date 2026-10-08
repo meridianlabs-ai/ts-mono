@@ -15,7 +15,8 @@ import {
   checkClasses,
   CheckInset,
   CheckSummary,
-  RanInstead,
+  ReplacedCall,
+  sameArguments,
   type CheckRegion,
   type CheckTone,
 } from "./ToolCheckInset";
@@ -35,29 +36,30 @@ interface SentinelInsetProps {
   region: CheckRegion;
   /** The host row's context; monitor model calls take only its retry attempts. */
   context?: EventNodeContext;
-  /** Whether the call ran; a modify of a call that never ran shows what it proposed. */
-  ran?: boolean;
+  /** The call the step judged, which a modify that took effect shows struck through; unset when unknown. */
+  judged?: ToolCall;
 }
 
 /**
  * One step's sentinel checks: a summary row naming the result that took
- * effect, expanding to the tree of every check with its detail beneath it.
+ * effect, expanding to the tree of every check (or a lone check's detail).
  */
 export const SentinelInset: FC<SentinelInsetProps> = ({
   step,
   region,
   context,
-  ran = true,
+  judged,
 }) => {
   const [collapsed, setCollapsed] = useCollapsedState(
     `${step.id}-sentinel-checks`,
     true
   );
-  const look = verdictLooks[step.verdict];
+  const look = lookOf(step);
   const tone: CheckTone = step.effective ? look.tone : "neutral";
   const single = step.rows.length === 1 ? step.rows[0] : undefined;
   const who = (single?.node ?? step.decider)?.event.path || undefined;
   const modified = step.effective ? step.outcome?.event.modified : undefined;
+  const makeCiteUrl = context?.makeCiteUrl;
   return (
     <CheckInset region={region} tone={tone}>
       <CheckSummary
@@ -69,17 +71,32 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         scores={step.scores}
         reason={step.reason}
         reasonClassName={look.reasonClass}
+        references={citeReferences(step.reasonReferences, makeCiteUrl)}
+        error={step.error}
         flagged={step.audit}
-        failed={step.rows.length > 1 ? step.failed : 0}
-        checks={step.rows.length}
-        open={!collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
+        failed={single ? 0 : step.failed}
+        clampReason={collapsed}
+        toggle={{
+          label: single ? "details" : `${step.rows.length} checks`,
+          open: !collapsed,
+          onToggle: () => setCollapsed(!collapsed),
+        }}
       />
-      {step.verdict === "modify" && modified ? (
-        <RanInstead call={modified} ran={ran} />
+      {step.verdict === "modify" &&
+      modified &&
+      judged &&
+      !sameArguments(judged.arguments, modified.arguments) ? (
+        <ReplacedCall call={judged} />
       ) : null}
-      {!collapsed && step.rows.length > 1 ? (
-        <CheckTree step={step} tone={tone} makeCiteUrl={context?.makeCiteUrl} />
+      {!collapsed && single ? (
+        <CheckDetail
+          row={single}
+          showFunction={false}
+          makeCiteUrl={makeCiteUrl}
+        />
+      ) : null}
+      {!collapsed && !single ? (
+        <CheckTree step={step} tone={tone} makeCiteUrl={makeCiteUrl} />
       ) : null}
       {step.modelCalls[0] ? (
         <ModelCallsNote
@@ -178,6 +195,7 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
             open ? "bi bi-chevron-down" : "bi bi-chevron-right",
             styles.rowChevron
           )}
+          aria-hidden="true"
         />
       </span>
     </button>
@@ -386,6 +404,7 @@ const ModelCallsNote: FC<ModelCallsNoteProps> = ({
             collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down",
             styles.chevron
           )}
+          aria-hidden="true"
         />
         {`${modelCalls.length} monitor model call${modelCalls.length === 1 ? "" : "s"}`}
       </button>
@@ -435,6 +454,7 @@ interface SentinelEventViewProps {
   eventNode: EventNode<SentinelEvent>;
   /** The step this event hosts; without one the event renders alone. */
   step?: SentinelStep;
+  context?: EventNodeContext;
   className?: string;
 }
 
@@ -442,11 +462,13 @@ interface SentinelEventViewProps {
 export const SentinelEventView: FC<SentinelEventViewProps> = ({
   eventNode,
   step,
+  context,
   className,
 }) => (
   <SentinelStepRow
     step={step ?? buildLoneSentinelStep(eventNode)}
     eventNodeId={eventNode.id}
+    context={context}
     className={className}
   />
 );
@@ -524,6 +546,18 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
     textClass: checkClasses.modifyText,
   },
 };
+
+/** An escalate the runner returned had no handler above it, so the call proceeded. */
+const unhandledEscalateLook: VerdictLook = {
+  icon: TranscriptIcons.approvals.escalate,
+  word: "Escalated (no handler; proceeded)",
+  tone: "neutral",
+};
+
+const lookOf = (step: SentinelStep): VerdictLook =>
+  step.verdict === "escalate" && step.returned
+    ? unhandledEscalateLook
+    : verdictLooks[step.verdict];
 
 const toneOfDecision = (
   decision: SentinelEvent["action"] | undefined

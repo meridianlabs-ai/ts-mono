@@ -12,7 +12,8 @@ import {
   checkClasses,
   CheckInset,
   CheckSummary,
-  RanInstead,
+  ReplacedCall,
+  sameArguments,
 } from "./ToolCheckInset";
 import { EventNode } from "./types";
 
@@ -105,18 +106,14 @@ const decisionIcon = (decision: string): string => {
 interface ApprovalInsetProps {
   /** The call's approval events in recording order; the last one took effect. */
   chain: EventNode<ApprovalEvent>[];
-  /** Whether the modified call ran; a later check can still block it. */
-  ran?: boolean;
 }
 
 /**
  * The approvals of a tool call as an inset in its input region: one summary
  * row for the decision that took effect, expanding to the escalation chain.
+ * A modify shows the call the approver was given, struck through.
  */
-export const ApprovalInset: FC<ApprovalInsetProps> = ({
-  chain,
-  ran = true,
-}) => {
+export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
   const final = chain.at(-1)!;
   const [collapsed, setCollapsed] = useCollapsedState(
     `${chain[0]!.id}-approval-chain`,
@@ -138,12 +135,21 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({
         whoSuffix={escalated ? ", after escalation" : undefined}
         reason={event.explanation?.trim() || undefined}
         reasonClassName={look.reason}
-        checks={chain.length}
-        open={!collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
+        clampReason={chain.length > 1}
+        toggle={
+          chain.length > 1
+            ? {
+                label: `${chain.length} checks`,
+                open: !collapsed,
+                onToggle: () => setCollapsed(!collapsed),
+              }
+            : undefined
+        }
       />
-      {event.decision === "modify" && event.modified ? (
-        <RanInstead call={event.modified} ran={ran} />
+      {event.decision === "modify" &&
+      event.modified &&
+      !sameArguments(event.call.arguments, event.modified.arguments) ? (
+        <ReplacedCall call={event.call} />
       ) : null}
       {chain.length > 1 && !collapsed ? (
         <div className={styles.chain}>
@@ -157,7 +163,10 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({
                   {node.event.approver}
                 </span>
                 <span className={clsx(styles.chainDecision, step.text)}>
-                  <i className={decisionIcon(node.event.decision)} />
+                  <i
+                    className={decisionIcon(node.event.decision)}
+                    aria-hidden="true"
+                  />
                   {node.event.decision}
                 </span>
                 {explanation ? (

@@ -1,9 +1,13 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useState } from "react";
 
 import type { ToolCall } from "@tsmono/inspect-common/types";
 import { resolveToolInput, ToolInput } from "@tsmono/inspect-components/chat";
-import { MarkdownDiv } from "@tsmono/react/components";
+import {
+  MarkdownDivWithReferences,
+  type MarkdownReference,
+} from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import styles from "./ToolCheckInset.module.css";
 
@@ -30,6 +34,12 @@ export const CheckInset: FC<CheckInsetProps> = ({ region, tone, children }) => (
   </div>
 );
 
+interface CheckToggle {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}
+
 interface CheckSummaryProps {
   icon: string;
   iconClassName?: string;
@@ -40,13 +50,18 @@ interface CheckSummaryProps {
   whoSuffix?: string;
   reason?: string;
   reasonClassName?: string;
+  /** Links the cites in the reason. */
+  references?: MarkdownReference[];
+  /** The error of a failed check, shown preformatted in place of a reason. */
+  error?: string;
   scores?: string[];
   flagged?: boolean;
   /** How many checks failed. */
   failed?: number;
-  checks?: number;
-  open?: boolean;
-  onToggle?: () => void;
+  /** Expands the detail beneath the summary. */
+  toggle?: CheckToggle;
+  /** Clamps a long reason to two lines while the detail holding it in full is closed. */
+  clampReason?: boolean;
 }
 
 /** One row naming the result that took effect for a stage. */
@@ -59,104 +74,141 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   whoSuffix,
   reason,
   reasonClassName,
+  references,
+  error,
   scores,
   flagged,
   failed,
-  checks,
-  open,
-  onToggle,
-}) => (
-  <div className={styles.summary}>
-    <i className={clsx(icon, styles.icon, iconClassName)} />
-    <span className={clsx(styles.verdict, verdictClassName)}>{verdict}</span>
-    {who ? (
-      <span className={styles.who}>
-        by <span className={styles.mono}>{who}</span>
-        {whoSuffix}
-      </span>
-    ) : null}
-    {scores?.map((score, i) => (
-      <span key={i} className={styles.scores}>
-        {score}
-      </span>
-    ))}
-    {reason ? (
-      <MarkdownDiv
-        markdown={reason}
-        className={clsx(
-          styles.reason,
-          checks !== undefined && checks > 1 && styles.clamped,
-          reasonClassName
-        )}
+  toggle,
+  clampReason,
+}) => {
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const clampable =
+    !!clampReason &&
+    !!reason &&
+    (reason.length > kClampChars || reason.includes("\n"));
+  const clamped = clampable && !reasonOpen;
+  return (
+    <div className={styles.summary}>
+      <i
+        className={clsx(icon, styles.icon, iconClassName)}
+        aria-hidden="true"
       />
-    ) : null}
-    {flagged || failed || (checks !== undefined && checks > 1) ? (
-      <span className={styles.trailing}>
-        {flagged ? (
-          <span className={styles.chip}>
-            <i className="bi bi-flag-fill" />
-            flagged
-          </span>
-        ) : null}
-        {failed ? (
-          <span className={styles.chip}>
-            <i className="bi bi-exclamation-triangle" />
-            {`${failed} failed`}
-          </span>
-        ) : null}
-        {checks !== undefined && checks > 1 ? (
-          <button
-            type="button"
-            className={styles.pill}
-            aria-expanded={!!open}
-            onClick={onToggle}
-          >
-            {`${checks} checks`}
-            <i
-              className={clsx(
-                open ? "bi bi-chevron-down" : "bi bi-chevron-right",
-                styles.pillChevron
-              )}
-            />
-          </button>
-        ) : null}
-      </span>
-    ) : null}
-  </div>
-);
+      <span className={clsx(styles.verdict, verdictClassName)}>{verdict}</span>
+      {who ? (
+        <span className={styles.who}>
+          by <span className={styles.mono}>{who}</span>
+          {whoSuffix}
+        </span>
+      ) : null}
+      {scores?.map((score, i) => (
+        <span key={i} className={styles.scores}>
+          {score}
+        </span>
+      ))}
+      {error ? (
+        <pre className={clsx(styles.reason, styles.error)}>{error}</pre>
+      ) : reason ? (
+        <span className={styles.reasonWrap}>
+          <MarkdownDivWithReferences
+            markdown={reason}
+            references={references}
+            className={clsx(
+              styles.reason,
+              clamped && styles.clamped,
+              reasonClassName
+            )}
+          />
+          {clampable ? (
+            <button
+              type="button"
+              className={styles.more}
+              aria-expanded={reasonOpen}
+              onClick={() => setReasonOpen(!reasonOpen)}
+            >
+              {reasonOpen ? "less" : "more"}
+            </button>
+          ) : null}
+        </span>
+      ) : null}
+      {flagged || failed || toggle ? (
+        <span className={styles.trailing}>
+          {flagged ? (
+            <span className={styles.chip}>
+              <i className="bi bi-flag-fill" aria-hidden="true" />
+              flagged
+            </span>
+          ) : null}
+          {failed ? (
+            <span className={styles.chip}>
+              <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+              {`${failed} failed`}
+            </span>
+          ) : null}
+          {toggle ? (
+            <button
+              type="button"
+              className={styles.pill}
+              aria-expanded={toggle.open}
+              onClick={toggle.onToggle}
+            >
+              {toggle.label}
+              <i
+                className={clsx(
+                  toggle.open ? "bi bi-chevron-down" : "bi bi-chevron-right",
+                  styles.pillChevron
+                )}
+                aria-hidden="true"
+              />
+            </button>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+};
 
-/** The call that ran in place of the original, syntax highlighted. */
-export const ReplacementCall: FC<{ call: ToolCall }> = ({ call }) => {
+/** Whether two tool call argument values are equal, key order aside. */
+export const sameArguments = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((value, i) => sameArguments(value, b[i]))
+    );
+  }
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => Object.hasOwn(b, key) && sameArguments(a[key], b[key]))
+  );
+};
+
+/** Reasons longer than this may wrap past the two-line clamp. */
+const kClampChars = 140;
+
+/** A call as the check was given it, struck through: the call that ran is the tool's input. */
+export const ReplacedCall: FC<{ call: ToolCall }> = ({ call }) => {
   const { input, contentType, functionCall } = resolveToolInput(
     call.function,
     call.arguments
   );
   return (
-    <div className={styles.code}>
-      {input !== undefined && input !== null && input !== "" ? (
-        <ToolInput contentType={contentType} contents={input} />
-      ) : (
-        functionCall
-      )}
+    <div className={styles.replaced}>
+      <span className={clsx(styles.label, styles.modifyText)}>proposed</span>
+      <div className={clsx(styles.code, styles.struck)}>
+        {input !== undefined && input !== null && input !== "" ? (
+          <ToolInput contentType={contentType} contents={input} />
+        ) : (
+          functionCall
+        )}
+      </div>
     </div>
   );
 };
-
-interface RanInsteadProps {
-  call: ToolCall;
-  /** Whether the replacement ran; one a later check blocked is only what the modify proposed. */
-  ran?: boolean;
-}
-
-/** The replacement a modify decision ran instead of the original call. */
-export const RanInstead: FC<RanInsteadProps> = ({ call, ran = true }) => (
-  <div className={styles.ranInstead}>
-    <span className={clsx(styles.label, styles.modifyText)}>
-      {ran ? "ran instead" : "modified to"}
-    </span>
-    <ReplacementCall call={call} />
-  </div>
-);
 
 interface NotRunWellProps {
   /** What the model received as the tool result; unset when it received nothing. */
@@ -166,7 +218,7 @@ interface NotRunWellProps {
 /** Stands in for the result region of a call that never ran. */
 export const NotRunWell: FC<NotRunWellProps> = ({ message }) => (
   <div className={styles.notRun}>
-    <i className="bi bi-slash-circle" />
+    <i className="bi bi-slash-circle" aria-hidden="true" />
     <div className={styles.notRunBody}>
       {message !== undefined ? (
         <>
