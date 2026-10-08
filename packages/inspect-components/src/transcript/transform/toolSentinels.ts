@@ -68,7 +68,7 @@ export interface SentinelStep {
 export interface ToolSentinels {
   before?: SentinelStep;
   after?: SentinelStep;
-  /** The call as the model proposed it, from the last model output before the tool. */
+  /** The call as the model proposed it, from the last model output before the tool that proposed its id; calls that share an id take its proposals in order. */
   proposed?: ToolCall;
 }
 
@@ -396,8 +396,9 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
 
 /**
  * The ToolEvent a tool-stage step judged: the first one with the step's id
- * recorded after a `tool_call` step, the last one before a `tool_result` step,
- * skipping tools that already host a step of the same stage.
+ * recorded after a `tool_call` step (none when no such tool follows), the last
+ * one before a `tool_result` step, skipping tools that already host a step of
+ * the same stage.
  */
 const hostTool = (
   tools: ToolEntry[],
@@ -411,8 +412,8 @@ const hostTool = (
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
   const after = candidates.find((t) => t.order > order);
-  const before = candidates.findLast((t) => t.order < order);
-  return step.stage === "tool_call" ? (after ?? before) : (before ?? after);
+  if (step.stage === "tool_call") return after;
+  return candidates.findLast((t) => t.order < order) ?? after;
 };
 
 /**
@@ -426,8 +427,9 @@ export function pairToolSentinels(
   eventNodes: EventNode[]
 ): ToolSentinelPairing {
   const tools: ToolEntry[] = [];
-  // The latest proposal of each call id, from model outputs outside sentinel spans.
-  const proposals = new Map<string, ToolCall>();
+  // The proposals of each call id in the latest model output (outside
+  // sentinel spans) that proposed it, which its tools take in order.
+  const proposals = new Map<string, ToolCall[]>();
   const steps = new Map<string, StepEvents>();
   const seen = new Set<string>();
   let order = 0;
@@ -442,7 +444,7 @@ export function pairToolSentinels(
         tools.push({
           node: eventNodeOf(n, "tool"),
           order: at,
-          proposed: proposals.get(n.event.id),
+          proposed: proposals.get(n.event.id)?.shift(),
         });
       } else if (n.event.event === "sentinel") {
         const key = span
@@ -459,10 +461,14 @@ export function pairToolSentinels(
         if (span) {
           span.modelCalls.push(eventNodeOf(n, "model"));
         } else {
-          for (const choice of n.event.output.choices) {
-            for (const call of choice.message.tool_calls ?? []) {
-              proposals.set(call.id, call);
-            }
+          const proposed = n.event.output.choices.flatMap(
+            (choice) => choice.message.tool_calls ?? []
+          );
+          for (const id of new Set(proposed.map((call) => call.id))) {
+            proposals.set(
+              id,
+              proposed.filter((call) => call.id === id)
+            );
           }
         }
       }

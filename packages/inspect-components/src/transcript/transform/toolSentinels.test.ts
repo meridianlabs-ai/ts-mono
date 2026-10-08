@@ -7,10 +7,15 @@ import {
   testModelOutput,
   testSentinelEvent,
   testSpanBeginEvent,
+  testSpanEndEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
-import type { SentinelEvent } from "@tsmono/inspect-common/types";
+import type {
+  Event,
+  SentinelEvent,
+  ToolCall,
+} from "@tsmono/inspect-common/types";
 
 import { EventNode } from "../types";
 
@@ -23,6 +28,7 @@ import {
   type SentinelNode,
   type SentinelStep,
 } from "./toolSentinels";
+import { treeifyEvents } from "./treeify";
 
 const sentinel = (
   id: string,
@@ -607,6 +613,49 @@ describe("pairToolSentinels", () => {
     });
   });
 
+  it("gives calls that share an id in one model output their proposals in order", () => {
+    const output = new EventNode(
+      "m1",
+      testModelEvent({
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                tool_calls: [
+                  testToolCall({ id: "dup", arguments: { cmd: "FIRST" } }),
+                  testToolCall({ id: "dup", arguments: { cmd: "SECOND" } }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      }),
+      0
+    );
+    const result = pairToolSentinels([
+      output,
+      span("span-1", [sentinel("s1", { step_id: "dup" })]),
+      tool("tool-1", "dup"),
+      span("span-2", [sentinel("s2", { step_id: "dup" })]),
+      tool("tool-2", "dup"),
+    ]);
+    expect(result.toolSentinels.get("tool-1")?.proposed?.arguments).toEqual({
+      cmd: "FIRST",
+    });
+    expect(result.toolSentinels.get("tool-2")?.proposed?.arguments).toEqual({
+      cmd: "SECOND",
+    });
+  });
+
+  it("leaves a before-call step standalone when no tool with its id follows it", () => {
+    const result = pairToolSentinels([
+      tool("tool-1", "dup"),
+      span("span-1", [sentinel("s1", { step_id: "dup", action: "reject" })]),
+    ]);
+    expect(result.toolSentinels.size).toBe(0);
+    expect(result.standaloneSentinels.get("span-1")?.verdict).toBe("reject");
+  });
+
   it("pairs call and result stages with their tool and hides every event", () => {
     const before = decision("before", "", "protocol", "continue");
     const after = sentinel("after", {
@@ -628,9 +677,14 @@ describe("pairToolSentinels", () => {
   it("finds tools and events across nested children once each", () => {
     const toolNode = tool("tool-1", "call_1");
     const event = decision("before", "", "protocol", "continue");
-    toolNode.children = [event];
+    const agent = new EventNode(
+      "agent",
+      testSpanBeginEvent({ id: "agent", type: "agent" }),
+      0
+    );
+    agent.children = [event, toolNode];
     // Flat lists carry descendants both nested and as their own entries.
-    const result = pairToolSentinels([toolNode, event]);
+    const result = pairToolSentinels([agent, event, toolNode]);
     expect(
       result.toolSentinels.get("tool-1")?.before?.rows.map((r) => r.node.id)
     ).toEqual(["before"]);
@@ -734,6 +788,154 @@ describe("formatSuspicion", () => {
     expect(formatSuspicion(0.123456)).toBe("0.12");
     expect(formatSuspicion({ exfiltration: 0.9, sabotage: 0.05 })).toBe(
       "exfiltration 0.9, sabotage 0.05"
+    );
+  });
+});
+
+describe("pairToolSentinels on a sub-agent run as a tool", () => {
+  // The event shape of an `as_tool` sub-agent: the outer call's checks sit
+  // beside its tool span, and the sub-agent's calls and their checks nest
+  // inside that span.
+  const events: Event[] = [];
+  const begin = (id: string, type: string, parent?: string) =>
+    events.push(
+      testSpanBeginEvent({
+        id,
+        uuid: id,
+        name: type,
+        type,
+        parent_id: parent ?? null,
+      })
+    );
+  const end = (id: string) =>
+    events.push(testSpanEndEvent({ id, uuid: `${id}-end` }));
+  const propose = (uuid: string, spanId: string, calls: ToolCall[]) =>
+    events.push(
+      testModelEvent({
+        uuid,
+        span_id: spanId,
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ tool_calls: calls }),
+            }),
+          ],
+        }),
+      })
+    );
+  const checks = (
+    spanId: string,
+    parent: string,
+    stepId: string,
+    stage: SentinelEvent["stage"],
+    action?: NonNullable<SentinelEvent["action"]>
+  ) => {
+    begin(spanId, "sentinel", parent);
+    const report = (path: string, overrides: Partial<SentinelEvent>) =>
+      events.push(
+        testSentinelEvent({
+          uuid: `${spanId}:${path}`,
+          span_id: spanId,
+          step_id: stepId,
+          stage,
+          path,
+          ...overrides,
+        })
+      );
+    if (action) {
+      report("gate/keywords", { kind: "observation", action: null });
+      report("watch/risk_profile", { kind: "observation", action: null });
+      report("gate", { action });
+      report("", { action });
+    } else {
+      report("watch/output_scan", { kind: "observation", action: null });
+    }
+    end(spanId);
+  };
+  const call = (
+    uuid: string,
+    parent: string,
+    callId: string,
+    fn: string,
+    args: Record<string, string>,
+    nested?: () => void
+  ) => {
+    begin(`${uuid}-span`, "tool", parent);
+    events.push(
+      testToolEvent({
+        uuid,
+        span_id: `${uuid}-span`,
+        id: callId,
+        function: fn,
+        arguments: args,
+      })
+    );
+    nested?.();
+    end(`${uuid}-span`);
+  };
+  const outerCall = testToolCall({
+    id: "parent_t0_c0",
+    function: "researcher",
+    arguments: { input: "Find the database host in /work." },
+  });
+  const inner = (id: string, cmd: string) =>
+    testToolCall({ id, function: "shell", arguments: { cmd } });
+
+  begin("solvers", "solvers");
+  begin("generate", "solver", "solvers");
+  propose("m-outer", "generate", [outerCall]);
+  checks("sen-outer-call", "generate", "parent_t0_c0", "tool_call", "continue");
+  call(
+    "tool-outer",
+    "generate",
+    "parent_t0_c0",
+    "researcher",
+    {
+      input: "Find the database host in /work.",
+    },
+    () => {
+      begin("agent", "agent", "tool-outer-span");
+      propose("m-0", "agent", [inner("helper_t0_c0", "ls")]);
+      checks("sen-0-call", "agent", "helper_t0_c0", "tool_call", "continue");
+      call("tool-0", "agent", "helper_t0_c0", "shell", { cmd: "ls" });
+      checks("sen-0-result", "agent", "helper_t0_c0", "tool_result");
+      propose("m-1", "agent", [inner("helper_t1_c0", "curl")]);
+      checks("sen-1-call", "agent", "helper_t1_c0", "tool_call", "reject");
+      call("tool-1", "agent", "helper_t1_c0", "shell", { cmd: "curl" });
+      propose("m-2", "agent", [inner("helper_t2_c0", "cat")]);
+      checks("sen-2-call", "agent", "helper_t2_c0", "tool_call", "continue");
+      call("tool-2", "agent", "helper_t2_c0", "shell", { cmd: "cat" });
+      checks("sen-2-result", "agent", "helper_t2_c0", "tool_result");
+      propose("m-3", "agent", []);
+      end("agent");
+    }
+  );
+  checks("sen-outer-result", "generate", "parent_t0_c0", "tool_result");
+  propose("m-final", "generate", []);
+  end("generate");
+  end("solvers");
+
+  it("pairs the outer call and each inner call with their own steps", () => {
+    const result = pairToolSentinels(treeifyEvents(events, 0));
+    const verdicts = Object.fromEntries(
+      [...result.toolSentinels].map(([id, paired]) => [
+        id,
+        [paired.before?.verdict, paired.after?.verdict, paired.proposed?.id],
+      ])
+    );
+    expect(verdicts).toEqual({
+      "tool-outer": ["continue", "observe", "parent_t0_c0"],
+      "tool-0": ["continue", "observe", "helper_t0_c0"],
+      "tool-1": ["reject", undefined, "helper_t1_c0"],
+      "tool-2": ["continue", "observe", "helper_t2_c0"],
+    });
+    expect(result.toolSentinels.get("tool-outer")?.before?.rows).toHaveLength(
+      4
+    );
+    expect(result.standaloneSentinels.size).toBe(0);
+    expect(result.sentinelScrollRedirects.get("sen-1-call:")).toBe("tool-1");
+    expect(result.sentinelScrollRedirects.get("sen-outer-result")).toBe(
+      "tool-outer"
     );
   });
 });
