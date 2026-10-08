@@ -424,4 +424,63 @@ describe("ToolEventView approvals", () => {
       expect(container.querySelector("strong")?.textContent).toBe("review");
     });
   });
+
+  it("ignores the proposal's custom view in a log that recorded the proposal", () => {
+    const { container } = renderApproved(
+      [
+        approval("a1", {
+          decision: "modify",
+          modified: modify("echo skipped"),
+        }),
+      ],
+      { view: { format: "markdown", content: "PROPOSAL_VIEW" } }
+    );
+    expect(inputZone(container)?.textContent).toContain("echo skipped");
+    expect(container.textContent).not.toContain("PROPOSAL_VIEW");
+  });
+
+  it("shows each call of a reused call id with its own approval", () => {
+    const tool = (nodeId: string, cmd: string, rejected = false) =>
+      new EventNode<ToolEvent>(
+        nodeId,
+        testToolEvent({
+          id: "tool-call-1",
+          function: "bash",
+          arguments: { cmd },
+          result: rejected ? "" : "RESULT_TEXT",
+          error: rejected
+            ? { type: "approval", message: "MODEL_RECEIVED" }
+            : null,
+        }),
+        0
+      );
+    const first = tool("tool-1", "FIRST_CMD");
+    const second = tool("tool-2", "SECOND_CMD", true);
+    const nodes = [
+      approval("a1", {
+        decision: "modify",
+        call: modify("PROPOSED_CMD"),
+        modified: modify("FIRST_CMD"),
+      }),
+      first,
+      approval("a2", { decision: "reject", call: modify("SECOND_CMD") }),
+      second,
+    ];
+
+    const { container, unmount } = renderWithChecks(nodes, first);
+    expect(screen.getByText("Modified")).toBeTruthy();
+    expect(screen.queryByText("Rejected")).toBeNull();
+    expect(inputZone(container)?.textContent).toContain("FIRST_CMD");
+    expect(container.querySelector('[class*="struck"]')?.textContent).toContain(
+      "PROPOSED_CMD"
+    );
+    expect(container.textContent).toContain("RESULT_TEXT");
+    unmount();
+
+    const view = renderWithChecks(nodes, second);
+    expect(screen.getByText("Rejected")).toBeTruthy();
+    expect(screen.queryByText("Modified")).toBeNull();
+    expect(view.container.querySelector('[class*="struck"]')).toBeNull();
+    expect(view.container.textContent).toContain("MODEL_RECEIVED");
+  });
 });

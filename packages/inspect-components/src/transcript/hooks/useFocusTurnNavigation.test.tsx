@@ -165,7 +165,7 @@ describe("useFocusTurnNavigation — tool checks", () => {
       useFocusTurnNavigation(nodes, "m1", "Summary", vi.fn(), null)
     );
     expect(result.current.slice.map((n) => n.id)).toEqual(["m1", "t1", "sen"]);
-    expect(result.current.checks.toolApprovals?.get("c1")).toHaveLength(1);
+    expect(result.current.checks.toolApprovals?.get("t1")).toHaveLength(1);
     expect(result.current.checks.standaloneSentinels?.has("sen")).toBe(true);
   });
 });

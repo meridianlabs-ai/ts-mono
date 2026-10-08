@@ -283,7 +283,7 @@ export interface EventNodeContext {
   eventLabels?: Record<string, string>;
   /** Per-tool labels rendered in tool event gutters. Keyed by `ToolEvent.id`. */
   toolLabels?: Record<string, string>;
-  /** Approval events (every approver in an escalation chain) paired to their tool event via `call.id == ToolEvent.id`. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
+  /** Approval events (every approver in an escalation chain) paired to their tool event via `call.id == ToolEvent.id`, keyed by the tool's node id. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
   toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
   /** Sentinel steps paired to their tool event via `step_id == ToolEvent.id`, rendered as rows at the bottom of the tool panel beside the approval. */
   toolSentinels?: Map<string, ToolSentinels>;

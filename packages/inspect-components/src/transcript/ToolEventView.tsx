@@ -69,6 +69,8 @@ interface RanCall {
  * The call that ran. The ToolEvent records it, except in logs written before
  * it recorded an approver's modify (inspect_ai #5651): those kept the
  * proposal's arguments and view, while the approver's replacement is what ran.
+ * Limitation: an approver's modify that a sentinel modify reverts to the
+ * proposal reads as such a log.
  */
 const ranCall = (
   event: ToolEvent,
@@ -101,7 +103,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   eventCallbacks,
 }) => {
   const event = eventNode.event;
-  const approvals = context?.toolApprovals?.get(event.id);
+  const approvals = context?.toolApprovals?.get(eventNode.id);
   const sentinels = context?.toolSentinels?.get(eventNode.id);
   const finalApproval = approvals?.at(-1)?.event;
   const ran = ranCall(event, finalApproval);
