@@ -135,7 +135,7 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
         whoSuffix={escalated ? ", after escalation" : undefined}
         reason={event.explanation?.trim() || undefined}
         reasonClassName={look.reason}
-        clampReason={chain.length > 1}
+        clampReason={chain.length > 1 && collapsed}
         toggle={
           chain.length > 1
             ? {
