@@ -113,3 +113,26 @@ for (const rows of [6, 500]) {
     if (rows === 500) expect(checks.panelScrolls).toBeGreaterThan(0);
   });
 }
+
+test("dataframe filter transactions", async ({ page }, testInfo) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/e2e/fixtures/dataframe/?rows=500");
+  await expect(page.getByRole("grid")).toBeVisible();
+  await explore(
+    "http://localhost:5186",
+    "filter-transactions.ts",
+    testInfo.outputPath("bombadil")
+  );
+  const checks = await page.evaluate(() => ({
+    transactions: Number(document.body.dataset.transactions ?? 0),
+    cancellations: Number(document.body.dataset.cancellations ?? 0),
+    remounts: Number(document.body.dataset.remounts ?? 0),
+  }));
+  await testInfo.attach("property-check-counts", {
+    body: JSON.stringify(checks),
+    contentType: "application/json",
+  });
+  expect(checks.transactions).toBeGreaterThan(0);
+  expect(checks.cancellations).toBeGreaterThan(0);
+  expect(checks.remounts).toBeGreaterThan(0);
+});

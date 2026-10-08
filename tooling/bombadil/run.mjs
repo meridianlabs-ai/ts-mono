@@ -8,7 +8,9 @@ export async function runBombadil(options) {
   const specification = resolve(options.specification);
   await copyFile(specification, resolve(options.output, "specification.ts"));
   await copyFile(
-    resolve(dirname(specification), "reliability.explore.ts"),
+    options.fixture
+      ? resolve(options.fixture)
+      : resolve(dirname(specification), "reliability.explore.ts"),
     resolve(options.output, "fixture.ts")
   );
   const logs = [];

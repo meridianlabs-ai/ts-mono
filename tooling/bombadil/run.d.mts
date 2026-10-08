@@ -1,6 +1,7 @@
 export interface BombadilOptions {
   origin: string;
   specification: string;
+  fixture?: string;
   output: string;
   debuggerPort: number;
 }
