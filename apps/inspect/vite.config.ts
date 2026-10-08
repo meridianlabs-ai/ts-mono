@@ -112,8 +112,6 @@ export default defineConfig(({ mode }) => {
           // consumer's bundler does the CJS interop.
           external: (id: string) =>
             /^(react|react-dom|use-sync-external-store)(\/|$)/.test(id) ||
-            id === "mathjax-full" ||
-            id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
           output: {
             assetFileNames: (assetInfo) => {

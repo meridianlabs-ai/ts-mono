@@ -153,6 +153,23 @@ const openView = async (page: Page, url: string, ready: RegExp) => {
   await page.waitForTimeout(500);
 };
 
+/**
+ * Open a view in a new document with the origin's storage cleared, so each
+ * view in a walk is a cold, direct landing, as in a new browser, rather than
+ * an in-app navigation or a load from data earlier views cached.
+ */
+const openViewFresh = async (page: Page, url: string, ready: RegExp) => {
+  await page.goto("about:blank");
+  const origin = new URL(url, test.info().project.use.baseURL).origin;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Storage.clearDataForOrigin", {
+    origin,
+    storageTypes: "indexeddb,local_storage",
+  });
+  await cdp.detach();
+  await openView(page, url, ready);
+};
+
 type RichContentLog = Record<string, string[]>;
 
 /**
@@ -195,14 +212,20 @@ const recordRichContent = async (page: Page) => {
       attributeFilter: ["href", "src"],
     });
   }, PNG_MARKERS);
-  return (label: Label) =>
-    page.evaluate(
+  return async (label: Label) => {
+    const seen = await page.evaluate(
       (logLabel) =>
         (window as Window & { __richContent?: RichContentLog }).__richContent?.[
           logLabel
-        ] ?? [],
+        ],
       label
     );
+    // An empty record must mean nothing rendered, not that nothing recorded.
+    if (seen === undefined) {
+      throw new Error("The rich content recorder isn't running on this page");
+    }
+    return seen;
+  };
 };
 
 // Modules that interpret content richly (and the libraries behind them). They
@@ -248,7 +271,7 @@ const recordRichRenderingModules = (page: Page) => {
 
 /** Open the focus view of the sample's final model call. */
 const openEventFocus = async (page: Page, label: Label) => {
-  await openView(page, sampleUrl(label, "transcript"), /Sample 1:/);
+  await openViewFresh(page, sampleUrl(label, "transcript"), /Sample 1:/);
   const focusHref = await page
     .locator('a[href*="/event?event="]')
     .last()
@@ -259,17 +282,42 @@ const openEventFocus = async (page: Page, label: Label) => {
   await page.waitForTimeout(500);
 };
 
-test.describe("an untrusted log", () => {
+type RecordedRichContent = Awaited<ReturnType<typeof recordRichContent>>;
+
+/** Check that no view of a log renders richly, on screen or transiently. */
+const expectPlainInEveryView = async (
+  page: Page,
+  label: Label,
+  recorded: RecordedRichContent
+) => {
   for (const view of VIEWS) {
-    test(`renders nothing richly in the ${view.name}`, async ({
-      page,
-      network,
-    }) => {
-      serveFixtures(network);
-      await openView(page, view.url("untrusted"), view.ready);
-      expect(await collectMarkers(page)).toEqual(NONE);
+    await test.step(view.name, async () => {
+      await openViewFresh(page, view.url(label), view.ready);
+      expect.soft(await collectMarkers(page), view.name).toEqual(NONE);
+      expect
+        .soft(await recorded(label), `${view.name}, transiently`)
+        .toEqual([]);
     });
   }
+};
+
+test.describe("an untrusted log", () => {
+  test("renders nothing richly in any view, even transiently", async ({
+    page,
+    network,
+  }) => {
+    test.slow();
+    serveFixtures(network);
+    const recorded = await recordRichContent(page);
+    await expectPlainInEveryView(page, "untrusted", recorded);
+    await test.step("event focus view", async () => {
+      await openEventFocus(page, "untrusted");
+      expect.soft(await collectMarkers(page), "event focus view").toEqual(NONE);
+      expect
+        .soft(await recorded("untrusted"), "event focus view, transiently")
+        .toEqual([]);
+    });
+  });
 
   test("shows model output as its literal source with hidden characters revealed", async ({
     page,
@@ -287,38 +335,20 @@ test.describe("an untrusted log", () => {
     expect(text).toContain("[image not shown: log content is untrusted]");
   });
 
-  test("renders nothing richly in the event focus view", async ({
-    page,
-    network,
-  }) => {
-    serveFixtures(network);
-    await openEventFocus(page, "untrusted");
-    expect(await collectMarkers(page)).toEqual(NONE);
-  });
-
-  test("never renders its content richly, even transiently", async ({
-    page,
-    network,
-  }) => {
-    serveFixtures(network);
-    const recorded = await recordRichContent(page);
-    for (const view of VIEWS) {
-      await openView(page, view.url("untrusted"), view.ready);
-      await collectMarkers(page);
-    }
-    expect(await recorded("untrusted")).toEqual([]);
-  });
-
   test(
-    "never loads the rich-rendering libraries",
+    "never loads the rich-rendering libraries or renders richly between views",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveFixtures(network);
       const requested = recordRichRenderingModules(page);
+      const recorded = await recordRichContent(page);
+      // In-app navigation from view to view, unlike the fresh loads above.
       for (const view of VIEWS) {
         await openView(page, view.url("untrusted"), view.ready);
         await collectMarkers(page);
       }
+      expect(await recorded("untrusted")).toEqual([]);
       await openEventFocus(page, "untrusted");
       expect(requested()).toEqual([]);
     }
@@ -347,29 +377,45 @@ test.describe("an untrusted log", () => {
 });
 
 test.describe("a trusted log", () => {
-  for (const view of VIEWS) {
-    test(`renders richly in the ${view.name}`, async ({ page, network }) => {
-      serveFixtures(network);
-      await openView(page, view.url("trusted"), view.ready);
-      const markers = await collectMarkers(page);
-      for (const marker of view.trustedShows) {
-        expect(markers[marker], marker).toBeGreaterThan(0);
-      }
-    });
-  }
-
-  test("renders richly in the event focus view", async ({ page, network }) => {
+  test("renders richly in every view", async ({ page, network }) => {
+    test.slow();
     serveFixtures(network);
-    await openEventFocus(page, "trusted");
-    const markers = await collectMarkers(page);
-    expect(markers.links).toBeGreaterThan(0);
-    expect(markers.markdown).toBeGreaterThan(0);
+    // The positive control for the plain walks' transient checks.
+    const recorded = await recordRichContent(page);
+    for (const view of VIEWS) {
+      await test.step(view.name, async () => {
+        await openViewFresh(page, view.url("trusted"), view.ready);
+        const markers = await collectMarkers(page);
+        for (const marker of view.trustedShows) {
+          expect
+            .soft(markers[marker], `${view.name}: ${marker}`)
+            .toBeGreaterThan(0);
+        }
+        if (
+          view.trustedShows.includes("links") ||
+          view.trustedShows.includes("images")
+        ) {
+          expect
+            .soft(await recorded("trusted"), `${view.name}, recorded`)
+            .not.toEqual([]);
+        }
+      });
+    }
+    await test.step("event focus view", async () => {
+      await openEventFocus(page, "trusted");
+      const markers = await collectMarkers(page);
+      expect.soft(markers.links, "event focus view: links").toBeGreaterThan(0);
+      expect
+        .soft(markers.markdown, "event focus view: markdown")
+        .toBeGreaterThan(0);
+    });
   });
 
   test(
     "loads the rich-rendering libraries it needs",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveFixtures(network);
       const requested = recordRichRenderingModules(page);
       for (const view of VIEWS) {
@@ -443,41 +489,31 @@ test.describe("a viewer started with --no-trust-content", () => {
     );
   };
 
-  for (const view of VIEWS) {
-    test(`renders a trusted log plainly in the ${view.name}`, async ({
-      page,
-      network,
-    }) => {
-      serveUntrustedViewer(network);
-      await openView(page, view.url("trusted"), view.ready);
-      expect(await collectMarkers(page)).toEqual(NONE);
-    });
-  }
+  test("renders a trusted log plainly in every view, even transiently", async ({
+    page,
+    network,
+  }) => {
+    test.slow();
+    serveUntrustedViewer(network);
+    const recorded = await recordRichContent(page);
+    await expectPlainInEveryView(page, "trusted", recorded);
+  });
 
   test(
-    "never loads the rich-rendering libraries",
+    "never loads the rich-rendering libraries or renders richly between views",
     DEV_SERVER,
     async ({ page, network }) => {
+      test.slow();
       serveUntrustedViewer(network);
       const requested = recordRichRenderingModules(page);
+      const recorded = await recordRichContent(page);
+      // In-app navigation from view to view, unlike the fresh loads above.
       for (const view of VIEWS) {
         await openView(page, view.url("trusted"), view.ready);
         await collectMarkers(page);
       }
+      expect(await recorded("trusted")).toEqual([]);
       expect(requested()).toEqual([]);
     }
   );
-
-  test("never renders a trusted log's content richly, even transiently", async ({
-    page,
-    network,
-  }) => {
-    serveUntrustedViewer(network);
-    const recorded = await recordRichContent(page);
-    for (const view of VIEWS) {
-      await openView(page, view.url("trusted"), view.ready);
-      await collectMarkers(page);
-    }
-    expect(await recorded("trusted")).toEqual([]);
-  });
 });
