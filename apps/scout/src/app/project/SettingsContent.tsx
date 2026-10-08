@@ -748,14 +748,25 @@ const TrustContentField: FC<TrustContentFieldProps> = ({
     onChange(true);
   };
 
+  if (overridden) {
+    return (
+      <div className={fieldStyles.field}>
+        <VscodeLabel>Trust Content</VscodeLabel>
+        <VscodeFormHelper>
+          Scout View is running in untrusted mode, so all model output is shown
+          as plain text.
+        </VscodeFormHelper>
+      </div>
+    );
+  }
+
   return (
     <div className={fieldStyles.field}>
       <VscodeLabel>Trust Content</VscodeLabel>
       <VscodeFormHelper>
         Render model output as markdown, with syntax highlighting, media and
-        links. When off, model output is shown as plain text. Transcripts whose
-        task sets <code>ViewerConfig(trust_content=False)</code> are always
-        shown as plain text.
+        links. When off, model output is shown as plain text. Untrusted
+        transcripts are always shown as plain text.
       </VscodeFormHelper>
       {/* Remounted around the dialog so a cancelled check doesn't stick. */}
       <VscodeCheckbox
@@ -772,14 +783,6 @@ const TrustContentField: FC<TrustContentFieldProps> = ({
       >
         Render model output richly
       </VscodeCheckbox>
-      {overridden && (
-        <VscodeFormHelper>
-          Model output is currently shown as plain text regardless of this
-          setting: the viewer was started with <code>--no-trust-content</code>{" "}
-          or <code>SCOUT_VIEW_TRUST_CONTENT=false</code>, or{" "}
-          <code>scout.local.yaml</code> sets <code>trust_content: false</code>.
-        </VscodeFormHelper>
-      )}
       <Modal
         show={confirming}
         onHide={() => setConfirming(false)}

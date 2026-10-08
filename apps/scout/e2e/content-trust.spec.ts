@@ -195,16 +195,15 @@ test.describe("project settings trust toggle", () => {
     expect(saved[0]).toMatchObject({ trust_content: null });
   });
 
-  test("explains when the viewer forces plain text", async ({
+  test("shows untrusted mode instead of the toggle when the viewer forces plain text", async ({
     page,
     network,
   }) => {
     setup(network, null, false);
     await page.goto("/#/project");
 
-    await expect(
-      page.getByText("currently shown as plain text regardless")
-    ).toBeVisible();
+    await expect(page.getByText("running in untrusted mode")).toBeVisible();
+    await expect(page.locator("#field-trust-content")).toHaveCount(0);
   });
 });
 
