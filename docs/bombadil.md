@@ -168,6 +168,33 @@ the actionable finding was the missing nested-scroll coverage. Traces, source
 snapshots, logs, and a machine-readable summary are preserved locally under
 `.bombadil-results/discoveries/long-campaigns-20261002/`.
 
+After rebasing onto main on 2026-10-07, all six campaigns passed with a
+three-minute budget each, followed by an additional eight-minute Inspect run:
+26 aggregate minutes and 3,764 observed states. The new filter campaign
+completed 168 exact-result checks, including 32 cancelled drafts and 31 grid
+remounts. It exercised all nine operators, all six transaction modes, and both
+sort directions. The recovery campaign injected 22 transient failures, observed
+21 endpoints recover, and recorded 101 successful settled renders across 20 of
+the 24 directory/ID combinations.
+
+The grid campaigns completed 216 export comparisons, 230 row activations, and
+144 numeric-filter checks. Grid and transcript campaigns completed 81 nested
+panel scrolls; 493 of the 500 virtualized rows appeared in captured states.
+All six Scout transcript/directory combinations and all 32 Inspect
+log/sample/epoch combinations rendered. No new data-integrity or security
+defect was confirmed. `pnpm check` passed, and `pnpm test` passed 5,760 tests
+with two skipped. Traces, source snapshots, logs, and `summary.json` are saved
+locally under
+`.bombadil-results/discoveries/new-properties-20261007/extended-campaigns/`.
+
+The 2026-10-07 run also logged React's `flushSync` lifecycle warning when opening
+popovers. A captured browser stack leads from `PopOver.tsx`'s layout-effect
+`forceUpdate()` call into `react-popper`. That call dates to `16a17f46`; the same
+warning already appears in the deterministic `ThemeToggle.test.tsx` and
+`SearchPanel.test.tsx` runs. No incorrect evidence or crash accompanied it in
+this exploration. The stack is preserved as `popover-warning.json` in the local
+archive; it is a follow-up lead, not a new confirmed data-integrity finding.
+
 ## Extending the campaigns
 
 Add properties around user-visible meaning: score-to-sample association,
