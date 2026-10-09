@@ -37,7 +37,6 @@ const sampleUrl = (tab: string) =>
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: join(evidence, name), fullPage: true });
 
-/** Open the sample's Activity tab and turn on the opt-in working band. */
 async function openActivityWithWorkingBand(page: Page) {
   await page.goto(sampleUrl("activity"));
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
@@ -217,9 +216,9 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   await expect(
     page.getByRole("button", { name: /Context compacted/ }).first()
   ).toBeVisible();
-  const clusterBoxes = page.locator("[class*='clusterBoxText']");
-  expect(await clusterBoxes.count()).toBeGreaterThan(0);
-  await expect(clusterBoxes.first()).toHaveText(/×\d+/);
+  await expect(page.locator("[class*='clusterBoxText']").first()).toHaveText(
+    /×\d+/
+  );
 
   // Context band (default-on): dashed cliff drop per compaction, annotated
   // "Nk → M".
@@ -309,11 +308,7 @@ test.describe(() => {
   test.use({ colorScheme: "dark" });
 
   test("activity tab renders in dark theme", async ({ page }) => {
-    await page.goto(sampleUrl("activity"));
-    await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
-      timeout: 20_000,
-    });
-    await page.getByRole("button", { name: "Working time" }).click();
+    await openActivityWithWorkingBand(page);
     await expect(
       page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
     ).toBeVisible();
