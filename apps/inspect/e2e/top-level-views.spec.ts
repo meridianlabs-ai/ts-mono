@@ -20,6 +20,21 @@ import { serveEvalLog } from "./fixtures/serve-log";
 import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 test.describe("Top-level views", () => {
+  test("Samples view hides the Cost column until it is picked", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/#/samples");
+
+    await expect(columnHeader(page, "Tokens")).toBeVisible();
+    await expect(columnHeader(page, "Cost")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    await page.getByRole("checkbox", { name: "Cost" }).check();
+    await expect(columnHeader(page, "Cost")).toBeVisible();
+  });
+
   test("can switch between all three views", async ({ page, network }) => {
     setupLogListHandlers(network);
     await page.goto("/");
@@ -115,7 +130,7 @@ test.describe("Sorting", () => {
       .first()
       .textContent();
 
-  test("rows load unsorted in server order, and the Task header cycles ascending, descending and back", async ({
+  test("the Task header cycles ascending, descending and back to unsorted", async ({
     page,
     network,
   }) => {

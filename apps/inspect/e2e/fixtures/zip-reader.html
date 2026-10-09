@@ -78,8 +78,12 @@
             (char) => char.charCodeAt(0)
           );
           const size = 2 * 1024 * 1024;
-          return (await decompressData(compressed, 93, size, "compressed"))
-            .length;
+          let length = 0;
+          const workerRequests = await workerRequestsDuring(async () => {
+            length = (await decompressData(compressed, 93, size, "compressed"))
+              .length;
+          });
+          return { length, workerRequests };
         },
         largeHistoryWorkerRequests() {
           const frame = new Uint8Array([

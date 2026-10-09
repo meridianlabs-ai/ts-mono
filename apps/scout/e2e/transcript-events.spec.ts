@@ -372,8 +372,12 @@ test.describe("transcript event rendering", () => {
     });
 
     await expect(page.locator("#transcript-tree")).toBeVisible();
-    await expect(page.getByText("SUB-AGENT: EXPLORE")).toBeVisible();
-    await expect(page.getByText("SUB-AGENT: BUILD")).toBeVisible();
+    await expect(
+      page.getByText("sub-agent: explore", { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText("sub-agent: build", { exact: true })
+    ).toBeVisible();
   });
 
   test("ArrowRight navigates to the next transcript", async ({

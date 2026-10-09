@@ -224,17 +224,14 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
   await openTranscriptWithTimeline(page, network);
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore");
+  await expect(exploreCard).toBeVisible();
 
-  // Click the "Build" row
-  const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
-  await buildRow.click();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
 
-  // The event list should now show only the Build agent's content
+  // The event list now shows only the Build agent's content.
   await expect(page.getByText("Building the feature").first()).toBeVisible();
-
-  // The Explore agent's content should no longer be visible
-  await expect(page.getByText("Exploring the code")).toBeHidden();
+  await expect(exploreCard).toBeHidden();
 });
 
 for (const deepLink of [

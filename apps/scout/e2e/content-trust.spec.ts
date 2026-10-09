@@ -34,47 +34,62 @@ const pages = [
   { name: "focused event", suffix: "/event?event=model-1&tab=Summary" },
 ];
 
+type Page = Parameters<Parameters<typeof test>[2]>[0]["page"];
+
+/** How CONTENT must appear: rendered markdown, or literal text with no link. */
+const expectRendering = {
+  rich: async (page: Page) => {
+    await expect(
+      page.locator("strong", { hasText: "bold claim" }).first()
+    ).toBeVisible();
+  },
+  plain: async (page: Page) => {
+    await expect(page.getByText("**bold claim**").first()).toBeVisible();
+    await expect(page.locator("strong", { hasText: "bold claim" })).toHaveCount(
+      0
+    );
+    await expect(page.locator(`a[href="${LINK}"]`)).toHaveCount(0);
+  },
+};
+
+const expectContent = (page: Page, rendering: keyof typeof expectRendering) =>
+  expectRendering[rendering](page);
+
 const cases: {
   name: string;
   viewer: boolean | null;
   transcript: boolean | null;
-  rich: boolean;
+  rendering: keyof typeof expectRendering;
 }[] = [
-  { name: "trusted transcript", viewer: null, transcript: null, rich: true },
+  {
+    name: "trusted transcript",
+    viewer: null,
+    transcript: null,
+    rendering: "rich",
+  },
   {
     name: "untrusted transcript",
     viewer: null,
     transcript: false,
-    rich: false,
+    rendering: "plain",
   },
-  { name: "untrusted viewer", viewer: false, transcript: null, rich: false },
+  {
+    name: "untrusted viewer",
+    viewer: false,
+    transcript: null,
+    rendering: "plain",
+  },
   {
     name: "trusted flag can't raise",
     viewer: false,
     transcript: true,
-    rich: false,
+    rendering: "plain",
   },
 ];
 
-/** CONTENT renders as markdown when `rich`, otherwise as literal text with
- *  no link. */
-async function expectContentRendering(
-  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
-  rich: boolean
-) {
-  const bold = page.locator("strong", { hasText: "bold claim" });
-  if (rich) {
-    await expect(bold.first()).toBeVisible();
-    return;
-  }
-  await expect(page.getByText("**bold claim**").first()).toBeVisible();
-  await expect(bold).toHaveCount(0);
-  await expect(page.locator(`a[href="${LINK}"]`)).toHaveCount(0);
-}
-
 for (const { name: pageName, suffix } of pages) {
-  for (const { name, viewer, transcript, rich } of cases) {
-    test(`${pageName}: ${name} renders ${rich ? "rich" : "plain"}`, async ({
+  for (const { name, viewer, transcript, rendering } of cases) {
+    test(`${pageName}: ${name} renders ${rendering}`, async ({
       page,
       network,
     }) => {
@@ -114,7 +129,7 @@ for (const { name: pageName, suffix } of pages) {
 
       await page.goto(transcriptRoute(suffix));
 
-      await expectContentRendering(page, rich);
+      await expectContent(page, rendering);
     });
   }
 }

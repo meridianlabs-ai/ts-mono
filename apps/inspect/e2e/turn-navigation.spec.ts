@@ -778,7 +778,7 @@ test.describe("transcript turn navigation", () => {
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 3000);
     await page.waitForTimeout(TAB_RECORDER_ARM_MS);
-    expect(await biggestScrollerTop(page)).toBeGreaterThan(1000);
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThan(1000);
 
     await page.getByRole("link", { name: "Next sample" }).click();
     await expect(page.getByText("Sample 2")).toBeVisible();
@@ -802,6 +802,7 @@ test.describe("transcript turn navigation", () => {
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 2500);
     await page.waitForTimeout(TAB_RECORDER_ARM_MS);
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThan(1000);
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByText("Sample 1")).toBeVisible();
     await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThanOrEqual(0);

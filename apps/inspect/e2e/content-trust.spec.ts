@@ -375,18 +375,16 @@ test.describe("an untrusted log", () => {
   });
 });
 
-/** A view that shows links or images must have tripped the recorder. */
-const expectRecordedWhereLinksOrImagesShow = async (
-  view: (typeof VIEWS)[number],
-  recorded: (label: Label) => Promise<string[]>
-) => {
-  if (
-    view.trustedShows.includes("links") ||
-    view.trustedShows.includes("images")
-  ) {
-    expect
-      .soft(await recorded("trusted"), `${view.name}, recorded`)
-      .not.toEqual([]);
+/** Links and images are what the rich-content recorder watches for. */
+const showsLinksOrImages = (view: View) =>
+  view.trustedShows.includes("links") || view.trustedShows.includes("images");
+
+/** Opens `view` for the trusted log and checks every marker it should show. */
+const expectTrustedMarkers = async (page: Page, view: View) => {
+  await openViewFresh(page, view.url("trusted"), view.ready);
+  const markers = await collectMarkers(page);
+  for (const marker of view.trustedShows) {
+    expect.soft(markers[marker], `${view.name}: ${marker}`).toBeGreaterThan(0);
   }
 };
 
@@ -396,17 +394,18 @@ test.describe("a trusted log", () => {
     serveFixtures(network);
     // The positive control for the plain walks' transient checks.
     const recorded = await recordRichContent(page);
-    for (const view of VIEWS) {
+    // Each view opens on a fresh page load, so the recorder holds only
+    // that view's content.
+    for (const view of VIEWS.filter(showsLinksOrImages)) {
       await test.step(view.name, async () => {
-        await openViewFresh(page, view.url("trusted"), view.ready);
-        const markers = await collectMarkers(page);
-        for (const marker of view.trustedShows) {
-          expect
-            .soft(markers[marker], `${view.name}: ${marker}`)
-            .toBeGreaterThan(0);
-        }
-        await expectRecordedWhereLinksOrImagesShow(view, recorded);
+        await expectTrustedMarkers(page, view);
+        expect
+          .soft(await recorded("trusted"), `${view.name}, recorded`)
+          .not.toEqual([]);
       });
+    }
+    for (const view of VIEWS.filter((view) => !showsLinksOrImages(view))) {
+      await test.step(view.name, () => expectTrustedMarkers(page, view));
     }
 
     await test.step("event focus view", async () => {

@@ -16,7 +16,7 @@ interface ZipReaderFixture {
     againLength: number;
     sourceByteLength: number;
   }>;
-  decodeCompressedZstd(): Promise<number>;
+  decodeCompressedZstd(): Promise<{ length: number; workerRequests: number }>;
   largeHistoryWorkerRequests(): Promise<number>;
   aggregateBlocksWorkerRequests(): Promise<number>;
   readDeflateEntry(): Promise<number>;
@@ -52,12 +52,13 @@ test.describe("ZIP worker reads", { tag: "@dev-server" }, () => {
     expect(result?.sourceByteLength).toBeGreaterThan(0);
   });
 
-  test("zstd and deflate entries decode in the browser's workers", async ({
-    page,
-  }) => {
+  test("compressed zstd decodes in the worker", async ({ page }) => {
     expect(
       await page.evaluate(() => window.zipReader?.decodeCompressedZstd())
-    ).toBe(2 * 1024 * 1024);
+    ).toEqual({ length: kZstdEntrySize, workerRequests: 1 });
+  });
+
+  test("a deflate entry decodes in the browser", async ({ page }) => {
     expect(
       await page.evaluate(() => window.zipReader?.readDeflateEntry())
     ).toBe(5000);

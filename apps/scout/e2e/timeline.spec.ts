@@ -75,11 +75,14 @@ test("clicking a swimlane row filters the event list to that agent", async ({
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  const exploreCard = page.getByText("sub-agent: explore", { exact: true });
+  await expect(exploreCard).toBeVisible();
+
   await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
 
   await expect(page).toHaveURL(/selected=/);
   await expect(page.getByText("Building the feature").first()).toBeVisible();
-  await expect(page.getByText("Exploring the codebase")).toBeHidden();
+  await expect(exploreCard).toBeHidden();
 });
 
 // ---------------------------------------------------------------------------
