@@ -118,6 +118,17 @@ const isDirectives = (value: unknown): value is Record<string, string[]> =>
       sources.every((source) => typeof source === "string")
   );
 
+/** The policy file's directives as `name sources…` strings, in file order. */
+const policyFileDirectives = (file: unknown): string[] =>
+  typeof file === "object" &&
+  file !== null &&
+  "directives" in file &&
+  isDirectives(file.directives)
+    ? Object.entries(file.directives).map(([name, sources]) =>
+        [name, ...sources].join(" ")
+      )
+    : [];
+
 const sampleUrl = (file: string, id: string, tab: string) =>
   `/#/logs/${encodeURIComponent(file)}/samples/sample/${id}/1/${tab}`;
 
@@ -147,16 +158,7 @@ test("the build ships the pinned policy, hashing each inline script", async ({
     await request.get("/content-security-policy.json")
   ).json();
   expect(file).toMatchObject({ version: 1 });
-  const directives =
-    typeof file === "object" &&
-    file !== null &&
-    "directives" in file &&
-    isDirectives(file.directives)
-      ? Object.entries(file.directives)
-      : [];
-  expect(
-    directives.map(([name, sources]) => [name, ...sources].join(" ")).join("; ")
-  ).toBe(policy);
+  expect(policyFileDirectives(file).join("; ")).toBe(policy);
 });
 
 test("the main flows run with no CSP violation", async ({
@@ -231,7 +233,12 @@ test("the main flows run with no CSP violation", async ({
   expect(policy.offOrigin()).toEqual([]);
 });
 
-for (const preference of ["light", "dark", "system"] as const) {
+// The page emulates a dark color scheme, so "system" resolves to dark.
+for (const [preference, expected] of [
+  ["light", "light"],
+  ["dark", "dark"],
+  ["system", "dark"],
+] as const) {
   test(`the theme bootstrap applies "${preference}" before the body parses`, async ({
     page,
     network,
@@ -258,7 +265,6 @@ for (const preference of ["light", "dark", "system"] as const) {
 
     await page.goto("/#/logs/");
     await expect(page.getByText("csp-main.json").first()).toBeVisible();
-    const expected = preference === "light" ? "light" : "dark";
     await expect(page.locator("html")).toHaveAttribute(
       "data-theme-at-body",
       `${expected}/${expected}`
@@ -287,6 +293,37 @@ test("the sample filter filters with no eval", async ({
   await expect(page.getByText("terminal", { exact: true })).toHaveCount(0);
   await expect(page.getByText("media", { exact: true })).toBeVisible();
   expect(await policy.violations()).toEqual([]);
+});
+
+// A known limitation: `connect-src 'self'` blocks logs on another origin even
+// after the user approves them (#615). Hosts that serve the viewer without the
+// policy still open them; e2e/log-location-trust.spec.ts covers the gate there.
+test("an approved cross-origin ?log_dir= is blocked, not fetched", async ({
+  page,
+  network,
+  baseURL,
+}) => {
+  const foreignDir = "https://bucket.example/team/logs";
+  const hits: string[] = [];
+  network.use(
+    http.get("https://bucket.example/*", ({ request }) => {
+      hits.push(request.url);
+      return HttpResponse.json({});
+    })
+  );
+  const policy = await watchPolicy(page, baseURL);
+
+  await page.goto(`/?log_dir=${encodeURIComponent(foreignDir)}`);
+  const gate = page.getByTestId("log-location-gate");
+  await gate.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(gate).toBeHidden();
+
+  await expect
+    .poll(policy.violations)
+    .toContainEqual(
+      expect.stringMatching(/^connect-src https:\/\/bucket\.example\//)
+    );
+  expect(hits).toEqual([]);
 });
 
 test.describe("rendering canary", () => {
