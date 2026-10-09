@@ -2,15 +2,21 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
-import { Card, CardBody, CardHeader } from "@tsmono/react/components";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  ContentTrustProvider,
+} from "@tsmono/react/components";
 
 import { Status } from "../../../types/api-types";
 
 import styles from "./ScanInfo.module.css";
 
+// The scan spec is the user's own configuration, not model output.
 export const ScanInfo: FC<{ selectedScan: Status }> = ({ selectedScan }) => {
   return (
-    <>
+    <ContentTrustProvider value="trusted">
       <ScanInfoCard
         className={clsx(styles.container)}
         selectedScan={selectedScan}
@@ -23,7 +29,7 @@ export const ScanInfo: FC<{ selectedScan: Status }> = ({ selectedScan }) => {
         className={clsx(styles.container)}
         selectedScan={selectedScan}
       />
-    </>
+    </ContentTrustProvider>
   );
 };
 

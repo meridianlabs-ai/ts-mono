@@ -119,3 +119,34 @@
   margin: 0 !important;
   padding: 0 !important;
 }
+
+.inputInsetZone,
+.outputInsetZone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.inputInsetZone {
+  background-color: var(--inspect-tool-block-input-bg);
+}
+
+.header + .inputInsetZone {
+  padding-top: 6px;
+}
+
+.inputZone + .inputInsetZone {
+  padding-top: 5px;
+}
+
+.outputInsetZone {
+  border-top: 1px solid var(--bs-light-border-subtle);
+  background-color: var(--inspect-tool-block-output-bg);
+  padding-top: 10px;
+}
+
+.outputWell + .outputInsetZone {
+  border-top: 0;
+  padding-top: 0;
+}

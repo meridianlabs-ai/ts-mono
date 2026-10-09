@@ -17,6 +17,7 @@ import type {
   SandboxEvent,
   ScoreEditEvent,
   ScoreEvent,
+  SentinelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   StateEvent,
@@ -31,6 +32,8 @@ import type {
   ToolAnnotation,
 } from "../chat/tools/browserActionUtils";
 
+import type { MakeCiteUrl } from "./citeReferences";
+import type { SentinelStep, ToolSentinels } from "./transform/toolSentinels";
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
 export interface StateManager {
@@ -85,6 +88,7 @@ export type EventType =
   | AnchorEvent
   | ApprovalEvent
   | ReviewEvent
+  | SentinelEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -112,6 +116,7 @@ export const eventTypeValues = [
   "anchor",
   "approval",
   "review",
+  "sentinel",
   "branch",
   "checkpoint",
   "compaction",
@@ -278,8 +283,14 @@ export interface EventNodeContext {
   eventLabels?: Record<string, string>;
   /** Per-tool labels rendered in tool event gutters. Keyed by `ToolEvent.id`. */
   toolLabels?: Record<string, string>;
-  /** Approval events paired to their tool event via `call.id == ToolEvent.id`. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
-  toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
+  /** Approval events (every approver in an escalation chain) paired to their tool event via `call.id == ToolEvent.id`, keyed by the tool's node id. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
+  toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
+  /** Sentinel steps paired to their tool event via `step_id == ToolEvent.id`, rendered as rows at the bottom of the tool panel beside the approval. */
+  toolSentinels?: Map<string, ToolSentinels>;
+  /** Links the cites in a sentinel check's explanation (e.g. `[M22]`) to the messages and events its references name. */
+  makeCiteUrl?: MakeCiteUrl;
+  /** Sentinel steps with no tool to render in, keyed by the node that hosts the step's row. */
+  standaloneSentinels?: Map<string, SentinelStep>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */
   retryAttempts?: Map<string, ModelEvent[]>;
   selfAnnotation?: ToolAnnotation;

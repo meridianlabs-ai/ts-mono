@@ -91,6 +91,38 @@
   --inspect-tool-block-output-bg: var(--bs-body-bg);
   --inspect-tool-block-ink: var(--bs-secondary-color);
   --inspect-turn-prose-edge: 1px solid var(--bs-light-border-subtle);
+
+  /* Tool call checks (approval and sentinel insets inside a tool block). The
+     input-region tokens follow the tool block: neutral by default, tinted
+     under the readable variant. */
+  --inspect-check-input-border: var(--bs-light-border-subtle);
+  --inspect-check-input-pill-bg: var(--bs-body-bg);
+  --inspect-check-result-border: #e3e5e8;
+  --inspect-check-result-pill-bg: var(--bs-tertiary-bg);
+  --inspect-check-result-pill-text: #495057;
+  --inspect-check-tree-guide: #ced4da;
+  --inspect-check-kind-icon: rgba(var(--bs-body-color-rgb), 0.5);
+  --inspect-check-open-row-bg: #e7f0f9;
+  --inspect-check-detail-before-bg: #f8fafc;
+  --inspect-check-detail-after-bg: var(--bs-tertiary-bg);
+  --inspect-check-chip-bg: #f1f3f5;
+  --inspect-check-reject-icon: var(--bs-danger);
+  --inspect-check-reject-text: #b02a37;
+  --inspect-check-reject-reason: var(--bs-danger-text-emphasis);
+  --inspect-check-reject-bg: #fdf3f4;
+  --inspect-check-reject-border: #f1c6cb;
+  --inspect-check-reject-tree-border: #f1e1e3;
+  --inspect-check-reject-detail-bg: #fdf6f7;
+  --inspect-check-modify-icon: #997404;
+  --inspect-check-modify-text: var(--bs-warning-text-emphasis);
+  --inspect-check-modify-bg: #fffbeb;
+  --inspect-check-modify-border: var(--bs-warning-border-subtle);
+  --inspect-check-modify-tree-border: #efe3bd;
+  --inspect-check-modify-detail-bg: #fffcf2;
+  --inspect-check-modify-box-border: #f3e3a6;
+  --inspect-check-flag-bg: var(--bs-warning-bg-subtle);
+  --inspect-check-approve-icon: var(--bs-success);
+  --inspect-check-approve-text: var(--bs-success-text-emphasis);
 }
 
 :root[data-bs-theme="dark"] {
@@ -112,6 +144,23 @@
   --inspect-readable-system-bg: #0a0b0d;
   --inspect-readable-system-border: #67696f;
   --inspect-readable-body-color: #e6e8ea;
+
+  --inspect-check-result-border: #3a3f45;
+  --inspect-check-result-pill-text: var(--bs-secondary-color);
+  --inspect-check-tree-guide: #495057;
+  --inspect-check-open-row-bg: #1f2c3a;
+  --inspect-check-detail-before-bg: #1a1f25;
+  --inspect-check-chip-bg: #2b3035;
+  --inspect-check-reject-text: #ea868f;
+  --inspect-check-reject-bg: #2c1a1d;
+  --inspect-check-reject-border: #6a2a31;
+  --inspect-check-reject-tree-border: #4a2a2e;
+  --inspect-check-reject-detail-bg: #251a1c;
+  --inspect-check-modify-icon: #e0b341;
+  --inspect-check-modify-bg: #2a2412;
+  --inspect-check-modify-tree-border: #4d4222;
+  --inspect-check-modify-detail-bg: #242012;
+  --inspect-check-modify-box-border: #5c4e1f;
 }
 
 /* Readable variant: trade design consistency for transcript scannability —
@@ -127,6 +176,13 @@
   --inspect-tool-block-output-bg: var(--inspect-tool-output-bg);
   --inspect-tool-block-ink: var(--inspect-readable-tool-call-border);
   --inspect-turn-prose-edge: 3px solid var(--inspect-readable-assistant-border);
+  --inspect-check-input-border: #d5e1ec;
+  --inspect-check-input-pill-bg: #f5f9fd;
+}
+
+:root[data-theme-variant="readable"][data-bs-theme="dark"] {
+  --inspect-check-input-border: #34465a;
+  --inspect-check-input-pill-bg: #1c232a;
 }
 
 :root[data-theme-variant="readable"] [data-message-role] {

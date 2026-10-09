@@ -4,7 +4,9 @@ import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
+  ContentTrustProvider,
   JSONPanel,
   LoadingBar,
   TabPanel,
@@ -427,61 +429,70 @@ export const ScannerResultPanel: FC = () => {
           scanLoading || resultLoading || detailLoading || hasTranscriptLoading
         }
       />
-      <ScannerResultHeader
-        inputData={inputData}
-        resultData={selectedResult}
-        scan={selectedScan}
-        appConfig={appConfig}
-        collapsed={headerCollapsed}
-        onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
-      />
-      {selectedResult && (
-        <div
-          ref={contentRef}
-          className={clsx(
-            styles.contentArea,
-            !validationSidebarCollapsed && styles.withValidation
-          )}
-        >
-          {validationSidebarCollapsed || !selectedResult.transcriptId ? (
-            <div className={styles.tabSetWrapper}>
-              {renderTabSet(selectedResult)}
-            </div>
-          ) : (
-            <VscodeSplitLayout
-              className={styles.splitLayout}
-              fixedPane="end"
-              initialHandlePosition="80%"
-              minEnd="180px"
-              minStart="200px"
-            >
-              <div slot="start" className={styles.splitStart}>
+      {/* Untrusted until the result (and so its transcript's trust) loads. */}
+      <ContentTrustProvider
+        value={
+          selectedResult
+            ? trustContentSetting(selectedResult.transcriptTrustContent)
+            : "untrusted"
+        }
+      >
+        <ScannerResultHeader
+          inputData={inputData}
+          resultData={selectedResult}
+          scan={selectedScan}
+          appConfig={appConfig}
+          collapsed={headerCollapsed}
+          onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
+        />
+        {selectedResult && (
+          <div
+            ref={contentRef}
+            className={clsx(
+              styles.contentArea,
+              !validationSidebarCollapsed && styles.withValidation
+            )}
+          >
+            {validationSidebarCollapsed || !selectedResult.transcriptId ? (
+              <div className={styles.tabSetWrapper}>
                 {renderTabSet(selectedResult)}
               </div>
-              <div slot="end" className={styles.validationSidebar}>
-                <ValidationCaseEditor
-                  transcriptId={selectedResult.transcriptId}
-                  taskId={
-                    selectedResult.transcriptTaskId != null
-                      ? String(selectedResult.transcriptTaskId)
-                      : undefined
-                  }
-                  taskRepeat={selectedResult.transcriptTaskRepeat}
-                />
-              </div>
-            </VscodeSplitLayout>
-          )}
-        </div>
-      )}
-      {selectedResult?.transcriptScore != null && (
-        <AllScoresDialog
-          showing={scoresDialogResultId === scanResultUuid}
-          setShowing={(show) =>
-            setScoresDialogResultId(show ? scanResultUuid : undefined)
-          }
-          score={selectedResult.transcriptScore}
-        />
-      )}
+            ) : (
+              <VscodeSplitLayout
+                className={styles.splitLayout}
+                fixedPane="end"
+                initialHandlePosition="80%"
+                minEnd="180px"
+                minStart="200px"
+              >
+                <div slot="start" className={styles.splitStart}>
+                  {renderTabSet(selectedResult)}
+                </div>
+                <div slot="end" className={styles.validationSidebar}>
+                  <ValidationCaseEditor
+                    transcriptId={selectedResult.transcriptId}
+                    taskId={
+                      selectedResult.transcriptTaskId != null
+                        ? String(selectedResult.transcriptTaskId)
+                        : undefined
+                    }
+                    taskRepeat={selectedResult.transcriptTaskRepeat}
+                  />
+                </div>
+              </VscodeSplitLayout>
+            )}
+          </div>
+        )}
+        {selectedResult?.transcriptScore != null && (
+          <AllScoresDialog
+            showing={scoresDialogResultId === scanResultUuid}
+            setShowing={(show) =>
+              setScoresDialogResultId(show ? scanResultUuid : undefined)
+            }
+            score={selectedResult.transcriptScore}
+          />
+        )}
+      </ContentTrustProvider>
     </div>
   );
 };

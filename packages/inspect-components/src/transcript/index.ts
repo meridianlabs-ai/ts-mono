@@ -8,6 +8,7 @@ export {
   kTranscriptOutlineCollapseScope,
 } from "./types";
 export { dynamicDefaultExcludeEvents } from "./eventFilter";
+export { citeReferences, type MakeCiteUrl } from "./citeReferences";
 export type {
   EventNodeContext,
   EventNodeSpan,
@@ -150,8 +151,13 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 
 // Event view components
 export { AnchorEventView } from "./AnchorEventView";
-export { ApprovalEventView } from "./ApprovalEventView";
+export { ApprovalEventView, ApprovalInset } from "./ApprovalEventView";
 export { ReviewEventView } from "./ReviewEventView";
+export {
+  SentinelEventView,
+  SentinelInset,
+  SentinelStepRow,
+} from "./SentinelEventView";
 export { BranchEventView } from "./BranchEventView";
 export {
   BranchPoint,
