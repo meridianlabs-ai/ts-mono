@@ -4,6 +4,7 @@
  * These tests exercise ChatView, ChatViewVirtualList, ToolCallView, and related
  * chat rendering components through the sample detail Messages tab.
  */
+import type { Locator } from "@playwright/test";
 import { http, HttpResponse } from "msw";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
@@ -75,6 +76,23 @@ async function openSample(
   await page.goto(
     `/#/logs/${encodedFile}/samples/sample/${sampleId}/${epoch}/messages`
   );
+}
+
+/**
+ * Asserts each text is visible and rendered below the previous one. Rows of
+ * the virtual list are positioned absolutely, so DOM order alone doesn't
+ * show screen order.
+ */
+async function expectTopToBottom(container: Locator, texts: string[]) {
+  const tops: number[] = [];
+  for (const text of texts) {
+    const locator = container.getByText(text, { exact: true });
+    await expect(locator).toBeVisible();
+    const box = await locator.boundingBox();
+    expect(box, text).not.toBeNull();
+    tops.push(box?.y ?? Number.NaN);
+  }
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
 }
 
 // ---------------------------------------------------------------------------
@@ -187,9 +205,12 @@ test.describe("chat message rendering", () => {
       },
     ]);
 
-    await expect(page.locator("#messages-contents")).toHaveText(
-      /First question from user.*First response from assistant.*Second question from user.*Second response from assistant/s
-    );
+    await expectTopToBottom(page.locator("#messages-contents"), [
+      "First question from user",
+      "First response from assistant",
+      "Second question from user",
+      "Second response from assistant",
+    ]);
   });
 
   test("renders message with structured content array", async ({

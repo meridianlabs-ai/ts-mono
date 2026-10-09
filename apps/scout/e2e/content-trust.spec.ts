@@ -38,14 +38,16 @@ declare global {
   }
 }
 
-// Rich rendering lands about 100–300 ms after the raw text locally; a plain
-// check waits several times that before asserting nothing rich appeared.
+// Rich rendering lands within ~50 ms of the raw text on an idle machine and
+// under ~300 ms with parallel workers; a plain check waits well past that
+// before asserting nothing rich appeared.
 const SETTLE_MS = 1000;
 
 /**
- * Records every rich-rendering marker that enters the DOM — rendered bold
- * claims, the content's link, highlighted JSON tokens — including ones a
- * later render removes, so a plain check can't pass before rendering lands.
+ * Records every rich-rendering marker that enters the DOM, by insertion or
+ * by a class/href change — rendered bold claims, the content's link,
+ * highlighted JSON tokens — including ones a later render removes, so a
+ * plain check can't pass before rendering lands.
  */
 const recordRichMarkers = async (page: Page) => {
   await page.addInitScript((link) => {
@@ -68,8 +70,16 @@ const recordRichMarkers = async (page: Page) => {
       }
     };
     new MutationObserver((records) => {
-      for (const record of records) record.addedNodes.forEach(check);
-    }).observe(document, { childList: true, subtree: true });
+      for (const record of records) {
+        record.addedNodes.forEach(check);
+        if (record.type === "attributes") check(record.target);
+      }
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "href"],
+    });
   }, LINK);
   return () => page.evaluate(() => window.__richMarkers ?? []);
 };

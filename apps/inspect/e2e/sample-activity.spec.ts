@@ -742,13 +742,29 @@ test("a history row clicks through to its transcript event", async ({
   page,
   network,
 }) => {
-  await openSample(page, network);
+  // Earlier calls push the failed tool call below the transcript fold.
+  const earlier = Array.from({ length: 10 }, (_, i) =>
+    activityModelEvent({
+      uuid: `earlier-${i}`,
+      startSec: -100 + i * 5,
+      endSec: -98 + i * 5,
+      workingStart: 0,
+    })
+  );
+  await openSample(page, network, {
+    events: [...earlier, ...activityEvents()],
+    tab: "transcript",
+  });
+  const target = page.locator("#event-panel-tool-fail");
+  await expect(page.locator("#event-panel-earlier-0")).toBeVisible();
+  await expect(target).not.toBeInViewport();
 
+  await page.getByRole("tab", { name: "Activity" }).click();
   await page
     .getByRole("button", { name: /Tool bash errored · exit 127/ })
     .getByRole("button", { name: "open in transcript →" })
     .click();
 
   await expect(page).toHaveURL(/\/transcript\?event=tool-fail$/);
-  await expect(page.locator("#event-panel-tool-fail")).toBeInViewport();
+  await expect(target).toBeInViewport();
 });
