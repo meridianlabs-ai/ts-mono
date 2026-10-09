@@ -272,11 +272,9 @@ const recordRichRenderingModules = (page: Page) => {
 /** Open the focus view of the sample's final model call. */
 const openEventFocus = async (page: Page, label: Label) => {
   await openViewFresh(page, sampleUrl(label, "transcript"), /Sample 1:/);
-  const focusHref = await page
-    .locator('a[href*="/event?event="]')
-    .last()
-    .getAttribute("href");
-  expect(focusHref).toBeTruthy();
+  const focusLink = page.locator('a[href*="/event?event="]').last();
+  await expect(focusLink).toHaveAttribute("href", /\/event\?event=/);
+  const focusHref = await focusLink.getAttribute("href");
   await page.goto(`/${focusHref}`);
   await expect(page.getByText(/Score: CORRECT/).first()).toBeVisible();
   await page.waitForTimeout(500);
@@ -310,6 +308,7 @@ test.describe("an untrusted log", () => {
     serveFixtures(network);
     const recorded = await recordRichContent(page);
     await expectPlainInEveryView(page, "untrusted", recorded);
+
     await test.step("event focus view", async () => {
       await openEventFocus(page, "untrusted");
       expect.soft(await collectMarkers(page), "event focus view").toEqual(NONE);
@@ -376,31 +375,39 @@ test.describe("an untrusted log", () => {
   });
 });
 
+/** Links and images are what the rich-content recorder watches for. */
+const showsLinksOrImages = (view: View) =>
+  view.trustedShows.includes("links") || view.trustedShows.includes("images");
+
+/** Opens `view` for the trusted log and checks every marker it should show. */
+const expectTrustedMarkers = async (page: Page, view: View) => {
+  await openViewFresh(page, view.url("trusted"), view.ready);
+  const markers = await collectMarkers(page);
+  for (const marker of view.trustedShows) {
+    expect.soft(markers[marker], `${view.name}: ${marker}`).toBeGreaterThan(0);
+  }
+};
+
 test.describe("a trusted log", () => {
   test("renders richly in every view", async ({ page, network }) => {
     test.slow();
     serveFixtures(network);
     // The positive control for the plain walks' transient checks.
     const recorded = await recordRichContent(page);
-    for (const view of VIEWS) {
+    // Each view opens on a fresh page load, so the recorder holds only
+    // that view's content.
+    for (const view of VIEWS.filter(showsLinksOrImages)) {
       await test.step(view.name, async () => {
-        await openViewFresh(page, view.url("trusted"), view.ready);
-        const markers = await collectMarkers(page);
-        for (const marker of view.trustedShows) {
-          expect
-            .soft(markers[marker], `${view.name}: ${marker}`)
-            .toBeGreaterThan(0);
-        }
-        if (
-          view.trustedShows.includes("links") ||
-          view.trustedShows.includes("images")
-        ) {
-          expect
-            .soft(await recorded("trusted"), `${view.name}, recorded`)
-            .not.toEqual([]);
-        }
+        await expectTrustedMarkers(page, view);
+        expect
+          .soft(await recorded("trusted"), `${view.name}, recorded`)
+          .not.toEqual([]);
       });
     }
+    for (const view of VIEWS.filter((view) => !showsLinksOrImages(view))) {
+      await test.step(view.name, () => expectTrustedMarkers(page, view));
+    }
+
     await test.step("event focus view", async () => {
       await openEventFocus(page, "trusted");
       const markers = await collectMarkers(page);

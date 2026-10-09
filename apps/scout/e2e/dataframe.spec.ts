@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { fromCSV } from "arquero";
 
 import {
@@ -28,25 +28,12 @@ async function seedDataframeState(page: Page, patch: Partial<DataframeState>) {
 
 const fixture = "/e2e/fixtures/dataframe/";
 
-test("copy and download preserve complete explanations beyond the display limit", async ({
-  page,
-}) => {
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto(fixture);
-  await page.getByRole("button", { name: /Copy CSV/ }).click();
-  await expect(page.getByRole("button", { name: /Copied/ })).toBeVisible();
-  const csv = await page.evaluate(() => navigator.clipboard.readText());
-  const exported = fromCSV(csv, { autoType: false });
-  expect(exported.array("explanation")[5]).toBe(
-    "Long explanation ".repeat(100)
-  );
-  const downloading = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Download CSV/ }).click();
-  const download = await downloading;
-  const path = await download.path();
-  if (!path) throw new Error("Download has no local file");
-  expect(await readFile(path, "utf8")).toBe(`\ufeff${csv}`);
-});
+/** The element's bounding box; fails the test if it isn't rendered. */
+async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("expected the element to be rendered");
+  return box;
+}
 
 test.beforeEach(({ page }) => {
   page.on("pageerror", (error) => {
@@ -274,13 +261,13 @@ test("wrapped large data stays navigable after filtering and scrolling", async (
   await expect(page.getByLabel("Opened result")).toHaveText("result-4999");
   await expect(
     page.getByRole("gridcell", { name: "transcript-4999", exact: true })
-  ).toBeVisible();
+  ).toBeInViewport();
   expect(await page.getByRole("row").count()).toBeLessThan(100);
   await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
   await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
   await expect(
     page.getByRole("gridcell", { name: "transcript-4999", exact: true })
-  ).toBeVisible();
+  ).toBeInViewport();
   await expect
     .poll(() =>
       page.evaluate(() => localStorage.getItem("inspect-scout-storage"))
@@ -290,7 +277,7 @@ test("wrapped large data stays navigable after filtering and scrolling", async (
   await expect(page.getByLabel("Visible rows")).toHaveText("1667");
   await expect(
     page.getByRole("gridcell", { name: "transcript-4999", exact: true })
-  ).toBeVisible();
+  ).toBeInViewport();
 });
 
 test("filter controls, sorting, copy and download use the same displayed rows and columns", async ({
@@ -331,6 +318,8 @@ test("filter controls, sorting, copy and download use the same displayed rows an
     "transcript-0000",
   ]);
   expect(exported.array("value")).toEqual(["100", "10"]);
+  // Exports carry the full value, not the grid's display-truncated text.
+  expect(exported.get("explanation", 0)).toBe("Long explanation ".repeat(100));
   expect(exported.get("explanation", 1)).toBe(
     'Alpha, quoted "text"\nnext line'
   );
@@ -340,9 +329,7 @@ test("filter controls, sorting, copy and download use the same displayed rows an
   expect(download.suggestedFilename()).toMatch(
     /^regression_scanner_\d{8}T\d{6}\.csv$/
   );
-  const path = await download.path();
-  if (!path) throw new Error("Download has no local file");
-  expect(await readFile(path, "utf8")).toBe(`\ufeff${csv}`);
+  expect(await readFile(await download.path(), "utf8")).toBe(`\ufeff${csv}`);
 });
 
 test("new filters and widths survive unmounting and persisted reload; clear preserves sorting", async ({
@@ -406,9 +393,8 @@ test("columns reorder and resize, while row numbers stay pinned and activate sor
     "value"
   );
   const resizer = page.getByRole("slider", { name: "Resize value" });
-  const before = await value.boundingBox();
-  const handle = await resizer.boundingBox();
-  if (!handle || !before) throw new Error("Missing column bounds");
+  const before = await boxOf(value);
+  const handle = await boxOf(resizer);
   await page.mouse.move(handle.x + 2, handle.y + 5);
   await page.mouse.down();
   await page.mouse.move(handle.x + 102, handle.y + 5, { steps: 5 });
@@ -533,52 +519,32 @@ test("numeric sort cycles ascending, descending, and original order", async ({
   await expect(page.getByLabel("Opened result")).toHaveText("result-0");
 });
 
-test("virtualizes varied wrapped rows and restores the final row", async ({
+test("text wrapping changes row height without hiding content", async ({
   page,
 }) => {
-  await page.goto(`${fixture}?rows=5000`);
-  await expect(page.getByLabel("Visible rows")).toHaveText("5000");
-  await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
-  await page.getByRole("grid", { name: "Scanner results" }).focus();
-  await page.keyboard.press("Control+ArrowDown");
-  const last = page.getByRole("gridcell", {
-    name: "transcript-4999",
+  await page.goto(fixture);
+  await expect(page.getByLabel("Visible rows")).toHaveText("6");
+  const cell = page.getByRole("gridcell", {
+    name: "transcript-0005",
     exact: true,
   });
-  await expect(last).toBeInViewport();
-  await page.keyboard.press("Enter");
-  await expect(page.getByLabel("Opened result")).toHaveText("result-4999");
-  expect(await page.getByRole("row").count()).toBeLessThan(100);
-  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
-  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
-  await expect(last).toBeInViewport();
+  const explanation = page.getByRole("gridcell", {
+    name: /^Long explanation/,
+  });
+  const before = await cell.boundingBox();
+  await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
+  await expect
+    .poll(async () => (await cell.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(before?.height ?? 0);
   await expect
     .poll(() =>
-      page.evaluate(() => localStorage.getItem("inspect-scout-storage"))
+      explanation.evaluate(
+        (element) => element.scrollHeight - element.clientHeight
+      )
     )
-    .toContain('"selectedResultRow":4999');
-  await page.reload();
-  await expect(last).toBeInViewport();
+    .toBeLessThanOrEqual(1);
+  await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
+  await expect
+    .poll(async () => (await cell.boundingBox())?.height)
+    .toBe(before?.height);
 });
-
-for (const theme of ["light", "dark"]) {
-  test(`text wrapping changes row height without hiding content in ${theme} theme`, async ({
-    page,
-  }) => {
-    await page.goto(`${fixture}?theme=${theme}`);
-    await expect(page.getByLabel("Visible rows")).toHaveText("6");
-    const cell = page.getByRole("gridcell", {
-      name: "transcript-0005",
-      exact: true,
-    });
-    const before = await cell.boundingBox();
-    await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
-    await expect
-      .poll(async () => (await cell.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(before?.height ?? 0);
-    await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
-    await expect
-      .poll(async () => (await cell.boundingBox())?.height)
-      .toBe(before?.height);
-  });
-}

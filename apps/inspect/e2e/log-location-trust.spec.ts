@@ -57,7 +57,7 @@ test("a cross-origin ?log_dir= waits for approval before anything is fetched", a
 
   await gate.getByRole("button", { name: "Open", exact: true }).click();
 
-  await expect(gate).not.toBeVisible();
+  await expect(gate).toBeHidden();
   await expect.poll(() => hits).toContain(`${FOREIGN_DIR}/listing.json`);
 });
 
@@ -76,7 +76,7 @@ test("declining strips the proposal from the URL without contacting it", async (
   await gate.getByRole("button", { name: "Don't open" }).click();
 
   await expect(page).not.toHaveURL(/log_file=/);
-  await expect(gate).not.toBeVisible();
+  await expect(gate).toBeHidden();
   // The dev server has no view server, so the page settles on the config
   // error; what matters is that the foreign origin was never contacted.
   await page.waitForTimeout(300);
@@ -92,7 +92,7 @@ test("a same-origin ?log_dir= is the page's own scope and loads unprompted", asy
   await page.goto("/?log_dir=logs");
 
   await expect.poll(() => hits.length).toBeGreaterThan(0);
-  await expect(page.getByTestId("log-location-gate")).not.toBeVisible();
+  await expect(page.getByTestId("log-location-gate")).toBeHidden();
 });
 
 test("a hash route naming another origin is refused, not fetched", async ({

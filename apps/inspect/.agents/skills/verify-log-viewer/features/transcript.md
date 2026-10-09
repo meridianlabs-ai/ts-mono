@@ -64,9 +64,9 @@ and Scans rail, read [Transcript search and scans](./transcript-search-and-scans
   and `eventFilter.ts`.
 - Data sources: `apps/inspect/src/log_data/sampleStream.ts`,
   `chunkedSampleQuery.ts`, and chunked modules under `log_data/chunked/`.
-- Regression coverage: `apps/inspect/e2e/transcript-baseline.spec.ts`,
-  `transcript-events.spec.ts`, `timeline.spec.ts`, `turn-navigation.spec.ts`,
-  and extensive colocated transcript tests.
+- Regression coverage: `apps/inspect/e2e/transcript-events.spec.ts`,
+  `timeline.spec.ts`, `turn-navigation.spec.ts`, and extensive colocated
+  transcript tests.
 
 ## Gotchas
 
