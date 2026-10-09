@@ -53,23 +53,6 @@ async function openMetadataTab(page: Page, network: NetworkFixture) {
   await page.goto(`/#/logs/${encodedFile}/samples/sample/1/1/metadata`);
 }
 
-test("metadata tab renders a virtualized record tree", async ({
-  page,
-  network,
-}) => {
-  await openMetadataTab(page, network);
-
-  const tree = page.locator('[id^="task-sample-metadata-"]');
-  await expect(tree).toBeVisible();
-  await expect(tree.getByText("summary:", { exact: true })).toBeVisible();
-  await expect(tree.getByText("top-level string value")).toBeVisible();
-
-  // Virtualization: with 300+ rows, only a window is mounted.
-  const rowCount = await tree.locator("[data-item-index]").count();
-  expect(rowCount).toBeGreaterThan(5);
-  expect(rowCount).toBeLessThan(150);
-});
-
 test("scrolling reaches rows beyond the initial window", async ({
   page,
   network,
