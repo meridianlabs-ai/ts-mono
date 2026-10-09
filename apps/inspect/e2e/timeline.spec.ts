@@ -201,7 +201,7 @@ async function openTranscriptWithTimeline(
 // Timeline acceptance tests
 // ---------------------------------------------------------------------------
 
-test("selecting the root row again restores the full event list", async ({
+test("returning to the root via the breadcrumb restores the full event list", async ({
   page,
   network,
 }) => {
@@ -214,7 +214,8 @@ test("selecting the root row again restores the full event list", async ({
   await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
   await expect(exploreCard).toBeHidden();
 
-  await swimlane.getByRole("row").filter({ hasText: "Transcript" }).click();
+  // Selecting an agent can collapse the swimlane behind its breadcrumb.
+  await page.getByRole("button", { name: "Transcript", exact: true }).click();
   await expect(exploreCard).toBeVisible();
   await expect(page.getByText("sub-agent: build").first()).toBeVisible();
 });
