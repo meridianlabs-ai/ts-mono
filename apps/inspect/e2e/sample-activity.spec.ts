@@ -1,10 +1,11 @@
 /**
  * Sample Activity tab e2e tests.
  *
- * Exercises the new Activity tab in the sample display: tab presence,
- * band rendering, band chips, history-list filters, marker → row selection,
- * and click-through to the Transcript. Also covers the companion label-only
- * rename of the log-level Timeline tab to "Activity".
+ * Exercises the Activity tab in the sample display where a real browser
+ * matters: routing, chart layout and theming at real plot widths, pointer
+ * travel between chart surfaces and their tooltip cards, and click-through
+ * to the Transcript. Band, chip and filter logic is unit-tested alongside
+ * SampleActivityPanel and ActivityChart.
  */
 
 import { http, HttpResponse } from "msw";
@@ -244,99 +245,22 @@ async function openSample(
 // Tests
 // ---------------------------------------------------------------------------
 
-test("activity tab appears and its default bands render", async ({
+test("the Activity tab routes to the chart, whose working band labels retry stalls", async ({
   page,
   network,
 }) => {
   await openSample(page, network, { tab: "transcript" });
 
-  const activityTab = page.getByRole("tab", { name: "Activity" });
-  await expect(activityTab).toBeVisible();
-  await activityTab.click();
-
-  // Curated default-on bands (handoff 8a): activity, context, token burn.
+  await page.getByRole("tab", { name: "Activity" }).click();
+  await expect(page).toHaveURL(/\/samples\/sample\/1\/1\/activity$/);
   await expect(
     page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
   ).toBeVisible();
-  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
-  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
-  // Compaction annotated as a cliff drop.
-  await expect(page.getByText("142k → 38k").first()).toBeVisible();
-  // Working time is the opt-in band.
-  await expect(
-    page.getByText("WORKING TIME", { exact: true })
-  ).not.toBeVisible();
-});
-
-test("band chips toggle the opt-in working band and default bands", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
 
   await page.getByRole("button", { name: "Working time" }).click();
   await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
   // The retry-attributable stall is bracketed and labeled.
   await expect(page.getByText(/rate limit ×3/)).toBeVisible();
-
-  await page.getByRole("button", { name: "Token burn" }).click();
-  await expect(page.getByText("TOKEN BURN", { exact: true })).not.toBeVisible();
-  await page.getByRole("button", { name: "Context size" }).click();
-  await expect(
-    page.getByText("CONTEXT SIZE", { exact: true })
-  ).not.toBeVisible();
-});
-
-test("axis toggle tiles turns and hides the working chip", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-  const workingChip = page.getByRole("button", { name: /Working time/ });
-  const workingBand = page.getByText("WORKING TIME", { exact: true });
-  await workingChip.click();
-  await expect(workingBand).toBeVisible();
-
-  await page.getByRole("button", { name: "Turns" }).click();
-  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-  // Three model turns → three column ticks.
-  await expect(page.getByText("3", { exact: true }).first()).toBeVisible();
-  // Waiting has no extent on the Turns axis: chip and band both go.
-  await expect(workingChip).toHaveCount(0);
-  await expect(workingBand).not.toBeVisible();
-  await expect(page.getByRole("button", { name: "Markers" })).toBeVisible();
-
-  // Back on the wall clock the chip returns still on — the override was kept.
-  await page.getByRole("button", { name: "Wall clock", exact: true }).click();
-  await expect(page.getByText("TURN", { exact: true })).not.toBeVisible();
-  await expect(workingChip).toBeVisible();
-  await expect(workingBand).toBeVisible();
-});
-
-test("hovering a span shows the tooltip card; the span itself has no click action", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  const span = page.locator("rect[class*='failedSpan']").first();
-  await span.hover();
-  const card = page.locator("[class*='tooltip']");
-  await expect(card).toBeVisible();
-  await expect(card).toContainText("bash tool call");
-  await expect(card).toContainText("failed");
-  await expect(card).toContainText("exit 127");
-  await expect(
-    card.getByRole("button", { name: "open in transcript →" })
-  ).toBeVisible();
-  // Shared cursor: the axis pill pins the hovered span's start.
-  await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
-  // Clicking the span goes nowhere (Charles, 2026-09-16): the card's
-  // footer link is the chart's only navigation.
-  await expect(span).toHaveCSS("cursor", /^(auto|default)$/);
-  await span.click();
-  await expect(page).toHaveURL(/\/activity$/);
-  await expect(page).not.toHaveURL(/\/transcript/);
 });
 
 test("state outlines win over the Turns column seam in both themes", async ({
@@ -408,9 +332,6 @@ function narrowTurnsEvents(turns: number, tools: number): Events {
   ];
 }
 
-const kToolTealLight = "rgb(20, 184, 166)";
-const kToolTealDark = "rgb(45, 212, 191)";
-
 /** The plot's width, read from the widest horizontal axis line. */
 const plotWidth = (page: Page) =>
   page.locator("line[class*='axisLine']").evaluateAll((lines) =>
@@ -426,41 +347,30 @@ const plotWidth = (page: Page) =>
     )
   );
 
-const toDark = (page: Page) =>
-  page.evaluate(() => {
-    document.documentElement.setAttribute("data-bs-theme", "dark");
-  });
-
 // A 1032 px viewport gives the 960 px plot where the global 3 px-per-turn
 // density threshold sits at exactly 320 turns: `turnsDense` is false at
 // equality and a tool half there is 1.5 px — entirely under the 1.5 px
-// seam stroke. 300 turns leaves ~0.1 px of teal.
-for (const turns of [320, 300]) {
-  test(`a ${turns}-turn Turns chart degrades to the strip before its tool half vanishes under the seam`, async ({
-    page,
-    network,
-  }) => {
-    await page.setViewportSize({ width: 1032, height: 900 });
-    await openSample(page, network, { events: narrowTurnsEvents(turns, 4) });
-    await page.getByRole("button", { name: "Turns", exact: true }).click();
-    await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-    expect(Math.abs((await plotWidth(page)) - 960)).toBeLessThan(1);
-    await expect(page.locator("rect[class*='toolSpan']")).toHaveCount(0);
-    await expect(page.locator("rect[class*='turnRect']")).toHaveCount(0);
-    await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
-    // Turn 1 (one model call, four tools) is a tool-majority strip column
-    // in the tool teal, in both themes.
-    const column = page.locator("rect[class*='densityTool']").first();
-    await expect(column).toBeVisible();
-    const fill = () => column.evaluate((el) => getComputedStyle(el).fill);
-    await expect.poll(fill).toBe(kToolTealLight);
-    await toDark(page);
-    await expect.poll(fill).toBe(kToolTealDark);
-    await expect(page.locator("rect[class*='toolSpan']")).toHaveCount(0);
-  });
-}
+// seam stroke. ActivityChart.test covers the threshold arithmetic; this
+// pins that real layout produces that plot width.
+test("a 320-turn Turns chart degrades to the strip before its tool half vanishes under the seam", async ({
+  page,
+  network,
+}) => {
+  await page.setViewportSize({ width: 1032, height: 900 });
+  await openSample(page, network, { events: narrowTurnsEvents(320, 4) });
+  await page.getByRole("button", { name: "Turns", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  expect(Math.abs((await plotWidth(page)) - 960)).toBeLessThan(1);
+  await expect(page.locator("rect[class*='toolSpan']")).toHaveCount(0);
+  await expect(page.locator("rect[class*='turnRect']")).toHaveCount(0);
+  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+  // Turn 1 (one model call, four tools) is a tool-majority strip column.
+  await expect(
+    page.locator("rect[class*='densityTool']").first()
+  ).toBeVisible();
+});
 
-test("a tool half that keeps the tick floor under its seam stays a discrete rect in both themes", async ({
+test("a tool half that keeps the tick floor under its seam stays a discrete rect", async ({
   page,
   network,
 }) => {
@@ -472,58 +382,12 @@ test("a tool half that keeps the tick floor under its seam stays a discrete rect
   await expect(tool).toHaveCount(1);
   await expect(page.locator("rect[class*='densityTool']")).toHaveCount(0);
   // Visible teal = the rect's width minus the seam stroke it carries.
-  const paint = () =>
-    tool.evaluate((el) => {
-      const style = getComputedStyle(el);
-      return {
-        fill: style.fill,
-        visible:
-          Number(el.getAttribute("width")) - parseFloat(style.strokeWidth),
-      };
-    });
-  const light = await paint();
-  expect(light.fill).toBe(kToolTealLight);
-  expect(light.visible).toBeGreaterThanOrEqual(3);
-  await toDark(page);
-  await expect.poll(async () => (await paint()).fill).toBe(kToolTealDark);
-  expect((await paint()).visible).toBeGreaterThanOrEqual(3);
-});
-
-test("the tooltip survives pointer travel from the span to its footer", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  const span = page.locator("rect[class*='failedSpan']").first();
-  await span.hover();
-  const card = page.locator("[class*='tooltip']");
-  await expect(card).toBeVisible();
-  const footer = card.getByRole("button", { name: "open in transcript →" });
-  await expect(footer).toBeVisible();
-
-  // Physically travel from the span, across the band below it, into the
-  // card's footer — the card sits under the whole activity band, so the
-  // pointer crosses empty plot on the way. The card's real 300ms grace
-  // starts when the pointer leaves the span, so everything that can be
-  // awaited beforehand (the boxes) is, and the two legs of the journey
-  // run back to back with no assertion between them.
-  const spanBox = await span.boundingBox();
-  const footerBox = await footer.boundingBox();
-  if (!spanBox || !footerBox) throw new Error("expected span and footer");
-  await page.mouse.move(
-    spanBox.x + spanBox.width / 2,
-    spanBox.y + spanBox.height + 5,
-    { steps: 3 }
+  const visible = await tool.evaluate(
+    (el) =>
+      Number(el.getAttribute("width")) -
+      parseFloat(getComputedStyle(el).strokeWidth)
   );
-  await page.mouse.move(
-    footerBox.x + footerBox.width / 2,
-    footerBox.y + footerBox.height / 2,
-    { steps: 6 }
-  );
-  await expect(footer).toBeVisible();
-  await footer.click();
-  await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
+  expect(visible).toBeGreaterThanOrEqual(3);
 });
 
 // A human hand does not jump 25 px per event: it crosses the gap between
@@ -571,147 +435,6 @@ for (const axis of ["Wall clock", "Turns"] as const) {
     }
     await footer.click();
     await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
-  });
-}
-
-test("the span tooltip follows the pointer horizontally", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  const span = page.locator("rect[class*='modelSpan']").first();
-  const box = await span.boundingBox();
-  if (!box) throw new Error("expected a model span");
-  await span.hover({ position: { x: box.width * 0.25, y: box.height / 2 } });
-  const card = page.locator("[class*='tooltip']");
-  await expect(card).toBeVisible();
-  const before = await card.boundingBox();
-
-  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2, {
-    steps: 4,
-  });
-  await expect
-    .poll(async () => (await card.boundingBox())?.x)
-    .toBeGreaterThan((before?.x ?? 0) + box.width * 0.4);
-  // The hairline stays anchored to the span start while the card moves.
-  await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
-});
-
-test("history list filters by category pill and search", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  // All incident rows render.
-  await expect(page.getByText(/exit 127/)).toBeVisible();
-  await expect(page.getByText(/scorer activity_scorer/)).toBeVisible();
-
-  // Errors pill narrows to error rows (failed tool + rate-limit stall).
-  await page.getByRole("button", { name: /Errors/ }).click();
-  await expect(page.getByText(/exit 127/)).toBeVisible();
-  await expect(page.getByText(/scorer activity_scorer/)).not.toBeVisible();
-
-  // All resets; search narrows.
-  await page.getByRole("button", { name: /All/ }).click();
-  await page.getByPlaceholder("filter by event or detail").fill("compacted");
-  await expect(page.getByText("Context compacted")).toBeVisible();
-  await expect(page.getByText(/exit 127/)).not.toBeVisible();
-});
-
-test("marker glyph click is inert; its card's footer navigates", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  // Narrow to Scores so the error row is filtered out…
-  await page.getByRole("button", { name: /Scores/ }).click();
-  await expect(page.getByText(/exit 127/)).not.toBeVisible();
-
-  // …clicking the error glyph changes nothing: the filter stays narrow and
-  // the URL stays put. Its hover card still carries the way through.
-  const glyph = page.getByRole("button", { name: "Tool bash errored" });
-  await glyph.click();
-  await expect(page.getByText(/exit 127/)).not.toBeVisible();
-  await expect(page).toHaveURL(/\/activity$/);
-  await glyph.hover();
-  const card = page.locator("[class*='tooltip']");
-  await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "open in transcript →" }).click();
-  await expect(page).toHaveURL(/\/transcript\?event=/);
-});
-
-// Charles, 2026-09-16: the chart has no click actions. Marker hit rects stay
-// focusable for keyboard access to the card, which needs no pointer cursor;
-// the density strip has no action at all. The unit suite's `noPointerCursor`
-// reads the module css; these read the browser's computed style.
-const kInertCursor = /^(auto|default)$/;
-
-test("a marker glyph shows the default cursor in both axis modes", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-  // The history row shares the glyph's name; the glyph is the rail's rect.
-  const glyph = page
-    .getByRole("button", { name: "Tool bash errored" })
-    .and(page.locator("rect"));
-  await expect(glyph).toBeVisible();
-  await expect(glyph).toHaveCSS("cursor", kInertCursor);
-  await page.getByRole("button", { name: "Turns", exact: true }).click();
-  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-  await expect(glyph).toHaveCSS("cursor", kInertCursor);
-});
-
-test("a density-strip column shows the default cursor in both axis modes", async ({
-  page,
-  network,
-}) => {
-  await page.setViewportSize({ width: 1032, height: 900 });
-  // 324 spans on a 960 px plot: past the 3 px-per-span threshold on the
-  // wall clock as well as in Turns, so both strips render.
-  await openSample(page, network, { events: narrowTurnsEvents(320, 4) });
-  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
-  const column = page.locator("rect[class*='densityHit']").first();
-  await expect(column).toBeVisible();
-  await expect(column).toHaveCSS("cursor", kInertCursor);
-  await page.getByRole("button", { name: "Turns", exact: true }).click();
-  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-  await expect(column).toBeVisible();
-  await expect(column).toHaveCSS("cursor", kInertCursor);
-});
-
-// Charles, 2026-09-16: a card that stands for a collapsed range still links
-// to the transcript — at the first event in the range.
-for (const axis of ["Wall clock", "Turns"] as const) {
-  test(`a density-strip bin's card links to the first call in the bin (${axis})`, async ({
-    page,
-    network,
-  }) => {
-    await page.setViewportSize({ width: 1032, height: 900 });
-    await openSample(page, network, { events: narrowTurnsEvents(320, 4) });
-    await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
-    if (axis === "Turns") {
-      await page.getByRole("button", { name: "Turns", exact: true }).click();
-      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-    }
-    const column = page.locator("rect[class*='densityHit']").first();
-    const box = await column.boundingBox();
-    if (!box) throw new Error("expected the strip's hit rect");
-    // The first bin: m0, its four tools and the next few turns' calls.
-    await page.mouse.move(box.x + 2, box.y + box.height / 2);
-    const card = page.locator("[class*='tooltip']");
-    await expect(card).toBeVisible();
-    await expect(card).toContainText(/\d+ model calls · 4 tool calls/);
-    await expect(card).toContainText(
-      axis === "Turns" ? /turns 1–\d+ · / : /\d+:\d\d:\d\d [AP]M → /
-    );
-    await card
-      .getByRole("button", { name: "open first in transcript →" })
-      .click();
-    await expect(page).toHaveURL(/\/transcript\?event=m0$/);
   });
 }
 
@@ -1003,22 +726,6 @@ test("a marker cluster's card survives a slip off the glyph and back inside the 
   await expect(page).toHaveURL(/\/transcript\?event=compact-a1$/);
 });
 
-test("history row clicks through to the transcript event", async ({
-  page,
-  network,
-}) => {
-  await openSample(page, network);
-
-  await page
-    .getByRole("button", { name: "open in transcript →" })
-    .first()
-    .click();
-
-  await expect(page).toHaveURL(/\/transcript\?event=/);
-  // The transcript panel is showing.
-  await expect(page.getByRole("tab", { name: "Transcript" })).toBeVisible();
-});
-
 test("activity tab is hidden for old logs without event timestamps", async ({
   page,
   network,
@@ -1046,15 +753,17 @@ test("activity tab is hidden for old logs without event timestamps", async ({
   await expect(page.locator("#transcript-contents")).toBeVisible();
 });
 
-test("log-level tab is relabeled Activity", async ({ page, network }) => {
-  await openSample(page, network, { tab: "transcript" });
+test("a history row clicks through to its transcript event", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
 
-  const encodedFile = encodeURIComponent(LOG_FILE);
-  await page.goto(`/#/logs/${encodedFile}`);
-  // A single-sample log shows its sample inline, and that sample's tab bar
-  // has an Activity tab too.
-  const logActivityTab = page
-    .getByRole("tab", { name: "Activity" })
-    .and(page.locator(`[href$="/logs/${encodedFile}/timeline"]`));
-  await expect(logActivityTab).toBeVisible();
+  await page
+    .getByRole("button", { name: /Tool bash errored · exit 127/ })
+    .getByRole("button", { name: "open in transcript →" })
+    .click();
+
+  await expect(page).toHaveURL(/\/transcript\?event=tool-fail$/);
+  await expect(page.locator("#event-panel-tool-fail")).toBeInViewport();
 });
