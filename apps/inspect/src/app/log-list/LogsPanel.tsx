@@ -215,7 +215,15 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // first-read window into the busy indication so the grid shows "syncing"
   // rather than a silently empty list.
   const listBusy = busy || listData.pending || overviewQuery.loading;
-  const error = sync.error ?? overviewQuery.error ?? listData.error;
+  // Once a listing has loaded, a transient background re-sync failure must
+  // not replace the rows. Keep it on the viewer-options affordance; only a
+  // sync failure before any listing data arrives is a full-panel error.
+  const hasListingData = listData.rows.length > 0;
+  const backgroundSyncError = hasListingData ? sync.error : undefined;
+  const error =
+    (hasListingData ? undefined : sync.error) ??
+    overviewQuery.error ??
+    listData.error;
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -296,6 +304,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
         currentPath={mode === "tasks" ? undefined : logPath}
         loading={navbarLoading}
+        viewerOptionsError={backgroundSyncError}
       >
         {hasFilter && (
           <NavbarButton

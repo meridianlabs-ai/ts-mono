@@ -13,12 +13,14 @@ export interface ViewerOptionsPopoverProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
   positionEl: HTMLElement | null;
+  error?: Error;
 }
 
 export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
   showing,
   positionEl,
   setShowing,
+  error,
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
@@ -55,6 +57,31 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       showArrow={false}
     >
       <div className={clsx(styles.container, "text-size-smaller")}>
+        {error && (
+          <>
+            <div
+              className={clsx(
+                "text-style-label",
+                "text-style-secondary",
+                styles.fullWidth
+              )}
+            >
+              Background Sync
+            </div>
+            <div
+              className={clsx(
+                styles.fullWidth,
+                styles.message,
+                styles.messageError
+              )}
+              role="alert"
+            >
+              {error.message}
+            </div>
+            <div className={clsx(styles.spacer)}></div>
+          </>
+        )}
+
         <div
           className={clsx(
             "text-style-label",

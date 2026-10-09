@@ -8,12 +8,13 @@ import styles from "./ViewerOptionsButton.module.css";
 export interface ViewerOptionsButtonProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
+  error?: Error;
 }
 
 export const ViewerOptionsButton = forwardRef<
   HTMLButtonElement,
   ViewerOptionsButtonProps
->(({ showing, setShowing }, ref) => {
+>(({ showing, setShowing, error }, ref) => {
   const toggleShowing = useCallback(() => {
     setShowing(!showing);
   }, [showing, setShowing]);
@@ -25,12 +26,19 @@ export const ViewerOptionsButton = forwardRef<
         type="button"
         className={clsx(styles.button)}
         onClick={toggleShowing}
-        title={"Viewer information and options"}
+        title={
+          error
+            ? `Viewer information and options: ${error.message}`
+            : "Viewer information and options"
+        }
       >
-        <i
-          ref={ref}
-          className={clsx(ApplicationIcons.info, styles.viewerOptions)}
-        />
+        <i className={clsx(ApplicationIcons.info, styles.viewerOptions)} />
+        {error && (
+          <i
+            className={clsx(ApplicationIcons.error, styles.errorAdornment)}
+            aria-hidden="true"
+          />
+        )}
       </button>
     </div>
   );
