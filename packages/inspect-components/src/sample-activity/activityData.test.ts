@@ -404,6 +404,23 @@ describe("token burn", () => {
     }
   );
 
+  it.each([
+    ["negative", -1],
+    ["above the safe integer range", 1e308],
+  ])(
+    "falls back to usage when input_context_tokens is %s",
+    (_label, inputContextTokens) => {
+      const events = billedOnly();
+      const event = events[0] as ModelEvent;
+      event.output.input_context_tokens = inputContextTokens;
+      const data = deriveActivityData({ events });
+
+      expect(data.contextSeries[0]?.value).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.cachedTokens).toBe(300);
+    }
+  );
+
   it("reads input_context_tokens when the call has no usage", () => {
     const output = testModelOutput({ usage: undefined });
     output.input_context_tokens = 1000;
@@ -716,6 +733,28 @@ describe("context size", () => {
     const data = deriveActivityData({ events });
     expect(data.compactions[0]).toMatchObject({
       before: 90_000,
+      after: 30_000,
+    });
+  });
+  it("falls back to the call's input_context_tokens, not its billed usage", () => {
+    const call = modelCall({
+      start: 0,
+      duration: 5,
+      workingStart: 0,
+      input: 90_000,
+    });
+    call.output.input_context_tokens = 40_000;
+    const events: Event[] = [
+      call,
+      testCompactionEvent({
+        timestamp: iso(6),
+        working_start: 5,
+        tokens_after: 30_000,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.compactions[0]).toMatchObject({
+      before: 40_000,
       after: 30_000,
     });
   });

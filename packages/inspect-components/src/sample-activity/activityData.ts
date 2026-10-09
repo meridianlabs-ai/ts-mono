@@ -568,17 +568,21 @@ const tokenCount = (value: number | null | undefined): number | undefined =>
     ? value
     : undefined;
 
+/** The call's recorded input_context_tokens, when it is a valid count. */
+const recordedContextTokens = (event: ModelEvent): number | undefined =>
+  tokenCount(event.output.input_context_tokens);
+
 /** Input-side tokens for one model call (context occupancy). Prefers the
  *  recorded input_context_tokens: usage is billed, and for a call that made
- *  several requests it sums them. When it is null or absent (not known, or
- *  a log from before the field) this falls back to the shared total minus
- *  the output side: summing
+ *  several requests it sums them. When it is null, absent or invalid (not
+ *  known, or a log from before the field) this falls back to the shared total
+ *  minus the output side: summing
  *  input + cache categories directly would double-count on providers whose
  *  input_tokens already includes cached reads (OpenAI), and deriving from
  *  usageTotal keeps this surface consistent with the Usage tab. */
 const inputSideTokens = (event: ModelEvent): number | undefined => {
-  const context = event.output.input_context_tokens;
-  if (typeof context === "number") return tokenCount(context);
+  const context = recordedContextTokens(event);
+  if (context !== undefined) return context;
   const usage = event.output.usage;
   if (!usage) return undefined;
   const total = tokenCount(usageTotal(usage));
@@ -927,7 +931,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           uuid,
           inputTokens: inputSideTokens(event),
           cachedTokens:
-            typeof event.output.input_context_tokens === "number"
+            recordedContextTokens(event) !== undefined
               ? undefined
               : tokenCount(usage?.input_tokens_cache_read),
           outputTokens: tokenCount(usage?.output_tokens),
