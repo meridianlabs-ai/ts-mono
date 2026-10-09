@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-e2e/
 lib/
 .turbo/
 *.tsbuildinfo
@@ -10,7 +11,6 @@ lib/
 # Test output
 playwright-report/
 test-results/
-e2e-dist/
 coverage/
 
 # OS

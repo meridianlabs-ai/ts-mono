@@ -31,7 +31,7 @@ export const isCurrentSample = (
  * Whether a row is the sample currently open in the detail route.
  *
  * Keyed off the route (undefined id/epoch means the log list is showing), not
- * the persisted selectedSampleHandle — that lingers after navigating back to
+ * the persisted highlightedSample — that lingers after navigating back to
  * the log, so using it would wrongly skip re-opening the same sample.
  */
 export const isSampleOpenInRoute = (

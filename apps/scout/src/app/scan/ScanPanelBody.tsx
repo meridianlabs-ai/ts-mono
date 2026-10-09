@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import {
+  ContentTrustProvider,
   JSONPanel,
   SegmentedControl,
   TabPanel,
@@ -268,11 +269,14 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
           }}
           scrollable={true}
         >
-          <JSONPanel
-            id="task-json-contents"
-            data={selectedScan}
-            simple={true}
-          />
+          {/* Scan status is application data; JSON strings can't render as markdown or media. */}
+          <ContentTrustProvider value="trusted">
+            <JSONPanel
+              id="task-json-contents"
+              data={selectedScan}
+              simple={true}
+            />
+          </ContentTrustProvider>
         </TabPanel>
       </TabSet>
       {selectedResultsView === kSegmentDataframe && buttonElement && (

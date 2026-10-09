@@ -206,6 +206,36 @@ caught locally. If you changed code, also run `pnpm test`.
   the sign the builder belongs upstream. Production code never imports
   from a testing export.
 
+## Testing — E2E
+
+E2E (Playwright) tests guard user journeys and regressions only a real
+browser catches: routing, focus, scroll, layout, real workers,
+cross-component wiring. Verify your change however suits it; keep an e2e
+test only when it would catch a plausible future regression.
+
+- **Logic lives in vitest.** A case a unit test can express (a glob table,
+  a formatter, a filter predicate) is tested there; e2e covers how it
+  reaches the screen, once.
+- **Assert behavior, not copy or styling.** Pin a label, product default or
+  CSS value (`cursor`, fills, class names) only when that value *is* the
+  behavior. Locate by role, aria state (`aria-sort`, `aria-current`,
+  `aria-expanded`) and visible text rather than hashed CSS-module classes.
+- **Shared components get e2e coverage once, in inspect.** Scout's specs
+  cover its own data path (in-memory message rows, its routes) and
+  scout-only views.
+- **The test name is a contract.** If it says "in order", "collapsed",
+  "numbered" or "highlighted", assert exactly that, or rename the test.
+- **Every assertion can fail.** Break the feature once and watch the test
+  go red. Short `getByText` strings are case-insensitive substring matches
+  ("C" matches "Score") — use `exact: true`, a role, or a scoped container.
+  Wait for the loaded state before asserting an absence (`toHaveCount(0)`
+  passes before anything mounts). Assertions run unconditionally;
+  `eslint-plugin-playwright` rejects conditionals in test bodies.
+- **Extend before adding.** When a neighbouring test already runs your
+  steps as its opening, add your assertions to it.
+- **Migration baselines are temporary.** Fold them into the normal specs or
+  delete them in the PR that completes the migration.
+
 ## Pull Requests
 
 - For changes that affect UI appearance (styles, layout, theming, CSS
@@ -219,3 +249,14 @@ caught locally. If you changed code, also run `pnpm test`.
   reference whose path matches an `--attach` argument to the uploaded
   asset's URL, and appends attachments the body does not reference.
   Keep the images out of the commit.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

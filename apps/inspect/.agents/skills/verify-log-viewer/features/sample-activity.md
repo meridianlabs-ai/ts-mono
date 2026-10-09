@@ -30,7 +30,9 @@ VERIFY_LOG_DIR=~/Development/test_evals/agentic/logs-sample-activity \
 ```
 
 `drive/sample-activity.spec.ts` skips itself when no `ascii-art` log is in
-`VERIFY_LOG_DIR`. When the default fixture dir grows a suitable log, fold
+`VERIFY_LOG_DIR`. It prefers the flaky log, which runs the tool-error test;
+to run the no-error test instead, pin a non-flaky `ascii_art_python` log
+with `VERIFY_ACTIVITY_LOG=<filename in VERIFY_LOG_DIR>`. When the default fixture dir grows a suitable log, fold
 an Activity test into the standing spec.
 
 ## Selectors

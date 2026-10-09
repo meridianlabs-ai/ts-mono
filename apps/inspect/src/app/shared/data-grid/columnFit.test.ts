@@ -157,3 +157,75 @@ describe("resolveColumnWidths — rounding", () => {
     expect(total(widths)).toBeGreaterThanOrEqual(997);
   });
 });
+
+// TanStack's `column.getSize()` (what renders) clamps every width to
+// [minSize ?? 20, maxSize]; the fit must count the same widths.
+describe("resolveColumnWidths — matches TanStack's clamped render widths", () => {
+  const renderedWidth = (w: number, c: FitColumn): number =>
+    Math.min(Math.max(c.minSize ?? 20, w), c.maxSize ?? Infinity);
+  const renderedTotal = (
+    cols: readonly FitColumn[],
+    widths: Record<string, number>
+  ) => cols.reduce((sum, c) => sum + renderedWidth(widths[c.id]!, c), 0);
+
+  test("an override below minSize counts at minSize", () => {
+    // e.g. a compact-mode score width (36px) carried into upright mode,
+    // whose score columns have minSize 60.
+    const cols: FitColumn[] = [
+      { id: "score", size: 96, minSize: 60, maxSize: 120 },
+      { id: "answer", size: 200, minSize: 150, flex: 1 },
+    ];
+    const widths = resolveColumnWidths(cols, 500, { score: 36 });
+    expect(widths).toEqual({ score: 60, answer: 440 });
+    expect(renderedTotal(cols, widths)).toBe(500);
+  });
+
+  test("an override above maxSize counts at maxSize", () => {
+    const cols: FitColumn[] = [
+      { id: "score", size: 96, minSize: 60, maxSize: 120 },
+      { id: "answer", size: 200, minSize: 150, flex: 1 },
+    ];
+    const widths = resolveColumnWidths(cols, 500, { score: 300 });
+    expect(widths).toEqual({ score: 120, answer: 380 });
+    expect(renderedTotal(cols, widths)).toBe(500);
+  });
+
+  test("an override with no minSize floors at TanStack's default of 20", () => {
+    const cols: FitColumn[] = [
+      { id: "a", size: 100 },
+      { id: "b", size: 100, flex: 1 },
+    ];
+    const widths = resolveColumnWidths(cols, 300, { a: 5 });
+    expect(widths).toEqual({ a: 20, b: 280 });
+  });
+
+  test("a declared size above maxSize counts at maxSize", () => {
+    // Upright score columns size to their header (long names exceed the
+    // 120px cap).
+    const cols: FitColumn[] = [
+      { id: "score", size: 164, minSize: 60, maxSize: 120 },
+      { id: "answer", size: 200, minSize: 150, flex: 1 },
+    ];
+    const widths = resolveColumnWidths(cols, 500, {});
+    expect(widths).toEqual({ score: 120, answer: 380 });
+    expect(renderedTotal(cols, widths)).toBe(500);
+  });
+
+  test("a declared size below minSize counts at minSize", () => {
+    const cols: FitColumn[] = [
+      { id: "a", size: 30, minSize: 60 },
+      { id: "b", size: 200, flex: 1 },
+    ];
+    const widths = resolveColumnWidths(cols, 500, {});
+    expect(widths).toEqual({ a: 60, b: 440 });
+    expect(renderedTotal(cols, widths)).toBe(500);
+  });
+
+  test("passes clamped widths through before the container is measured", () => {
+    const cols: FitColumn[] = [
+      { id: "a", size: 30, minSize: 60 },
+      { id: "b", size: 96, minSize: 60, maxSize: 120 },
+    ];
+    expect(resolveColumnWidths(cols, 0, { b: 36 })).toEqual({ a: 60, b: 60 });
+  });
+});

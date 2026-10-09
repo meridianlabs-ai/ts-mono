@@ -8,10 +8,11 @@ import {
   useLogHeader,
 } from "../../../log_data";
 import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../currentSelection";
 
 /**
  * Reacts to the selected log's settled details — only the side effects that
- * can't be derived: recording the loaded log, resetting per-log derived
+ * can't be derived: resetting per-log
  * selection state, and defaulting the workspace tab for empty logs. All
  * fetching lives in the hook/engine. Rendered below the loader gate (by both
  * loader hosts) so the log dir the hook is keyed on is resolved before it
@@ -26,14 +27,13 @@ import { useStore } from "../../../state/store";
  */
 export const LogLoadController: FC = () => {
   const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const detail = useLogHeader(logDir, selectedLogFile, { demand: "active" });
   const key = selectedLogFile
     ? resolveLogKey(logDir, selectedLogFile)
     : undefined;
   const settledSeq = useLogFetchState(logDir, key).data?.details_settled_seq;
 
-  const setLoadedLog = useStore((state) => state.logActions.setLoadedLog);
   const clearSelectedScores = useStore(
     (state) => state.logActions.clearSelectedScores
   );
@@ -54,17 +54,10 @@ export const LogLoadController: FC = () => {
       // If there are no samples, use the info tab by default
       setWorkspaceTab(kLogViewInfoTabId);
     }
-    setLoadedLog(selectedLogFile);
     // detail.data is intentionally excluded: only a settled-seq bump should
     // refire this effect, not every poll-tick merge into the details cache.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    settledSeq,
-    selectedLogFile,
-    clearSelectedScores,
-    setWorkspaceTab,
-    setLoadedLog,
-  ]);
+  }, [settledSeq, selectedLogFile, clearSelectedScores, setWorkspaceTab]);
 
   return null;
 };

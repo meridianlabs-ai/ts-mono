@@ -1,10 +1,9 @@
-import { useEffect, useMemo } from "react";
-
-import { basename } from "@tsmono/util";
+import { useEventListener } from "@tsmono/react/hooks";
+import { basename, getVscodeApi } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanRoute } from "../../router/url";
-import { useStore } from "../../state/store";
+import { useStoreApi, type StoreState } from "../../state/store";
 import { useAppConfig } from "../server/useAppConfig";
 
 export interface UpdateStateMessage {
@@ -59,121 +58,41 @@ export function getEmbeddedAppMessage(): AppMessage | null {
   return null;
 }
 
-interface MessageContext {
-  navigate: ReturnType<typeof useLoggingNavigate>;
-  setSingleFileMode: (enabled: boolean) => void;
-  setSelectedScanner: (scanner: string) => void;
-  scansDir: string;
+export function embeddedRoute(
+  message: AppMessage | null,
+  scansDir: string
+): string | undefined {
+  if (!message) return undefined;
+  if (message.type === "updateRoute") return message.route;
+  return message.url ? scanRoute(scansDir, basename(message.url)) : undefined;
 }
 
-/**
- * Processes an app message by applying store side effects and navigating.
- * Returns true if a navigation was triggered.
- */
-function processAppMessage(
+export function applyHostDisplayState(
   message: AppMessage,
-  context: MessageContext,
-  options: { skipIfRestoredState: boolean; hasRestoredState: boolean }
-): boolean {
-  switch (message.type) {
-    case "updateRoute": {
-      // This is the route used by the most recent version of Inspect Scout. It allows the extension to specify an exact route to navigate to.
-
-      context.navigate(message.route, { replace: true });
-      context.setSingleFileMode(message.mode === "single-file");
-      return true;
-    }
-    case "updateState": {
-      // This is a legacy message type. This is only present for legacy support. Drop support anytime after April 2026.
-      if (options.skipIfRestoredState && options.hasRestoredState) {
-        return false;
-      }
-
-      const url = message.url;
-      const scan = url ? basename(url) : undefined;
-      const scanner = message.scanner;
-
-      if (scanner || scan) {
-        context.setSingleFileMode(true);
-      }
-
-      if (scanner) {
-        context.setSelectedScanner(scanner);
-      }
-
-      if (scan) {
-        context.navigate(scanRoute(context.scansDir, scan), {
-          replace: true,
-        });
-        return true;
-      }
-      return false;
-    }
+  actions: Pick<StoreState, "setSingleFileMode" | "setSelectedScanner">
+): void {
+  actions.setSingleFileMode(
+    message.type === "updateState" || message.mode === "single-file"
+  );
+  if (message.type === "updateState" && message.scanner) {
+    actions.setSelectedScanner(message.scanner);
   }
 }
 
 export const useWindowMessaging = (): void => {
   const navigate = useLoggingNavigate("useWindowMessaging");
-  const setSingleFileMode = useStore((state) => state.setSingleFileMode);
-  const setSelectedScanner = useStore((state) => state.setSelectedScanner);
-  const selectedScanner = useStore((state) => state.selectedScanner);
+  const store = useStoreApi();
   const scansDir = useAppConfig().scans.dir;
 
-  const context: MessageContext = useMemo(() => {
-    return {
-      navigate,
-      setSingleFileMode,
-      setSelectedScanner,
-      scansDir,
-    };
-  }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);
-
-  const hasInitializedEmbeddedData = useStore(
-    (state) => state.hasInitializedEmbeddedData
-  );
-  const setHasInitializedEmbeddedData = useStore(
-    (state) => state.setHasInitializedEmbeddedData
-  );
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // When the view is restored after unload, the persisted store already
-    // contains the correct state — skip re-processing embedded data.
-    if (hasInitializedEmbeddedData) {
-      return;
+  useEventListener(
+    getVscodeApi() ? window : null,
+    "message",
+    (event: MessageEvent<unknown>) => {
+      if (!isAppMessage(event.data)) return;
+      const message = event.data;
+      const route = embeddedRoute(message, scansDir);
+      applyHostDisplayState(message, store.getState());
+      if (route) navigate(route, { replace: true });
     }
-    setHasInitializedEmbeddedData(true);
-
-    // Read and process a message embedded in the document
-    const embeddedMessage = getEmbeddedAppMessage();
-    if (embeddedMessage) {
-      processAppMessage(embeddedMessage, context, {
-        skipIfRestoredState: true,
-        hasRestoredState: selectedScanner !== undefined,
-      });
-    }
-  }, [
-    hasInitializedEmbeddedData,
-    setHasInitializedEmbeddedData,
-    context,
-    selectedScanner,
-  ]);
-
-  // Listen for window messages from vscode
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const onMessage = (e: MessageEvent<unknown>) => {
-      if (isAppMessage(e.data)) {
-        processAppMessage(e.data, context, {
-          skipIfRestoredState: false,
-          hasRestoredState: false,
-        });
-      }
-    };
-
-    window.addEventListener("message", onMessage);
-    return () => {
-      window.removeEventListener("message", onMessage);
-    };
-  }, [context]);
+  );
 };

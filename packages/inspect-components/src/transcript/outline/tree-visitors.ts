@@ -1,4 +1,5 @@
 import { kSandboxSignalName } from "../transform/fixups";
+import { isSentinelSpan } from "../transform/toolSentinels";
 import { TYPE_SCORER, TYPE_SCORERS } from "../transform/utils";
 import { EventNode, eventNodeOf } from "../types";
 
@@ -17,6 +18,11 @@ export const removeNodeVisitor = (event: string) => {
     },
   };
 };
+
+/** Drops a sentinel's span with its contents; the monitor model calls in it are not agent turns. */
+export const removeSentinelSpanVisitor = () => ({
+  visit: (node: EventNode): EventNode[] => (isSentinelSpan(node) ? [] : [node]),
+});
 
 export const removeStepSpanNameVisitor = (name: string) => {
   return {
@@ -45,6 +51,8 @@ export const outlineFilterVisitors = () => [
   removeNodeVisitor("store"),
   removeNodeVisitor("approval"),
   removeNodeVisitor("review"),
+  removeNodeVisitor("sentinel"),
+  removeSentinelSpanVisitor(),
   removeNodeVisitor("input"),
   removeNodeVisitor("sandbox"),
   removeStepSpanNameVisitor(kSandboxSignalName),

@@ -4,6 +4,7 @@ import {
   type TurnInfo,
 } from "./outline/tree-visitors";
 import { flatTree } from "./transform/flatten";
+import { isSentinelSpan } from "./transform/toolSentinels";
 import { kDefaultExcludeEvents, type EventNode } from "./types";
 
 // Tuck above the pin line, tuned by eye — the row's top anatomy doesn't
@@ -135,13 +136,18 @@ export function resolveEventTurnAnchor(
   // Lanes are identified by the innermost agent boundary's node id (null = main).
   const stack: Array<{ depth: number; laneId: string | null }> = [];
   const lastAnchorByLane = new Map<string | null, string>();
+  // Depth of the sentinel span being scanned: its monitor calls are not turns.
+  let sentinelDepth: number | undefined;
   for (const node of flattenedNodes) {
     while (stack.length > 0 && node.depth <= stack[stack.length - 1]!.depth) {
       stack.pop();
     }
+    if (sentinelDepth !== undefined && node.depth <= sentinelDepth) {
+      sentinelDepth = undefined;
+    }
     const laneId = stack.length > 0 ? stack[stack.length - 1]!.laneId : null;
     const event = node.event;
-    if (event.event === "model") {
+    if (event.event === "model" && sentinelDepth === undefined) {
       lastAnchorByLane.set(laneId, node.id);
     }
     if (node.id === eventId) {
@@ -149,6 +155,9 @@ export function resolveEventTurnAnchor(
     }
     if (agentBoundaryName(node) !== undefined) {
       stack.push({ depth: node.depth, laneId: node.id });
+    }
+    if (sentinelDepth === undefined && isSentinelSpan(node)) {
+      sentinelDepth = node.depth;
     }
   }
   return undefined;
@@ -166,11 +175,13 @@ export const kSampleTerminalEvents = new Set([
  * Focus-page nodes for `eventId`: its turn slice minus structural/noise
  * events. Takes the *unfiltered* flat list (`flatTree(eventNodes, null)`) —
  * filtering spans out first would drop the span_begin that ends a turn and
- * run the slice into later turns.
+ * run the slice into later turns. `keep` retains structural nodes that host a
+ * row of their own (e.g. a sentinel span standing in for its step).
  */
 export function focusedTurnNodes(
   flat: EventNode[],
-  eventId: string
+  eventId: string,
+  keep?: (node: EventNode) => boolean
 ): EventNode[] {
   const slice = turnSlice(flat, eventId);
   // The transcript renders the sample's error/limit card right after the last
@@ -186,7 +197,7 @@ export function focusedTurnNodes(
     ? flat.slice(end).filter((n) => kSampleTerminalEvents.has(n.event.event))
     : [];
   return [...slice, ...trailing].filter(
-    (n) => !kFocusExcludedEvents.has(n.event.event)
+    (n) => !kFocusExcludedEvents.has(n.event.event) || !!keep?.(n)
   );
 }
 

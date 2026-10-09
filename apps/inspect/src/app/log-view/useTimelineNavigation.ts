@@ -4,6 +4,7 @@ import { isRecord } from "@tsmono/util";
 
 import { kLogViewTimelineTabId } from "../../constants";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import { useLogNavigationAction } from "../routing/logNavigation";
 import { toFullUrlMaybe } from "../routing/url";
 
@@ -16,10 +17,8 @@ export const timelineBandId = (band: string, model?: string): string =>
 
 /** A timeline property key scoped to the log currently in view. */
 export const useTimelineLogKey = (name: string): string => {
-  // The app routes are splat patterns, so no logPath param exists —
-  // loadedLog is the only source for the log in view.
-  const loadedLog = useStore((state) => state.log.loadedLog);
-  return `${name}:${loadedLog ?? ""}`;
+  const logFile = useCurrentLogFile();
+  return `${name}:${logFile ?? ""}`;
 };
 
 /** The band-picker property key for the log currently in view. */

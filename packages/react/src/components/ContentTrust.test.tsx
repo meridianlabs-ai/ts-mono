@@ -6,16 +6,18 @@ import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import { richContentPolicy } from "./contentRenderingPolicy";
 import {
-  ContentPolicyCeilingProvider,
-  ContentPolicyProvider,
   ContentText,
-  ContentTrustCeilingProvider,
-  ContentTrustProvider,
   RequireMedia,
   untrustedTextClassName,
+} from "./ContentTrust";
+import {
+  ContentPolicyCeilingProvider,
+  ContentPolicyProvider,
+  ContentTrustCeilingProvider,
+  ContentTrustProvider,
   useContentPolicy,
   useHasAllContentPermissions,
-} from "./ContentTrust";
+} from "./ContentTrustContext";
 import { JSONPanel } from "./JsonPanel";
 import { MarkdownDiv } from "./MarkdownDiv";
 

@@ -17,11 +17,12 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./app/App.css";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
-  ContentTrustProvider,
+  ContentTrustCeilingProvider,
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
@@ -96,6 +97,9 @@ const useThemePreferenceSync = () => {
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
   const router = useAppRouter(mode);
+  const trustCeiling = trustContentSetting(
+    useAppConfigAsync().data?.trust_content
+  );
 
   return router ? (
     <AppErrorBoundary>
@@ -104,12 +108,12 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
           <AppModeContext.Provider value={mode}>
             <ExtendedFindProvider>
               <FindTargetProvider>
-                {/* Scout doesn't yet know which eval log a transcript came from,
-                    so it can't honor a log's trust_content setting; its content
-                    renders as trusted, as it did before that setting existed. */}
-                <ContentTrustProvider value="trusted">
-                  <RouterProvider router={router} />
-                </ContentTrustProvider>
+                {/* Content is untrusted unless a nearer provider says otherwise
+                    (a transcript's own trust, or app-owned data); the key
+                    remounts everything when the ceiling changes. */}
+                <ContentTrustCeilingProvider value={trustCeiling}>
+                  <RouterProvider key={trustCeiling} router={router} />
+                </ContentTrustCeilingProvider>
               </FindTargetProvider>
             </ExtendedFindProvider>
           </AppModeContext.Provider>

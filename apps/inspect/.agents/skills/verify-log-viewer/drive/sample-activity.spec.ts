@@ -2,6 +2,7 @@ import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 // Real-backend drive for the sample Activity tab against a real agentic
 // `.eval` log (50+ model turns, flaky tool errors, scoring). Generate the
@@ -33,8 +34,39 @@ const hasCompactions = activityLog?.includes("compaction") === true;
 const sampleUrl = (tab: string) =>
   `/#/logs/${encodeURIComponent(activityLog ?? "")}/samples/sample/${encodeURIComponent("ascii/car")}/1/${tab}`;
 
-const shot = (page: import("@playwright/test").Page, name: string) =>
+const shot = (page: Page, name: string) =>
   page.screenshot({ path: join(evidence, name), fullPage: true });
+
+async function openActivityWithWorkingBand(page: Page) {
+  await page.goto(sampleUrl("activity"));
+  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole("button", { name: "Working time" }).click();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
+}
+
+/**
+ * Failed-span outlines in the merged band, or failure hairlines once it
+ * degrades to the density strip. SVG rects carry no roles — the CSS-module
+ * fragment is the one hook.
+ */
+const failedSpans = (page: Page) =>
+  page.locator("[class*='failedSpan'], [class*='densityFailure']");
+
+/** The text in `locator` that matches `pattern`; fails if none does. */
+async function textMatching(locator: Locator, pattern: RegExp) {
+  const match = pattern.exec((await locator.textContent()) ?? "");
+  if (!match) throw new Error(`expected text matching ${pattern}`);
+  return match[0];
+}
+
+/** The element's bounding box; fails the test if it isn't rendered. */
+async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("expected the element to be rendered");
+  return box;
+}
 
 test.beforeAll(() => {
   mkdirSync(evidence, { recursive: true });
@@ -59,9 +91,7 @@ test("activity tab renders bands and history against a real dense log", async ({
   ).toBeVisible();
   await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("WORKING TIME", { exact: true })
-  ).not.toBeVisible();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeHidden();
   // Scoring guarantees a score row; both fixture tasks terminate on a
   // sample limit (message or token) → a limit marker ▲ and pill.
   await expect(
@@ -77,51 +107,11 @@ test("activity tab renders bands and history against a real dense log", async ({
       .getByRole("button", { name: /Sample hit (message|token) limit/ })
       .first()
   ).toBeVisible();
-  // The flaky check_art tool additionally guarantees error rows.
-  if (hasToolErrors) {
-    await expect(
-      page.getByRole("button", { name: /Errors [1-9]/ })
-    ).toBeVisible();
-  }
   await shot(page, "sample-activity-default-light.png");
 
   // The opt-in working band via its chip.
   await page.getByRole("button", { name: "Working time" }).click();
   await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
-  if (hasToolErrors) {
-    // Failed tool calls: error ✕ glyph on the rail (single or clustered —
-    // cluster aria-labels concatenate member labels)…
-    await expect(
-      page.getByRole("button", { name: /Tool check_art errored/ }).first()
-    ).toBeVisible();
-    // …and the red-outlined span treatment in the merged band (or the red
-    // failure hairlines when the band has degraded to the density strip).
-    // SVG rects carry no roles — the CSS-module fragment is the one hook.
-    expect(
-      await page
-        .locator("[class*='failedSpan'], [class*='densityFailure']")
-        .count()
-    ).toBeGreaterThan(0);
-  } else {
-    // Data-driven no-phantom check: whatever the log, error styling must
-    // agree with the Errors pill — zero count means zero glyphs and zero
-    // failed-span/hairline treatment.
-    const errorsPill = await page
-      .getByRole("button", { name: /^Errors \d+$/ })
-      .textContent();
-    const errorCount = Number(/\d+/.exec(errorsPill ?? "")?.[0] ?? "0");
-    if (errorCount === 0) {
-      await expect(
-        page.getByRole("button", { name: "Errors 0" })
-      ).toBeDisabled();
-      await expect(page.getByRole("button", { name: /errored/ })).toHaveCount(
-        0
-      );
-      await expect(
-        page.locator("[class*='failedSpan'], [class*='densityFailure']")
-      ).toHaveCount(0);
-    }
-  }
   await shot(page, "sample-activity-all-bands-light.png");
 
   // Turns axis: gap-free columns, TURN label; waiting has no extent on
@@ -131,13 +121,49 @@ test("activity tab renders bands and history against a real dense log", async ({
   await page.getByRole("button", { name: "Turns" }).click();
   await expect(page.getByText("TURN", { exact: true })).toBeVisible();
   await expect(workingChip).toHaveCount(0);
-  await expect(
-    page.getByText("WORKING TIME", { exact: true })
-  ).not.toBeVisible();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeHidden();
   await shot(page, "sample-activity-turns-light.png");
   await page.getByRole("button", { name: "Wall clock", exact: true }).click();
   await expect(workingChip).toBeVisible();
   await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
+});
+
+test("tool errors render the Errors pill, ✕ glyphs, and failed spans", async ({
+  page,
+}) => {
+  test.skip(!hasToolErrors, "needs the flaky task's deliberate tool errors");
+  await openActivityWithWorkingBand(page);
+
+  await expect(
+    page.getByRole("button", { name: /Errors [1-9]/ })
+  ).toBeVisible();
+  // Failed tool calls: error ✕ glyph on the rail (single or clustered —
+  // cluster aria-labels concatenate member labels)…
+  await expect(
+    page.getByRole("button", { name: /Tool check_art errored/ }).first()
+  ).toBeVisible();
+  // …and the red-outlined span treatment in the merged band (or the red
+  // failure hairlines when the band has degraded to the density strip).
+  await expect(failedSpans(page)).not.toHaveCount(0);
+  await shot(page, "sample-activity-tool-errors-light.png");
+});
+
+test("a log without errors shows no phantom error styling", async ({
+  page,
+}) => {
+  await openActivityWithWorkingBand(page);
+
+  // Error styling must agree with the Errors pill: zero count means zero
+  // glyphs and zero failed-span/hairline treatment.
+  const errorsPill = page.getByRole("button", { name: /^Errors \d+$/ });
+  const errorCount = Number(await textMatching(errorsPill, /\d+/));
+  test.skip(
+    errorCount > 0,
+    `log has ${errorCount} errors; needs an error-free log`
+  );
+  await expect(page.getByRole("button", { name: "Errors 0" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /errored/ })).toHaveCount(0);
+  await expect(failedSpans(page)).toHaveCount(0);
 });
 
 test("activity history filters and clicks through to the transcript", async ({
@@ -190,9 +216,9 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   await expect(
     page.getByRole("button", { name: /Context compacted/ }).first()
   ).toBeVisible();
-  const clusterBoxes = page.locator("[class*='clusterBoxText']");
-  expect(await clusterBoxes.count()).toBeGreaterThan(0);
-  await expect(clusterBoxes.first()).toHaveText(/×\d+/);
+  await expect(page.locator("[class*='clusterBoxText']").first()).toHaveText(
+    /×\d+/
+  );
 
   // Context band (default-on): dashed cliff drop per compaction, annotated
   // "Nk → M".
@@ -249,9 +275,8 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
     name: "open first in transcript →",
   });
   await expect(footer).toBeVisible();
-  const glyphBox = await glyph.boundingBox();
-  const footerBox = await footer.boundingBox();
-  if (!glyphBox || !footerBox) throw new Error("expected glyph and footer");
+  const glyphBox = await boxOf(glyph);
+  const footerBox = await boxOf(footer);
   const from = {
     x: glyphBox.x + glyphBox.width / 2,
     y: glyphBox.y + glyphBox.height / 2,
@@ -283,11 +308,7 @@ test.describe(() => {
   test.use({ colorScheme: "dark" });
 
   test("activity tab renders in dark theme", async ({ page }) => {
-    await page.goto(sampleUrl("activity"));
-    await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
-      timeout: 20_000,
-    });
-    await page.getByRole("button", { name: "Working time" }).click();
+    await openActivityWithWorkingBand(page);
     await expect(
       page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
     ).toBeVisible();

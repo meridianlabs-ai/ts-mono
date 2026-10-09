@@ -26,7 +26,7 @@ function copyToPythonRepo(): Plugin {
       outDir = config.build.outDir;
     },
     closeBundle() {
-      // Only the real app build ships; the CSP e2e builds elsewhere.
+      // Only the real app build ships; the CSP harness builds elsewhere.
       if (outDir !== "dist") return;
       const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
@@ -69,6 +69,10 @@ const contentSecurityPolicyDirectives = {
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
+  // The e2e build is served by `vite preview`; it gets its own outDir and
+  // isn't copied into the Python repo, so running e2e locally leaves the
+  // shipped dist untouched.
+  const isE2e = mode === "e2e";
 
   const baseConfig = {
     plugins: [
@@ -142,8 +146,6 @@ export default defineConfig(({ mode }) => {
           // consumer's bundler does the CJS interop.
           external: (id: string) =>
             /^(react|react-dom|use-sync-external-store)(\/|$)/.test(id) ||
-            id === "mathjax-full" ||
-            id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
           output: {
             assetFileNames: (assetInfo) => {
@@ -170,7 +172,7 @@ export default defineConfig(({ mode }) => {
         ),
         contentSecurityPolicy(contentSecurityPolicyDirectives),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
-        copyToPythonRepo(),
+        ...(isE2e ? [] : [copyToPythonRepo()]),
       ],
       mode: "development",
       base: "",
@@ -180,7 +182,7 @@ export default defineConfig(({ mode }) => {
       css: { postcss: {} },
       server: {
         // Pinned so `pnpm dev` from the root always gives inspect 5173 and
-        // scout 5174 regardless of startup order (e2e uses 5175/5176).
+        // scout 5174 regardless of startup order (e2e uses 5175–5177).
         port: 5173,
         strictPort: true,
         proxy: {
@@ -197,7 +199,7 @@ export default defineConfig(({ mode }) => {
         rollupOptions: { output: { entryFileNames: "assets/[name].js" } },
       },
       build: {
-        outDir: "dist",
+        outDir: isE2e ? "dist-e2e" : "dist",
         emptyOutDir: true,
         minify: false,
         rollupOptions: {

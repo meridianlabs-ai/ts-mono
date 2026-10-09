@@ -44,6 +44,7 @@ import type {
   ScoreEdit,
   ScoreEditEvent,
   ScoreEvent,
+  SentinelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   StateEvent,
@@ -402,6 +403,26 @@ export const testReviewEvent = (
   call: testToolCall(),
   decision: "continue",
   message: "",
+  ...overrides,
+});
+
+export const testSentinelEvent = (
+  overrides: Partial<SentinelEvent> = {}
+): SentinelEvent => ({
+  event: "sentinel",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  factory: "test-protocol",
+  path: "",
+  function: "test_protocol",
+  step_id: "call_1",
+  conversation: "conversation_1",
+  stage: "tool_call",
+  kind: "decision",
+  status: "reported",
+  action: "continue",
+  audit: false,
+  references: [],
   ...overrides,
 });
 

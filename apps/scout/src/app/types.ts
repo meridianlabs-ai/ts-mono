@@ -49,6 +49,9 @@ export interface ScanResultSummary {
   transcriptTaskRepeat?: number;
   transcriptModel?: string;
   transcriptMetadata: Record<string, JsonValue>;
+  // Whether the transcript's model output may render richly (false: plain
+  // text). Absent for scans recorded before the column existed.
+  transcriptTrustContent?: boolean;
 }
 
 // Base interface with common properties

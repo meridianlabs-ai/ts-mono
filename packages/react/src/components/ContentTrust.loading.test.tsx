@@ -9,7 +9,7 @@ import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import { ComponentIconProvider } from "./ComponentIconContext";
 import { ComponentNavigationProvider } from "./ComponentNavigationContext";
-import { ContentTrustProvider, type ContentTrust } from "./ContentTrust";
+import { ContentTrustProvider, type ContentTrust } from "./ContentTrustContext";
 import { JSONPanel } from "./JsonPanel";
 import { MarkdownDiv } from "./MarkdownDiv";
 import { MarkdownDivWithReferences } from "./MarkdownDivWithReferences";

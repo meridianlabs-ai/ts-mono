@@ -27,6 +27,7 @@ import {
   deepCopy,
   initializeEditedConfig,
   mergeInFlightEdits,
+  ownField,
 } from "./configUtils";
 import styles from "./ProjectPanel.module.css";
 import { SettingsContent } from "./SettingsContent";
@@ -54,6 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: "scanning", label: "Scanning" },
       { id: "concurrency", label: "Concurrency" },
       { id: "miscellaneous", label: "Miscellaneous" },
+      { id: "viewer", label: "Viewer" },
     ],
   },
   {
@@ -376,6 +378,15 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
             <SettingsContent
               config={editedConfig}
               onChange={handleConfigChange}
+              // App config's trust_content combines the CLI flag, env var,
+              // scout.yaml and scout.local.yaml; data.config is scout.yaml as
+              // saved. Plain text that scout.yaml didn't ask for means another
+              // source forces it (undetectable when scout.yaml also says false).
+              trustContentOverridden={
+                config.trust_content === false &&
+                (data ? ownField(data.config, "trust_content") : undefined) !==
+                  false
+              }
             />
           </div>
         </div>
