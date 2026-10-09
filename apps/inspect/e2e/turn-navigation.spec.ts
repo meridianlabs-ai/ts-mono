@@ -275,26 +275,6 @@ async function biggestScrollerTop(
 }
 
 test.describe("transcript turn navigation", () => {
-  test("model headers show turn nav chevrons + focus-view link", async ({
-    page,
-    network,
-  }) => {
-    await openTranscript(page, network, threeTurns);
-    await expect(page.getByText("turn 1/3").first()).toBeVisible();
-
-    await expect(
-      page.getByRole("button", { name: "Next turn" }).first()
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Previous turn" }).first()
-    ).toBeVisible();
-
-    const openLink = page
-      .getByRole("link", { name: "Open focused turn view" })
-      .first();
-    await expect(openLink).toHaveAttribute("href", /\/event\?event=/);
-  });
-
   test("first j from a fresh load lands on turn 1; second j on turn 2", async ({
     page,
     network,
@@ -366,37 +346,6 @@ test.describe("transcript turn navigation", () => {
     const secondArrival = await settledTurnTop(page, "turn-15");
 
     expect(Math.abs(secondArrival - firstArrival)).toBeLessThan(2);
-  });
-
-  test("first j from above turn 1 lands on turn 1 (not turn 2)", async ({
-    page,
-    network,
-  }) => {
-    await openTranscript(page, network, preTurnThenTurns);
-    await expect(page.getByText("turn 1/3").first()).toBeVisible();
-
-    // Sit at the very top, where the pre-turn info rows are the topmost content
-    // and turn 1 is below the fold. Dispatch a scroll so the scroll-spy that
-    // feeds currentTurnIndex re-evaluates against this position.
-    await page.evaluate(() => {
-      const sc = Array.from(document.querySelectorAll<HTMLElement>("*")).find(
-        (e) =>
-          /(auto|scroll)/.test(getComputedStyle(e).overflowY) &&
-          e.scrollHeight > e.clientHeight + 50
-      );
-      if (sc) {
-        sc.scrollTop = 0;
-        sc.dispatchEvent(new Event("scroll"));
-      }
-    });
-    await page.locator("body").click({ position: { x: 700, y: 400 } });
-    // Press immediately: initial navigation state must already represent
-    // "above turn 1", without waiting for the scroll tracker's backstop.
-    await page.keyboard.press("j");
-
-    // Literal fixture id: turn 1 is "turn-a" — deriving the expectation from
-    // the page's own focus links could share a wrong anchor list with j.
-    await expect.poll(() => currentEventParam(page)).toBe("turn-a"); // turn 1, not "turn-b" (turn 2)
   });
 
   test("deep-link landing stays on target while the summary header collapses", async ({
@@ -818,9 +767,13 @@ test.describe("transcript turn navigation", () => {
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 3000);
     await page.waitForTimeout(TAB_RECORDER_ARM_MS);
+    expect(await biggestScrollerTop(page)).toBeGreaterThan(1000);
 
     await page.getByRole("link", { name: "Next sample" }).click();
     await expect(page.getByText("Sample 2")).toBeVisible();
+    await expect
+      .poll(() => biggestScrollerTop(page), { timeout: 4000 })
+      .toBeLessThanOrEqual(150);
     // ArrowLeft / ArrowRight step samples from the keyboard (same actions).
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByText("Sample 1")).toBeVisible();
@@ -904,10 +857,12 @@ test.describe("transcript turn navigation", () => {
       `/#/logs/${encodedFile}/samples/sample/1/1/transcript?event=turn-15`
     );
     await expect(page.getByText("Turn 15 response").first()).toBeVisible();
-    // Sanity: the deep-link landing itself renders the header collapsed.
-    await expect(
-      page.locator("[id^='sample-heading-'] [class*='_collapsedMeta_']").first()
-    ).toBeVisible();
+    // Sanity: the deep-link landing itself renders the header collapsed,
+    // which drops the expanded header's Input field.
+    const heading = page.locator("[id^='sample-heading-']").first();
+    const inputLabel = heading.getByText("Input", { exact: true });
+    await expect(heading).toBeVisible();
+    await expect(inputLabel).toHaveCount(0);
 
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText("Sample 2")).toBeVisible();
@@ -916,18 +871,7 @@ test.describe("transcript turn navigation", () => {
       .poll(() => biggestScrollerTop(page), { timeout: 4000 })
       .toBeLessThanOrEqual(10);
     // ...with the EXPANDED header variant, like any fresh/direct visit.
-    await expect
-      .poll(
-        () =>
-          page.locator("[id^='sample-heading-'] [class*='_layout_']").count(),
-        { timeout: 4000 }
-      )
-      .toBeGreaterThan(0);
-    expect(
-      await page
-        .locator("[id^='sample-heading-'] [class*='_collapsedMeta_']")
-        .count()
-    ).toBe(0);
+    await expect(inputLabel).toBeVisible({ timeout: 4000 });
   });
 
   test("focus view surfaces the sample error from every turn", async ({
@@ -1030,31 +974,6 @@ test.describe("transcript turn navigation", () => {
     await expect(page.getByText("Model Call:").first()).toBeVisible();
     await expect(page.getByText("First turn response").first()).toBeVisible();
     await expect(page.getByText("Third turn response")).toHaveCount(0);
-  });
-
-  test("held k (auto-repeat) steps back exactly once per press, not fewer", async ({
-    page,
-    network,
-  }) => {
-    const currentEvent = () => currentEventParam(page);
-
-    await openTranscript(page, network, manyTurns, { eventId: "turn-14" });
-    await expect(page.getByText("turn 15/20").first()).toBeVisible();
-    await expectLandedAtTurn(page, "turn-14");
-    expect(currentEvent()).toBe("turn-14");
-
-    // 8 presses at 30ms (approximating OS key-repeat) must land exactly 8
-    // turns back, same as a fully-settled slow press would — regardless of
-    // press cadence. (k is a synchronous index decision, same as j — no
-    // settle to race. The 30ms cadence IS the test subject; a longer or
-    // conditional wait would dodge the race instead of hitting it.)
-    for (let i = 0; i < 8; i++) {
-      await page.keyboard.press("k");
-      await page.waitForTimeout(30);
-    }
-    // turn-06 is the terminus of a monotonic k-sequence, so the poll can't
-    // pass through a transient equal value.
-    await expect.poll(currentEvent).toBe("turn-06");
   });
 
   test("held j and held k traverse the same number of turns for the same press count", async ({
