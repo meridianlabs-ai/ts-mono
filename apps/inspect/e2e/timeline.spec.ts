@@ -201,34 +201,21 @@ async function openTranscriptWithTimeline(
 // Timeline acceptance tests
 // ---------------------------------------------------------------------------
 
-test("sample with timelines shows swimlane grid", async ({ page, network }) => {
-  await openTranscriptWithTimeline(page, network);
-
-  // Swimlane grid should be visible
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-
-  // Child agent rows should be visible
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Build" })
-  ).toBeVisible();
-});
-
-test("sample with timelines shows event list", async ({ page, network }) => {
+test("selecting the root row again restores the full event list", async ({
+  page,
+  network,
+}) => {
   await openTranscriptWithTimeline(page, network);
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore");
+  await expect(exploreCard).toBeVisible();
 
-  // Click the root "Transcript" row to show all events
-  const rootRow = swimlane.getByRole("row").filter({ hasText: "Transcript" });
-  await rootRow.click();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
+  await expect(exploreCard).toBeHidden();
 
-  // Root event and sub-agent entries should be visible in the event list
-  await expect(page.getByText("sub-agent: explore").first()).toBeVisible();
+  await swimlane.getByRole("row").filter({ hasText: "Transcript" }).click();
+  await expect(exploreCard).toBeVisible();
   await expect(page.getByText("sub-agent: build").first()).toBeVisible();
 });
 
