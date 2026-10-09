@@ -274,6 +274,28 @@ async function biggestScrollerTop(
   });
 }
 
+/** Presses j on the focus page up to `presses` times, waiting for each
+ *  landed turn's content before the next press (the URL flips before the
+ *  re-render, and a press against the stale render re-targets the same
+ *  turn). Stops early at the fixture's last turn, where j is a no-op. */
+async function stepFocusTurns(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  presses: number
+) {
+  for (let i = 0; i < presses; i++) {
+    const beforePress = currentEventParam(page);
+    if (beforePress === "turn-19") return;
+    await page.keyboard.press("j");
+    await expect.poll(() => currentEventParam(page)).not.toBe(beforePress);
+    const landed = currentEventParam(page) ?? "";
+    await expect(
+      page
+        .getByText(`Turn ${Number(landed.replace("turn-", ""))} response`)
+        .first()
+    ).toBeVisible();
+  }
+}
+
 test.describe("transcript turn navigation", () => {
   test("first j from a fresh load lands on turn 1; second j on turn 2", async ({
     page,
@@ -531,18 +553,7 @@ test.describe("transcript turn navigation", () => {
     // a press against the stale render re-targets the same turn). The entry
     // turn depends on where the wheel-up landed, so stop at the fixture's
     // last turn (turn-19) where j is a legitimate no-op.
-    for (let i = 0; i < 5; i++) {
-      const beforePress = currentEventParam(page);
-      if (beforePress === "turn-19") break;
-      await page.keyboard.press("j");
-      await expect.poll(() => currentEventParam(page)).not.toBe(beforePress);
-      const landed = currentEventParam(page)!;
-      await expect(
-        page
-          .getByText(`Turn ${Number(landed.replace("turn-", ""))} response`)
-          .first()
-      ).toBeVisible();
-    }
+    await stepFocusTurns(page, 5);
     const focused = new URL(page.url().replace("/#/", "/")).searchParams.get(
       "event"
     );

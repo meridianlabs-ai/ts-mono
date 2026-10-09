@@ -56,6 +56,22 @@ const cases: {
   },
 ];
 
+/** CONTENT renders as markdown when `rich`, otherwise as literal text with
+ *  no link. */
+async function expectContentRendering(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  rich: boolean
+) {
+  const bold = page.locator("strong", { hasText: "bold claim" });
+  if (rich) {
+    await expect(bold.first()).toBeVisible();
+    return;
+  }
+  await expect(page.getByText("**bold claim**").first()).toBeVisible();
+  await expect(bold).toHaveCount(0);
+  await expect(page.locator(`a[href="${LINK}"]`)).toHaveCount(0);
+}
+
 for (const { name: pageName, suffix } of pages) {
   for (const { name, viewer, transcript, rich } of cases) {
     test(`${pageName}: ${name} renders ${rich ? "rich" : "plain"}`, async ({
@@ -98,17 +114,7 @@ for (const { name: pageName, suffix } of pages) {
 
       await page.goto(transcriptRoute(suffix));
 
-      if (rich) {
-        await expect(
-          page.locator("strong", { hasText: "bold claim" }).first()
-        ).toBeVisible();
-      } else {
-        await expect(page.getByText("**bold claim**").first()).toBeVisible();
-        await expect(
-          page.locator("strong", { hasText: "bold claim" })
-        ).toHaveCount(0);
-        await expect(page.locator(`a[href="${LINK}"]`)).toHaveCount(0);
-      }
+      await expectContentRendering(page, rich);
     });
   }
 }
@@ -317,21 +323,25 @@ test("an untrusted viewer shows trusted scan results as plain text", async ({
   await expect(page.locator("strong", { hasText: "claim" })).toHaveCount(0);
 });
 
-for (const viewer of [null, false] as const) {
-  test(`scan JSON is app data: ${viewer === false ? "plain under an untrusted viewer" : "highlighted"}`, async ({
-    page,
-    network,
-  }) => {
-    mockScan(network, viewer);
-    await page.goto(scanRoute);
-    await page.getByRole("tab", { name: "JSON" }).click();
+test("scan JSON is app data: highlighted", async ({ page, network }) => {
+  mockScan(network, null);
+  await page.goto(scanRoute);
+  await page.getByRole("tab", { name: "JSON" }).click();
 
-    const json = page.locator("#task-json-contents");
-    await expect(json).toContainText("scan_id");
-    if (viewer === false) {
-      await expect(json.locator(".token")).toHaveCount(0);
-    } else {
-      await expect(json.locator(".token").first()).toBeVisible();
-    }
-  });
-}
+  const json = page.locator("#task-json-contents");
+  await expect(json).toContainText("scan_id");
+  await expect(json.locator(".token").first()).toBeVisible();
+});
+
+test("scan JSON is app data: plain under an untrusted viewer", async ({
+  page,
+  network,
+}) => {
+  mockScan(network, false);
+  await page.goto(scanRoute);
+  await page.getByRole("tab", { name: "JSON" }).click();
+
+  const json = page.locator("#task-json-contents");
+  await expect(json).toContainText("scan_id");
+  await expect(json.locator(".token")).toHaveCount(0);
+});

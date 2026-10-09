@@ -97,93 +97,101 @@ test("transcript metadata tab shows the transcript's metadata", async ({
   await expect(page.getByText("cache-perf")).toBeVisible();
 });
 
-for (const focused of [false, true]) {
-  for (const configured of [false, true]) {
-    test(`${focused ? "focused event" : "transcript"} loads the route directory with ${configured ? "a different" : "no"} configured directory`, async ({
-      page,
-      network,
-    }) => {
-      const alternate = "/home/test/secondary";
-      const encodedAlternate = encodeBase64Url(alternate);
-      network.use(
-        http.get("*/api/v2/app-config", () =>
-          HttpResponse.json<AppConfig>(
-            createAppConfig({
-              transcripts: configured
-                ? { dir: TRANSCRIPTS_DIR, source: "project" }
-                : null,
-            })
-          )
-        ),
-        http.get("*/api/v2/transcripts/:dir/:id/info", ({ params }) =>
-          HttpResponse.json<TranscriptInfo>(
-            createTranscriptInfo({
-              transcript_id: TRANSCRIPT_ID,
-              task_id:
-                params.dir === encodedAlternate
-                  ? "Secondary task"
-                  : "Primary task",
-            })
-          )
-        ),
-        http.get(
-          "*/api/v2/transcripts/:dir/:id/messages-events",
-          ({ params }) => {
-            const content =
-              params.dir === encodedAlternate
-                ? "Evidence from secondary"
-                : "Evidence from primary";
-            return HttpResponse.json<MessagesEventsResponse>(
-              createMessagesEventsResponse({
-                messages: [
-                  { id: "shared-message", role: "assistant", content },
-                ],
-                events: [
-                  createModelEvent({
-                    uuid: "shared-event",
-                    startSec: 0,
-                    endSec: 1,
-                    content,
-                  }),
-                ],
-              })
-            );
-          }
-        )
+const ALTERNATE_DIR = "/home/test/secondary";
+
+/** Serves the same transcript id from two directories, each with its own
+ *  evidence text, and optionally configures the primary one. */
+function serveTwoDirectories(
+  network: Parameters<Parameters<typeof test>[2]>[0]["network"],
+  configured: boolean
+) {
+  const encodedAlternate = encodeBase64Url(ALTERNATE_DIR);
+  network.use(
+    http.get("*/api/v2/app-config", () =>
+      HttpResponse.json<AppConfig>(
+        createAppConfig({
+          transcripts: configured
+            ? { dir: TRANSCRIPTS_DIR, source: "project" }
+            : null,
+        })
+      )
+    ),
+    http.get("*/api/v2/transcripts/:dir/:id/info", ({ params }) =>
+      HttpResponse.json<TranscriptInfo>(
+        createTranscriptInfo({
+          transcript_id: TRANSCRIPT_ID,
+          task_id:
+            params.dir === encodedAlternate ? "Secondary task" : "Primary task",
+        })
+      )
+    ),
+    http.get("*/api/v2/transcripts/:dir/:id/messages-events", ({ params }) => {
+      const content =
+        params.dir === encodedAlternate
+          ? "Evidence from secondary"
+          : "Evidence from primary";
+      return HttpResponse.json<MessagesEventsResponse>(
+        createMessagesEventsResponse({
+          messages: [{ id: "shared-message", role: "assistant", content }],
+          events: [
+            createModelEvent({
+              uuid: "shared-event",
+              startSec: 0,
+              endSec: 1,
+              content,
+            }),
+          ],
+        })
       );
-      const suffix = focused
-        ? "/event?event=shared-event&tab=Summary"
-        : "?tab=transcript-messages";
-      const route = (directory: string) =>
-        `/transcripts/${directory}/${TRANSCRIPT_ID}${suffix}`;
-      if (configured) {
-        await page.goto(`/#${route(encodeBase64Url(TRANSCRIPTS_DIR))}`);
-        await expect(
-          page.getByText("Evidence from primary", { exact: true }).first()
-        ).toBeVisible();
-        await page.evaluate((hash) => {
-          window.location.hash = hash;
-        }, route(encodedAlternate));
-      } else {
-        await page.goto(`/#${route(encodedAlternate)}`);
-      }
-      await expect(
-        page.getByText("Evidence from secondary", { exact: true }).first()
-      ).toBeVisible();
-      await expect(
-        page.getByText("Evidence from primary", { exact: true })
-      ).toHaveCount(0);
-      if (configured) {
-        await page.goBack();
-        await expect(
-          page.getByText("Evidence from primary", { exact: true }).first()
-        ).toBeVisible();
-        await expect(
-          page.getByText("Evidence from secondary", { exact: true })
-        ).toHaveCount(0);
-      }
+    })
+  );
+}
+
+for (const { view, suffix } of [
+  { view: "transcript", suffix: "?tab=transcript-messages" },
+  { view: "focused event", suffix: "/event?event=shared-event&tab=Summary" },
+]) {
+  const route = (directory: string) =>
+    `/transcripts/${encodeBase64Url(directory)}/${TRANSCRIPT_ID}${suffix}`;
+
+  test(`${view} loads the route directory with no configured directory`, async ({
+    page,
+    network,
+  }) => {
+    serveTwoDirectories(network, false);
+    await page.goto(`/#${route(ALTERNATE_DIR)}`);
+
+    await expect(
+      page.getByText("Evidence from secondary", { exact: true }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText("Evidence from primary", { exact: true })
+    ).toHaveCount(0);
+  });
+
+  test(`${view} loads the route directory with a different configured directory`, async ({
+    page,
+    network,
+  }) => {
+    serveTwoDirectories(network, true);
+    const primary = page.getByText("Evidence from primary", { exact: true });
+    const secondary = page.getByText("Evidence from secondary", {
+      exact: true,
     });
-  }
+
+    await page.goto(`/#${route(TRANSCRIPTS_DIR)}`);
+    await expect(primary.first()).toBeVisible();
+
+    await page.evaluate((hash) => {
+      window.location.hash = hash;
+    }, route(ALTERNATE_DIR));
+    await expect(secondary.first()).toBeVisible();
+    await expect(primary).toHaveCount(0);
+
+    await page.goBack();
+    await expect(primary.first()).toBeVisible();
+    await expect(secondary).toHaveCount(0);
+  });
 }
 
 test("transcript panel shows error state when API fails", async ({

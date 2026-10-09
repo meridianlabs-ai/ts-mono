@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { fromCSV } from "arquero";
 
 import {
@@ -27,6 +27,13 @@ async function seedDataframeState(page: Page, patch: Partial<DataframeState>) {
 }
 
 const fixture = "/e2e/fixtures/dataframe/";
+
+/** The element's bounding box; fails the test if it isn't rendered. */
+async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("expected the element to be rendered");
+  return box;
+}
 
 test.beforeEach(({ page }) => {
   page.on("pageerror", (error) => {
@@ -322,9 +329,7 @@ test("filter controls, sorting, copy and download use the same displayed rows an
   expect(download.suggestedFilename()).toMatch(
     /^regression_scanner_\d{8}T\d{6}\.csv$/
   );
-  const path = await download.path();
-  if (!path) throw new Error("Download has no local file");
-  expect(await readFile(path, "utf8")).toBe(`\ufeff${csv}`);
+  expect(await readFile(await download.path(), "utf8")).toBe(`\ufeff${csv}`);
 });
 
 test("new filters and widths survive unmounting and persisted reload; clear preserves sorting", async ({
@@ -388,9 +393,8 @@ test("columns reorder and resize, while row numbers stay pinned and activate sor
     "value"
   );
   const resizer = page.getByRole("slider", { name: "Resize value" });
-  const before = await value.boundingBox();
-  const handle = await resizer.boundingBox();
-  if (!handle || !before) throw new Error("Missing column bounds");
+  const before = await boxOf(value);
+  const handle = await boxOf(resizer);
   await page.mouse.move(handle.x + 2, handle.y + 5);
   await page.mouse.down();
   await page.mouse.move(handle.x + 102, handle.y + 5, { steps: 5 });

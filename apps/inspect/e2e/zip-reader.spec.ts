@@ -6,9 +6,11 @@
  */
 import { expect, test } from "@playwright/test";
 
+/** The fixture's zstd entry and compressed frame both decode to 2 MiB. */
+const kZstdEntrySize = 2 * 1024 * 1024;
+
 interface ZipReaderFixture {
   readZstdEntriesTwice(): Promise<{
-    size: number;
     firstLength: number;
     second: string;
     againLength: number;
@@ -41,12 +43,13 @@ test.describe("ZIP worker reads", { tag: "@dev-server" }, () => {
     const result = await page.evaluate(() =>
       window.zipReader?.readZstdEntriesTwice()
     );
-    if (!result) throw new Error("zip-reader fixture not loaded");
-    expect(result.firstLength).toBe(result.size);
-    expect(result.second).toBe("hello");
-    expect(result.againLength).toBe(result.size);
+    expect(result).toMatchObject({
+      firstLength: kZstdEntrySize,
+      second: "hello",
+      againLength: kZstdEntrySize,
+    });
     // Transferring a view of the archive to the worker must not detach it.
-    expect(result.sourceByteLength).toBeGreaterThan(0);
+    expect(result?.sourceByteLength).toBeGreaterThan(0);
   });
 
   test("zstd and deflate entries decode in the browser's workers", async ({

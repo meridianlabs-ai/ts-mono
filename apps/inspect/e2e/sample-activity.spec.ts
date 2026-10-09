@@ -190,6 +190,7 @@ function activityEvents(): Events {
 // ---------------------------------------------------------------------------
 
 type Page = Parameters<Parameters<typeof test>[2]>[0]["page"];
+type Locator = ReturnType<Page["locator"]>;
 type Network = Parameters<Parameters<typeof test>[2]>[0]["network"];
 
 async function openSample(
@@ -239,6 +240,53 @@ async function openSample(
   await page.goto(
     `/#/logs/${encodedFile}/samples/sample/1/1/${options?.tab ?? "activity"}`
   );
+}
+
+/** Walk the pointer from `from` to `to` in `steps` moves, checking the
+ *  card between moves — the assertion paces the journey at roughly human
+ *  speed and pins the card at every step. */
+async function travel(
+  page: Page,
+  from: Point,
+  to: Point,
+  steps: number,
+  check: (step: number) => Promise<void>
+) {
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      from.x + ((to.x - from.x) * i) / steps,
+      from.y + ((to.y - from.y) * i) / steps
+    );
+    await check(i);
+  }
+}
+
+type Point = { x: number; y: number };
+type Box = Point & { width: number; height: number };
+
+function center(box: Box): Point {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** The element's bounding box; fails the test if it isn't rendered. */
+async function boxOf(locator: Locator): Promise<Box> {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("expected the element to be rendered");
+  return box;
+}
+
+/** The text in `locator` that matches `pattern`; fails if none does. */
+async function textMatching(locator: Locator, pattern: RegExp) {
+  const match = pattern.exec((await locator.textContent()) ?? "");
+  if (!match) throw new Error(`expected text matching ${pattern}`);
+  return match[0];
+}
+
+/** Switch the chart to `axis` (it opens on the wall clock). */
+async function showAxis(page: Page, axis: "Wall clock" | "Turns") {
+  if (axis === "Wall clock") return;
+  await page.getByRole("button", { name: "Turns", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
 }
 
 // ---------------------------------------------------------------------------
@@ -400,10 +448,7 @@ for (const axis of ["Wall clock", "Turns"] as const) {
     network,
   }) => {
     await openSample(page, network);
-    if (axis === "Turns") {
-      await page.getByRole("button", { name: "Turns", exact: true }).click();
-      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-    }
+    await showAxis(page, axis);
 
     const span = page.locator("rect[class*='failedSpan']").first();
     await span.hover();
@@ -412,27 +457,11 @@ for (const axis of ["Wall clock", "Turns"] as const) {
     const footer = card.getByRole("button", { name: "open in transcript →" });
     await expect(footer).toBeVisible();
 
-    const spanBox = await span.boundingBox();
-    const footerBox = await footer.boundingBox();
-    if (!spanBox || !footerBox) throw new Error("expected span and footer");
-    const from = {
-      x: spanBox.x + spanBox.width / 2,
-      y: spanBox.y + spanBox.height / 2,
-    };
-    const to = {
-      x: footerBox.x + footerBox.width / 2,
-      y: footerBox.y + footerBox.height / 2,
-    };
-    // Twenty moves of a few px each; the assertion between them paces the
-    // journey at roughly human speed and pins the card at every step.
-    const steps = 20;
-    for (let i = 1; i <= steps; i++) {
-      await page.mouse.move(
-        from.x + ((to.x - from.x) * i) / steps,
-        from.y + ((to.y - from.y) * i) / steps
-      );
-      await expect(card, `step ${i}`).toContainText("bash tool call");
-    }
+    const from = center(await boxOf(span));
+    const to = center(await boxOf(footer));
+    await travel(page, from, to, 20, async (step) => {
+      await expect(card, `step ${step}`).toContainText("bash tool call");
+    });
     await footer.click();
     await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
   });
@@ -481,39 +510,18 @@ function fanOutEvents(): Events {
   ];
 }
 
-/** Walk the pointer from `from` to `to` in `steps` moves, checking the
- *  card between moves — the assertion paces the journey at roughly human
- *  speed and pins the card at every step. */
-async function travel(
-  page: Page,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  steps: number,
-  check: (step: number) => Promise<void>
-) {
-  for (let i = 1; i <= steps; i++) {
-    await page.mouse.move(
-      from.x + ((to.x - from.x) * i) / steps,
-      from.y + ((to.y - from.y) * i) / steps
-    );
-    await check(i);
-  }
-}
-
-const center = (box: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) => ({
-  x: box.x + box.width / 2,
-  y: box.y + box.height / 2,
-});
-
 // A fan-out's Wall clock vertex carries a range card (review pass 15): its
 // footer must survive ordinary pointer travel off the 6 px snap radius —
 // small steps straight at the footer, or a first leg down out of the
 // radius before the diagonal — not only a direct click on a fresh card.
+const kFanOutLegs = {
+  straight: (_from: Point, to: Point) => [{ to, steps: 30 }],
+  "down then across": (from: Point, to: Point) => [
+    { to: { x: from.x + 4, y: from.y + 14 }, steps: 6 },
+    { to, steps: 24 },
+  ],
+};
+
 for (const path of ["straight", "down then across"] as const) {
   test(`the fan-out vertex card survives pointer travel to its footer (${path})`, async ({
     page,
@@ -521,12 +529,9 @@ for (const path of ["straight", "down then across"] as const) {
   }) => {
     await openSample(page, network, { events: fanOutEvents() });
     await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
-    const dotBox = await page
-      .locator("circle[class*='contextDot']")
-      .nth(1)
-      .boundingBox();
-    if (!dotBox) throw new Error("expected the fan-out's context dot");
-    const from = center(dotBox);
+    const from = center(
+      await boxOf(page.locator("circle[class*='contextDot']").nth(1))
+    );
     await page.mouse.move(from.x, from.y);
     const card = page.locator("[class*='tooltip']");
     await expect(card).toContainText("3 parallel calls");
@@ -534,16 +539,7 @@ for (const path of ["straight", "down then across"] as const) {
       name: "open first in transcript →",
     });
     await expect(footer).toBeVisible();
-    const footerBox = await footer.boundingBox();
-    if (!footerBox) throw new Error("expected the card's footer");
-    const to = center(footerBox);
-    const legs =
-      path === "straight"
-        ? [{ to, steps: 30 }]
-        : [
-            { to: { x: from.x + 4, y: from.y + 14 }, steps: 6 },
-            { to, steps: 24 },
-          ];
+    const legs = kFanOutLegs[path](from, center(await boxOf(footer)));
     let at = from;
     for (const leg of legs) {
       await travel(page, at, leg.to, leg.steps, async (step) => {
@@ -624,28 +620,21 @@ for (const axis of ["Wall clock", "Turns"] as const) {
     await page.setViewportSize({ width: 1032, height: 900 });
     await openSample(page, network, { events: twoDenseRowsEvents() });
     await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
-    if (axis === "Turns") {
-      await page.getByRole("button", { name: "Turns", exact: true }).click();
-      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-    }
+    await showAxis(page, axis);
     const strips = page.locator("rect[class*='densityHit']");
     await expect(strips).toHaveCount(2);
-    const box = await strips.first().boundingBox();
-    if (!box) throw new Error("expected the first row's strip");
+    const box = await boxOf(strips.first());
     const from = { x: box.x + 2, y: box.y + box.height / 2 };
     await page.mouse.move(from.x, from.y);
     const card = page.locator("[class*='tooltip']");
-    await expect(card).toContainText(/[1-9]\d* model calls · 0 tool calls/);
-    const subject = /[1-9]\d* model calls · 0 tool calls/.exec(
-      (await card.textContent()) ?? ""
-    )?.[0];
-    if (!subject) throw new Error("expected the first row's bin card");
+    const binSubject = /[1-9]\d* model calls · 0 tool calls/;
+    await expect(card).toContainText(binSubject);
+    const subject = await textMatching(card, binSubject);
     const footer = card.getByRole("button", {
       name: "open first in transcript →",
     });
     await expect(footer).toBeVisible();
-    const footerBox = await footer.boundingBox();
-    if (!footerBox) throw new Error("expected the card's footer");
+    const footerBox = await boxOf(footer);
     await travel(page, from, center(footerBox), 30, async (step) => {
       await expect(card, `${axis} step ${step}`).toContainText(subject);
     });
@@ -671,9 +660,8 @@ test("a marker cluster's card survives travel across the strips to its footer", 
     name: "open first in transcript →",
   });
   await expect(footer).toBeVisible();
-  const glyphBox = await glyph.boundingBox();
-  const footerBox = await footer.boundingBox();
-  if (!glyphBox || !footerBox) throw new Error("expected glyph and footer");
+  const glyphBox = await boxOf(glyph);
+  const footerBox = await boxOf(footer);
   // Down from the rail through both rows' strips to the footer.
   await travel(page, center(glyphBox), center(footerBox), 30, async (step) => {
     await expect(card, `step ${step}`).toContainText("2 events");
@@ -696,8 +684,7 @@ test("a marker cluster's card survives a slip off the glyph and back inside the 
   const glyph = page
     .getByRole("button", { name: /^2 events: Context compacted/ })
     .and(page.locator("rect"));
-  const glyphBox = await glyph.boundingBox();
-  if (!glyphBox) throw new Error("expected the cluster glyph");
+  const glyphBox = await boxOf(glyph);
   const at = center(glyphBox);
   await page.mouse.move(at.x, at.y);
   const card = page.locator("[class*='tooltip']");
@@ -717,9 +704,7 @@ test("a marker cluster's card survives a slip off the glyph and back inside the 
   const footer = card.getByRole("button", {
     name: "open first in transcript →",
   });
-  const footerBox = await footer.boundingBox();
-  if (!footerBox) throw new Error("expected the card's footer");
-  await travel(page, from, center(footerBox), 30, async (step) => {
+  await travel(page, from, center(await boxOf(footer)), 30, async (step) => {
     await expect(card, `step ${step}`).toContainText("2 events");
   });
   await footer.click();
@@ -749,7 +734,7 @@ test("activity tab is hidden for old logs without event timestamps", async ({
   });
 
   await expect(page.getByRole("tab", { name: "Transcript" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Activity" })).not.toBeVisible();
+  await expect(page.getByRole("tab", { name: "Activity" })).toBeHidden();
   await expect(page.locator("#transcript-contents")).toBeVisible();
 });
 

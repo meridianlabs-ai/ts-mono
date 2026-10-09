@@ -58,13 +58,12 @@
 
       window.zipReader = {
         async readZstdEntriesTwice() {
-          const { bytes, size } = zstdArchive();
+          const { bytes } = zstdArchive();
           const zip = await openZipFileFromBuffer(bytes);
           const first = await zip.readFile("first");
           const second = await zip.readFile("second");
           const again = await zip.readFile("first");
           return {
-            size,
             firstLength: first.length,
             second: new TextDecoder().decode(second),
             againLength: again.length,

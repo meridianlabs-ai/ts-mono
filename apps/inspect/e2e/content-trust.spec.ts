@@ -272,11 +272,9 @@ const recordRichRenderingModules = (page: Page) => {
 /** Open the focus view of the sample's final model call. */
 const openEventFocus = async (page: Page, label: Label) => {
   await openViewFresh(page, sampleUrl(label, "transcript"), /Sample 1:/);
-  const focusHref = await page
-    .locator('a[href*="/event?event="]')
-    .last()
-    .getAttribute("href");
-  expect(focusHref).toBeTruthy();
+  const focusLink = page.locator('a[href*="/event?event="]').last();
+  await expect(focusLink).toHaveAttribute("href", /\/event\?event=/);
+  const focusHref = await focusLink.getAttribute("href");
   await page.goto(`/${focusHref}`);
   await expect(page.getByText(/Score: CORRECT/).first()).toBeVisible();
   await page.waitForTimeout(500);
@@ -310,6 +308,7 @@ test.describe("an untrusted log", () => {
     serveFixtures(network);
     const recorded = await recordRichContent(page);
     await expectPlainInEveryView(page, "untrusted", recorded);
+
     await test.step("event focus view", async () => {
       await openEventFocus(page, "untrusted");
       expect.soft(await collectMarkers(page), "event focus view").toEqual(NONE);
@@ -376,6 +375,21 @@ test.describe("an untrusted log", () => {
   });
 });
 
+/** A view that shows links or images must have tripped the recorder. */
+const expectRecordedWhereLinksOrImagesShow = async (
+  view: (typeof VIEWS)[number],
+  recorded: (label: Label) => Promise<string[]>
+) => {
+  if (
+    view.trustedShows.includes("links") ||
+    view.trustedShows.includes("images")
+  ) {
+    expect
+      .soft(await recorded("trusted"), `${view.name}, recorded`)
+      .not.toEqual([]);
+  }
+};
+
 test.describe("a trusted log", () => {
   test("renders richly in every view", async ({ page, network }) => {
     test.slow();
@@ -391,16 +405,10 @@ test.describe("a trusted log", () => {
             .soft(markers[marker], `${view.name}: ${marker}`)
             .toBeGreaterThan(0);
         }
-        if (
-          view.trustedShows.includes("links") ||
-          view.trustedShows.includes("images")
-        ) {
-          expect
-            .soft(await recorded("trusted"), `${view.name}, recorded`)
-            .not.toEqual([]);
-        }
+        await expectRecordedWhereLinksOrImagesShow(view, recorded);
       });
     }
+
     await test.step("event focus view", async () => {
       await openEventFocus(page, "trusted");
       const markers = await collectMarkers(page);

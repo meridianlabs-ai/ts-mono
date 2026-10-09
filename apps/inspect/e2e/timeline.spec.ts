@@ -233,7 +233,7 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
   await expect(page.getByText("Building the feature").first()).toBeVisible();
 
   // The Explore agent's content should no longer be visible
-  await expect(page.getByText("Exploring the code")).not.toBeVisible();
+  await expect(page.getByText("Exploring the code")).toBeHidden();
 });
 
 for (const deepLink of [
@@ -289,7 +289,7 @@ for (const deepLink of [
     await expect(target).toBeVisible();
     await expect(target).toBeInViewport();
     await expect(page.getByText("Deep-link target").first()).toBeVisible();
-    await expect(page.getByText("Root event")).not.toBeVisible();
+    await expect(page.getByText("Root event")).toBeHidden();
   });
 }
 
@@ -344,9 +344,7 @@ test("scrubbing the minimap scrolls the event list", async ({
   await expect(
     page.getByText("Step 0 of the long transcript").first()
   ).toBeVisible();
-  await expect(
-    page.getByText("Step 28 of the long transcript")
-  ).not.toBeVisible();
+  await expect(page.getByText("Step 28 of the long transcript")).toBeHidden();
 
   // Click near the right edge of the minimap's selection region: onScrub
   // receives ~1.0 and the main scroller jumps to the end of the list.
