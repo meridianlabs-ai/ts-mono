@@ -175,8 +175,11 @@ export const ScansGrid: FC<ScansGridProps> = ({
       onResetColumnSize={resetColumnSize}
       className={className}
       loading={loading}
-      emptyMessage="No matching scans"
-      noConfigMessage="No scans directory configured."
+      emptyMessage="No scans in this directory."
+      noMatchMessage="No matching scans"
+      noConfigMessage={
+        resultsDir ? undefined : "No scans directory configured."
+      }
     />
   );
 };

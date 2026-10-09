@@ -71,9 +71,14 @@ export interface DataGridProps<
   className?: string | string[];
   /** Whether data is loading */
   loading?: boolean;
-  /** Message to show when there's no data */
+  /** Message to show when there's no data and no column filters are active */
   emptyMessage?: string;
-  /** Message to show when there's no configuration (e.g., no directory) */
+  /** Message to show when the active column filters match no data */
+  noMatchMessage?: string;
+  /**
+   * Message to show instead of the other empty messages; pass it only when
+   * the grid's data source isn't configured (e.g., no directory)
+   */
   noConfigMessage?: string;
 }
 

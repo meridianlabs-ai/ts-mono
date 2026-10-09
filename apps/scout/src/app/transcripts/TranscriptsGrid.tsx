@@ -174,8 +174,11 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
       onResetColumnSize={resetColumnSize}
       className={className}
       loading={loading}
-      emptyMessage="No matching transcripts"
-      noConfigMessage="No transcripts directory configured."
+      emptyMessage="No transcripts in this directory."
+      noMatchMessage="No matching transcripts"
+      noConfigMessage={
+        transcriptsDir ? undefined : "No transcripts directory configured."
+      }
     />
   );
 };
