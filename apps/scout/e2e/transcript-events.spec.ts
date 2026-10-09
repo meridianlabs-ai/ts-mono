@@ -7,7 +7,7 @@
 import { delay, http, HttpResponse } from "msw";
 
 import type { Event } from "@tsmono/inspect-common/types";
-import { encodeBase64Url } from "@tsmono/util";
+import { encodeBase64Url } from "@tsmono/util/base64url";
 
 import type {
   MessagesEventsResponse,

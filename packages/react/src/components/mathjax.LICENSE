@@ -1,4 +1,4 @@
-MathJax SVG styles, adapted into a fixed, per-formula stylesheet.
+MathJax SVG styles, adapted into a fixed viewer stylesheet (mathjax.css).
 Runtime tooltip/status rules are omitted and assistive MathML is clipped.
 
 

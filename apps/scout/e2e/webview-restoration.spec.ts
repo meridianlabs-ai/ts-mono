@@ -4,7 +4,7 @@ import {
   installWebviewHost,
   withWebviewBootstrap,
 } from "@tsmono/react/testing";
-import { encodeBase64Url } from "@tsmono/util";
+import { encodeBase64Url } from "@tsmono/util/base64url";
 
 import { expect, test } from "./fixtures/app";
 import {

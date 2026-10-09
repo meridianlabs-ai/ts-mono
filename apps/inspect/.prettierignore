@@ -2,6 +2,7 @@
 dist/
 dist-e2e/
 lib/
+e2e-dist/
 
 # Generated
 src/@types/log.d.ts

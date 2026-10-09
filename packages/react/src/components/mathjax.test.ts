@@ -1,21 +1,26 @@
 // @vitest-environment jsdom
+/// <reference types="@tsmono/util/vite-imports" />
+import markdownit from "markdown-it";
 import { expect, it } from "vitest";
 
-import { renderMarkdown } from "./markdownRendering";
+import { getMathjaxPlugin, renderMarkdown } from "./markdownRendering";
+import mathJaxCss from "./mathjax.css?raw";
 
 /**
- * Drift check for the viewer-owned MathJax stylesheet in mathjaxStyles.ts.
+ * Drift check for the viewer-owned MathJax stylesheet in mathjax.css.
  *
  * markdown-it-mathjax3 wraps every formula in `<span id="mjx-…"><style>…`
- * carrying MathJax's SVG stylesheet. The sanitizer never uses that text,
- * because a log could forge the wrapper, and substitutes the fixed copy
- * instead. This snapshot pins the stylesheet the installed MathJax emits so
- * a dependency upgrade that changes it fails here rather than silently
- * leaving the copy stale.
+ * carrying MathJax's SVG stylesheet. The viewer's CSP allows no inline
+ * <style>, so the markdown pipeline drops that element (and the sanitizer
+ * drops any that a log forges); mathjax.css supplies the rules instead. This snapshot pins
+ * the stylesheet the installed MathJax emits so a dependency upgrade that
+ * changes it fails here rather than silently leaving the copy stale.
  *
- * When it fails: port the changed rules into mathjaxStyles.ts, then update
- * the snapshot. The copy deliberately differs from the snapshot in these
- * ways, and only these: the tooltip and status rules (mjx-tool, mjx-tip,
+ * When it fails: port the changed rules into mathjax.css, then update the
+ * snapshot. The copy deliberately differs from the snapshot in these ways,
+ * and only these: rules are keyed on `mjx-container[jax="SVG"]` (the
+ * wrapper's display: contents on a span holding one) instead of the
+ * per-formula id; the tooltip and status rules (mjx-tool, mjx-tip,
  * mjx-status) and the foreignobject rule are omitted; mjx-assistive-mml is
  * clipped with !important and selectable, without the plugin's transparent
  * overlay colour or the prefixed user-select: none declarations; the SVG is
@@ -23,7 +28,9 @@ import { renderMarkdown } from "./markdownRendering";
  * carries the position: relative that MathJax puts inline.
  */
 it("MathJax emits the stylesheet the viewer-owned copy was written from", async () => {
-  const raw = await renderMarkdown("$x$", "full");
+  const raw = markdownit()
+    .use(await getMathjaxPlugin())
+    .render("$x$");
   const authored = /<style>([\s\S]*?)<\/style>/.exec(raw)?.[1] ?? "";
   const normalized = authored
     .replace(/#mjx-[a-f0-9]+/gi, "#mjx-ID")
@@ -163,4 +170,56 @@ it("MathJax emits the stylesheet the viewer-owned copy was written from", async 
     }
     }"
   `);
+});
+
+const rule = (selector: string): string => {
+  const start = mathJaxCss.indexOf(`\n${selector} {`);
+  return start < 0
+    ? ""
+    : mathJaxCss.slice(start, mathJaxCss.indexOf("}", start));
+};
+
+it("keys every rule on MathJax's container, so none reach other content", () => {
+  const selectors = [
+    ...mathJaxCss.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{/g),
+  ].flatMap((match) => (match[1] ?? "").split(",").map((part) => part.trim()));
+  expect(selectors.length).toBeGreaterThan(10);
+  for (const selector of selectors) {
+    expect(
+      selector.startsWith('mjx-container[jax="SVG"]') ||
+        selector === 'span:has(> mjx-container[jax="SVG"])'
+    ).toBe(true);
+  }
+});
+
+it("keeps assistive MathML clipped and SVG paint inside its box", () => {
+  // The container is the containing block for the absolutely positioned
+  // assistive MathML; inline `position` is not admitted, so the sheet sets it.
+  expect(rule('mjx-container[jax="SVG"]')).toContain("position: relative");
+  const assistive = rule('mjx-container[jax="SVG"] mjx-assistive-mml');
+  expect(assistive).toContain("clip: rect(1px, 1px, 1px, 1px) !important");
+  expect(assistive).toContain("position: absolute !important");
+  expect(assistive).toContain("padding: 1px 0px 0px !important");
+  // MathJax's sheet says `overflow: visible`; a forged wrapper could then draw
+  // a 1x1 SVG's shapes across the viewer, so the viewer sheet clips with a
+  // margin wide enough for glyph overhang.
+  const svg = rule('mjx-container[jax="SVG"] > svg');
+  expect(svg).toContain("overflow: clip");
+  expect(svg).toContain("overflow-clip-margin: 1em");
+  expect(rule('mjx-container[jax="SVG"] > svg a')).toContain("fill: blue");
+  expect(rule('mjx-container[jax="SVG"][display="true"]')).toContain(
+    "margin: 1em 0px"
+  );
+  // mjx-status is fixed-positioned in MathJax's default sheet; nothing in
+  // rendered output uses it and fixed positioning is not admitted.
+  expect(mathJaxCss).not.toMatch(/fixed|mjx-tool|mjx-tip|mjx-status|url\(/);
+});
+
+it("drops MathJax's inline sheet from rendered markdown", async () => {
+  const html = await renderMarkdown(
+    "inline $x$ and\n\n$$y=\\frac{1}{2}$$",
+    "full"
+  );
+  expect(html.match(/<mjx-container/g)).toHaveLength(2);
+  expect(html).not.toContain("<style");
 });

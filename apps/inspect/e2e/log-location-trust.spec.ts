@@ -38,28 +38,33 @@ const serveLocalDir = (network: NetworkFixture) => {
   return hits;
 };
 
-test("a cross-origin ?log_dir= waits for approval before anything is fetched", async ({
-  page,
-  network,
-}) => {
-  const hits = serveForeignDir(network);
+// The approved fetch only happens on a host that serves the viewer without its
+// CSP; under the policy it is blocked (e2e/csp/csp.spec.ts).
+test(
+  "a cross-origin ?log_dir= waits for approval before anything is fetched",
+  {
+    tag: "@dev-server",
+  },
+  async ({ page, network }) => {
+    const hits = serveForeignDir(network);
 
-  await page.goto(`/?log_dir=${encodeURIComponent(FOREIGN_DIR)}`);
+    await page.goto(`/?log_dir=${encodeURIComponent(FOREIGN_DIR)}`);
 
-  const gate = page.getByTestId("log-location-gate");
-  await expect(gate).toBeVisible();
-  await expect(
-    gate.getByRole("heading", { name: `Open logs from ${FOREIGN_ORIGIN}?` })
-  ).toBeVisible();
-  await expect(gate.getByText(FOREIGN_DIR, { exact: true })).toBeVisible();
-  await page.waitForTimeout(300);
-  expect(hits).toEqual([]);
+    const gate = page.getByTestId("log-location-gate");
+    await expect(gate).toBeVisible();
+    await expect(
+      gate.getByRole("heading", { name: `Open logs from ${FOREIGN_ORIGIN}?` })
+    ).toBeVisible();
+    await expect(gate.getByText(FOREIGN_DIR, { exact: true })).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(hits).toEqual([]);
 
-  await gate.getByRole("button", { name: "Open", exact: true }).click();
+    await gate.getByRole("button", { name: "Open", exact: true }).click();
 
-  await expect(gate).toBeHidden();
-  await expect.poll(() => hits).toContain(`${FOREIGN_DIR}/listing.json`);
-});
+    await expect(gate).toBeHidden();
+    await expect.poll(() => hits).toContain(`${FOREIGN_DIR}/listing.json`);
+  }
+);
 
 test("declining strips the proposal from the URL without contacting it", async ({
   page,

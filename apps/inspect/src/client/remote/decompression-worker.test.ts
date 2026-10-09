@@ -58,12 +58,13 @@ beforeEach(() => {
   holdRequests = false;
   failSend = false;
   vi.stubGlobal("Worker", TestWorker);
+  vi.stubGlobal("location", new URL("http://localhost/"));
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 async function read() {
-  const { decompressZstd } = await import("./zstd-worker");
+  const { decompressZstd } = await import("./decompression-worker");
   // One output byte with a 1 MiB window selects the worker without a large fixture.
   return decompressZstd(
     new Uint8Array([0x28, 0xb5, 0x2f, 0xfd, 0, 80, 9, 0, 0, 65]),

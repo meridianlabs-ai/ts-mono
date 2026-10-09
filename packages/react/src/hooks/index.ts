@@ -17,7 +17,6 @@ export * from "./useVisitId";
 export * from "./useScrubberProgress";
 export * from "./useRafThrottle";
 export * from "./useScrollTrack";
-export * from "./useRevokableUrls";
 export * from "./useListKeyboardNavigation";
 export * from "./useBreadcrumbTruncation";
 export * from "./useElementHeight";
