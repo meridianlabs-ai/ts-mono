@@ -519,6 +519,13 @@ test.describe("transcript turn navigation", () => {
     // collapsed chrome, tuck included) — a settle aborted by the click's own
     // interaction window parks it a full expanded-header delta lower.
     await expectLandedAtTurn(page, "turn-01");
+
+    // The landed turn's own Previous chevron steps back.
+    await page
+      .locator("#turn-01")
+      .getByRole("button", { name: "Previous turn" })
+      .click();
+    await expect(page).toHaveURL(/event=turn-00/);
   });
 
   test("exit from focus lands on the focused turn, not a stale saved position", async ({
@@ -782,9 +789,11 @@ test.describe("transcript turn navigation", () => {
 
     await page.getByRole("link", { name: "Next sample" }).click();
     await expect(page.getByText("Sample 2")).toBeVisible();
-    await expect
-      .poll(() => biggestScrollerTop(page), { timeout: 4000 })
-      .toBeLessThanOrEqual(150);
+    // Wait for sample 2 to be scrollable, then give a leaked restore its
+    // retry window before checking the offset.
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThanOrEqual(0);
+    await page.waitForTimeout(RESTORE_RETRY_WINDOW_MS);
+    expect(await biggestScrollerTop(page)).toBeLessThanOrEqual(150);
     // ArrowLeft / ArrowRight step samples from the keyboard (same actions).
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByText("Sample 1")).toBeVisible();
