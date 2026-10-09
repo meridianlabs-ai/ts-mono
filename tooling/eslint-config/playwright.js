@@ -11,11 +11,11 @@ const recommendedAsErrors = Object.fromEntries(
   ])
 );
 
-/** Playwright rules for an app's e2e/ specs. */
+/** Playwright rules for an app's e2e/ specs and its skills' drive/ specs. */
 export default [
   {
     ...recommended,
-    files: ["e2e/**/*.ts"],
+    files: ["e2e/**/*.ts", ".agents/skills/*/drive/**/*.ts"],
     rules: {
       ...recommendedAsErrors,
       // Absence checks (a restore that must not fire, a debounce that must
@@ -26,6 +26,15 @@ export default [
         "error",
         { assertFunctionPatterns: ["^expect[A-Z]"] },
       ],
+    },
+  },
+  {
+    files: [".agents/skills/*/drive/**/*.ts"],
+    rules: {
+      // Drives run against whatever real logs the user points them at, so a
+      // test whose fixture is absent must report as skipped. Unconditional
+      // skips stay banned.
+      "playwright/no-skipped-test": ["error", { allowConditional: true }],
     },
   },
 ];

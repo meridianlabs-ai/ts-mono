@@ -86,6 +86,13 @@ command above; add `-g "<test name>"` to run one). The specs resolve
 `@playwright/test` through `apps/inspect/node_modules`, which is why this
 skill lives app-local rather than at the repo root.
 
+The app's `typecheck` and `lint` scripts cover `drive/` and
+`playwright.verify.config.ts` (via this directory's `tsconfig.json`), with
+the same Playwright lint rules as `e2e/`: no `if`/ternary in a test body
+and no conditional `expect`. When a test needs a fixture the log dir may
+lack, gate it with `test.skip(condition, reason)` so the run reports it
+as skipped; put setup-only branching in a helper that throws.
+
 The feature map in [`features/`](features/README.md) is the app's compact,
 maintained memory: what each feature is, how a user reaches it, exact driving
 guidance, the code that owns it, and common false leads. Read the README index
