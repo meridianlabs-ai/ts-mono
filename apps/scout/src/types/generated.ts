@@ -2843,6 +2843,8 @@ export interface components {
             checkpoint?: components["schemas"]["CheckpointSampleConfig"] | null;
             /** Choices */
             choices?: string[] | null;
+            /** Description */
+            description?: string | null;
             /** Files */
             files?: {
                 [key: string]: string;
@@ -3583,6 +3585,8 @@ export interface components {
          * @description Report from a sentinel monitor or protocol about one step.
          *
          *     A report's metadata is recorded in the event's `metadata` field.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
          */
         SentinelEvent: {
             /** Action */
