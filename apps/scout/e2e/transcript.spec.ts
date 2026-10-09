@@ -56,8 +56,45 @@ test("clicking a transcript row opens the transcript detail panel", async ({
   await page.goto("/#/transcripts");
   await page.getByText("my-task").first().click();
 
-  await expect(page.getByText("my-task").first()).toBeVisible();
-  await expect(page.getByText("claude-3")).toBeVisible();
+  await expect(page).toHaveURL(
+    `/#/transcripts/${encodeBase64Url(TRANSCRIPTS_DIR)}/${TRANSCRIPT_ID}`
+  );
+  await expect(page.getByText(`Transcript — ${TRANSCRIPT_ID}`)).toBeVisible();
+});
+
+test("transcript metadata tab shows the transcript's metadata", async ({
+  page,
+  network,
+}) => {
+  const info = createTranscriptInfo({
+    transcript_id: TRANSCRIPT_ID,
+    task_id: "metadata-task",
+    metadata: { experiment: "cache-perf", run_number: 42 },
+  });
+  network.use(
+    http.post("*/api/v2/transcripts/:dir", () =>
+      HttpResponse.json<TranscriptsResponse>(createTranscriptsResponse([info]))
+    ),
+    http.get("*/api/v2/transcripts/:dir/:id/info", () =>
+      HttpResponse.json<TranscriptInfo>(info)
+    ),
+    http.get("*/api/v2/transcripts/:dir/:id/messages-events", () =>
+      HttpResponse.json<MessagesEventsResponse>(
+        createMessagesEventsResponse({
+          messages: [{ role: "user", content: "Hello" }],
+          events: [],
+        })
+      )
+    )
+  );
+
+  await page.goto(
+    `/#/transcripts/${encodeBase64Url(TRANSCRIPTS_DIR)}/${TRANSCRIPT_ID}`
+  );
+  await page.getByRole("tab", { name: "Metadata" }).click();
+
+  await expect(page.getByText("experiment")).toBeVisible();
+  await expect(page.getByText("cache-perf")).toBeVisible();
 });
 
 for (const focused of [false, true]) {

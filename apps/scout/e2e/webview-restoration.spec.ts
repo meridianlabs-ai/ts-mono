@@ -43,12 +43,15 @@ test("full Scout webview restores navigation and still follows host commands", a
   });
   await page.goto("/");
   await expect(page).toHaveURL(/#\/scans/);
-  await expect(page.locator("#scans")).toBeVisible();
+  await expect(page.locator("#scans")).toHaveAttribute("aria-current", "page");
   await page.locator("#transcripts").click();
   await expect(page).toHaveURL(/#\/transcripts/);
   await page.goto("/");
   await expect(page).toHaveURL(/#\/transcripts/);
-  await expect(page.locator("#transcripts")).toBeVisible();
+  await expect(page.locator("#transcripts")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
 
   await page.evaluate(() => {
     window.postMessage(
@@ -62,16 +65,23 @@ test("full Scout webview restores navigation and still follows host commands", a
     );
   });
   await expect(page).toHaveURL(/#\/project/);
-  await expect(
-    page.getByText("Project", { exact: true }).first()
-  ).toBeVisible();
+  await expect(page.locator("#project")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
   await page.goto("/");
   await expect(page).toHaveURL(/#\/project/);
-  await expect(page.locator("#project")).toBeVisible();
+  await expect(page.locator("#project")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
 
   await page.goto("/#/validation");
   await expect(page).toHaveURL(/#\/validation/);
-  await expect(page.locator("#validation")).toBeVisible();
+  await expect(page.locator("#validation")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
 });
 
 test("single-file Scout webview restores the transcript event route and display mode", async ({
