@@ -25,8 +25,8 @@ import { getLogRows, isCacheOnlyListingScope } from "./logsContent";
  *   replicated rows and is the row source.
  * - null: the react-query logs cache is the row source. This serves the
  *   out-of-namespace degrade (listing persistence skipped — see
- *   `namesInScope` in logsContent) and db-less sessions (the database
- *   failed to open; single-file mode renders no log list at all).
+ *   `namesInScope` in logsContent). Directory mode requires IndexedDB to
+ *   activate, while single-file mode renders no log list at all.
  */
 const logsListingDatabase = (logDir: string): OpenDatabase | null =>
   isCacheOnlyListingScope(logDir) ? null : currentDatabase();

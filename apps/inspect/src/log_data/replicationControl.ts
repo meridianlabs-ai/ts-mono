@@ -8,6 +8,9 @@ import { fetchEngine } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
 
+const kDirectoryStorageUnavailable =
+  "This log viewer requires browser storage (IndexedDB) to list a directory. Check this site's storage permissions and reload.";
+
 // Open the (unified) IndexedDB and mark `logDir`'s sync scope active.
 // Returns the open handle, or undefined if unavailable.
 export const openLogDirDatabase = async (
@@ -76,7 +79,7 @@ const startEngine = async (config: AppConfig, seq: number): Promise<void> => {
     throw staleDirError(logDir);
   }
   if (!opened) {
-    throw new Error("Database service not available");
+    throw new Error(kDirectoryStorageUnavailable);
   }
   await fetchEngine.start({
     api,
