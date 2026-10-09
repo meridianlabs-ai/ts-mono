@@ -85,6 +85,7 @@ export function DataGrid<
   loading = false,
   emptyMessage = "No items",
   noMatchMessage = "No matching items",
+  externallyFiltered = false,
   noConfigMessage,
 }: DataGridProps<TData, TColumn, TState>): ReactElement {
   // Destructure state for convenience
@@ -599,7 +600,9 @@ export function DataGrid<
   const getEmptyMessage = (): string => {
     if (loading) return "Loading...";
     if (noConfigMessage) return noConfigMessage;
-    return combineFilters(columnFilters) ? noMatchMessage : emptyMessage;
+    return externallyFiltered || combineFilters(columnFilters)
+      ? noMatchMessage
+      : emptyMessage;
   };
 
   return (

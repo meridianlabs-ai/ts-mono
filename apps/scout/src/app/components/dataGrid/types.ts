@@ -71,10 +71,15 @@ export interface DataGridProps<
   className?: string | string[];
   /** Whether data is loading */
   loading?: boolean;
-  /** Message to show when there's no data and no column filters are active */
+  /** Message to show when there's no data and no filter is active */
   emptyMessage?: string;
-  /** Message to show when the active column filters match no data */
+  /** Message to show when the active filters match no data */
   noMatchMessage?: string;
+  /**
+   * Whether a filter outside the grid's column filters (e.g. the project's
+   * scout.yaml filter, applied server-side) is narrowing the data
+   */
+  externallyFiltered?: boolean;
   /**
    * Message to show instead of the other empty messages; pass it only when
    * the grid's data source isn't configured (e.g., no directory)

@@ -38,6 +38,8 @@ function transcriptItemKey(index: number, item?: TranscriptInfo): string {
 interface TranscriptGridProps {
   transcripts: TranscriptInfo[];
   transcriptsDir?: string | null;
+  /** Whether the project's scout.yaml filter narrows the listing */
+  projectFiltered?: boolean;
   className?: string | string[];
   /** Called when scroll position nears end; receives distance from bottom in px. */
   onScrollNearEnd: (distanceFromBottom: number) => void;
@@ -55,6 +57,7 @@ interface TranscriptGridProps {
 export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   transcripts,
   transcriptsDir,
+  projectFiltered = false,
   className,
   onScrollNearEnd,
   hasMore,
@@ -176,6 +179,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
       loading={loading}
       emptyMessage="No transcripts in this directory."
       noMatchMessage="No matching transcripts"
+      externallyFiltered={projectFiltered}
       noConfigMessage={
         transcriptsDir ? undefined : "No transcripts directory configured."
       }

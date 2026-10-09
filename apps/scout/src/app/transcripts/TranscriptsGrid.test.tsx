@@ -9,7 +9,10 @@ import { TranscriptsGrid } from "./TranscriptsGrid";
 
 const renderEmptyGrid = (
   transcriptsDir: string,
-  { filtered = false }: { filtered?: boolean } = {}
+  {
+    filtered = false,
+    projectFiltered = false,
+  }: { filtered?: boolean; projectFiltered?: boolean } = {}
 ) => {
   const { wrapper: Wrapper, store } = createTestWrapperWithStore();
   if (filtered) {
@@ -30,6 +33,7 @@ const renderEmptyGrid = (
         <TranscriptsGrid
           transcripts={[]}
           transcriptsDir={transcriptsDir}
+          projectFiltered={projectFiltered}
           onScrollNearEnd={() => {}}
           hasMore={false}
           fetchThreshold={500}
@@ -56,6 +60,11 @@ describe("TranscriptsGrid empty state", () => {
 
   it("says nothing matches when column filters exclude every transcript", () => {
     renderEmptyGrid("/tmp/transcripts", { filtered: true });
+    expect(screen.getByText("No matching transcripts")).toBeTruthy();
+  });
+
+  it("says nothing matches when the project filter excludes every transcript", () => {
+    renderEmptyGrid("/tmp/transcripts", { projectFiltered: true });
     expect(screen.getByText("No matching transcripts")).toBeTruthy();
   });
 });
