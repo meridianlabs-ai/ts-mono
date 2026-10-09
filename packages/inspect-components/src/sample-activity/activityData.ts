@@ -176,6 +176,9 @@ export interface ActivitySpan {
   handoffTo?: string;
   // Tooltip detail (handoff 11b) — model turns:
   inputTokens?: number;
+  /** Cache reads of every request the call billed: set only when
+   *  inputTokens also comes from usage (input_context_tokens null or absent),
+   *  since input_context_tokens counts one request. */
   cachedTokens?: number;
   outputTokens?: number;
   stopReason?: string;
@@ -565,12 +568,21 @@ const tokenCount = (value: number | null | undefined): number | undefined =>
     ? value
     : undefined;
 
-/** Input-side tokens for one model call (context occupancy): the shared
- *  total minus the output side. Summing input + cache categories directly
- *  would double-count on providers whose input_tokens already includes
- *  cached reads (OpenAI) — deriving from usageTotal keeps this surface
- *  consistent with the Usage tab. */
+/** The call's recorded input_context_tokens, when it is a valid count. */
+const recordedContextTokens = (event: ModelEvent): number | undefined =>
+  tokenCount(event.output.input_context_tokens);
+
+/** Input-side tokens for one model call (context occupancy). Prefers the
+ *  recorded input_context_tokens: usage is billed, and for a call that made
+ *  several requests it sums them. When it is null, absent or invalid (not
+ *  known, or a log from before the field) this falls back to the shared total
+ *  minus the output side: summing
+ *  input + cache categories directly would double-count on providers whose
+ *  input_tokens already includes cached reads (OpenAI), and deriving from
+ *  usageTotal keeps this surface consistent with the Usage tab. */
 const inputSideTokens = (event: ModelEvent): number | undefined => {
+  const context = recordedContextTokens(event);
+  if (context !== undefined) return context;
   const usage = event.output.usage;
   if (!usage) return undefined;
   const total = tokenCount(usageTotal(usage));
@@ -917,8 +929,11 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           working: Math.min(workingTime ?? end - t, end - t),
           retries: event.retries ?? undefined,
           uuid,
-          inputTokens: usage ? inputSideTokens(event) : undefined,
-          cachedTokens: tokenCount(usage?.input_tokens_cache_read),
+          inputTokens: inputSideTokens(event),
+          cachedTokens:
+            recordedContextTokens(event) !== undefined
+              ? undefined
+              : tokenCount(usage?.input_tokens_cache_read),
           outputTokens: tokenCount(usage?.output_tokens),
           stopReason,
           toolCalls,

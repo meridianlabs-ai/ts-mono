@@ -2904,6 +2904,8 @@ export interface components {
             /** Error */
             error?: string | null;
             fallback?: components["schemas"]["ModelFallback"] | null;
+            /** Input Context Tokens */
+            input_context_tokens?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;

@@ -339,6 +339,110 @@ describe("token burn", () => {
     expect(data.contextSeries[0]?.value).toBe(1000);
   });
 
+  it("reads context from input_context_tokens, not billed usage", () => {
+    // A call that made several requests: usage is billed over all of them,
+    // input_context_tokens is the one request built from the input.
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output: testModelOutput({
+          usage: testModelUsage({
+            input_tokens: 3000,
+            input_tokens_cache_read: 300,
+            output_tokens: 90,
+            total_tokens: 3390,
+          }),
+          input_context_tokens: 1000,
+        }),
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.totalTokens).toBe(3390);
+    expect(data.contextSeries[0]?.value).toBe(1000);
+    expect(data.contextPeak).toBe(1000);
+    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(1000);
+  });
+
+  const billedOnly = (inputContextTokens?: number | null): Event[] => {
+    const output = testModelOutput({
+      usage: testModelUsage({
+        input_tokens: 3000,
+        input_tokens_cache_read: 300,
+        output_tokens: 90,
+        total_tokens: 3390,
+      }),
+    });
+    if (inputContextTokens !== undefined) {
+      output.input_context_tokens = inputContextTokens;
+    }
+    return [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output,
+      }),
+    ];
+  };
+
+  it.each([
+    ["absent (older logs)", undefined],
+    ["null (not known)", null],
+  ] as const)(
+    "falls back to usage when input_context_tokens is %s",
+    (_label, inputContextTokens) => {
+      const data = deriveActivityData({
+        events: billedOnly(inputContextTokens),
+      });
+
+      expect(data.totalTokens).toBe(3390);
+      expect(data.contextSeries[0]?.value).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
+    }
+  );
+
+  it.each([
+    ["negative", -1],
+    ["above the safe integer range", 1e308],
+  ])(
+    "falls back to usage when input_context_tokens is %s",
+    (_label, inputContextTokens) => {
+      const data = deriveActivityData({
+        events: billedOnly(inputContextTokens),
+      });
+
+      expect(data.contextSeries[0]?.value).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
+      expect(data.agentRows[0]?.spans[0]?.cachedTokens).toBe(300);
+    }
+  );
+
+  it("reads input_context_tokens when the call has no usage", () => {
+    const output = testModelOutput({ usage: undefined });
+    output.input_context_tokens = 1000;
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.contextSeries[0]?.value).toBe(1000);
+    expect(data.contextPeak).toBe(1000);
+    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(1000);
+    // no usage, so nothing burned
+    expect(data.totalTokens).toBe(0);
+  });
+
   it("skips model calls without usage (pending, errored)", () => {
     const events: Event[] = [
       testModelEvent({
@@ -630,6 +734,28 @@ describe("context size", () => {
     const data = deriveActivityData({ events });
     expect(data.compactions[0]).toMatchObject({
       before: 90_000,
+      after: 30_000,
+    });
+  });
+  it("falls back to the call's input_context_tokens, not its billed usage", () => {
+    const call = modelCall({
+      start: 0,
+      duration: 5,
+      workingStart: 0,
+      input: 90_000,
+    });
+    call.output.input_context_tokens = 40_000;
+    const events: Event[] = [
+      call,
+      testCompactionEvent({
+        timestamp: iso(6),
+        working_start: 5,
+        tokens_after: 30_000,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.compactions[0]).toMatchObject({
+      before: 40_000,
       after: 30_000,
     });
   });
