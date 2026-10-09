@@ -15,6 +15,7 @@ import type {
   ScoreEvent,
   SpanBeginEvent,
   SpanEndEvent,
+  ToolEvent,
 } from "@tsmono/inspect-common/types";
 
 import { expect, test } from "./fixtures/app";
@@ -143,6 +144,25 @@ function createModelEvent(overrides?: {
   };
 }
 
+function createToolEvent(
+  overrides?: Partial<ToolEvent> & { uuid?: string }
+): ToolEvent {
+  return {
+    event: "tool",
+    uuid: overrides?.uuid ?? "tool-evt-1",
+    function: "bash",
+    arguments: { cmd: "ls -la" },
+    type: "function",
+    id: "tool-call-1",
+    result: "total 42\ndrwxr-xr-x 3 user staff 96 Jan 15 10:00 .",
+    events: [],
+    timestamp: "2025-01-15T10:00:05Z",
+    working_start: 5,
+    working_time: 2,
+    ...overrides,
+  };
+}
+
 function createScoreEvent(
   overrides?: Partial<ScoreEvent> & { uuid?: string }
 ): ScoreEvent {
@@ -228,6 +248,31 @@ test.describe("transcript event rendering", () => {
 
     await expect(page.getByText(/^Model Call: .* · FAILED/)).toBeVisible();
     await expect(page.getByText("Rate limit exceeded")).toBeVisible();
+  });
+
+  test("tool event renders with function name and output", async ({
+    page,
+    network,
+  }) => {
+    const modelEvent = createModelEvent({
+      uuid: "model-evt-1",
+      startSec: 0,
+      endSec: 2,
+      content: "Let me check the files.",
+    });
+    modelEvent.output.choices[0]!.message.tool_calls = [
+      {
+        id: "tool-call-1",
+        function: "bash",
+        arguments: { cmd: "ls -la" },
+        type: "function",
+      },
+    ];
+
+    await openTranscript(page, network, [modelEvent, createToolEvent()]);
+
+    await expect(page.getByText("Tool: Bash")).toBeVisible();
+    await expect(page.getByText("total 42")).toBeVisible();
   });
 
   test("score event renders value and explanation", async ({

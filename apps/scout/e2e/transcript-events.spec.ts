@@ -6,7 +6,7 @@
  */
 import { delay, http, HttpResponse } from "msw";
 
-import type { Event, ToolEvent } from "@tsmono/inspect-common/types";
+import type { Event } from "@tsmono/inspect-common/types";
 import { encodeBase64Url } from "@tsmono/util";
 
 import type {
@@ -115,29 +115,6 @@ async function goToTranscriptEvents(
 }
 
 // ---------------------------------------------------------------------------
-// Event factories
-// ---------------------------------------------------------------------------
-
-function createToolEvent(
-  overrides?: Partial<ToolEvent> & { uuid?: string }
-): ToolEvent {
-  return {
-    event: "tool",
-    uuid: overrides?.uuid ?? "tool-evt-1",
-    function: "bash",
-    arguments: { cmd: "ls -la" },
-    type: "function",
-    id: "tool-call-1",
-    result: "total 42\ndrwxr-xr-x 3 user staff 96 Jan 15 10:00 .",
-    events: [],
-    timestamp: "2025-01-15T10:00:05Z",
-    working_start: 5,
-    working_time: 2,
-    ...overrides,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -207,36 +184,6 @@ test.describe("transcript event rendering", () => {
         );
       })
       .toBe(true);
-  });
-
-  test("tool event renders with function name and output", async ({
-    page,
-    network,
-  }) => {
-    const modelEvent = createModelEvent({
-      uuid: "model-evt-1",
-      startSec: 0,
-      endSec: 2,
-      content: "Let me check the files.",
-    });
-    modelEvent.output.choices[0]!.message.tool_calls = [
-      {
-        id: "tool-call-1",
-        function: "bash",
-        arguments: { cmd: "ls -la" },
-        type: "function",
-      },
-    ];
-
-    const toolEvent = createToolEvent();
-
-    await goToTranscriptEvents(page, network, [modelEvent, toolEvent]);
-
-    // Tool event panel should show tool name in title
-    await expect(page.getByText("Tool: Bash")).toBeVisible();
-
-    // Tool output should be visible
-    await expect(page.getByText("total 42")).toBeVisible();
   });
 
   test("?event= deep link lands below the pinned chrome", async ({
