@@ -172,6 +172,17 @@ export class SequenceReader<T> {
         .then((bytes) => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- chunk-file boundary: the chunks are this app's own writes, and T is the caller's claim about what it stored
           const items = JSON.parse(decoder.decode(bytes)) as T[];
+          if (!Array.isArray(items)) {
+            throw new Error(
+              `Invalid chunked sample: ${name} must contain an array`
+            );
+          }
+          const end = this.starts[chunkIdx + 1] ?? this.count;
+          if (end !== undefined && items.length !== end - start) {
+            throw new Error(
+              `Invalid chunked sample: ${name} length disagrees with its sequence bounds`
+            );
+          }
           log.debug(`parse ${name}: ${items.length} items`);
           return items;
         })
