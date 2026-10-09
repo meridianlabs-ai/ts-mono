@@ -23,6 +23,7 @@ import {
 
 import {
   ColumnFilterControl,
+  combineFilters,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 
@@ -82,8 +83,10 @@ export function DataGrid<
   // UI
   className,
   loading = false,
-  emptyMessage = "No matching items",
-  noConfigMessage = "No directory configured.",
+  emptyMessage = "No items",
+  noMatchMessage = "No matching items",
+  externallyFiltered = false,
+  noConfigMessage,
 }: DataGridProps<TData, TColumn, TState>): ReactElement {
   // Destructure state for convenience
   const {
@@ -596,8 +599,10 @@ export function DataGrid<
   // Get empty state message
   const getEmptyMessage = (): string => {
     if (loading) return "Loading...";
-    if (!data.length && noConfigMessage) return noConfigMessage;
-    return emptyMessage;
+    if (noConfigMessage) return noConfigMessage;
+    return externallyFiltered || combineFilters(columnFilters)
+      ? noMatchMessage
+      : emptyMessage;
   };
 
   return (
