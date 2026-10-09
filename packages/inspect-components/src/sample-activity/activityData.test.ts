@@ -367,7 +367,7 @@ describe("token burn", () => {
     expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(1000);
   });
 
-  const billedOnly = (inputContextTokens?: null): Event[] => {
+  const billedOnly = (inputContextTokens?: number | null): Event[] => {
     const output = testModelOutput({
       usage: testModelUsage({
         input_tokens: 3000,
@@ -376,7 +376,9 @@ describe("token burn", () => {
         total_tokens: 3390,
       }),
     });
-    if (inputContextTokens === null) output.input_context_tokens = null;
+    if (inputContextTokens !== undefined) {
+      output.input_context_tokens = inputContextTokens;
+    }
     return [
       testModelEvent({
         timestamp: iso(0),
@@ -410,10 +412,9 @@ describe("token burn", () => {
   ])(
     "falls back to usage when input_context_tokens is %s",
     (_label, inputContextTokens) => {
-      const events = billedOnly();
-      const event = events[0] as ModelEvent;
-      event.output.input_context_tokens = inputContextTokens;
-      const data = deriveActivityData({ events });
+      const data = deriveActivityData({
+        events: billedOnly(inputContextTokens),
+      });
 
       expect(data.contextSeries[0]?.value).toBe(3300);
       expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
