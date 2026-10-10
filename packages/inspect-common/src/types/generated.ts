@@ -2788,6 +2788,10 @@ export interface components {
             response?: {
                 [key: string]: components["schemas"]["JsonValue"];
             } | null;
+            /** Response Headers */
+            response_headers?: {
+                [key: string]: string;
+            } | null;
             /** Time */
             time?: number | null;
         };
