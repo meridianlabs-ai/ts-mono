@@ -17,6 +17,9 @@ interface ToolBlockProps {
    * border of their own — the turn container frames them. */
   flush?: boolean;
   className?: string | string[];
+  /** Optional leading element rendered before the tool icon (e.g. a
+   *  selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
   children?: ReactNode;
 }
 
@@ -33,6 +36,7 @@ export const ToolBlock: FC<ToolBlockProps> = ({
   pill,
   flush,
   className,
+  headerLeading,
   children,
 }) => {
   return (
@@ -45,6 +49,7 @@ export const ToolBlock: FC<ToolBlockProps> = ({
       )}
     >
       <div className={styles.header}>
+        {headerLeading}
         <i className={clsx("bi", icon, styles.icon)} />
         <span className={styles.title}>{title}</span>
         {summary ? <span className={styles.summary}>{summary}</span> : null}

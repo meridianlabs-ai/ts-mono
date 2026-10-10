@@ -40,6 +40,9 @@ export interface ClientToolCallProps {
   afterOutput?: ReactNode;
   /** Rendered in place of the output, for a call that never ran. */
   outputReplacement?: ReactNode;
+  /** Optional leading element rendered before the tool icon in the header
+   *  (e.g. a selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
 }
 
 /**
@@ -65,6 +68,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   afterInput,
   afterOutput,
   outputReplacement,
+  headerLeading,
 }) => {
   const customContent = useCustomContent();
 
@@ -88,6 +92,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   if (customView) {
     return (
       <div className={clsx(styles.custom, className)}>
+        {headerLeading}
         {customView}
         {afterInput}
         {outputReplacement}
@@ -118,6 +123,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
       className={className}
+      headerLeading={headerLeading}
     >
       {hasInput || argsInInputZone ? (
         <ToolBlockInput>

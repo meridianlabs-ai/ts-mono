@@ -168,3 +168,33 @@ describe("ToolOutput JSON-looking text", () => {
     expect(container.querySelector("code")?.textContent).toBe("{not json}");
   });
 });
+
+describe("ClientToolCall selection", () => {
+  it("keeps the selection control when a custom tool view owns the content", () => {
+    const { getByRole, getByText } = render(
+      <ClientToolCall
+        id="custom-tool"
+        tool="custom"
+        functionCall="custom()"
+        output="result"
+        getCustomToolView={() => <div>Custom tool content</div>}
+        headerLeading={
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={false}
+            aria-label="Select message"
+          />
+        }
+      />
+    );
+    expect(getByText("Custom tool content").textContent).toBe(
+      "Custom tool content"
+    );
+    expect(
+      getByRole("checkbox", { name: "Select message" }).getAttribute(
+        "aria-checked"
+      )
+    ).toBe("false");
+  });
+});

@@ -29,6 +29,24 @@ export {
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
+export { messagesToMarkdown } from "./messagesToMarkdown";
+
+// Evidence selection (issue #631): message equivalents of the transcript
+// selection machinery.
+export type {
+  MessageRowSelectionProps,
+  MessageSelection,
+  MessageSelectionState,
+} from "./selection/messageSelection";
+export {
+  buildSelectableMessageIndex,
+  kEmptyMessageSelection,
+  resolveSelectedMessageIds,
+  resolveSelectedMessages,
+} from "./selection/messageSelection";
+export type { MessageRowSelection } from "./selection/MessageSelectCheckbox";
+export { MessageSelectCheckbox } from "./selection/MessageSelectCheckbox";
+
 export { messageSearchText } from "./messageSearchText";
 
 // Tool utilities
