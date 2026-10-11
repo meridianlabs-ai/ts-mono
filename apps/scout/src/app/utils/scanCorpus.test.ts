@@ -24,7 +24,7 @@ import { describe, expect, it } from "vitest";
 import { decodeArrowBytes, isRecord } from "@tsmono/util";
 
 import { expandResultsetRows } from "./arrow";
-import { rowRecords, rowsWhere, stringColumn } from "./arrowCells";
+import { rowsWhere, stringColumn } from "./arrowCells";
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
 const fixturesDir = join(process.cwd(), "src/app/utils/fixtures");
@@ -66,7 +66,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     const table = await loadFixture(name);
     expect(table.numRows()).toBeGreaterThan(0);
 
-    const summaries = await parseScanResultSummaries(rowRecords(table));
+    const summaries = await parseScanResultSummaries(table);
     expect(summaries.length).toBe(table.numRows());
 
     for (const summary of summaries) {
@@ -101,7 +101,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     // doubles the row count (synthetic missing-label rows may add more).
     expect(table.numRows()).toBeGreaterThanOrEqual(8);
 
-    const summaries = await parseScanResultSummaries(rowRecords(table));
+    const summaries = await parseScanResultSummaries(table);
     const labeled = summaries.filter((s) => s.label !== undefined);
     expect(labeled.length).toBeGreaterThan(0);
     for (const summary of labeled) {

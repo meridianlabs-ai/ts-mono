@@ -1,11 +1,11 @@
-import { ColumnTable, from } from "arquero";
+import { table as arqueroTable, ColumnTable } from "arquero";
 import JSON5 from "json5";
 
 import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
-import { rowRecords, rowsWhere } from "./arrowCells";
+import { rowIndicesWhere, rowRecords } from "./arrowCells";
 
 interface Result {
   uuid?: string | null;
@@ -67,20 +67,23 @@ export async function expandResultsetRows(
 
   // Split into resultset and non-resultset rows
   const isResultset = (valueType: unknown) => valueType === "resultset";
-  const resultsetRows = rowsWhere(columnTable, "value_type", isResultset);
-  if (resultsetRows.numRows() === 0) {
+  const resultsetIndices = rowIndicesWhere(
+    columnTable,
+    "value_type",
+    isResultset
+  );
+  if (resultsetIndices.length === 0) {
     // No result sets
     return columnTable;
   }
-  const otherRows = rowsWhere(
+  const otherIndices = rowIndicesWhere(
     columnTable,
     "value_type",
     (valueType) => !isResultset(valueType)
   );
 
   // Parse JSON value strings and expand into multiple rows
-  // (Arquero doesn't support try-catch in derive expressions, so we do this in plain JS)
-  const resultObjs = rowRecords(resultsetRows);
+  const resultObjs = rowRecords(columnTable.reify(resultsetIndices));
   const explodedResultsetRows: Record<string, unknown>[] = [];
 
   for (const row of resultObjs) {
@@ -170,20 +173,45 @@ export async function expandResultsetRows(
 
   // Combine with non-resultset rows
   if (explodedResultsetRows.length === 0) {
-    return otherRows;
+    return columnTable.reify(otherIndices);
   } else {
-    // Create an array merging all the rows and convert back to a column table
-    const otherRowsArray = rowRecords(otherRows);
-
-    const allRowsArray = [
-      ...otherRowsArray,
+    return appendRows(columnTable, otherIndices, [
       ...explodedResultsetRows,
       ...syntheticRows,
-    ];
-
-    // Create new table from combined array
-    return from(allRowsArray);
+    ]);
   }
+}
+
+/**
+ * The table `from([...records of table's rows at indices, ...rows])` builds,
+ * without a record per table row: most rows of a large scan aren't
+ * resultsets, and copying their columns is far cheaper than making records.
+ */
+function appendRows(
+  table: ColumnTable,
+  indices: number[],
+  rows: Record<string, unknown>[]
+): ColumnTable {
+  // from() takes its columns from the first row
+  const first = rows[0];
+  const names =
+    indices.length > 0 || !first ? table.columnNames() : Object.keys(first);
+  const columns: Record<string, unknown[]> = {};
+  for (const name of names) {
+    const source = table.column(name);
+    const cells = new Array<unknown>(indices.length + rows.length);
+    let next = 0;
+    if (source) {
+      for (const index of indices) {
+        cells[next++] = source.at(index);
+      }
+    }
+    for (const row of rows) {
+      cells[next++] = row[name];
+    }
+    columns[name] = cells;
+  }
+  return arqueroTable(columns, names);
 }
 
 async function extractLabelValidation(

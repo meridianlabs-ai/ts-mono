@@ -65,19 +65,22 @@ export const stringColumn = (table: ColumnTable, column: string): string[] => {
   return Array.from(values).filter((v): v is string => typeof v === "string");
 };
 
-// Arquero compiles its expressions (filter, derive, ...) and its objects()
-// row builder with `Function`, which throws under a Content-Security-Policy
-// without 'unsafe-eval'. Scout reads tables through the column arrays below
-// instead.
+// Arquero builds filter(), derive() and objects() with `Function`, which a
+// CSP without 'unsafe-eval' blocks, so Scout reads tables through these.
 
 /** Every row as a column->value record. */
 export const rowRecords = (table: ColumnTable): Record<string, unknown>[] => {
   const columns = table
     .columnNames()
     .map((name): [string, ArrayLike<unknown>] => [name, table.array(name)]);
+  // Copying a record that already has every key keeps V8's stores in place;
+  // adding the keys one at a time is ~3x slower on wide tables.
+  const template: Record<string, unknown> = Object.fromEntries(
+    columns.map(([name]) => [name, undefined])
+  );
   const records: Record<string, unknown>[] = [];
   for (let row = 0; row < table.numRows(); row++) {
-    const record: Record<string, unknown> = {};
+    const record = { ...template };
     for (const [name, cells] of columns) {
       record[name] = cells[row];
     }
@@ -86,22 +89,31 @@ export const rowRecords = (table: ColumnTable): Record<string, unknown>[] => {
   return records;
 };
 
-/** The rows whose `column` cell satisfies `keep`, with every column. */
-export const rowsWhere = (
+/**
+ * Data indices (what `reify` and `column().at` take) of the rows whose
+ * `column` cell satisfies `keep`, in table order.
+ */
+export const rowIndicesWhere = (
   table: ColumnTable,
   column: string,
   keep: (cell: unknown) => boolean
-): ColumnTable => {
+): number[] => {
   const cells = table.column(column);
   if (!cells) {
     throw new Error(`No column "${column}" to filter on`);
   }
-  // scan hands over data row indices, which is what reify takes
   const indices: number[] = [];
   table.scan((row) => {
     if (row !== undefined && keep(cells.at(row))) {
       indices.push(row);
     }
   }, true);
-  return table.reify(indices);
+  return indices;
 };
+
+/** The rows whose `column` cell satisfies `keep`, with every column. */
+export const rowsWhere = (
+  table: ColumnTable,
+  column: string,
+  keep: (cell: unknown) => boolean
+): ColumnTable => table.reify(rowIndicesWhere(table, column, keep));
