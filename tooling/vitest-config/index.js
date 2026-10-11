@@ -12,7 +12,7 @@ const MODULE_MOCK =
 const NO_UNSAFE_EVAL_DIRECTIVE = /@no-unsafe-eval\b/;
 
 // What a Content-Security-Policy without 'unsafe-eval' does in the browser:
-// eval, new Function and string timers throw EvalError.
+// eval and new Function throw EvalError.
 const NO_UNSAFE_EVAL_ARGV = ["--disallow-code-generation-from-strings"];
 
 /**
@@ -144,6 +144,8 @@ export const splitTestEnvironments = (config, root) => {
         name: "no-unsafe-eval",
         include: groups.noUnsafeEval,
         environment: "node",
+        // worker_threads reject V8 flags in execArgv
+        pool: "forks",
         execArgv: NO_UNSAFE_EVAL_ARGV,
       },
     });

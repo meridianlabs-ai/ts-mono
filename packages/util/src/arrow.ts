@@ -109,9 +109,7 @@ export const castScanValue = (value: unknown, valueType: string): unknown => {
 // When Arrow/Pandas encounters mixed-type columns (e.g., numbers and nulls),
 // it converts everything to strings for safety. This function restores the
 // original types based on the value_type column (or a known type). Plain
-// loops rather than arquero's derive(), which compiles its expressions with
-// `Function` and so throws under a Content-Security-Policy without
-// 'unsafe-eval'.
+// loops, since arquero's derive() needs 'unsafe-eval'.
 function castColumns(columns: Record<string, unknown[]>): void {
   const { value, value_type: valueType, scan_error_refusal } = columns;
 
