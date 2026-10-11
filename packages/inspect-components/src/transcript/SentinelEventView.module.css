@@ -71,11 +71,11 @@
   gap: 8px;
 }
 
-.continue {
+.proceed {
   color: var(--bs-secondary-color);
 }
 
-.inactive .continue {
+.inactive .proceed {
   color: inherit;
 }
 

@@ -251,6 +251,10 @@ const eventFixes = (
     case "span_end":
       if (typeof raw["id"] !== "string") fix("id", "");
       break;
+    case "sentinel":
+      // Logs written before the "continue" action was renamed "proceed".
+      if (raw["action"] === "continue") fix("action", "proceed");
+      break;
     default:
       // Unknown/future event kinds pass through untouched beyond the base
       // fields — the viewer degrades gracefully rather than dropping them.
