@@ -1,6 +1,4 @@
-import { ColumnTable } from "arquero";
-
-import { isRecord } from "@tsmono/util";
+import type { ColumnTable } from "arquero";
 
 /**
  * Checked readers for arquero cells. Arquero types every cell as `DataValue`
@@ -61,31 +59,49 @@ export const optionalIdCell = (
 /** The raw cell, for columns whose value is normalized elsewhere. */
 export const rawCell = cell;
 
-/**
- * `params(values)` returns the table; the `Params` half of its return type is
- * the no-argument getter form, which narrowing discards.
- */
-export const withParams = (
-  table: ColumnTable,
-  values: Record<string, unknown>
-): ColumnTable => {
-  const scoped = table.params(values);
-  if (!(scoped instanceof ColumnTable)) {
-    throw new Error("arquero params() did not return the table");
-  }
-  return scoped;
-};
-
 /** Every value in a column, with non-string cells dropped. */
 export const stringColumn = (table: ColumnTable, column: string): string[] => {
   const values: ArrayLike<unknown> = table.array(column);
   return Array.from(values).filter((v): v is string => typeof v === "string");
 };
 
-/**
- * `objects()` is typed `object[]`; every row is a column->value record.
- * Filtering rather than asserting drops nothing in practice and keeps the
- * index signature honest.
- */
-export const rowRecords = (table: ColumnTable): Record<string, unknown>[] =>
-  table.objects().filter(isRecord);
+// Arquero compiles its expressions (filter, derive, ...) and its objects()
+// row builder with `Function`, which throws under a Content-Security-Policy
+// without 'unsafe-eval'. Scout reads tables through the column arrays below
+// instead.
+
+/** Every row as a column->value record. */
+export const rowRecords = (table: ColumnTable): Record<string, unknown>[] => {
+  const columns = table
+    .columnNames()
+    .map((name): [string, ArrayLike<unknown>] => [name, table.array(name)]);
+  const records: Record<string, unknown>[] = [];
+  for (let row = 0; row < table.numRows(); row++) {
+    const record: Record<string, unknown> = {};
+    for (const [name, cells] of columns) {
+      record[name] = cells[row];
+    }
+    records.push(record);
+  }
+  return records;
+};
+
+/** The rows whose `column` cell satisfies `keep`, with every column. */
+export const rowsWhere = (
+  table: ColumnTable,
+  column: string,
+  keep: (cell: unknown) => boolean
+): ColumnTable => {
+  const cells = table.column(column);
+  if (!cells) {
+    throw new Error(`No column "${column}" to filter on`);
+  }
+  // scan hands over data row indices, which is what reify takes
+  const indices: number[] = [];
+  table.scan((row) => {
+    if (row !== undefined && keep(cells.at(row))) {
+      indices.push(row);
+    }
+  }, true);
+  return table.reify(indices);
+};

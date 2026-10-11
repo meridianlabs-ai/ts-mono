@@ -5,7 +5,7 @@ import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
-import { rowRecords } from "./arrowCells";
+import { rowRecords, rowsWhere } from "./arrowCells";
 
 interface Result {
   uuid?: string | null;
@@ -65,21 +65,17 @@ export async function expandResultsetRows(
     return columnTable;
   }
 
-  // Are there any results sets to explode?
-  const resultsetCount = columnTable
-    .filter((d: { value_type: string }) => d.value_type === "resultset")
-    .numRows();
-  if (resultsetCount === 0) {
+  // Split into resultset and non-resultset rows
+  const isResultset = (valueType: unknown) => valueType === "resultset";
+  const resultsetRows = rowsWhere(columnTable, "value_type", isResultset);
+  if (resultsetRows.numRows() === 0) {
     // No result sets
     return columnTable;
   }
-
-  // Split into resultset and non-resultset rows
-  const resultsetRows = columnTable.filter(
-    (d: { value_type: string }) => d.value_type === "resultset"
-  );
-  const otherRows = columnTable.filter(
-    (d: { value_type: string }) => d.value_type !== "resultset"
+  const otherRows = rowsWhere(
+    columnTable,
+    "value_type",
+    (valueType) => !isResultset(valueType)
   );
 
   // Parse JSON value strings and expand into multiple rows
