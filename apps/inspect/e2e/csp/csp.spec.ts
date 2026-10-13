@@ -1,8 +1,4 @@
-import type { NetworkFixture } from "@msw/playwright";
 import type { Page } from "@playwright/test";
-import { http, HttpResponse } from "msw";
-
-import type { EvalLog } from "@tsmono/inspect-common/types";
 
 import { expect, test } from "../fixtures/app";
 import { serveEvalLog } from "../fixtures/serve-log";
@@ -24,22 +20,6 @@ const kExpectedPolicy =
   "img-src 'self' data:; media-src data:; font-src 'self'; " +
   "connect-src 'self'; object-src 'none'; frame-src 'none'; " +
   "base-uri 'none'; form-action 'none'";
-
-/** Serve one log for both the log list and deep links into it. */
-const serveLog = (network: NetworkFixture, evalLog: EvalLog, file: string) => {
-  serveEvalLog(network, evalLog, file);
-  network.use(
-    http.get("*/api/log-dir", () => HttpResponse.json({ log_dir: "/logs" })),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({
-        files: [
-          { name: `/logs/${file}`, task: "test-task", task_id: "test-task" },
-        ],
-        response_type: "full",
-      })
-    )
-  );
-};
 
 const isDirectives = (value: unknown): value is Record<string, string[]> =>
   typeof value === "object" &&
@@ -82,7 +62,7 @@ test("the preview serves the built policy file, which pins the policy", async ({
 });
 
 test("data: audio and video load", async ({ page, network }) => {
-  serveLog(network, mainLog, "csp-main.json");
+  serveEvalLog(network, mainLog, "csp-main.json");
   await page.goto(sampleUrl("csp-main.json", "media", "messages"));
   for (const selector of ["audio", "video"]) {
     await expect
@@ -102,7 +82,7 @@ test("the filter editor gets CodeMirror's styles", async ({
   page,
   network,
 }) => {
-  serveLog(network, mainLog, "csp-main.json");
+  serveEvalLog(network, mainLog, "csp-main.json");
   await page.goto(`/#/logs/${encodeURIComponent("csp-main.json")}/samples`);
   await expect(page.locator(".cm-editor").first()).toHaveCSS("display", "flex");
 });
@@ -112,7 +92,7 @@ test("the human-baseline terminal draws its session", async ({
   page,
   network,
 }) => {
-  serveLog(network, mainLog, "csp-main.json");
+  serveEvalLog(network, mainLog, "csp-main.json");
   await page.goto(sampleUrl("csp-main.json", "terminal", "transcript"));
   await page.getByText("Terminal Session").click();
   await expect(page.locator(".ap-player").first()).toContainText(kTerminalText);
@@ -125,7 +105,7 @@ test("the theme bootstrap applies the system theme before the body parses", asyn
   page,
   network,
 }) => {
-  serveLog(network, mainLog, "csp-main.json");
+  serveEvalLog(network, mainLog, "csp-main.json");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -161,7 +141,7 @@ test.describe("rendering canary", () => {
     network,
     cspViolations,
   }) => {
-    serveLog(network, canaryLog, "csp-canary.json");
+    serveEvalLog(network, canaryLog, "csp-canary.json");
     await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
     await openVectors(page);
 
