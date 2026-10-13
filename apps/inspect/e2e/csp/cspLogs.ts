@@ -14,6 +14,8 @@ const probe = (path: string): string => `https://${kProbeHost}/${path}`;
 
 export const kTerminalText = "csp-terminal-ok";
 
+export const kBrokenPngDataUri = "data:image/png;base64,AAAA";
+
 // A `script -T` recording: header line, then the bytes the timing file meters.
 const terminalHeader =
   'Script started on 2026-01-01 00:00:00+00:00 [COLUMNS="40" LINES="6"]\n';
@@ -80,7 +82,11 @@ export const kCanaryMarkdown = [
     `<table background="${probe("table")}"><tr><td>table</td></tr></table>`
   ),
   breakout(`<img src="${probe("img")}">`),
-  breakout(`<img src="x" onerror="fetch('${probe("onerror")}')">`),
+  // A src the sanitizer keeps (inline raster data) that fails to decode, so
+  // the handler fires if it survives.
+  breakout(
+    `<img src="${kBrokenPngDataUri}" onerror="fetch('${probe("onerror")}')">`
+  ),
   breakout(`<svg onload="fetch('${probe("svg-onload")}')"></svg>`),
   breakout(`<a href="javascript:fetch('${probe("javascript")}')">js link</a>`),
   breakout(

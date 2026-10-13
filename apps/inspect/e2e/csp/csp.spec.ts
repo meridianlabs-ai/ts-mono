@@ -3,7 +3,13 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/app";
 import { serveEvalLog } from "../fixtures/serve-log";
 
-import { canaryLog, kProbeHost, kTerminalText, mainLog } from "./cspLogs";
+import {
+  canaryLog,
+  kBrokenPngDataUri,
+  kProbeHost,
+  kTerminalText,
+  mainLog,
+} from "./cspLogs";
 
 // Runs against the production build under `vite preview`, which sends the
 // built policy as a header the way `inspect view` does (see
@@ -157,6 +163,18 @@ const openVectors = async (page: Page) => {
   await expect(page.locator(`table[background*="${kProbeHost}"]`)).toHaveCount(
     1
   );
+  // The onerror vector's image has failed to decode, so its handler, if the
+  // sanitizer let one through, has run.
+  await expect
+    .poll(() =>
+      page
+        .locator(`img[src="${kBrokenPngDataUri}"]`)
+        .evaluate(
+          (image: HTMLImageElement) =>
+            image.complete && image.naturalWidth === 0
+        )
+    )
+    .toBe(true);
   await jsLink.dispatchEvent("click");
   await cssUrl.dispatchEvent("mouseover");
 };
