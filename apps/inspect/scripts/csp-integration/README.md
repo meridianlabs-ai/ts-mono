@@ -1,5 +1,7 @@
 # CSP integration check
 
+Parked here from meridianlabs-ai/ts-mono#696, which ships without it. It needs inspect_ai and inspect_vscode checkouts, so it is a candidate for the nightly cross-repo job in inspect_scout rather than this repo.
+
 The viewer's Content-Security-Policy is built here (`dist/content-security-policy.json`), but it only takes effect once a host delivers it:
 
 | Host                  | How the policy is delivered                                                                        | Where                                     |
