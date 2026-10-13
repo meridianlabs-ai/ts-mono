@@ -568,15 +568,19 @@ const tokenCount = (value: number | null | undefined): number | undefined =>
     ? value
     : undefined;
 
-/** The call's recorded input_context_tokens, when it is a valid count. */
-const recordedContextTokens = (event: ModelEvent): number | undefined =>
-  tokenCount(event.output.input_context_tokens);
+/** The call's recorded input_context_tokens, when it is a valid count. Zero
+ *  reads as unknown: no request has an empty input, so it only reports a
+ *  usage that said 0. */
+const recordedContextTokens = (event: ModelEvent): number | undefined => {
+  const context = tokenCount(event.output.input_context_tokens);
+  return context === 0 ? undefined : context;
+};
 
 /** Input-side tokens for one model call (context occupancy). Prefers the
  *  recorded input_context_tokens: usage is billed, and for a call that made
- *  several requests it sums them. When it is null, absent or invalid (not
- *  known, or a log from before the field) this falls back to the shared total
- *  minus the output side: summing
+ *  several requests it sums them. When it is null, absent, zero or invalid
+ *  (not known, or a log from before the field) this falls back to the
+ *  shared total minus the output side: summing
  *  input + cache categories directly would double-count on providers whose
  *  input_tokens already includes cached reads (OpenAI), and deriving from
  *  usageTotal keeps this surface consistent with the Usage tab. */

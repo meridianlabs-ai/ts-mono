@@ -407,6 +407,7 @@ describe("token burn", () => {
   );
 
   it.each([
+    ["zero (unknown)", 0],
     ["negative", -1],
     ["above the safe integer range", 1e308],
   ])(
