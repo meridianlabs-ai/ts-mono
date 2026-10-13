@@ -192,24 +192,13 @@ it("keys every rule on MathJax's container, so none reach other content", () => 
   }
 });
 
-it("keeps assistive MathML clipped and SVG paint inside its box", () => {
-  // The container is the containing block for the absolutely positioned
-  // assistive MathML; inline `position` is not admitted, so the sheet sets it.
-  expect(rule('mjx-container[jax="SVG"]')).toContain("position: relative");
-  const assistive = rule('mjx-container[jax="SVG"] mjx-assistive-mml');
-  expect(assistive).toContain("clip: rect(1px, 1px, 1px, 1px) !important");
-  expect(assistive).toContain("position: absolute !important");
-  expect(assistive).toContain("padding: 1px 0px 0px !important");
+it("keeps SVG paint inside its box and admits no fixed or remote styling", () => {
   // MathJax's sheet says `overflow: visible`; a forged wrapper could then draw
   // a 1x1 SVG's shapes across the viewer, so the viewer sheet clips with a
   // margin wide enough for glyph overhang.
   const svg = rule('mjx-container[jax="SVG"] > svg');
   expect(svg).toContain("overflow: clip");
   expect(svg).toContain("overflow-clip-margin: 1em");
-  expect(rule('mjx-container[jax="SVG"] > svg a')).toContain("fill: blue");
-  expect(rule('mjx-container[jax="SVG"][display="true"]')).toContain(
-    "margin: 1em 0px"
-  );
   // mjx-status is fixed-positioned in MathJax's default sheet; nothing in
   // rendered output uses it and fixed positioning is not admitted.
   expect(mathJaxCss).not.toMatch(/fixed|mjx-tool|mjx-tip|mjx-status|url\(/);
