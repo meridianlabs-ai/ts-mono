@@ -61,9 +61,10 @@ mode, static hosting, VS Code, and the embeddable library.
   way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
   `getByTestId("log-location-gate")` /
   `getByRole("heading", { name: /Can't open logs from/ })`, then
-  `Continue without it` (which strips the proposal from the URL). Don't assert
-  that no request reached the proposed origin: the preview build's CSP blocks
-  it by itself, so that check can't fail.
+  `Continue without it` (which strips the proposal from the URL). On the
+  preview build a request to the proposed origin never reaches MSW (the CSP
+  blocks it), so check for it as a `connect-src` CSP violation, not an MSW
+  hit.
 
 ## Code landmarks
 

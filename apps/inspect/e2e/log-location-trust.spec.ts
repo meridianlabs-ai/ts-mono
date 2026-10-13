@@ -1,9 +1,9 @@
 /**
  * A link may propose a log location but not set one (#615). The browser-hosted
  * viewer refuses an origin named only by `?log_dir=` / `?log_file=`, a hash
- * route, or a window message. Whether a request reaches that origin isn't
- * asserted: the viewer's CSP (`connect-src 'self'`) blocks it before MSW sees
- * it, so such an assertion couldn't fail.
+ * route, or a window message. A request to that origin would be blocked by the
+ * viewer's CSP before MSW sees it, so these specs don't count requests there;
+ * the `cspViolations` fixture fails them on the blocked request instead.
  */
 import type { NetworkFixture } from "@msw/playwright";
 import { http, HttpResponse } from "msw";
