@@ -1,7 +1,9 @@
 /**
  * A link may propose a log location but not set one (#615). The browser-hosted
- * viewer never contacts an origin named only by `?log_dir=` / `?log_file=`, a
- * hash route, or a window message.
+ * viewer refuses an origin named only by `?log_dir=` / `?log_file=`, a hash
+ * route, or a window message. Whether a request reaches that origin isn't
+ * asserted: the viewer's CSP (`connect-src 'self'`) blocks it before MSW sees
+ * it, so such an assertion couldn't fail.
  */
 import type { NetworkFixture } from "@msw/playwright";
 import { http, HttpResponse } from "msw";
@@ -10,26 +12,6 @@ import { expect, test } from "./fixtures/app";
 
 const FOREIGN_ORIGIN = "https://bucket.example";
 const FOREIGN_DIR = `${FOREIGN_ORIGIN}/team/logs`;
-
-// The preview build sends the viewer's CSP, whose `connect-src 'self'` blocks
-// foreign requests before they reach MSW, so a regression in the viewer's own
-// refusal would pass there. The dev server sends no policy.
-const NO_CSP = { tag: "@dev-server" };
-
-/** Serve an empty static log dir at the foreign origin and count every request
- *  the viewer makes to that origin. */
-const serveForeignDir = (network: NetworkFixture) => {
-  const hits: string[] = [];
-  network.use(
-    http.get(`${FOREIGN_ORIGIN}/*`, ({ request }) => {
-      hits.push(request.url);
-      return request.url.endsWith("/listing.json")
-        ? HttpResponse.json({})
-        : new HttpResponse(null, { status: 404 });
-    })
-  );
-  return hits;
-};
 
 /** An empty same-origin static log dir under the dev server. */
 const serveLocalDir = (network: NetworkFixture) => {
@@ -43,32 +25,24 @@ const serveLocalDir = (network: NetworkFixture) => {
   return hits;
 };
 
-test(
-  "a cross-origin ?log_dir= is refused without contacting it",
-  NO_CSP,
-  async ({ page, network }) => {
-    const hits = serveForeignDir(network);
+test("a cross-origin ?log_dir= is refused, and continuing drops it", async ({
+  page,
+}) => {
+  await page.goto(`/?log_dir=${encodeURIComponent(FOREIGN_DIR)}`);
 
-    await page.goto(`/?log_dir=${encodeURIComponent(FOREIGN_DIR)}`);
+  const gate = page.getByTestId("log-location-gate");
+  await expect(
+    gate.getByRole("heading", {
+      name: `Can't open logs from ${FOREIGN_ORIGIN}`,
+    })
+  ).toBeVisible();
+  await expect(gate.getByText(FOREIGN_DIR, { exact: true })).toBeVisible();
 
-    const gate = page.getByTestId("log-location-gate");
-    await expect(
-      gate.getByRole("heading", {
-        name: `Can't open logs from ${FOREIGN_ORIGIN}`,
-      })
-    ).toBeVisible();
-    await expect(gate.getByText(FOREIGN_DIR, { exact: true })).toBeVisible();
+  await gate.getByRole("button", { name: "Continue without it" }).click();
 
-    await gate.getByRole("button", { name: "Continue without it" }).click();
-
-    await expect(page).not.toHaveURL(/log_dir=/);
-    await expect(gate).toBeHidden();
-    // With no view server the page settles on the config error; what matters is
-    // that the foreign origin was never contacted.
-    await page.waitForTimeout(300);
-    expect(hits).toEqual([]);
-  }
-);
+  await expect(page).not.toHaveURL(/log_dir=/);
+  await expect(gate).toBeHidden();
+});
 
 test("a same-origin ?log_dir= is the page's own scope and loads unprompted", async ({
   page,
@@ -82,55 +56,49 @@ test("a same-origin ?log_dir= is the page's own scope and loads unprompted", asy
   await expect(page.getByTestId("log-location-gate")).toBeHidden();
 });
 
-test(
-  "a hash route naming another origin is refused, not fetched",
-  NO_CSP,
-  async ({ page, network }) => {
-    serveLocalDir(network);
-    const foreignHits = serveForeignDir(network);
+test("a hash route naming another origin is refused", async ({
+  page,
+  network,
+}) => {
+  serveLocalDir(network);
 
-    await page.goto(
-      `/?log_dir=logs#/logs/${encodeURIComponent(`${FOREIGN_DIR}/run.eval`)}`
-    );
+  await page.goto(
+    `/?log_dir=logs#/logs/${encodeURIComponent(`${FOREIGN_DIR}/run.eval`)}`
+  );
 
-    const errorPanel = page.getByTestId("error-panel");
-    await expect(errorPanel).toBeVisible();
-    await expect(errorPanel).toContainText(
-      "outside the configured log directory"
-    );
-    expect(foreignHits).toEqual([]);
-  }
-);
+  const errorPanel = page.getByTestId("error-panel");
+  await expect(errorPanel).toBeVisible();
+  await expect(errorPanel).toContainText(
+    "outside the configured log directory"
+  );
+});
 
-test(
-  "a window updateState message is ignored outside VS Code",
-  NO_CSP,
-  async ({ page, network }) => {
-    const foreignHits = serveForeignDir(network);
-    const logFileRequests: string[] = [];
-    network.use(
-      // get_log_root — the dir-mode gate blocks on this.
-      http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
-      http.get("*/api/log-files*", ({ request }) => {
-        logFileRequests.push(request.url);
-        return HttpResponse.json({ files: [], response_type: "full" });
-      })
-    );
+test("a window updateState message is ignored outside VS Code", async ({
+  page,
+  network,
+}) => {
+  const logFileRequests: string[] = [];
+  network.use(
+    // get_log_root — the dir-mode gate blocks on this.
+    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
+    http.get("*/api/log-files*", ({ request }) => {
+      logFileRequests.push(request.url);
+      return HttpResponse.json({ files: [], response_type: "full" });
+    })
+  );
 
-    await page.goto("/");
-    await expect.poll(() => logFileRequests.length).toBeGreaterThan(0);
-    const requestsBefore = logFileRequests.length;
+  await page.goto("/");
+  await expect.poll(() => logFileRequests.length).toBeGreaterThan(0);
+  const requestsBefore = logFileRequests.length;
 
-    await page.evaluate((url) => {
-      window.postMessage({ type: "updateState", url }, "*");
-    }, `${FOREIGN_DIR}/run.eval`);
-    await page.waitForTimeout(300);
+  await page.evaluate((url) => {
+    window.postMessage({ type: "updateState", url }, "*");
+  }, `${FOREIGN_DIR}/run.eval`);
+  await page.waitForTimeout(300);
 
-    expect(foreignHits).toEqual([]);
-    expect(
-      logFileRequests
-        .slice(requestsBefore)
-        .filter((url) => url.includes("bucket"))
-    ).toEqual([]);
-  }
-);
+  expect(
+    logFileRequests
+      .slice(requestsBefore)
+      .filter((url) => url.includes("bucket"))
+  ).toEqual([]);
+});

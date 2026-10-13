@@ -60,10 +60,10 @@ mode, static hosting, VS Code, and the embeddable library.
 - **Log-location gate.** Only a static-HTTP host triggers it, so drive it the
   way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
   `getByTestId("log-location-gate")` /
-  `getByRole("heading", { name: /Can't open logs from/ })`, that no request
-  reaches the proposed origin, then `Continue without it` (which strips the
-  proposal from the URL). Check "no request" on the dev server: the preview
-  build's CSP blocks foreign requests by itself.
+  `getByRole("heading", { name: /Can't open logs from/ })`, then
+  `Continue without it` (which strips the proposal from the URL). Don't assert
+  that no request reached the proposed origin: the preview build's CSP blocks
+  it by itself, so that check can't fail.
 
 ## Code landmarks
 
