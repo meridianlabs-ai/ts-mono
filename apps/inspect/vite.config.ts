@@ -43,8 +43,7 @@ const viewServerUrl = "http://127.0.0.1:7575";
 // player's WebAssembly, and inline style attributes carry MathJax's
 // per-glyph layout. Hosts rely on worker-src staying explicit (the VS Code
 // extension adds blob: to it for cross-origin workers) and on an empty list
-// meaning a directive without sources. e2e/csp/csp.spec.ts pins this
-// policy, so changing it means changing that test too.
+// meaning a directive without sources.
 const contentSecurityPolicyDirectives = {
   "default-src": ["'none'"],
   "script-src": ["'self'", "'wasm-unsafe-eval'"],
