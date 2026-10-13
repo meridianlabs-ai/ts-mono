@@ -70,6 +70,21 @@ describe("contentSecurityPolicy", () => {
     });
   });
 
+  it("hashes a CRLF inline script as the browser does, with LF", async () => {
+    const policy = await buildWithPolicy(
+      {
+        "index.html": page("<script>\r\nwindow.a = 1;\r\n</script>"),
+        "main.js": "",
+      },
+      { "script-src": ["'self'"] }
+    );
+
+    expect(policy.directives["script-src"]).toEqual([
+      "'self'",
+      sha256("\nwindow.a = 1;\n"),
+    ]);
+  });
+
   it("fails the build when a shipped worker evaluates code", async () => {
     await expect(
       buildWithPolicy(

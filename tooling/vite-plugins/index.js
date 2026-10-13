@@ -257,7 +257,11 @@ export function contentSecurityPolicy(directives) {
         if (SCRIPT_SRC.test(attributes)) continue;
         const type = SCRIPT_TYPE.exec(attributes)?.[1]?.toLowerCase();
         if (type && !EXECUTABLE_TYPES.has(type)) continue;
-        const digest = createHash("sha256").update(code).digest("base64");
+        // The browser hashes the text after HTML parsing turns CRLF and CR
+        // into LF; a Windows checkout's index.html can carry CRLF.
+        const digest = createHash("sha256")
+          .update(code.replace(/\r\n?/g, "\n"))
+          .digest("base64");
         hashes.push(`'sha256-${digest}'`);
       }
       const withHashes = Object.fromEntries(
