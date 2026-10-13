@@ -420,7 +420,7 @@ export const testSentinelEvent = (
   stage: "tool_call",
   kind: "decision",
   status: "reported",
-  action: "continue",
+  action: "proceed",
   audit: false,
   references: [],
   ...overrides,

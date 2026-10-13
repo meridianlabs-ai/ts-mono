@@ -47,7 +47,7 @@ export interface SentinelStep {
   returned: boolean;
   /** The check the summary names: the decision that took effect, or the top decision of a quiet step. */
   decider?: SentinelNode;
-  /** The check that made the step's decision; unset when every check continued. */
+  /** The check that made the step's decision; unset when every check proceeded. */
   effective?: SentinelNode;
   /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's. */
   reason?: string;
@@ -244,17 +244,17 @@ const isInactive = (
 
 /**
  * The verdict of a step the runner returned no decision for: observed when
- * only monitors reported, continued when a protocol reported but the root
+ * only monitors reported, proceeded when a protocol reported but the root
  * returned nothing, and the recorded status when the root or every check was
  * cancelled or bypassed.
  */
 const quietVerdict = (checks: SentinelNode[]): SentinelVerdict => {
   const rootStatus = checks.find((n) => n.event.path === "")?.event.status;
   if (rootStatus && isInactive(rootStatus)) return rootStatus;
-  if (checks.some((n) => reported(n, "decision"))) return "continue";
+  if (checks.some((n) => reported(n, "decision"))) return "proceed";
   if (checks.some((n) => reported(n, "observation"))) return "observe";
   const firstStatus = checks[0]?.event.status;
-  return firstStatus && isInactive(firstStatus) ? firstStatus : "continue";
+  return firstStatus && isInactive(firstStatus) ? firstStatus : "proceed";
 };
 
 /**
@@ -292,7 +292,7 @@ export function buildSentinelStep(
   const tree = buildTree(ordered);
 
   const outcome = outcomeOf(checks);
-  const acted = !!outcome && outcome.event.action !== "continue";
+  const acted = !!outcome && outcome.event.action !== "proceed";
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
 
@@ -323,7 +323,7 @@ export function buildSentinelStep(
       tookEffect: entry.node === effective,
     })),
     verdict: outcome
-      ? (outcome.event.action ?? "continue")
+      ? (outcome.event.action ?? "proceed")
       : quietVerdict(checks),
     outcome,
     returned: !!outcome,
@@ -351,8 +351,8 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
   const step = buildSentinelStep([node]);
   const event = node.event;
   if (!reported(node, "decision") || step.outcome) return step;
-  const verdict = event.action ?? "continue";
-  const acted = verdict !== "continue";
+  const verdict = event.action ?? "proceed";
+  const acted = verdict !== "proceed";
   return {
     ...step,
     verdict,
