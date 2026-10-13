@@ -318,25 +318,6 @@ async function checkHost({ label, baseUrl, assetOrigin, setup, blocks = [] }) {
   return failures.length === 0;
 }
 
-// Workers take their policy from their own response headers, which a meta
-// policy doesn't supply (bundles), and the page can't observe violations
-// inside them, so check statically that no shipped script evaluates code.
-const scanForEval = () => {
-  const assets = join(dist, "assets");
-  const offenders = readdirSync(assets)
-    .filter((f) => f.endsWith(".js"))
-    .filter((f) =>
-      /\bnew Function\s*\(|[^.\w$]eval\s*\(/.test(
-        readFileSync(join(assets, f), "utf-8")
-      )
-    );
-  const ok = offenders.length === 0;
-  console.log(`${ok ? "PASS" : "FAIL"}  no shipped script evaluates code`);
-  if (!ok)
-    console.log(`      ✗ new Function or eval in ${offenders.join(", ")}`);
-  return ok;
-};
-
 // --- VS Code webview emulation ---------------------------------------------
 
 const kWebview = "https://webview.vscode.test/index.html";
@@ -487,7 +468,6 @@ try {
   );
 
   const results = [
-    scanForEval(),
     await checkHost({ label: "inspect view (header)", baseUrl: `${server}/` }),
     await checkHost({
       label: "inspect view bundle (meta)",

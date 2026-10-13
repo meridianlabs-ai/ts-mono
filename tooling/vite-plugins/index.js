@@ -3,7 +3,7 @@
  */
 
 import { createHash } from "crypto";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { relative, resolve as resolvePath } from "path";
 
 import { build as esbuildBuild, context as esbuildContext } from "esbuild";
@@ -187,6 +187,27 @@ const validateDirectives = (directives) => {
   }
 };
 
+// Matches the shapes `'unsafe-eval'` governs. Worker code can't be checked in
+// the browser (the page doesn't see a worker's violations, and a bundle's
+// workers run with no policy), so the build checks every shipped script.
+const EVALS_CODE = /\bnew Function\s*\(|[^.\w$]eval\s*\(/;
+
+/** Throw if a script under `dir` contains code a policy without
+ *  `'unsafe-eval'` would block. */
+const rejectEval = (dir) => {
+  const offenders = readdirSync(dir, { recursive: true })
+    .map(String)
+    .filter((file) => file.endsWith(".js"))
+    .filter((file) =>
+      EVALS_CODE.test(readFileSync(resolvePath(dir, file), "utf8"))
+    );
+  if (offenders.length > 0) {
+    throw new Error(
+      `contentSecurityPolicy: script-src has no 'unsafe-eval', but these scripts evaluate code: ${offenders.join(", ")}`
+    );
+  }
+};
+
 /** File the build writes next to index.html; hosts deliver the policy from it. */
 export const CSP_FILE = "content-security-policy.json";
 
@@ -200,7 +221,9 @@ export const policyString = (directives) =>
  * Build: write the viewer's Content-Security-Policy to `CSP_FILE` in the
  * output directory, with a `'sha256-…'` source added to script-src (after
  * its first source) for every inline script in the emitted index.html, so
- * the hashes always match what ships.
+ * the hashes always match what ships. Unless script-src allows
+ * `'unsafe-eval'`, the build also fails if any emitted script contains
+ * `new Function(` or `eval(`.
  *
  * The policy is data rather than a <meta> in index.html because each host
  * delivers it its own way: `inspect view` as a header, `inspect view bundle`
@@ -249,6 +272,9 @@ export function contentSecurityPolicy(directives) {
         resolvePath(dir, CSP_FILE),
         `${JSON.stringify({ version: 1, directives: withHashes }, null, 2)}\n`
       );
+      if (!directives["script-src"]?.includes("'unsafe-eval'")) {
+        rejectEval(dir);
+      }
     },
     configurePreviewServer(server) {
       const file = resolvePath(outDir, CSP_FILE);

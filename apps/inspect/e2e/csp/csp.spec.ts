@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { NetworkFixture } from "@msw/playwright";
 import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
@@ -16,9 +14,10 @@ import { canaryLog, kProbeHost, kTerminalText, mainLog } from "./cspLogs";
 // playwright.config.ts and contentSecurityPolicy); the dev server sends none.
 
 // Pinned deliberately: loosening the viewer's CSP should mean editing this
-// line. HASHES stands for the build's inline-script hashes.
+// line. The build's inline-script hashes are left out; tooling/vite-plugins
+// tests how they're computed, and the theme test below fails if they're wrong.
 const kExpectedPolicy =
-  "default-src 'none'; script-src 'self' HASHES 'wasm-unsafe-eval'; " +
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; " +
   "worker-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; " +
   "img-src 'self' data:; media-src data:; font-src 'self'; " +
   "connect-src 'self'; object-src 'none'; frame-src 'none'; " +
@@ -132,33 +131,21 @@ const policyFileDirectives = (file: unknown): string[] =>
 const sampleUrl = (file: string, id: string, tab: string) =>
   `/#/logs/${encodeURIComponent(file)}/samples/sample/${id}/1/${tab}`;
 
-test("the build ships the pinned policy, hashing each inline script", async ({
+test("the preview serves the built policy file, which pins the policy", async ({
   request,
 }) => {
   const response = await request.get("/");
-  const html = await response.text();
   // Delivered by the host (here as a header), never baked into index.html,
   // where it would also bind hosts that can't strip it (VS Code).
-  expect(html).not.toContain("Content-Security-Policy");
-  const policy = response.headers()["content-security-policy"] ?? "";
+  expect(await response.text()).not.toContain("Content-Security-Policy");
+  const header = response.headers()["content-security-policy"] ?? "";
 
-  const inlineHashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-    ([, code]) =>
-      `'sha256-${createHash("sha256")
-        .update(code ?? "")
-        .digest("base64")}'`
-  );
-  expect(inlineHashes.length).toBeGreaterThan(0);
-  expect(policy).toBe(
-    kExpectedPolicy.replace("HASHES", inlineHashes.join(" "))
-  );
-
-  // The file hosts read the policy from says the same thing.
   const file: unknown = await (
     await request.get("/content-security-policy.json")
   ).json();
   expect(file).toMatchObject({ version: 1 });
-  expect(policyFileDirectives(file).join("; ")).toBe(policy);
+  expect(policyFileDirectives(file).join("; ")).toBe(header);
+  expect(header.replace(/ 'sha256-[^']+'/g, "")).toBe(kExpectedPolicy);
 });
 
 test("the main flows run with no CSP violation", async ({
