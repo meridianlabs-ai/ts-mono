@@ -1,4 +1,4 @@
-import { cpSync, rmSync } from "fs";
+import { cpSync, existsSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
 import react from "@vitejs/plugin-react-swc";
@@ -22,6 +22,10 @@ function copyToPythonRepo(): Plugin {
   return {
     name: "copy-to-python-repo",
     closeBundle() {
+      // closeBundle runs, with no error, even when the build failed after
+      // emptying dist (e.g. contentSecurityPolicy rejecting eval); don't wipe
+      // the Python repo's viewer with it.
+      if (!existsSync("dist/index.html")) return;
       const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
       const target = join(pythonRoot, "src/inspect_ai/_view/dist");

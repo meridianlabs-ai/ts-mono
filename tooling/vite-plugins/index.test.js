@@ -1,5 +1,11 @@
 import { createHash } from "crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -85,19 +91,51 @@ describe("contentSecurityPolicy", () => {
     ]);
   });
 
-  it("fails the build when a shipped worker evaluates code", async () => {
-    await expect(
-      buildWithPolicy(
-        {
-          "index.html": page(""),
-          "main.js":
-            'new Worker(new URL("./worker.js", import.meta.url), { type: "module" });',
-          "worker.js": 'self.f = new Function("return 1");',
-        },
-        { "script-src": ["'self'"] }
-      )
-    ).rejects.toThrow(/these scripts evaluate code: assets\/worker-.*\.js/);
-  });
+  it.each([
+    'new Function("return 1")',
+    'Function("return 1")',
+    'eval("1")',
+    '(0, eval)("1")',
+    'globalThis.eval("1")',
+  ])(
+    "fails the build, writing nothing, when a shipped worker runs %s",
+    async (code) => {
+      await expect(
+        buildWithPolicy(
+          {
+            "index.html": page(""),
+            "main.js":
+              'new Worker(new URL("./worker.js", import.meta.url), { type: "module" });',
+            "worker.js": `self.f = ${code};`,
+          },
+          { "script-src": ["'self'"] }
+        )
+      ).rejects.toThrow(/these scripts evaluate code: assets\/worker-.*\.js/);
+      expect(existsSync(join(roots.at(-1) ?? "", "dist", "index.html"))).toBe(
+        false
+      );
+    }
+  );
+
+  it.each([
+    'Function("return this")()',
+    "Function(`return this`)()",
+    "`Function(${name})`",
+    '"eval(" + name',
+  ])(
+    "does not flag the global-object fallback or string text: %s",
+    async (code) => {
+      await expect(
+        buildWithPolicy(
+          {
+            "index.html": page(""),
+            "main.js": `const name = "f"; window.g = ${code};`,
+          },
+          { "script-src": ["'self'"] }
+        )
+      ).resolves.toMatchObject({ version: 1 });
+    }
+  );
 
   it("allows evaluated code when script-src allows 'unsafe-eval'", async () => {
     await expect(
