@@ -295,37 +295,6 @@ test("the sample filter filters with no eval", async ({
   expect(await policy.violations()).toEqual([]);
 });
 
-// A known limitation: `connect-src 'self'` blocks logs on another origin even
-// after the user approves them (#615). Hosts that serve the viewer without the
-// policy still open them; e2e/log-location-trust.spec.ts covers the gate there.
-test("an approved cross-origin ?log_dir= is blocked, not fetched", async ({
-  page,
-  network,
-  baseURL,
-}) => {
-  const foreignDir = "https://bucket.example/team/logs";
-  const hits: string[] = [];
-  network.use(
-    http.get("https://bucket.example/*", ({ request }) => {
-      hits.push(request.url);
-      return HttpResponse.json({});
-    })
-  );
-  const policy = await watchPolicy(page, baseURL);
-
-  await page.goto(`/?log_dir=${encodeURIComponent(foreignDir)}`);
-  const gate = page.getByTestId("log-location-gate");
-  await gate.getByRole("button", { name: "Open", exact: true }).click();
-  await expect(gate).toBeHidden();
-
-  await expect
-    .poll(policy.violations)
-    .toContainEqual(
-      expect.stringMatching(/^connect-src https:\/\/bucket\.example\//)
-    );
-  expect(hits).toEqual([]);
-});
-
 test.describe("rendering canary", () => {
   const openCanary = async (page: Page) => {
     await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
