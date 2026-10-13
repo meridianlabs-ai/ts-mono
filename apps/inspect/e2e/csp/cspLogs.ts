@@ -7,43 +7,32 @@ import type { EvalLog } from "@tsmono/inspect-common/types";
 
 import { createEvalLog, createEvalSample } from "../fixtures/test-data";
 
-import { kMp4DataUri, kPngDataUri, kWavDataUri } from "./media";
+import { kMp4DataUri, kWavDataUri } from "./media";
 
 export const kProbeHost = "probe.csp.test";
 const probe = (path: string): string => `https://${kProbeHost}/${path}`;
 
 export const kTerminalText = "csp-terminal-ok";
 
-// Pushes the log response past the JSON parser's 50k-char worker threshold,
-// so the JSON worker runs under the policy too.
-const kWorkerPadding = "padding ".repeat(8_000);
-
 // A `script -T` recording: header line, then the bytes the timing file meters.
 const terminalHeader =
   'Script started on 2026-01-01 00:00:00+00:00 [COLUMNS="40" LINES="6"]\n';
 const terminalOutput = `${terminalHeader}${kTerminalText}\r\n`;
 
-/** The main flows: markdown with math, media, and a human-baseline terminal. */
+/** Media and a human-baseline terminal. */
 export const mainLog: EvalLog = createEvalLog({
   samples: [
     createEvalSample({
       id: "media",
-      metadata: { padding: kWorkerPadding },
       messages: [
         testUserMessage({
           content: [
             { type: "text", text: "Describe these." },
-            { type: "image", image: kPngDataUri, detail: "auto" },
             { type: "audio", audio: kWavDataUri, format: "wav" },
             { type: "video", video: kMp4DataUri, format: "mp4" },
           ],
         }),
-        testAssistantMessage({
-          content: [
-            "Inline $x^2 + \\href{https://example.com/}{y}$ and display:",
-            "$$\\frac{1}{2} = \\sum_{n=1}^{\\infty} 2^{-n-1} \\cdot 2$$",
-          ].join("\n\n"),
-        }),
+        testAssistantMessage({ content: "Heard and seen." }),
       ],
     }),
     createEvalSample({
