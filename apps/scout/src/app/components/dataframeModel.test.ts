@@ -33,13 +33,11 @@ describe("dataframe values and export", () => {
     expect(dataframeCsv([{ text: "hello" }], [])).toBe("");
   });
 
-  it("truncates display and CSV consistently, keeping the raw value available", () => {
+  it("truncates long cells for display while exporting their complete value", () => {
     const raw = "start" + "x".repeat(2000) + "end";
     const expected = centerTruncate(raw, 1024);
     expect(formatDataframeValue(raw)).toBe(expected);
-    expect(dataframeCsv([{ text: raw }], ["text"])).toBe(
-      `"text"\r\n"${expected}"`
-    );
+    expect(dataframeCsv([{ text: raw }], ["text"])).toBe(`"text"\r\n"${raw}"`);
   });
 
   it("sorts numbers numerically, nulls first, dates chronologically, and objects by JSON", () => {

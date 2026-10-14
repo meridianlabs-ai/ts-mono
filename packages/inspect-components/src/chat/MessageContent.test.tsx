@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUi, waitFor } from "@testing-library/react";
 import { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -18,11 +18,16 @@ import {
   makeStateHooks,
   ResizeObserverStub,
   testIcons,
+  TrustedContentWrapper,
 } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
 import { MessageContent } from "./MessageContent";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
@@ -185,6 +190,27 @@ describe("MessageContent log-supplied link hrefs", () => {
       });
       expect(container.querySelector("a")).toBeNull();
       expect(tooltips(container)).toContain(url);
+    });
+  });
+});
+
+describe("MessageContent server tool data", () => {
+  it("shows a web_search server_tool_use block's query", async () => {
+    const { container } = renderMessage([
+      {
+        type: "data",
+        data: {
+          type: "server_tool_use",
+          name: "web_search",
+          input: { query: "TypeScript monorepo best practices" },
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(
+        "Web Search:TypeScript monorepo best practices"
+      );
     });
   });
 });

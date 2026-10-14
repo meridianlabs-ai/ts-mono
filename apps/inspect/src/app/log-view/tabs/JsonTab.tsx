@@ -9,6 +9,7 @@ import { DownloadPanel } from "../../../components/DownloadPanel";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 
 import styles from "./JsonTab.module.css";
 
@@ -16,7 +17,7 @@ const kJsonMaxSize = 10000000;
 
 // Individual hook for JSON tab
 export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const selectedTab = useStore((state) => state.app.tabs.workspace);
 
   return useMemo(() => {

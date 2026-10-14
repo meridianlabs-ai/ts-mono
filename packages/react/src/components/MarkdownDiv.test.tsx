@@ -1,10 +1,29 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as renderUi, screen, waitFor } from "@testing-library/react";
+import { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
+import { TrustedContentWrapper } from "../test/content-trust";
+
+import { richContentPolicy } from "./contentRenderingPolicy";
+import { ContentPolicyProvider } from "./ContentTrustContext";
 import { MarkdownDiv, MarkdownRenderQueue } from "./MarkdownDiv";
 
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: ReactElement) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
+
 describe("MarkdownDiv render coordination", () => {
+  it("renders markdown as source text unless every permission is granted", () => {
+    const { container } = renderUi(
+      <ContentPolicyProvider value={{ ...richContentPolicy, links: false }}>
+        <MarkdownDiv markdown="**bold** [link](https://example.com)" />
+      </ContentPolicyProvider>
+    );
+    expect(container.textContent).toBe("**bold** [link](https://example.com)");
+    expect(container.querySelector(".markdown-content, strong, a")).toBeNull();
+  });
+
   it("keeps callbacks independent for duplicate markdown with different post-processing", async () => {
     render(
       <>

@@ -26,13 +26,13 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { selectLogFile, selectSample } from "../../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
 } from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
+import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 
@@ -47,24 +47,17 @@ import styles from "./SamplePrintView.module.css";
  * events (ids as the transcript assigns them: the uuid, or the position-based
  * fallback for logs without uuids).
  */
-export const SamplePrintView: FC = () => {
-  const { logPath, sampleId, epoch } = useLogRouteParams();
+export const SamplePrintView: FC = () => (
+  <SelectedSampleContentTrustProvider>
+    <SamplePrintViewContent />
+  </SelectedSampleContentTrustProvider>
+);
+
+const SamplePrintViewContent: FC = () => {
+  const { sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
   const printingSelection = searchParams.has("events");
-
-  // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (logPath && sampleId && epoch) {
-      selectLogFile(logPath);
-
-      const targetEpoch = parseInt(epoch, 10);
-      if (!isNaN(targetEpoch)) {
-        selectSample(sampleId, targetEpoch, logPath);
-      }
-    }
-  }, [logPath, sampleId, epoch]);
 
   // Get sample data
   const sample = useSelectedEvalSampleData().sample;

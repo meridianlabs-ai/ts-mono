@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ToolCallError } from "@tsmono/inspect-common/types";
+import { ContentText } from "@tsmono/react/components";
 
 import styles from "./ToolCallErrorView.module.css";
 
@@ -16,7 +17,9 @@ export const ToolCallErrorView: FC<ToolCallErrorViewProps> = ({
 }) => {
   return (
     <div className={clsx(styles.error, "text-size-smallest", className)}>
-      <div className={styles.message}>{error.message}</div>
+      <div className={styles.message}>
+        <ContentText text={error.message} />
+      </div>
     </div>
   );
 };

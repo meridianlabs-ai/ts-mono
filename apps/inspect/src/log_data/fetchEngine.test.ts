@@ -1,3 +1,4 @@
+import Dexie from "dexie";
 import { describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
@@ -11,15 +12,20 @@ import {
   LogHeader,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { OpenDatabase } from "../client/database";
 import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
-import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
+import {
+  EngineDatabase,
+  FetchEngine,
+  FetchEngineDeps,
+  LogsContentSink,
+} from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import {
   testClientAPI,
-  testDatabaseService,
+  testEngineDatabase,
   testLogDetails,
 } from "./testFixtures";
 
@@ -209,16 +215,22 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
   };
 };
 
+// The engine's reads plus the writes the fake sink relays through.
+type FakeDb = EngineDatabase &
+  Pick<
+    OpenDatabase,
+    "readLogRows" | "writeFetchStates" | "resetDepth" | "clearCacheForFile"
+  >;
+
 // Holds the unified Log rows keyed by name — the fake analogue of the v12
 // `logs` table. Mutable so relayed writes (fetch states, resets, deletes)
 // are visible to later reads, exercising the real persistence round-trips.
-const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
+const createFakeDb = (initialRows: Log[] = []): FakeDb => {
   const rows: Record<string, Log> = Object.fromEntries(
     initialRows.map((row) => [row.name, { ...row }])
   );
 
-  return testDatabaseService({
-    opened: () => true,
+  return {
     readLogs: () =>
       Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
     readLogRow: (file: string) =>
@@ -264,14 +276,14 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
         logHeaders: 0,
         sampleSummaries: 0,
       }),
-  });
+  };
 };
 
 // `db`, when provided, is a realism relay — mirrors how the real sink
 // (logsContent.ts) persists through to IndexedDB, so tests can exercise
 // persistence round-trips (start()-time reset, settle-seq bumps, invalidation
 // resets) without a real database.
-const createFakeSink = (db?: DatabaseService) => {
+const createFakeSink = (db?: FakeDb) => {
   const calls = {
     seedRows: [] as Log[][],
     setListing: [] as LogHandle[][],
@@ -345,7 +357,10 @@ const createFakeSink = (db?: DatabaseService) => {
 };
 
 const createEngine = async (
-  deps: Partial<FetchEngineDeps> & { api: ClientAPI },
+  deps: Partial<Omit<FetchEngineDeps, "database">> & {
+    api: ClientAPI;
+    database?: FakeDb;
+  },
   options: ConstructorParameters<typeof FetchEngine>[0] = {}
 ) => {
   const engine = new FetchEngine({
@@ -366,6 +381,24 @@ const createEngine = async (
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // --- tests ---
+
+describe("testEngineDatabase", () => {
+  it("rejects un-stubbed reads without touching IndexedDB", async () => {
+    const before = await Dexie.getDatabaseNames();
+    const db = testEngineDatabase();
+
+    await expect(db.readLogs({ prefix: "dir/logs" })).rejects.toThrow(
+      "readLogs is not stubbed"
+    );
+    await expect(db.readLogRow("dir/logs/a.eval")).rejects.toThrow(
+      "readLogRow is not stubbed"
+    );
+    await expect(db.getCacheStats({ prefix: "dir/logs" })).rejects.toThrow(
+      "getCacheStats is not stubbed"
+    );
+    expect(await Dexie.getDatabaseNames()).toEqual(before);
+  });
+});
 
 describe("FetchEngine.ensure (detailed)", () => {
   it("fetches a missing log fresh and writes it through the sink (single-file mode: no database, no producer)", async () => {
@@ -563,7 +596,7 @@ describe("FetchEngine.start", () => {
     // last — the superseded start bails instead of seeding the new session
     // with the old dir's rows.
     const rowsA = deferred<Log[]>();
-    const dbA = testDatabaseService({ readLogs: () => rowsA.promise });
+    const dbA = testEngineDatabase({ readLogs: () => rowsA.promise });
     const rowB = previewedRow(handle("b.eval", 1));
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
     const sinkA = createFakeSink();

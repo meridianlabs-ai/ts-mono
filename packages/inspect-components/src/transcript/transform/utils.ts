@@ -19,6 +19,7 @@ export const TYPE_HANDOFF = "handoff";
 export const TYPE_SCORERS = "scorers";
 export const TYPE_SCORER = "scorer";
 export const TYPE_CHECKPOINT = "checkpoint";
+export const TYPE_SENTINEL = "sentinel";
 
 /** Span/step events group the rows below them; they are structure, not content. */
 export const isStructuralEvent = (event: EventType): boolean =>

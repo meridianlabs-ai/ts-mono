@@ -11,19 +11,30 @@ import {
 
 import "./MarkdownDiv.css";
 
+import { onDemandModule } from "../hooks/onDemandModule";
+
+import { usePlainText } from "./ContentTrust";
+import { useHasAllContentPermissions } from "./ContentTrustContext";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
-  renderMarkdown,
+  simpleMarkdownTruncate,
+  truncationWindow,
   type MarkdownRenderer,
-} from "./markdownRendering";
-import { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
+} from "./markdownText";
 
-export type { MarkdownRenderer } from "./markdownRendering";
+export type { MarkdownRenderer } from "./markdownText";
+
+// The markdown pipeline (markdown-it, DOMPurify, MathJax) loads on first
+// trusted render, so none of it is fetched or run for untrusted content.
+const markdownPipeline = onDemandModule(() => import("./markdownPipeline"));
 
 interface MarkdownDivProps {
   markdown: string;
   renderer?: MarkdownRenderer;
+  /** Show at most about this many characters: markdown-aware for trusted
+   *  content, plain text for untrusted content (which is never parsed). */
+  truncateAt?: number;
   style?: CSSProperties;
   className?: string | string[];
   postProcess?: (html: string) => string;
@@ -35,21 +46,79 @@ const sanitizeMarkdown = (md: string): string => {
 };
 
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
-  ({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
+  (props, ref) => {
+    // Rendered markdown can carry links, media, math and highlighted code.
+    // Until the pipeline enforces those permissions individually, it runs
+    // only when all of them are granted.
+    const trusted = useHasAllContentPermissions();
+    // Truncation reads only this much, so it's all that's rendered or cached.
+    const markdown =
+      props.truncateAt === undefined
+        ? props.markdown
+        : truncationWindow(props.markdown, props.truncateAt);
+    return trusted ? (
+      <RichMarkdownDiv {...props} markdown={markdown} ref={ref} />
+    ) : (
+      <UntrustedMarkdownDiv {...props} markdown={markdown} ref={ref} />
+    );
+  }
+);
+
+MarkdownDivComponent.displayName = "MarkdownDivComponent";
+
+/**
+ * Untrusted markdown is never parsed: it's shown as its source text. There
+ * are no anchors to delegate clicks for, so `onClick` is not wired.
+ */
+const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
+  ({ markdown, truncateAt, style, className }, ref) => {
+    const plain = usePlainText();
+    return (
+      <div
+        ref={ref}
+        style={style}
+        className={clsx(className, "untrusted-content", plain.className)}
+      >
+        {plain.present(
+          truncateAt === undefined
+            ? markdown
+            : simpleMarkdownTruncate(markdown, truncateAt)
+        )}
+      </div>
+    );
+  }
+);
+
+UntrustedMarkdownDiv.displayName = "UntrustedMarkdownDiv";
+
+const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
+  (
+    { markdown, renderer, truncateAt, style, className, postProcess, onClick },
+    ref
+  ) => {
     const rendererName = renderer ?? defaultMarkdownRenderer;
 
     // Check cache for sanitized rendered content (before post-processing)
-    const cacheKey = `${rendererName}:${markdown}`;
+    const cacheKey = `${rendererName}:${truncateAt ?? ""}:${markdown}`;
     const cachedHtml = renderCache.get(cacheKey);
+
+    // Shown until the pipeline renders: the (plainly truncated) source.
+    const placeholder = sanitizeMarkdown(
+      truncateAt === undefined
+        ? markdown
+        : simpleMarkdownTruncate(markdown, truncateAt)
+    );
 
     // Apply post-processing to get final HTML. The sanitizer runs after
     // post-processing because injected reference links are HTML too.
     const applyPostProcess = useCallback(
       (html: string): string => {
-        if (!postProcess) {
+        // Rendered html (and so a cache hit) implies the pipeline is loaded.
+        const pipeline = markdownPipeline.loaded();
+        if (!postProcess || !pipeline) {
           return html;
         }
-        return sanitizeRenderedHtml(postProcess(html));
+        return pipeline.sanitizeRenderedHtml(postProcess(html));
       },
       [postProcess]
     );
@@ -59,7 +128,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       if (cachedHtml) {
         return applyPostProcess(cachedHtml);
       }
-      return sanitizeMarkdown(markdown);
+      return placeholder;
     });
 
     // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -76,21 +145,27 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       }
 
       // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
-      setRenderedHtml(sanitizeMarkdown(markdown));
+      setRenderedHtml(placeholder);
 
-      const { promise, cancel } = renderQueue.enqueue(() =>
-        renderMarkdown(markdown, rendererName)
-      );
+      const { promise, cancel } = renderQueue.enqueue(async () => {
+        const loaded = await markdownPipeline.load();
+        const source =
+          truncateAt === undefined
+            ? markdown
+            : loaded.truncateMarkdown(markdown, truncateAt);
+        return loaded.sanitizeRenderedHtml(
+          await loaded.renderMarkdown(source, rendererName)
+        );
+      });
 
       promise
-        .then((result) => {
+        .then((sanitizedResult) => {
           if (renderCache.size >= MAX_CACHE_SIZE) {
             const firstKey = renderCache.keys().next().value;
             if (firstKey) {
               renderCache.delete(firstKey);
             }
           }
-          const sanitizedResult = sanitizeRenderedHtml(result);
           renderCache.set(cacheKey, sanitizedResult);
           // React 18 batches same-turn transition updates, so concurrent
           // completions still coalesce into a single render pass.
@@ -106,7 +181,15 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         // Cancel rendering if component unmounts
         cancel();
       };
-    }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
+    }, [
+      markdown,
+      rendererName,
+      truncateAt,
+      placeholder,
+      cachedHtml,
+      cacheKey,
+      applyPostProcess,
+    ]);
 
     return (
       // The container is not itself a control: onClick delegates for the
@@ -124,7 +207,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   }
 );
 
-MarkdownDivComponent.displayName = "MarkdownDivComponent";
+RichMarkdownDiv.displayName = "RichMarkdownDiv";
 
 // Memoize component to prevent re-renders when props haven't changed
 export const MarkdownDiv = memo(MarkdownDivComponent);

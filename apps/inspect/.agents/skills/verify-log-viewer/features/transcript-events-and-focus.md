@@ -2,8 +2,8 @@
 
 The event cards inside a sample Transcript and the single-turn/single-event
 navigation surfaces: model, tool, score, state, span, sandbox, approval,
-subtask, logger/info/error and lifecycle renderers; event tabs; turn labels;
-deep links; and focused-turn view.
+review, subtask, logger/info/error and lifecycle renderers; event tabs; turn
+labels; deep links; event selection; and focused-turn view.
 
 ## Sub-features
 
@@ -11,8 +11,12 @@ deep links; and focused-turn view.
   event-specific content and timing.
 - `model-tool-events` show messages, API/raw data, usage, tool input/output,
   errors, approvals, retry chips, and stop reasons.
-- `score-state-events` show typed score values/reasons and readable state
-  records/diffs.
+- `score-state-events` show typed score values/reasons and state/store diffs
+  that list only the changed paths, not whole before/after documents.
+- `review-events` show a Reviewed/Terminated/Escalated decision on a tool
+  result, with the reviewer and explanation.
+- `event-selection`: after Select, each event header has a checkbox for
+  choosing evidence; see [Export, JSON, and print](./export-json-print.md).
 - `event-deeplink` resolves events/messages across timelines, hidden filters,
   collapsed spans, branches, and lanes.
 - `turn-navigation` labels model turns and supports previous/next, `j`/`k`, and
@@ -47,8 +51,10 @@ deep links; and focused-turn view.
   `apps/inspect/src/app/samples/event/SampleEventView.tsx`, and deep-link state
   in `apps/inspect/src/app/routing/sampleNavigation.ts`.
 - Event renderers and panels: `packages/inspect-components/src/transcript/`,
-  especially `TranscriptViewNodes.tsx`, the `*EventView.tsx` files, and
-  `event/`.
+  especially `TranscriptViewNodes.tsx`, the `*EventView.tsx` files (including
+  `ReviewEventView.tsx`), and `event/`.
+- State/store diffs: `packages/inspect-components/src/transcript/state/`,
+  especially `changeDiff.ts` and `StateDiffView.tsx`.
 - Deep-link/turn resolution: `findTimelineForDeepLink.ts`,
   `resolveMessageToEvent.ts`, `turnNavigation.ts`, and hooks under
   `transcript/hooks/`.
@@ -69,3 +75,6 @@ deep links; and focused-turn view.
   choosing the owner.
 - Focus mode must surface sample errors from every turn, not just the terminal
   one.
+- Focus-mode exit is a link to the transcript at the focused event; lane
+  crumbs, the lane menu, and the error strip are in-page jumps and stay
+  buttons, like the turn chevrons.

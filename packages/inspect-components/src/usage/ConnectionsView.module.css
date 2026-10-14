@@ -88,6 +88,10 @@
 }
 
 .actionLink {
+  /* Renders as <a> when it has an href; keep the <button>'s look and focus
+     ring. */
+  outline-offset: 0;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

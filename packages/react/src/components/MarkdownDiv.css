@@ -22,3 +22,9 @@
 .markdown-content p:last-child {
   margin-bottom: 0;
 }
+
+/* Untrusted content is shown as its literal source text. */
+.untrusted-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

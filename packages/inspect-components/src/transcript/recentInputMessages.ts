@@ -1,18 +1,23 @@
-import type { ChatMessage } from "@tsmono/inspect-common/types";
+import type {
+  ChatMessage,
+  ChatMessageTool,
+} from "@tsmono/inspect-common/types";
 
 export interface RecentInputMessagesOptions {
   /** Agent tool results were filtered from input (shown on AgentCard instead). */
   agentResultsFiltered: boolean;
   /** Whether the client renders tool events (tool messages hide here if so). */
   hasToolEvents: boolean | undefined;
+  /** Ids of the tool events at the model event's level. When set, only a tool
+   *  message whose call has one of these events hides here. */
+  toolEventIds?: ReadonlySet<string>;
 }
 
 /**
  * The user/system messages which immediately preceded a model call — the
  * "recent messages" panel of ModelEventView. Walks backward from the end of
- * the input, collecting trailing user/system messages (and tool messages when
- * the client renders no tool events), stopping at the first assistant/tool
- * message. Everything earlier is hidden behind "show all messages".
+ * the input, collecting trailing user/system messages (and tool messages no
+ * tool event shows), stopping at the first assistant/tool message. Everything earlier is hidden behind "show all messages".
  */
 export function recentInputMessages(
   input: ChatMessage[],
@@ -34,11 +39,14 @@ export function recentInputMessages(
       if (
         (msg.role === "user" && !msg.tool_call_id) ||
         msg.role === "system" ||
-        // If the client doesn't support tool events, then tools messages are allowed to be displayed
-        // in this view, since no tool events will be shown.
-        (options.hasToolEvents === false && msg.role === "tool")
+        // tool messages are shown here unless a tool event shows them
+        (msg.role === "tool" && !shownByToolEvent(msg, options))
       ) {
         result.unshift(msg);
+      } else if (msg.role === "tool" && options.toolEventIds !== undefined) {
+        // with per-call coverage, a result its tool event shows is skipped
+        // rather than ending the turn, so the turn's other results still show
+        continue;
       } else {
         break;
       }
@@ -59,6 +67,21 @@ export function recentInputMessages(
 
   return result;
 }
+
+const shownByToolEvent = (
+  message: ChatMessageTool,
+  options: RecentInputMessagesOptions
+): boolean => {
+  if (options.hasToolEvents === false) {
+    return false;
+  }
+  if (options.toolEventIds === undefined) {
+    return true;
+  }
+  return (
+    !!message.tool_call_id && options.toolEventIds.has(message.tool_call_id)
+  );
+};
 
 /**
  * A user message the agent bridge synthesized from a Codex Multi-Agent V2

@@ -12,21 +12,17 @@ import "@vscode/codicons/dist/codicon.css";
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
 
-import "prismjs";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-clike";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-python";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "./app/App.css";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
+  ContentTrustCeilingProvider,
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
@@ -101,6 +97,9 @@ const useThemePreferenceSync = () => {
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
   const router = useAppRouter(mode);
+  const trustCeiling = trustContentSetting(
+    useAppConfigAsync().data?.trust_content
+  );
 
   return router ? (
     <AppErrorBoundary>
@@ -109,7 +108,12 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
           <AppModeContext.Provider value={mode}>
             <ExtendedFindProvider>
               <FindTargetProvider>
-                <RouterProvider router={router} />
+                {/* Content is untrusted unless a nearer provider says otherwise
+                    (a transcript's own trust, or app-owned data); the key
+                    remounts everything when the ceiling changes. */}
+                <ContentTrustCeilingProvider value={trustCeiling}>
+                  <RouterProvider key={trustCeiling} router={router} />
+                </ContentTrustCeilingProvider>
               </FindTargetProvider>
             </ExtendedFindProvider>
           </AppModeContext.Provider>

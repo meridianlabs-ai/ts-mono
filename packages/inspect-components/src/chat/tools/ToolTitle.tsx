@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
+import { ContentText } from "@tsmono/react/components";
+
 import styles from "./ToolTitle.module.css";
 
 interface ToolTitleProps {
@@ -18,11 +20,11 @@ export const ToolTitle: FC<ToolTitleProps> = ({ title, description }) => {
         className={clsx("bi", "bi-tools", styles.image, "text-size-smaller")}
       />
       <code className={clsx("text-size-smaller", styles.toolTitle)}>
-        {title}
+        <ContentText text={title} />
       </code>
       {description ? (
         <span className={clsx(styles.description, "text-size-smallest")}>
-          - {description}
+          - <ContentText text={description} />
         </span>
       ) : undefined}
     </Fragment>

@@ -138,4 +138,34 @@ describe("ScoreGrid", () => {
     );
     expect(screen.getByText(/match \(mean\)/)).toBeInTheDocument();
   });
+
+  test("compact card keeps full names reachable on hover", () => {
+    const prefix = "cryptanalysis_bench_scorer";
+    const longScore = (reducer: string): ScoreSummary => ({
+      scorer: prefix,
+      reducer,
+      metrics: [
+        { name: "Cbase_O_with_a_long_name", group: "grouped", value: 0 },
+        { name: "T2_O", group: "grouped", value: 0.2 },
+      ],
+    });
+    render(
+      <ScoreGrid
+        scoreGroups={[[longScore("mean"), longScore("stderr")]]}
+        showReducer
+        compact
+      />
+    );
+
+    // the distinguishing suffix is what the fixed column ellipsizes
+    for (const name of [`${prefix} (mean)`, `${prefix} (stderr)`]) {
+      expect(screen.getByRole("cell", { name })).toHaveAttribute("title", name);
+    }
+    for (const name of ["Cbase_O_with_a_long_name", "grouped"]) {
+      expect(screen.getByRole("columnheader", { name })).toHaveAttribute(
+        "title",
+        name
+      );
+    }
+  });
 });

@@ -16,11 +16,7 @@ import {
   kLogViewSamplesTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import {
-  selectLogFile,
-  selectSample,
-  setDocumentTitle,
-} from "../../../state/actions";
+import { setDocumentTitle } from "../../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -30,10 +26,12 @@ import {
   logsUrl,
   sampleEventUrl,
   samplesUrl,
+  toFullUrlMaybe,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../../routing/url";
+import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleNavbar } from "../SampleNavbar";
 
 import styles from "./SampleEventView.module.css";
@@ -46,27 +44,19 @@ import styles from "./SampleEventView.module.css";
  * (also mounted under /tasks and /samples so back/home return to the surface
  * the sample was opened from).
  */
-export const SampleEventView: FC = () => {
+export const SampleEventView: FC = () => (
+  <SelectedSampleContentTrustProvider>
+    <SampleEventViewContent />
+  </SelectedSampleContentTrustProvider>
+);
+
+const SampleEventViewContent: FC = () => {
   const { logPath, id: sampleId, epoch } = useLogOrSampleRouteParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const eventId = searchParams.get("event");
   const prefix = useRoutePrefix();
   const location = useLocation();
   const isSamplesSurface = location.pathname.startsWith("/samples/");
-
-  // Initialize log and sample loading (same pattern as SamplePrintView /
-  // LogSampleDetailView) — data then flows through the react-query pipeline.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (logPath && sampleId && epoch) {
-      selectLogFile(logPath);
-
-      const targetEpoch = parseInt(epoch, 10);
-      if (!isNaN(targetEpoch)) {
-        selectSample(sampleId, targetEpoch, logPath);
-      }
-    }
-  }, [logPath, sampleId, epoch]);
 
   const sampleData = useSelectedEvalSampleData();
   const sample = sampleData.sample;
@@ -244,6 +234,7 @@ export const SampleEventView: FC = () => {
           : undefined
       }
       onExit={onExit}
+      exitHref={toFullUrlMaybe(exitUrl)}
     />
   );
 };

@@ -40,12 +40,21 @@ test("transcripts page renders grid with data", async ({ page, network }) => {
   await expect(page.locator("#transcripts-footer")).toContainText("2 items");
 });
 
-test("transcripts page shows empty state when no transcripts exist", async ({
+test("transcripts page shows an empty grid when no transcripts exist", async ({
   page,
 }) => {
+  const listed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/api/v2/transcripts/")
+  );
   await page.goto("/#/transcripts");
+  await listed;
 
-  // Footer shows 0 items
+  // The only body row is the grid's empty-state message.
+  const bodyRows = page.locator("tbody").getByRole("row");
+  await expect(bodyRows).toHaveCount(1);
+  await expect(bodyRows).toHaveText(/^No /);
   await expect(page.locator("#transcripts-footer")).toContainText("0 items");
 });
 

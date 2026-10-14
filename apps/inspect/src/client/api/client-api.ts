@@ -66,6 +66,7 @@ interface LoadedLogFile {
 export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
   let current_log: LogContents | undefined = undefined;
   let current_path: string | undefined = undefined;
+  const pendingLogs = new Map<string, Promise<LogContents>>();
 
   const loadedEvalFile: LoadedLogFile = {
     file: undefined,
@@ -100,30 +101,26 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
   ): Promise<LogContents> => {
     // If the requested log is different or no cached log exists, start fetching
     if (!cached || log_file !== current_path || !current_log) {
-      // If there's already a pending fetch, return the same promise
-      if (pending_log_promise) {
-        return pending_log_promise;
-      }
+      // Different logs can load concurrently during navigation and backfill.
+      const pending = pendingLogs.get(log_file);
+      if (pending) return pending;
 
       // Otherwise, create a new promise for fetching the log
-      pending_log_promise = api
+      const request = api
         .get_log_contents(log_file, 100)
         .then((log) => {
           current_log = log;
           current_path = log_file;
-          pending_log_promise = null;
           return log;
         })
-        .catch((err) => {
-          pending_log_promise = null;
-          throw err;
+        .finally(() => {
+          pendingLogs.delete(log_file);
         });
-
-      return pending_log_promise;
+      pendingLogs.set(log_file, request);
+      return request;
     }
     return current_log;
   };
-  let pending_log_promise: Promise<LogContents> | null = null;
 
   /**
    * Gets a log summary

@@ -3,15 +3,7 @@ import { FC, ReactNode } from "react";
 import { LogLoadController } from "./LogLoadController";
 import { SampleLoadController } from "./SampleLoadController";
 
-/**
- * Mounts the loader machinery for a resolved session. There's no gate here — the
- * top-level `<AppConfigGate>` already awaited the resolved config (incl.
- * `logDir`), so `useLogDir()` resolves synchronously. Mounts the per-log
- * `<LogLoadController>` and per-sample `<SampleLoadController>` reaction
- * controllers for both modes; the single-file `?log_file=` selection happens
- * at app-config resolution (`resolveAppConfig`). Engine activation is owned
- * by `<FetchEngineController>` at the composition root (AppContent).
- */
+/** Applies per-view UI resets below the route-derived selection provider. */
 export const LoaderMounts: FC<{ children: ReactNode }> = ({ children }) => (
   <>
     <LogLoadController />

@@ -28,3 +28,24 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Actions are pinned to commit SHAs with a `# vX.Y.Z` comment; Dependabot
+  # bumps both. The cooldown gives a compromised release time to be caught
+  # before it is proposed. `/` only covers .github/workflows, so composite
+  # actions are listed separately. Branch refs (agents@main) are not updated.
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: "weekly"
+
+    cooldown:
+      default-days: 7
+
+    # One PR per week for every action update, majors included, across both
+    # directories.
+    groups:
+      github-actions:
+        patterns:
+          - "*"

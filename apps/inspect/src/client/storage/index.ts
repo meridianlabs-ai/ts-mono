@@ -1,40 +1,25 @@
 import JSON5 from "json5";
 
-import { getVscodeApi } from "@tsmono/util";
+import { createWebviewStorage, getVscodeApi } from "@tsmono/util";
 
-import { PersistedState } from "../../state/store";
-import { ClientStorage } from "../api/types";
+import type { ClientStorage } from "../api/types";
 
-const resolveStorage = (): ClientStorage | undefined => {
-  const vscodeApi = getVscodeApi();
-  if (vscodeApi) {
-    return {
-      getItem: (
-        _name: string
-      ): {
-        state: PersistedState;
-        version: number;
-      } => {
-        const state = vscodeApi.getState();
-        if (typeof state !== "string") {
-          throw new Error("vscode state is not a serialized string");
-        }
-        return JSON5.parse<{
-          state: PersistedState;
-          version: number;
-        }>(state);
-      },
-      setItem: (_name: string, value: unknown) => {
-        // zustand-persist hands back what getItem returned; it round-trips
-        // through JSON5 either way, so no shape claim is needed here.
-        vscodeApi.setState(JSON5.stringify(value));
-      },
-      removeItem: (_name: string) => {
-        vscodeApi.setState(null);
-      },
-    };
-  }
-  return undefined;
-};
+const vscode = getVscodeApi();
+export const webviewStorage = vscode
+  ? createWebviewStorage(vscode, "app-storage")
+  : undefined;
 
-export default resolveStorage();
+const storage: ClientStorage | undefined = webviewStorage
+  ? {
+      getItem: (name) => {
+        const raw = webviewStorage.getItem(name);
+        return raw === null ? null : JSON5.parse<unknown>(raw);
+      },
+      setItem: (name, value) => {
+        webviewStorage.setItem(name, JSON5.stringify(value));
+      },
+      removeItem: (name) => webviewStorage.removeItem(name),
+    }
+  : undefined;
+
+export default storage;

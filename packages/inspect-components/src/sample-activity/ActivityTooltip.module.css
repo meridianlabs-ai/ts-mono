@@ -1,0 +1,170 @@
+/* One tooltip card for every hovered thing (handoff 11a/11b): reuses the
+   .lineTooltip chrome — white, 1px border, r3, soft shadow, 0.72rem,
+   tabular numerals — at a fixed 262px width. */
+.tooltip {
+  position: absolute;
+  width: 262px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  padding: 6px 8px 4px 8px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--bs-body-color);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.subject {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusFailed {
+  color: #a13b2c;
+}
+
+.statusRejected {
+  color: #6b4fa8;
+}
+
+.timeLine {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.glyph {
+  font-size: 0.65rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 0.75rem;
+  row-gap: 1px;
+  align-items: baseline;
+}
+
+.key {
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.68rem;
+}
+
+.muted {
+  color: var(--bs-secondary-color);
+}
+
+.ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.listRow > :nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.listRowHovered {
+  font-weight: 600;
+}
+
+.note {
+  color: var(--bs-body-color);
+}
+
+.footer {
+  margin-top: 2px;
+  padding: 3px 0 0 0;
+  border: none;
+  border-top: 1px dotted var(--bs-border-color);
+  background: none;
+  color: #2a78d6;
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.footer:hover {
+  text-decoration: underline;
+}
+
+/* ── dark theme ── */
+
+:global([data-bs-theme="dark"]) .statusFailed {
+  color: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .statusRejected {
+  color: #b39ddb;
+}
+
+:global([data-bs-theme="dark"]) .footer {
+  color: #6ea0dc;
+}

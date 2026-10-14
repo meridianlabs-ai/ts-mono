@@ -14,6 +14,7 @@ import {
 
 import { useStatefulScrollPosition } from "../hooks";
 
+import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./TabSet.module.css";
 
 interface TabSetProps {
@@ -42,6 +43,10 @@ interface TabPanelProps {
   title: string;
   icon?: string;
   onSelected: (e: MouseEvent<HTMLElement>) => void;
+  /** URL the tab navigates to. When set, the tab renders as a link so
+   *  cmd/ctrl/middle-click open it in a new tab; `onSelected` still handles
+   *  plain clicks. Ignored inside the VS Code webview. */
+  href?: string;
 }
 
 export const TabSet: FC<TabSetProps> = ({
@@ -104,36 +109,62 @@ const Tab: FC<{
   const tabId = tab.props.id || computeTabId("tabset", index);
   const tabContentsId = computeTabContentsId(tab.props.id);
   const isActive = tab.props.selected;
+  const href = inAppHref(tab.props.href);
+  const tabClassName = clsx(
+    "nav-link",
+    className,
+    isActive && "active",
+    // "pills" gets bootstrap's nav-pills styling alone; a module-level
+    // .pill rule never existed (styles.pill was always undefined).
+    type === "pills-small"
+      ? styles.pillSmall
+      : type === "pills"
+        ? undefined
+        : styles.tab,
+    type === "pills-small" ? "text-size-smallest" : "text-size-small",
+    "text-style-label"
+  );
+  const content = (
+    <>
+      {tab.props.icon && <i className={clsx(tab.props.icon, styles.tabIcon)} />}
+      {tab.props.title}
+    </>
+  );
 
   return (
     <li role="presentation" className={clsx("nav-item", styles.tabItem)}>
-      <button
-        id={tabId}
-        className={clsx(
-          "nav-link",
-          className,
-          isActive && "active",
-          // "pills" gets bootstrap's nav-pills styling alone; a module-level
-          // .pill rule never existed (styles.pill was always undefined).
-          type === "pills-small"
-            ? styles.pillSmall
-            : type === "pills"
-              ? undefined
-              : styles.tab,
-          type === "pills-small" ? "text-size-smallest" : "text-size-small",
-          "text-style-label"
-        )}
-        type="button"
-        role="tab"
-        aria-controls={tabContentsId}
-        aria-selected={isActive}
-        onClick={tab.props.onSelected}
-      >
-        {tab.props.icon && (
-          <i className={clsx(tab.props.icon, styles.tabIcon)} />
-        )}
-        {tab.props.title}
-      </button>
+      {href ? (
+        <a
+          id={tabId}
+          href={href}
+          className={clsx(tabClassName, styles.linkTab)}
+          role="tab"
+          aria-controls={tabContentsId}
+          aria-selected={isActive}
+          onClick={inAppLinkClick(tab.props.onSelected)}
+          onKeyDown={(e) => {
+            // Links activate on Enter natively; tabs also take Space.
+            if (e.key === " ") {
+              e.preventDefault();
+              e.currentTarget.click();
+            }
+          }}
+        >
+          {content}
+        </a>
+      ) : (
+        <button
+          id={tabId}
+          className={tabClassName}
+          type="button"
+          role="tab"
+          aria-controls={tabContentsId}
+          aria-selected={isActive}
+          onClick={tab.props.onSelected}
+        >
+          {content}
+        </button>
+      )}
     </li>
   );
 };

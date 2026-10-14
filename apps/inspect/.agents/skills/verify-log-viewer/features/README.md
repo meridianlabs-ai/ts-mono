@@ -30,7 +30,11 @@ only the feature files that match the surface under investigation.
 The viewer is a hash-routed React app (`#/...` URLs). Prefer, in order:
 
 1. `getByRole` — `grid` (named "Evaluation logs" / "Samples"), `row`,
-   `gridcell`, `columnheader`, `tab`, `dialog`, `button`, `navigation`.
+   `gridcell`, `columnheader`, `tab`, `dialog`, `button`, `link`,
+   `navigation`. Controls that navigate to another view (tabs, rows, prev/next,
+   the view switcher, "View on timeline", focus exit) render as `<a href>`
+   outside VS Code; tabs and rows keep their `tab`/`row` roles, the rest are
+   `link`. In-page controls stay buttons.
 2. `getByLabel` / aria-label, then `getByPlaceholder`.
 3. The few explicit test ids: `error-panel`, `score-grid`, `find-band-*`.
 4. Stable DOM ids: `#<tabId>-contents` tab panels, `[id^="sample-heading-"]`,
@@ -40,8 +44,9 @@ The viewer is a hash-routed React app (`#/...` URLs). Prefer, in order:
 Deep-link instead of clicking through when the feature under proof isn't the
 navigation itself:
 `/#/logs/<encodeURIComponent(file)>/samples/sample/<id>/<epoch>/<tab>`.
-Sample tab ids: `messages transcript scoring usage metadata error retries json`.
-Log workspace tab ids: `samples json info models task timeline error`.
+Sample tab ids: `messages transcript scoring activity usage metadata error retries json`.
+Log workspace tab ids: `samples json info models task timeline error` (the
+`timeline` tab is labeled "Activity" in the UI; the id is unchanged).
 
 Readiness is always a web-first assertion on content (`expect(...).toBeVisible()`),
 never `networkidle` or fixed sleeps. The app boot gate blocks on
@@ -69,6 +74,8 @@ Start from what the user can see, not from a guessed component name:
 | Tasks/Folders/Samples switcher, rows, columns, footer | [Log list](./log-list.md), [Sample list](./sample-list.md), [Shared grid behavior](./shared-grid-behavior.md)         |
 | Breadcrumbs, theme, loading bar, viewer options       | [Application chrome](./application-chrome.md)                                                                         |
 | Wrong URL, back behavior, wrong log/sample after nav  | [Routing and viewer modes](./routing-and-viewer-modes.md), then [Cross-surface journeys](./multi-surface-journeys.md) |
+| Cmd/Ctrl/middle-click doesn't open a new tab          | [Routing and viewer modes](./routing-and-viewer-modes.md) (`new-tab-links`)                                           |
+| Prompt to open a log location from a link             | [Routing and viewer modes](./routing-and-viewer-modes.md) (`log-location-gate`)                                       |
 | Log title, status, tags, metrics, download            | [Log header and editing](./log-header-and-editing.md), [Scores](./scores.md)                                          |
 | Summary, dataset, solver, scorer, metadata            | [Evaluation info](./evaluation-info.md)                                                                               |
 | Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                                                 |
@@ -80,7 +87,7 @@ Start from what the user can see, not from a guessed component name:
 | Search or Scans right rail, cite labels               | [Transcript search and scans](./transcript-search-and-scans.md)                                                       |
 | Error, limit, cancelled, retry attempt                | [Errors, limits, and retries](./errors-limits-and-retries.md)                                                         |
 | Blank, stale, perpetually loading, live update        | [Loading, live evals, and refresh](./loading-live-refresh.md)                                                         |
-| Raw/JSON/copy/download/print                          | [Export, JSON, and print](./export-json-print.md)                                                                     |
+| Raw/JSON/copy/download/print, selected events         | [Export, JSON, and print](./export-json-print.md)                                                                     |
 | YAML evaluation flow                                  | [Flow files](./flow-files.md)                                                                                         |
 
 When the symptom crosses routes, modes, or persistence boundaries, also read
@@ -146,6 +153,9 @@ the change. Finish with the cross-surface journeys.
   event/message search, scan results, cite labels, and panel persistence.
 - [Rendered content and media](./rendered-content-and-media.md) — markdown,
   structured records, tool calls, citations, images, and safe remote media.
+- [Sample activity](./sample-activity.md) — the sample Activity tab: stacked
+  operational bands, marker rail, filterable history list, click-through to
+  the Transcript.
 
 ### Runtime and cross-surface behavior
 

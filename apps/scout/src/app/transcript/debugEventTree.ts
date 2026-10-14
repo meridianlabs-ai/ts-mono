@@ -95,6 +95,9 @@ function label(ev: Event): string {
     case "review":
       return `review ${ev.decision} reviewer=${ev.reviewer}`;
 
+    case "sentinel":
+      return `sentinel ${ev.action ?? ev.kind} ${ev.status} path=${ev.path}`;
+
     case "compaction":
       return `compaction${ev.source ? ` source=${ev.source}` : ""}`;
 

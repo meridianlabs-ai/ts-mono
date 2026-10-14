@@ -2,7 +2,11 @@ import clsx from "clsx";
 import { FC, memo } from "react";
 import { useSearchParams } from "react-router";
 
-import { MarkdownReference } from "@tsmono/react/components";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
+import {
+  ContentTrustProvider,
+  MarkdownReference,
+} from "@tsmono/react/components";
 import {
   Explanation,
   ValidationResult,
@@ -205,5 +209,15 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 };
 
+// A row's result derives from its transcript's model output, so it renders
+// with that transcript's trust; rows from different transcripts can differ.
+const ScannerResultsRowWithTrust: FC<ScannerResultsRowProps> = (props) => (
+  <ContentTrustProvider
+    value={trustContentSetting(props.summary.transcriptTrustContent)}
+  >
+    <ScannerResultsRowComponent {...props} />
+  </ContentTrustProvider>
+);
+
 // memoize the component to avoid unnecessary re-renders (esp of things which may involve markdown rendering)
-export const ScannerResultsRow = memo(ScannerResultsRowComponent);
+export const ScannerResultsRow = memo(ScannerResultsRowWithTrust);

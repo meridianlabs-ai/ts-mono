@@ -5,8 +5,6 @@ import { StoreState } from "./store";
 export interface SampleSlice {
   sample: SampleState;
   sampleActions: {
-    clearSelectedSample: () => void;
-
     setCollapsedEvents: (
       scope: string,
       collapsed: Record<string, boolean>
@@ -87,16 +85,6 @@ export const createSampleSlice = (
     // Actions
     sample: initialState,
     sampleActions: {
-      clearSelectedSample: () => {
-        set((state) => {
-          state.sample.timelineSelected = null;
-          state.sample.activeTimelineIndex = 0;
-          state.log.selectedSampleHandle = undefined;
-
-          // Clear persisted scroll positions
-          delete state.app.propertyBags["scrollPosition"];
-        });
-      },
       setCollapsedEvents: (
         scope: string,
         collapsed: Record<string, boolean>

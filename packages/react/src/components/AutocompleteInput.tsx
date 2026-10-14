@@ -11,6 +11,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useEventListener } from "../hooks/useEventListener";
+
 import styles from "./AutocompleteInput.module.css";
 import { useComponentIcons } from "./ComponentIconContext";
 
@@ -143,17 +145,16 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   }, [filteredSuggestions.length]);
 
   // Close dropdown when clicking outside
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+  useEventListener(
+    typeof document === "undefined" ? null : document,
+    "mousedown",
+    (e) => {
       const target = e.target instanceof Node ? e.target : null;
       if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+  );
 
   const handleInputChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {

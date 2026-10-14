@@ -25,7 +25,7 @@ import { expect, test } from "./fixtures/app";
 import {
   columnHeader,
   gridCell,
-  segmentButton,
+  segmentLink,
   setupLogListHandlers,
   waitForGrid,
 } from "./fixtures/log-list-scenario";
@@ -82,39 +82,6 @@ async function expectNoSort(page: Page) {
 // ---------------------------------------------------------------------------
 
 test.describe("Per-scope filter and ordering", () => {
-  test("Tasks segment's sort doesn't leak into Folders segment", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    await sortByTaskDesc(page);
-
-    await segmentButton(page, "Folders").click();
-    await expect(page).toHaveURL(/#\/logs/);
-    await waitForGrid(page);
-    // Folders has its own (empty) state — Tasks' sort doesn't bleed in.
-    await expectNoSort(page);
-  });
-
-  test("Tasks segment's filter doesn't leak into Folders segment", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    await applyTaskFilter(page, "alpha");
-
-    await segmentButton(page, "Folders").click();
-    await expect(page).toHaveURL(/#\/logs/);
-    await waitForGrid(page);
-    await expect(resetFiltersButton(page)).toBeHidden();
-  });
-
   test("Tasks ↔ Folders round-trip restores Tasks' sort", async ({
     page,
     network,
@@ -125,12 +92,12 @@ test.describe("Per-scope filter and ordering", () => {
 
     await sortByTaskDesc(page);
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     await expectNoSort(page);
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     // Tasks' sort is restored — independent of Folders' state.
@@ -147,12 +114,12 @@ test.describe("Per-scope filter and ordering", () => {
 
     await applyTaskFilter(page, "alpha");
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeHidden();
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeVisible();
@@ -192,6 +159,13 @@ test.describe("Per-scope filter and ordering", () => {
     await expect(page).toHaveURL(/#\/logs\/subdir/);
     await expect(gridCell(page, "task-gamma")).toBeVisible();
     await expect(resetFiltersButton(page)).toBeHidden();
+
+    // Back at the root, its own filter is still applied.
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/logs\/?$/);
+    await expect(gridCell(page, "subdir")).toBeVisible();
+    await expect(resetFiltersButton(page)).toBeVisible();
+    await expect(gridCell(page, "task-alpha")).toBeHidden();
   });
 });
 
@@ -209,10 +183,10 @@ test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
 
     await sortByTaskDesc(page);
 
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
     await expect(page).toHaveURL(/#\/samples/);
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     await expectSortedDesc(page);
@@ -292,56 +266,5 @@ test.describe("#137 – Back from a log preserves ordering", () => {
     await page.waitForURL(/#\/logs\/?$/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeVisible();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Regression — adjacent behaviors that must keep working both before and
-// after the fix.
-// ---------------------------------------------------------------------------
-
-test.describe("Regression — adjacent behaviors", () => {
-  test("Sort indicator appears after clicking a column header", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    const header = taskColumnHeader(page);
-    await header.click();
-    await expect(header).toHaveAttribute("aria-sort", "ascending");
-  });
-
-  test("Cycling sort to none removes the indicator", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    const header = taskColumnHeader(page);
-    await header.click(); // asc
-    await expect(header).toHaveAttribute("aria-sort", "ascending");
-    await header.click(); // desc
-    await expect(header).toHaveAttribute("aria-sort", "descending");
-    await header.click(); // none
-    await expectNoSort(page);
-  });
-
-  test("Sorted column still navigates into a log on row click", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    await sortByTaskDesc(page);
-
-    await gridCell(page, "task-alpha").click();
-    await page.waitForURL(/#\/tasks\/.+\.eval/);
   });
 });

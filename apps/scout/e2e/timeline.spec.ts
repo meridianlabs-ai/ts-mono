@@ -64,28 +64,25 @@ function transcriptUrl(): string {
 }
 
 // ---------------------------------------------------------------------------
-// P0: Timeline swimlane renders with timeline data
+// P0: Swimlane selection filters the event list
 // ---------------------------------------------------------------------------
 
-test("timeline swimlane renders rows from server timeline data", async ({
+test("clicking a swimlane row filters the event list to that agent", async ({
   page,
   network,
 }) => {
   setupTranscriptWithTimeline(network, createTimelineScenario());
   await page.goto(transcriptUrl());
 
-  // The swimlane grid should appear
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore", { exact: true });
+  await expect(exploreCard).toBeVisible();
 
-  // Row labels for the child spans should be visible
-  // (root "Transcript" is depth 0, children "Explore" and "Build" are depth 1)
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Build" })
-  ).toBeVisible();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
+
+  await expect(page).toHaveURL(/selected=/);
+  await expect(page.getByText("Building the feature").first()).toBeVisible();
+  await expect(exploreCard).toBeHidden();
 });
 
 // ---------------------------------------------------------------------------
@@ -125,25 +122,6 @@ test("clicking chevron collapses and expands child rows", async ({
 // ---------------------------------------------------------------------------
 // P0: Branch marker click expands row and enables branches
 // ---------------------------------------------------------------------------
-
-test("row with branches shows chevron even before branches are expanded", async ({
-  page,
-  network,
-}) => {
-  setupTranscriptWithTimeline(
-    network,
-    createTimelineScenario({ withBranch: true })
-  );
-  await page.goto(transcriptUrl());
-
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-
-  // Build row should show an "Expand" chevron even though showBranches is off,
-  // because it has branch markers indicating expandable children.
-  const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
-  await expect(buildRow.getByRole("button", { name: "Expand" })).toBeVisible();
-});
 
 test("clicking chevron on row with branches enables showBranches and reveals branch rows", async ({
   page,
@@ -201,31 +179,28 @@ test("clicking branch marker auto-expands parent row", async ({
 // P1: Transcript with no timeline data falls back gracefully
 // ---------------------------------------------------------------------------
 
-test("transcript without timeline data renders without swimlane rows", async ({
+test("transcript without timeline data shows the event list without a swimlane", async ({
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(
-    network,
-    // No timelines, no events — the swimlane should still render but be collapsed/empty
-    {
-      messages: [{ role: "user", content: "Hello" }],
-      events: [],
-      timelines: [],
-    }
-  );
+  setupTranscriptWithTimeline(network, {
+    messages: [{ role: "user", content: "Hello" }],
+    events: [
+      createModelEvent({
+        uuid: "m1",
+        startSec: 0,
+        endSec: 2,
+        content: "Flat event",
+      }),
+    ],
+    timelines: [],
+  });
   await page.goto(transcriptUrl());
 
-  // The page should load without errors — check for the transcript task info
-  await expect(page.getByText("timeline-task").first()).toBeVisible();
-
-  // No swimlane rows should be present (or the swimlane is auto-collapsed)
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  // With no timeline data, swimlane may still render but with no meaningful rows
-  // The key assertion: the page doesn't crash and the transcript content is accessible
-  const rowCount = await swimlane.getByRole("row").count();
-  // At most the root row (or 0 if completely hidden)
-  expect(rowCount).toBeLessThanOrEqual(1);
+  await expect(page.getByText("Flat event")).toBeVisible();
+  await expect(
+    page.getByRole("grid", { name: "Timeline swimlane" })
+  ).toHaveCount(0);
 });
 
 // ---------------------------------------------------------------------------

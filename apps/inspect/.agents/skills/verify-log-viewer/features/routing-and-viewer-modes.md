@@ -16,6 +16,16 @@ mode, static hosting, VS Code, and the embeddable library.
   `event` routes, and the non-tab `print` route.
 - `viewer-modes` resolves the view-server, static HTTP, VS Code, or embedder
   backend and optionally bypasses the collection router in single-file mode.
+- `new-tab-links` renders every control that navigates to another view as a
+  real `<a href>`: grid rows, log and sample tabs, prev/next sample, the
+  Tasks/Folders/Samples switcher, "View on timeline", the timeline's sample
+  links, Flow, focus-mode exit, and reference/outline links. Plain clicks
+  navigate in place; Cmd/Ctrl/Shift/middle-click and "Open link in new tab"
+  are the browser's. Inside VS Code they fall back to buttons (grid rows to
+  `div role="row"`); outline and reference anchors stay `<a>`.
+- `log-location-gate` holds a cross-origin `?log_dir=` / `?log_file=` on a
+  browser-direct (static HTTP) backend behind an approval prompt; no request
+  reaches that origin until the user opens it.
 
 ## How to get to it (user POV)
 
@@ -41,6 +51,18 @@ mode, static hosting, VS Code, and the embeddable library.
 - Viewer-mode variants require their real production boundary. Do not claim
   static, VS Code, or embedded behavior from the view-server harness; report
   those variants skipped unless launched in that host.
+- **New-tab links.** Assert the control's `href` (it is `toFullUrl(route)`, so
+  it keeps the page's `?query`), then Cmd/Ctrl-click with
+  `link.click({ modifiers: ["ControlOrMeta"] })` inside
+  `Promise.all([context.waitForEvent("page"), ...])`. Assert the new tab's
+  location and that the current page's URL is unchanged, and still check a
+  plain click navigates in place.
+- **Log-location gate.** Only a static-HTTP host triggers it, so drive it the
+  way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
+  `getByTestId("log-location-gate")` /
+  `getByRole("alertdialog", { name: /Open logs from/ })`, that no request
+  reaches the proposed origin, then `Open` or `Don't open` (which strips the
+  proposal from the URL).
 
 ## Code landmarks
 
@@ -52,12 +74,19 @@ mode, static hosting, VS Code, and the embeddable library.
   `apps/inspect/src/app/log-view/LogViewContainer.tsx`.
 - Mode resolution: `apps/inspect/src/app_config/`, especially
   `urlLogSource.ts`, `resolveBackend.ts`, and `singleFileMode.ts`.
+- Link-proposed locations: `apps/inspect/src/app_config/LogLocationGate.tsx`
+  and `logLocationTrust.ts`; e2e in `apps/inspect/e2e/log-location-trust.spec.ts`.
+- In-app links: `packages/react/src/components/inAppLink.tsx` (`InAppLink`,
+  `inAppHref`, `inAppLinkClick`, `isNewTabClick`); tabs, segments, and
+  chevrons build on it in `TabSet.tsx`, `SegmentedControl.tsx`, and
+  `NextPreviousNav.tsx`. Hrefs come from `toFullUrl` in `url.ts`.
 - Host bridge and embed composition: `apps/inspect/src/app/App.tsx`,
   `apps/inspect/src/main.tsx`, `apps/inspect/src/embed.tsx`, and
   `apps/inspect/src/index.ts`.
 - Regression coverage: `apps/inspect/src/app/routing/url.test.ts`,
   `urlLinking.test.tsx`, loader tests, `app_config/*test.ts`, and
-  `apps/inspect/e2e/top-level-views.spec.ts`.
+  `apps/inspect/e2e/top-level-views.spec.ts` (including its "Open in new tab"
+  tests).
 
 ## Gotchas
 
@@ -72,3 +101,13 @@ mode, static hosting, VS Code, and the embeddable library.
   right URL with old content usually belong to loaders/state, not `url.ts`.
 - `print` and focused `event` are pages, not entries in the normal sample tab
   set.
+- `page.url()` stays `about:blank` for a background tab opened by a native
+  link gesture. Read `tab.evaluate(() => location.href)` (retrying while its
+  first navigation replaces the context) instead.
+- Sample prev/next and sample tabs build the href and the plain-click route
+  from one computation (`sampleNavigation.ts`); a new tab landing somewhere
+  different from a plain click there is a route bug, not a link-component
+  bug.
+- `?log_dir=` / `?log_file=` on the same origin, or on a proxied backend (view
+  server, VS Code, embedder), loads without the gate; browser-direct
+  cross-origin locations prompt, and so do `data:` or unparseable ones.

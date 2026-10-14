@@ -130,7 +130,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // position), but a sibling hop or a later return to this transcript is a
   // new visit — its lists mount with fresh keys and open at the top instead
   // of restoring an earlier visit's offset.
-  const visitId = useVisitId(transcript.transcript_id);
+  const visitId = useVisitId(
+    `${resolvedTranscriptsDir}\u0000${transcript.transcript_id}`
+  );
 
   // Selected tab — default to Events when the transcript has events
   const hasEvents = transcript.events.length > 0;

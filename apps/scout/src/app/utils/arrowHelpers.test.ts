@@ -258,3 +258,26 @@ describe("parseScanResultData", () => {
     });
   });
 });
+
+describe("transcript_trust_content", () => {
+  // Absent means the scan predates the column (trusted); any present value
+  // other than true is untrusted.
+  it.each<[unknown, boolean | undefined]>([
+    [true, true],
+    [false, false],
+    [null, undefined],
+    [undefined, undefined],
+    ["true", false],
+    [0, false],
+  ])("parses %s as %s", async (cell, expected) => {
+    const [summary] = await parseScanResultSummaries([
+      { ...typicalSummaryRow, transcript_trust_content: cell },
+    ]);
+    const data = await parseScanResultData(
+      from([{ ...typicalColumnData, transcript_trust_content: cell }])
+    );
+
+    expect(summary?.transcriptTrustContent).toBe(expected);
+    expect(data.transcriptTrustContent).toBe(expected);
+  });
+});

@@ -146,7 +146,7 @@ data and it stays current.
 | Activation lifecycle | `activateFetchEngine(config)` — open the per-dir database and start the engine for a resolved config snapshot. Called only by `<FetchEngineController>` (mounted below the config gate), which restarts the engine on a config change — the api and dir always arrive as one snapshot, never read ambiently. Acquisition entry points (`syncLogs`, `fetchLog`) await readiness for their dir (callers racing the first activation wait; a caller for a non-active dir is stale and rejects). The **sole owner of activation truth** (engine started, active config, db handle) and of sync concurrency (a module-local trailing-coalesce serializes overlapping listing syncs; scheduling itself is react-query's). | `log_data/replicationControl.ts`                                                          |
 | Poll mechanics       | Enablement derivations (`shouldPollPendingSamples`, `shouldStreamRunningSample`), cadence (server refresh hint / fixed intervals), etag threading, tick counters, the client-events tick. Polling lifetime = subscriber lifetime; no imperative start/stop.                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `log_data/pendingSamples.ts`, `log_data/runningSampleQuery.ts`, `log_data/useLogsSync.ts` |
 | Fetch engine         | The item-level fetch mechanism: priority `WorkQueue`s, in-flight dedupe (per-item completion promises), read-through cache over the local database, batched sink writes. Framework-free and dependency-injected (`api`, `database`, sink) — unit-testable with fakes (`log_data/fetchEngine.test.ts`); never imports react-query or zustand. Producer-ignorant: it doesn't know who enqueues.                                                                                                                                                                                                                                                                                                                       | `log_data/fetchEngine.ts` (singleton)                                                     |
-| Local log database   | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The service singleton creates lazily on first use (construction is side-effect free; opening is activation's job).                                                                                                                                                                                                                                                                                                                                                                                                                                                        | inside the engine; instance in `log_data/databaseServiceInstance.ts`                      |
+| Local log database   | Persistence of Log entity rows + sample summaries (IndexedDB, per-dir). The engine is the sole reader; every write goes through the sink. The shared handle is acquired once by activation (`acquireDatabase`); holding an `OpenDatabase` proves the open succeeded, and sessions without persistence hold `null`.                                                                                                                                                                                                                                                                                                                                                                                                  | inside the engine; instance in `log_data/databaseInstance.ts`                             |
 | Discovery            | `syncListing(api, engine)` — list the dir, diff against the engine's known listing (new / changed / deleted), produce the result into the engine (`applyListing`). Calls `api.get_logs` — the collection-level half of the subsystem's backend access. A stateless function: no queues, no lifecycle, no state of its own (serialization is activation's; scheduling is react-query's). UI-ignorant; dormant in single-file mode.                                                                                                                                                                                                                                                                                   | `log_data/listingSync.ts`                                                                 |
 | Engine status        | `syncing` (queue activity) and `dbStats` — high-frequency ephemeral service status in an engine-owned external store, consumed via `useSyncExternalStore`. Neither zustand nor react-query. `syncing` feeds `useLogsSync`'s busy signal; `dbStats` surfaces as `useDatabaseStats`.                                                                                                                                                                                                                                                                                                                                                                                                                                  | `fetchEngine` store, read by `log_data/useFetchEngineStatus.ts`                           |
 | Sample queries       | The completed-EvalSample query (`useSample`, with the error-summary fallback) and the streaming query (`useRunningSample`) — composed with the passive cache read (`usePassiveEvalSample`) by `useEvalSampleData`'s path-selection derivation (`deriveSampleData`).                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `log_data/sampleQuery.ts`, `log_data/runningSampleQuery.ts`, `log_data/sampleData.ts`     |
@@ -156,7 +156,8 @@ data and it stays current.
 ### Selected-log lifecycle
 
 Everything that follows from "the user is viewing this log" — thin
-_selection bindings_: read the UI selection from zustand, delegate to a
+_selection bindings_: read the current identity from the route-derived
+`CurrentSelectionProvider`, delegate to a
 param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
@@ -170,10 +171,10 @@ writes; a binding that grows a queryFn has sunk too low.
 - **Sample-summaries binding** — `useSelectedSampleSummaries()` delegates to
   `useSampleSummaries(logDir, selectedLogFile)`. (`state/hooks.ts`)
 - **Sample-data binding** — `useSelectedEvalSampleData()` delegates to
-  `useEvalSampleData(logDir, selectedSampleHandle)`; likewise
+  `useEvalSampleData(logDir, currentSampleHandle)`; likewise
   `useSelectedSampleInvalidation()`. (`state/hooks.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
-  details query settling: recording `loadedLog`, per-log score resets,
+  details query settling: per-log score resets,
   workspace-tab default for empty logs. No fetching. (`LogLoadController`)
 - **Sample reaction controller** — resets per-sample UI state that isn't
   derivable from the new sample (scroll/list positions, collapsed events,
@@ -187,13 +188,20 @@ params and this layer binds them.
 
 ### UI state (leaf)
 
-Which log the user is viewing, filters, tabs, sample selection, grid state,
-`loadedLog`, rehydration — zustand slices, and nothing else. Known only by
-components/handlers; knows nothing below it; nothing writes into it from below
-(engine status flows out through its own external store; the leaf rule has no
-exceptions). Absolutizing a relative log name against the log dir is a
-config-aware derivation and lives at the event-handler seam (`useSelectLogFile`
-in `state/hooks.ts`), not in the slice.
+Filters, tab preferences, highlighted rows, and grid state belong in zustand.
+The current log/sample belongs to the router; `CurrentSelectionProvider`
+resolves the route through the configuration trust boundary and derives the
+single-sample inline case from summaries. Its context contains no writable
+selection. Data consumers bind to that context rather than a store mirror.
+
+`highlightedSample` remembers list selection across detail navigation; it is
+never an active data source. `loadedLog` is no longer stored. The public embed
+hooks subscribe to the actual router outside RouterProvider and derive loaded
+status from the data cache. See [route ownership](../../../design/route-state-ownership.md)
+for VS Code restoration, compatibility, and remaining tab mirrors.
+
+The store remains known only by components/handlers; nothing writes into it
+from acquisition (engine status flows through its own external store).
 
 ## Media & derivations
 
@@ -225,11 +233,11 @@ Arrows point at what a layer is allowed to know.
 
 ```
 Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
-       │                  useSelectLogFile/useDatabaseStats/useStore)
+       │                  useCurrentLogFile/useDatabaseStats/useStore)
        │                  zustand (UI-state leaf) lives here; knows nothing below
        ▼
 Lifecycle controllers     AppConfigGate, FetchEngineController, LogLoadController,
-       │                  SampleLoadController, SampleRouteSelectionController,
+       │                  SampleLoadController,
        │                  ThemePreferenceSyncController (reactions / irreducible
        │                  effects; no fetching)
        ▼
@@ -297,5 +305,5 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a
   possible future step; the sink is the only coupling that would move.
-- **`loadedLog`** — recorded by the reaction controller as zustand UI state
-  (navigation reads it), not derived from the query.
+- **Active selection** — derived from the router at the UI boundary; acquisition
+  receives explicit log/sample parameters and never reads routing or zustand.

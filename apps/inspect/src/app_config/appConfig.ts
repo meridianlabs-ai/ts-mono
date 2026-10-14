@@ -1,5 +1,4 @@
 import { ClientAPI, LogRoot } from "../client/api/types";
-import { selectLogFile } from "../state/actions";
 import { queryClient } from "../state/queryClient";
 
 import { APP_CONFIG_KEY } from "./hooks";
@@ -39,6 +38,9 @@ export interface AppConfig {
   logFile?: string;
   inspect_version: string;
   scout_version: string | null;
+  /** The viewer-wide trust setting (`inspect view --no-trust-content`); see
+   *  `trustContentSetting` for how it's read. */
+  trust_content?: boolean | null;
   logDir: string;
   absLogDir?: string;
 }
@@ -166,6 +168,7 @@ export const loadResolvedAppConfig = async (
     logFile: bs.logFile,
     inspect_version: versions.inspect_version,
     scout_version: versions.scout_version ?? null,
+    trust_content: versions.trust_content,
     logDir,
     absLogDir: logRoot.abs_log_dir,
   };
@@ -181,12 +184,6 @@ let appConfig: AppConfig | undefined;
 export const resolveAppConfig = async (): Promise<AppConfig> => {
   if (!appConfig) {
     appConfig = await loadResolvedAppConfig(getBootstrap());
-    // The `?log_file=` deep-link selection is a once-per-session startup fact,
-    // so it lives here rather than in a mounted component. After the singleton
-    // assignment: selectLogFile absolutizes against the resolved logDir.
-    if (appConfig.logFile !== undefined) {
-      selectLogFile(appConfig.logFile);
-    }
   }
   return appConfig;
 };

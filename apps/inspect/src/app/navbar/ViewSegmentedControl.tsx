@@ -2,12 +2,14 @@ import { FC } from "react";
 import { useNavigate } from "react-router";
 
 import { SegmentedControl } from "@tsmono/react/components";
+import { navigateAndForget } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../appearance/icons";
 import {
   logsUrl,
   samplesUrl,
   tasksUrl,
+  toFullUrlMaybe,
   useLogRouteParams,
   useSamplesRouteParams,
   useTasksRouteParams,
@@ -30,24 +32,24 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
   const { logPath } = useLogRouteParams();
   const { samplesPath } = useSamplesRouteParams();
   const { tasksPath } = useTasksRouteParams();
+  // Resolve the current path from whichever route we're on
+  const path = logPath || samplesPath || tasksPath || "";
+  const routes: Record<string, string> = {
+    tasks: tasksUrl(path),
+    logs: logsUrl(path),
+    samples: samplesUrl(path),
+  };
+
   return (
     <SegmentedControl
-      segments={segments}
+      segments={segments.map((segment) => ({
+        ...segment,
+        href: toFullUrlMaybe(routes[segment.id]),
+      }))}
       selectedId={selectedSegment}
       onSegmentChange={(segment) => {
-        // Resolve the current path from whichever route we're on
-        const path = logPath || samplesPath || tasksPath || "";
-
-        if (segment === "logs") {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          navigate(logsUrl(path));
-        } else if (segment === "tasks") {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          navigate(tasksUrl(path));
-        } else {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          navigate(samplesUrl(path));
-        }
+        const route = routes[segment];
+        if (route) navigateAndForget(navigate, route);
       }}
     />
   );

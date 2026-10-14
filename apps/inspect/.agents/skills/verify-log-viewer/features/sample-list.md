@@ -8,7 +8,8 @@ sample detail.
 ## Sub-features
 
 - `samples-in-log` lists a log's samples in the log view's Samples tab.
-- `samples-open` opens a sample's detail from a row.
+- `samples-open` opens a sample's detail from a row. Rows are links, so
+  Cmd/Ctrl/middle-click open the sample in a new tab.
 - `samples-global` lists samples across logs in the top-level Samples view.
 - `samples-filter-sort` supports the sample filter language, per-column
   filters, scorer selection, sorting, and Reset Filters.
@@ -16,6 +17,8 @@ sample detail.
   compact scores, and score color scales.
 - `samples-status-fields` promotes error, limit, retries, and fallback columns
   when data exists and keeps score/status semantics consistent with detail.
+- `samples-cost` offers an optional Cost column (`cost`, hidden by default),
+  blank when any model that used tokens recorded no cost.
 - `samples-single` renders a single sample inline instead of a pointless
   one-row grid where that mode applies.
 
@@ -44,7 +47,7 @@ Preconditions:
   `page.waitForURL(/\/samples\/sample\//)` and
   `page.locator("[id^='sample-heading-']")` is visible — the sample header
   with input/target/answer/score.
-- **Cross-log view.** `page.getByRole("navigation").getByRole("button", { name: "Samples" })`;
+- **Cross-log view.** `page.getByRole("navigation").getByRole("link", { name: "Samples" })`;
   the same `grid` named "Samples" renders rows from multiple logs (extra
   columns `task`, `logFile`). Opening a row routes to
   `#/samples/<logPath>/sample/<id>/<epoch>/...`.
@@ -66,6 +69,11 @@ Preconditions:
   `apps/inspect/src/app/samples/SamplesTools.tsx`, and
   `apps/inspect/src/app/samples/sample-tools/`.
 - Shared row/columns/grid state: `apps/inspect/src/app/shared/samples-grid/`.
+- Filter language: parsed and evaluated by `packages/filter-expression/`;
+  `apps/inspect/src/app/samples/sample-tools/filters.ts` supplies the fields
+  and helper functions.
+- Cost: `packages/inspect-common/src/utils/modelCost.ts`, derived per sample in
+  `apps/inspect/src/client/utils/derive.ts`.
 - Listing data: `apps/inspect/src/log_data/samplesListing.ts`,
   `sampleSummaries.ts`, and `scoreSchema.ts`.
 - Regression coverage: sample view/filter/grid unit tests,
@@ -87,3 +95,6 @@ Preconditions:
   data has those fields.
 - Filters operate on summary/listing fields. Do not load every full sample to
   make a grid filter work.
+- The filter language is interpreted, never compiled to code, so it works
+  under a strict CSP. Operator and parse behavior is in
+  `packages/filter-expression/`; field names and helpers are in `filters.ts`.

@@ -1,0 +1,10 @@
+version: 2
+
+# Scan only PRs that can change what gets installed or what CI runs.
+# pnpm-workspace.yaml holds the overrides and minimumReleaseAge settings.
+triggerPaths:
+  - "**/package.json"
+  - "pnpm-lock.yaml"
+  - "pnpm-workspace.yaml"
+  - ".github/workflows/**"
+  - ".github/actions/**"

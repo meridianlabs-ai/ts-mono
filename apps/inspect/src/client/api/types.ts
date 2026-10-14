@@ -37,6 +37,7 @@ import type {
   SearchInputListResponse,
   SearchRequest,
   SearchResponse,
+  SentinelEvent,
   StateEvent,
   StepEvent,
   StoreEvent,
@@ -183,6 +184,7 @@ export interface EventData {
     | ToolEvent
     | ApprovalEvent
     | ReviewEvent
+    | SentinelEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent

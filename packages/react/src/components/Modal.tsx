@@ -2,6 +2,8 @@ import clsx from "clsx";
 import { FC, ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { useEventListener } from "../hooks/useEventListener";
+
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./Modal.module.css";
 
@@ -74,9 +76,10 @@ export const Modal: FC<ModalProps> = ({
   const fallbackTitleId = useId();
 
   // Handle escape, enter, and tab (focus trap) keys.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  useEventListener(
+    typeof document === "undefined" ? null : document,
+    "keydown",
+    (e) => {
       if (!show) return;
       if (e.key === "Escape") {
         onHide();
@@ -100,10 +103,8 @@ export const Modal: FC<ModalProps> = ({
           first.focus();
         }
       }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [show, onHide, onSubmit]);
+    }
+  );
 
   // Move focus into the dialog on open and restore it to the previously
   // focused element on close.

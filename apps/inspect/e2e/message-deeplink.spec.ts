@@ -133,6 +133,22 @@ async function openAtMessage(
   );
 }
 
+/** Re-reads `read` every 100 ms (up to 2 s) until `messageTop` stops
+ *  moving, then returns the settled reading. */
+async function settled<T extends { messageTop: number }>(
+  read: () => Promise<T | null>
+): Promise<T | null> {
+  let last = -1;
+  let g = await read();
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    g = await read();
+    if (g && Math.abs(g.messageTop - last) < 1) break;
+    last = g?.messageTop ?? -1;
+  }
+  return g;
+}
+
 test("?message= deep link lands the message below the sticky event header", async ({
   page,
   network,
@@ -164,16 +180,7 @@ test("?message= deep link lands the message below the sticky event header", asyn
       };
     });
 
-  // Poll until the scroll settles (position stops changing).
-  let last = -1;
-  let g = await geom();
-  for (let i = 0; i < 20; i++) {
-    await page.waitForTimeout(100);
-    g = await geom();
-    if (g && Math.abs(g.messageTop - last) < 1) break;
-    last = g?.messageTop ?? -1;
-  }
-
+  const g = await settled(geom);
   expect(g).not.toBeNull();
   // A sticky event header must actually be pinned (else the test proves
   // nothing about occlusion).

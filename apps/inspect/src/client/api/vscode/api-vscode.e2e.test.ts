@@ -84,25 +84,6 @@ const okJson = (body: unknown): ProxyResponse => ({
 });
 
 describe("apiVscode end-to-end over postMessage", () => {
-  test("get_logs round-trips a GET carrying the construction dir", async () => {
-    const { vscode, received } = connectFakeExtension((req) => {
-      expect(req.method).toBe("GET");
-      expect(req.path).toBe(
-        `/api/log-files?log_dir=${encodeURIComponent("file:///logs/run-1")}`
-      );
-      return okJson({ files: [], response_type: "full" });
-    });
-
-    const listing = await apiVscode(
-      vscode,
-      "file:///logs/run-1",
-      createVscodeProxyFetch(vscode)
-    ).get_logs(0, 0);
-
-    expect(listing.files).toEqual([]);
-    expect(received[0]?.method).toBe("http_request");
-  });
-
   test("get_log_bytes round-trips binary via base64", async () => {
     const { vscode } = connectFakeExtension((req) => {
       expect(req.method).toBe("GET");
@@ -124,7 +105,7 @@ describe("apiVscode end-to-end over postMessage", () => {
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
   });
 
-  test("two instances over ONE transport answer for their own dirs", async () => {
+  test("two instances over ONE transport GET listings for their own dirs", async () => {
     // The LogViewAPI contract, on the transport that motivated it: the host's
     // "current" dir must never leak into an instance's answers. The fake
     // extension answers every listing request with the dir it was asked
@@ -132,7 +113,9 @@ describe("apiVscode end-to-end over postMessage", () => {
     // wrong files.
     const dirA = "file:///dir/a";
     const dirB = "file:///dir/b";
-    const { vscode } = connectFakeExtension((req) => {
+    const requests: ProxyRequest[] = [];
+    const { vscode, received } = connectFakeExtension((req) => {
+      requests.push(req);
       const url = new URL(`vscode://host${req.path}`);
       const dir = url.searchParams.get("log_dir");
       return okJson({
@@ -155,6 +138,14 @@ describe("apiVscode end-to-end over postMessage", () => {
     ]);
     expect(listingB.files.map((f) => f.name)).toEqual([
       "file:///dir/b/only.eval",
+    ]);
+    expect(received.map((r) => r.method)).toEqual([
+      "http_request",
+      "http_request",
+    ]);
+    expect(requests.map((r) => [r.method, r.path]).sort()).toEqual([
+      ["GET", `/api/log-files?log_dir=${encodeURIComponent(dirA)}`],
+      ["GET", `/api/log-files?log_dir=${encodeURIComponent(dirB)}`],
     ]);
   });
 });

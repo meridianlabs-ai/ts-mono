@@ -35,7 +35,8 @@ Preconditions:
   `panel.getByText("The answer is 4.")` (assistant) are visible.
 - **Tab switching.** From another tab,
   `page.getByRole("tab", { name: "Messages" }).click()` selects it
-  (`aria-selected="true"`); the tab button's DOM id is the tab id.
+  (`aria-selected="true"`); the tab element's DOM id is the tab id. Outside
+  VS Code sample tabs are `<a role="tab" href>` links to that tab.
 - **Proof.** Screenshot the rendered conversation; assert both roles'
   fixture texts, not just one.
 

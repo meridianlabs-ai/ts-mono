@@ -15,6 +15,13 @@ import {
   waitForGrid,
 } from "./fixtures/log-list-scenario";
 
+declare global {
+  interface Window {
+    /** Every visible text the find band's match counter showed, in order. */
+    __findStatusLog?: string[];
+  }
+}
+
 function findInput(page: Page) {
   return page.getByPlaceholder("Find");
 }
@@ -71,8 +78,33 @@ test.describe("Log-list find band", () => {
     await waitForGrid(page);
 
     await openFindBand(page);
-    await findInput(page).fill("no-such-log-anywhere");
+    // Record every status the counter shows while a matching term is typed
+    // one keystroke at a time; each keystroke starts a new debounced query.
+    // The counter keeps its text while hidden, so only visible text counts.
+    await page.evaluate(() => {
+      const seen: string[] = [];
+      window.__findStatusLog = seen;
+      new MutationObserver(() => {
+        const status = document.querySelector<HTMLElement>(
+          '[data-testid="find-band-match-count"]'
+        );
+        if (status && getComputedStyle(status).visibility === "visible") {
+          seen.push(status.textContent);
+        }
+      }).observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    });
+    await findInput(page).pressSequentially("gamma", { delay: 40 });
+    await expect(matchStatus(page)).toHaveText("1 of 1");
+    const seen = await page.evaluate(() => window.__findStatusLog ?? []);
+    expect(seen).toContain("1 of 1");
+    expect(seen).not.toContain("No results");
 
+    await findInput(page).fill("no-such-log-anywhere");
     await expect(matchStatus(page)).toHaveText("No results");
 
     // Narrowing back to a matching term recovers from the no-results state.

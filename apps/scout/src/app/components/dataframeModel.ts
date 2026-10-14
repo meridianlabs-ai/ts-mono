@@ -146,16 +146,14 @@ export function compareDataframeValues(a: unknown, b: unknown): number {
   return left > right ? 1 : left < right ? -1 : 0;
 }
 
-// Export the chosen columns and displayed values from all filtered/sorted rows.
+// Display truncation must not discard evidence in copied or downloaded data.
 export function dataframeCsv(rows: DataframeRow[], columns: string[]): string {
   if (columns.length === 0) return "";
   const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
   return [
     columns.map(quote).join(","),
     ...rows.map((row) =>
-      columns
-        .map((column) => quote(formatDataframeValue(row[column])))
-        .join(",")
+      columns.map((column) => quote(valueAsString(row[column]))).join(",")
     ),
   ].join("\r\n");
 }

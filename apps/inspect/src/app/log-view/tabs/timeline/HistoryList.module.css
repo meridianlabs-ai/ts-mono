@@ -331,10 +331,16 @@
   border: none;
   padding: 0;
   cursor: pointer;
+  /* Renders as <a> outside VS Code; match the <button> box and focus ring. */
+  display: inline-block;
+  text-decoration: none;
+  outline-offset: 0;
 }
 
 .openSample:hover {
   text-decoration: underline;
+  /* Outrank the global a:hover link colour. */
+  color: var(--bs-link-color);
 }
 
 :global([data-bs-theme="dark"]) .pillAll.pillSelected {

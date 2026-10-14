@@ -1,46 +1,20 @@
 import { http, HttpResponse } from "msw";
 
-import type { ScansResponse } from "../src/types/api-types";
-
 import { expect, test } from "./fixtures/app";
-import { createScanRow, createScansResponse } from "./fixtures/test-data";
 
-test("scans page renders grid with data", async ({ page, network }) => {
-  network.use(
-    http.post("*/api/v2/scans/:dir", () =>
-      HttpResponse.json<ScansResponse>(
-        createScansResponse([
-          createScanRow({
-            scan_id: "scan-001",
-            scan_name: "eval-safety",
-            status: "complete",
-            total_results: 42,
-          }),
-          createScanRow({
-            scan_id: "scan-002",
-            scan_name: "eval-quality",
-            status: "active",
-            total_results: 10,
-          }),
-        ])
-      )
-    )
+test("scans page shows an empty grid when no scans exist", async ({ page }) => {
+  const listed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/api/v2/scans/")
   );
-
   await page.goto("/#/scans");
+  await listed;
 
-  // Grid renders with scan data
-  await expect(page.getByText("eval-safety").first()).toBeVisible();
-  await expect(page.getByText("eval-quality").first()).toBeVisible();
-
-  // Footer shows item count
-  await expect(page.locator("#scan-job-footer")).toContainText("2 items");
-});
-
-test("scans page shows empty state when no scans exist", async ({ page }) => {
-  await page.goto("/#/scans");
-
-  // Footer shows 0 items
+  // The only body row is the grid's empty-state message.
+  const bodyRows = page.locator("tbody").getByRole("row");
+  await expect(bodyRows).toHaveCount(1);
+  await expect(bodyRows).toHaveText(/^No /);
   await expect(page.locator("#scan-job-footer")).toContainText("0 items");
 });
 

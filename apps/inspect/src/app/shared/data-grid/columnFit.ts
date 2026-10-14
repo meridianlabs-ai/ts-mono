@@ -12,10 +12,14 @@
  *    log list), capped at `maxSize`.
  * A column is never auto-compressed below its declared width; when the
  * declared widths overflow the viewport the grid scrolls horizontally.
- * `minSize` gates user drag-resizes, not the auto layout (it serves as the
- * layout floor only for a flex column with no declared size).
  *
  * User-resized widths (`overrides`) always win and never redistribute.
+ *
+ * Every width, override or declared, is first clamped to `[minSize,
+ * maxSize]` exactly as TanStack's `column.getSize()` clamps what renders;
+ * otherwise a stored width outside the current def's bounds (e.g. a
+ * compact-mode score width after compact scores is turned off) makes the
+ * fit disagree with the rendered total.
  */
 
 export interface FitColumn {
@@ -28,10 +32,16 @@ export interface FitColumn {
 }
 
 const kDefaultWidth = 150;
+/** TanStack's built-in `minSize` for a def that leaves it unset. */
+const kDefaultMinSize = 20;
 
-const baseWidth = (c: FitColumn): number =>
-  c.size ?? c.minSize ?? kDefaultWidth;
 const hi = (c: FitColumn): number => c.maxSize ?? Infinity;
+/** Mirrors TanStack's `column_getSize` clamp: min first, so `maxSize` wins
+ *  when the two conflict. */
+const renderedWidth = (w: number, c: FitColumn): number =>
+  Math.min(Math.max(c.minSize ?? kDefaultMinSize, w), hi(c));
+const baseWidth = (c: FitColumn): number =>
+  renderedWidth(c.size ?? c.minSize ?? kDefaultWidth, c);
 const clampWidth = (w: number, c: FitColumn): number =>
   Math.min(Math.max(w, baseWidth(c)), hi(c));
 
@@ -47,7 +57,9 @@ export function resolveColumnWidths(
 ): Record<string, number> {
   const widths: Record<string, number> = {};
   for (const c of columns) {
-    widths[c.id] = overrides[c.id] ?? baseWidth(c);
+    const override = overrides[c.id];
+    widths[c.id] =
+      override === undefined ? baseWidth(c) : renderedWidth(override, c);
   }
   if (availableWidth <= 0) return widths;
 

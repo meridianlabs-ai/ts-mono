@@ -31,7 +31,7 @@ expect(capturedHeaders?.get("If-Match")).toBe('"v1"');
 
 **Setup**: MSW runs automatically via `vitest.config.ts` `setupFiles`. No per-test setup needed.
 
-**Config**: `onUnhandledRequest: "error"` — any fetch not handled by a test handler fails the test. QueryClient uses `retry: false`, `gcTime: 0` for deterministic behavior.
+**Config**: `onUnhandledFrame: "error"` — any fetch not handled by a test handler fails the test. QueryClient uses `retry: false`, `gcTime: 0` for deterministic behavior.
 
 **Collapsed group suppression**: Node has no concept of `console.groupCollapsed` — it prints everything. `setup-msw.ts` replicates browser behavior by suppressing `console.log` calls inside collapsed groups. This quiets MSW's SSE handler (which wraps all logging in `groupCollapsed`), but applies to any code using collapsed groups. Top-level `console.log` is unaffected.
 

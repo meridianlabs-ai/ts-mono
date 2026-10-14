@@ -27,6 +27,7 @@ interface LogDirContext {
   log_file?: string;
   abs_log_dir?: string;
   inspect_version?: string;
+  trust_content?: boolean | null;
 }
 
 /** Transport facts knowable before any api instance exists — what the store
@@ -218,10 +219,11 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
       if (data.log_dir || data.log_file) {
         const log_dir = data.log_dir || dirname(data.log_file ?? "");
         const app_config: AppConfig | undefined =
-          data.inspect_version !== undefined
+          data.inspect_version !== undefined || data.trust_content !== undefined
             ? {
-                inspect_version: data.inspect_version,
+                inspect_version: data.inspect_version ?? "unknown",
                 scout_version: null,
+                trust_content: data.trust_content,
               }
             : undefined;
         return staticBackend(log_dir, data.abs_log_dir, app_config);

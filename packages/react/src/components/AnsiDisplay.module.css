@@ -30,19 +30,6 @@
   white-space: pre-wrap;
 }
 
-.ansiDisplayToggle {
-  position: absolute;
-  top: 0.25rem;
-  right: 0.25rem;
-  z-index: 10;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.ansiDisplayContainer:hover .ansiDisplayToggle {
-  opacity: 1;
-}
-
 :global(.dark-mode) .ansiDisplay {
   --ansiBlack: #000000;
   --ansiRed: #cd3131;
@@ -66,9 +53,4 @@
   50% {
     opacity: 0;
   }
-}
-
-.ansiDisplayToggle {
-  padding: 0 0.2rem;
-  background-color: var(--bs-body-bg);
 }

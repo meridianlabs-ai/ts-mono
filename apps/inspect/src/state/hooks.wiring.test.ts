@@ -30,16 +30,17 @@ vi.mock("../app_config", () => ({
 }));
 
 // Mutable so the "no file selected" test (e) can override selectedLogFile.
-const storeState: { selectedLogFile: string | undefined } = vi.hoisted(() => ({
-  selectedLogFile: "run.eval",
-}));
-vi.mock("./store", () => ({
-  useStore: (selector: (state: unknown) => unknown) =>
-    selector({ logs: { selectedLogFile: storeState.selectedLogFile } }),
+const routeSelection: { selectedLogFile: string | undefined } = vi.hoisted(
+  () => ({
+    selectedLogFile: "run.eval",
+  })
+);
+vi.mock("../app/routing/currentSelection", () => ({
+  useCurrentLogFile: () => routeSelection.selectedLogFile,
 }));
 
 beforeEach(() => {
-  storeState.selectedLogFile = "run.eval";
+  routeSelection.selectedLogFile = "run.eval";
 });
 
 describe("useSelectedRunningMetrics", () => {
@@ -58,7 +59,7 @@ describe("useSelectedLogDetail", () => {
   it("delegates to useLogHeader with the selected log", () => {
     const state: AsyncData<unknown> = loading;
     useLogHeader.mockReturnValue(state);
-    storeState.selectedLogFile = "run.eval";
+    routeSelection.selectedLogFile = "run.eval";
 
     const { result } = renderHook(() => useSelectedLogDetail());
 
@@ -75,7 +76,7 @@ describe("useSelectedLogDetail", () => {
 describe("useSelectedLogLoading", () => {
   it("is false when no file is selected", () => {
     useLogHeader.mockReturnValue(data(undefined));
-    storeState.selectedLogFile = undefined;
+    routeSelection.selectedLogFile = undefined;
 
     const { result } = renderHook(() => useSelectedLogLoading());
 

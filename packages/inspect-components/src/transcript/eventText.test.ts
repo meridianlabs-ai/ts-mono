@@ -20,6 +20,7 @@ import {
   testScoreEdit,
   testScoreEditEvent,
   testScoreEvent,
+  testSentinelEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
   testStateEvent,
@@ -152,6 +153,33 @@ describe("eventsToMarkdown", () => {
       testToolEvent({ function: "bash", result: "line\n```\nnested\n```" }),
     ]);
     expect(out).toContain("````\nline\n```\nnested\n```\n````");
+  });
+});
+
+describe("eventsToMarkdown — sentinel", () => {
+  it("titles a sentinel event by kind and instance", () => {
+    const out = eventsToMarkdown([
+      testSentinelEvent({
+        path: "attempt/human",
+        factory: "human",
+        action: "reject",
+        explanation: "Not on the allow list.",
+      }),
+      testSentinelEvent({ path: "", factory: "concurrent" }),
+      testSentinelEvent({
+        path: "slow",
+        factory: "slow_judge",
+        kind: "observation",
+        status: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    expect(out).toContain("## Sentinel Decision: attempt/human");
+    expect(out).toContain("**Action:** reject");
+    expect(out).toContain("**Explanation:** Not on the allow list.");
+    expect(out).toContain("## Sentinel Decision: concurrent");
+    expect(out).toContain("## Sentinel Observation (cancelled): slow");
   });
 });
 
@@ -625,6 +653,83 @@ describe("eventSearchText", () => {
     expect(texts).toContain("approve");
     expect(texts).toContain("looks safe");
     expect(texts).toContain("human-in-loop");
+  });
+
+  test("sentinel: includes identity, report and explanation", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          path: "attempt/monitor",
+          factory: "suspicion_monitor",
+          function: "score_call",
+          kind: "observation",
+          suspicion: { exfiltration: 0.8 },
+          action: null,
+          audit: true,
+          explanation: "Posts credentials to a paste site.",
+        })
+      )
+    );
+    expect(texts).toEqual([
+      "observation",
+      "reported",
+      "attempt/monitor",
+      "suspicion_monitor",
+      "score_call",
+      "tool_call",
+      "exfiltration 0.8",
+      "true",
+      "Posts credentials to a paste site.",
+    ]);
+  });
+
+  test("sentinel: a modify decision includes its replacement call", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          action: "modify",
+          modified: testToolCall({
+            function: "bash",
+            arguments: { cmd: "ls" },
+          }),
+        })
+      )
+    );
+    expect(texts).toContain('bash(cmd="ls")');
+  });
+
+  test("sentinel: a failed monitor includes its error", () => {
+    const event = testSentinelEvent({
+      path: "broken",
+      factory: "llm_suspicion",
+      function: "score",
+      kind: "observation",
+      status: "error",
+      action: null,
+      error: "RuntimeError: model unavailable",
+    });
+    expect(extractEventFields(event)).toContainEqual([
+      "error",
+      "RuntimeError: model unavailable",
+    ]);
+    expect(eventSearchText(makeNode(event))).toContain(
+      "RuntimeError: model unavailable"
+    );
+  });
+
+  test("sentinel: a bypassed layer carries no report", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          path: "",
+          factory: "concurrent",
+          status: "bypassed",
+          function: null,
+          action: null,
+        })
+      )
+    );
+    expect(texts).toEqual(["decision", "bypassed", "concurrent", "tool_call"]);
   });
 
   test("sandbox: includes action, cmd, output, and file", () => {

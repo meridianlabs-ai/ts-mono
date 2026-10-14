@@ -133,6 +133,8 @@
 }
 
 .timelineLink {
+  /* Renders as <a> when it has an href; keep the <button>'s focus ring. */
+  outline-offset: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

@@ -1,29 +1,86 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createLogSlice } from "./logSlice";
-import { StoreState } from "./store";
+import { initializeStore, storeImplementation } from "./store";
+import { testStoreState } from "./testStore";
 
-const createHarness = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately empty: the slice under test writes into this object, and reads only what it wrote
-  const state = {} as StoreState;
-  const set = vi.fn((fn: (state: StoreState) => void) => {
-    fn(state);
-  });
-  const get = () => state;
-
-  const slice = createLogSlice(set, get, {});
-  state.log = { ...slice.log };
-  state.logActions = slice.logActions;
-
-  return { state };
+const capabilities = {
+  downloadFiles: false,
+  downloadLogs: false,
+  webWorkers: false,
+  streamSamples: false,
 };
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-describe("logSlice.setLoadedLog", () => {
-  test("records the loaded log as UI state", () => {
-    const harness = createHarness();
+describe("legacy webview selection", () => {
+  it("retains the highlighted row but discards obsolete navigation and loading snapshots", () => {
+    vi.useFakeTimers();
+    const initial = testStoreState();
+    const legacy = {
+      version: 4,
+      state: {
+        app: initial.app,
+        logs: { ...initial.logs, selectedLogFile: "file:///logs/old.eval" },
+        log: {
+          ...initial.log,
+          selectedSampleHandle: {
+            logFile: "file:///logs/old.eval",
+            id: "one",
+            epoch: 2,
+          },
+          loadedLog: "file:///logs/old.eval",
+        },
+      },
+    };
+    const setItem = vi.fn();
+    initializeStore(capabilities, {
+      getItem: () => legacy,
+      setItem,
+      removeItem: vi.fn(),
+    });
+    const state = storeImplementation?.getState();
+    expect(state?.log.highlightedSample).toEqual({
+      logFile: "file:///logs/old.eval",
+      id: "one",
+      epoch: 2,
+    });
+    expect(state?.logs).not.toHaveProperty("selectedLogFile");
+    expect(state?.log).not.toHaveProperty("selectedSampleHandle");
+    expect(state?.log).not.toHaveProperty("loadedLog");
+    vi.runAllTimers();
+    expect(setItem.mock.lastCall?.[0]).toBe("app-storage");
+    expect(setItem.mock.lastCall?.[1]).toMatchObject({
+      state: { log: state?.log, logs: state?.logs },
+    });
+  });
 
-    harness.state.logActions.setLoadedLog("run.eval");
-
-    expect(harness.state.log.loadedLog).toBe("run.eval");
+  it.each([
+    null,
+    "bad",
+    { id: "one" },
+    { id: "one", epoch: "2", logFile: "run.eval" },
+  ])("discards malformed legacy selection %j", (selectedSampleHandle) => {
+    vi.useFakeTimers();
+    const initial = testStoreState();
+    initializeStore(capabilities, {
+      getItem: () => ({
+        version: 4,
+        state: {
+          app: initial.app,
+          logs: initial.logs,
+          log: { ...initial.log, selectedSampleHandle },
+        },
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+    expect(
+      storeImplementation?.getState().log.highlightedSample
+    ).toBeUndefined();
+    expect(storeImplementation?.getState().log).not.toHaveProperty(
+      "selectedSampleHandle"
+    );
+    vi.runAllTimers();
   });
 });

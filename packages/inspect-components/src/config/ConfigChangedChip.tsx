@@ -1,11 +1,11 @@
 import clsx from "clsx";
-import { FC, Fragment, MouseEvent, ReactNode, useState } from "react";
+import { FC, Fragment, ReactNode, useState } from "react";
 
 import {
   formatConfigValue,
   type ConfigChangeInfo,
 } from "@tsmono/inspect-common/utils";
-import { PopOver } from "@tsmono/react/components";
+import { InAppLink, PopOver } from "@tsmono/react/components";
 
 import styles from "./ConfigChangedChip.module.css";
 
@@ -24,20 +24,28 @@ const scopeLabel = (change: ConfigChangeInfo): string =>
   change.inherited ? `${change.scope} · inherited` : change.scope;
 
 interface TimelineLinkProps {
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  onClick: () => void;
+  /** The Timeline tab's URL: renders a link so cmd/ctrl/middle-click open
+   *  the timeline in a new tab (a button inside VS Code or without one). */
+  href?: string;
   className?: string;
 }
 
-/** The "View on timeline" affordance shared by the config/usage surfaces. */
-export const TimelineLink: FC<TimelineLinkProps> = ({ onClick, className }) => (
-  <button
-    type="button"
+/** The "View on activity" affordance shared by the config/usage surfaces
+ *  (targets the log-level Activity tab, formerly labeled Timeline). */
+export const TimelineLink: FC<TimelineLinkProps> = ({
+  onClick,
+  href,
+  className,
+}) => (
+  <InAppLink
+    href={href}
+    onNavigate={onClick}
     className={clsx(styles.timelineLink, className)}
-    onClick={onClick}
   >
     <i className="bi bi-graph-up" aria-hidden="true" />
-    View on timeline
-  </button>
+    View on activity
+  </InAppLink>
 );
 
 interface ProvenanceGridProps {
@@ -119,7 +127,8 @@ interface ConfigChangedChipProps {
   change: ConfigChangeInfo;
   /** The folded value shown in the cell — the launch value when cleared. */
   effectiveValue?: unknown;
-  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onViewTimeline?: () => void;
+  timelineHref?: string;
 }
 
 /**
@@ -131,6 +140,7 @@ export const ConfigChangedChip: FC<ConfigChangedChipProps> = ({
   change,
   effectiveValue,
   onViewTimeline,
+  timelineHref,
 }) => {
   const chipLabel = change.cleared
     ? "override cleared → launch value"
@@ -187,7 +197,9 @@ export const ConfigChangedChip: FC<ConfigChangedChipProps> = ({
           )}
         </div>
         <ProvenanceGrid change={change} />
-        {onViewTimeline ? <TimelineLink onClick={onViewTimeline} /> : null}
+        {onViewTimeline ? (
+          <TimelineLink onClick={onViewTimeline} href={timelineHref} />
+        ) : null}
       </div>
     </HoverChip>
   );
@@ -197,7 +209,8 @@ interface ConfigValueCellProps {
   /** The folded (effective) value for this knob. */
   value: unknown;
   change: ConfigChangeInfo;
-  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onViewTimeline?: () => void;
+  timelineHref?: string;
 }
 
 /**
@@ -209,6 +222,7 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
   value,
   change,
   onViewTimeline,
+  timelineHref,
 }) => {
   const showPrior =
     !change.cleared &&
@@ -235,6 +249,7 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
         change={change}
         effectiveValue={value}
         onViewTimeline={onViewTimeline}
+        timelineHref={timelineHref}
       />
     </div>
   );
@@ -243,7 +258,8 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
 interface ConfigChangesCountChipProps {
   changes: ConfigChangeInfo[];
   id?: string;
-  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onViewTimeline?: () => void;
+  timelineHref?: string;
 }
 
 /**
@@ -253,6 +269,7 @@ export const ConfigChangesCountChip: FC<ConfigChangesCountChipProps> = ({
   changes,
   id = "config-changes-count",
   onViewTimeline,
+  timelineHref,
 }) => {
   if (changes.length === 0) {
     return null;
@@ -297,7 +314,9 @@ export const ConfigChangesCountChip: FC<ConfigChangesCountChipProps> = ({
             </div>
           ))}
         </div>
-        {onViewTimeline ? <TimelineLink onClick={onViewTimeline} /> : null}
+        {onViewTimeline ? (
+          <TimelineLink onClick={onViewTimeline} href={timelineHref} />
+        ) : null}
       </div>
     </HoverChip>
   );

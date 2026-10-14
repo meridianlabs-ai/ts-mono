@@ -4,18 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getVscodeApi } from "@tsmono/util";
 
-import {
-  initializeStore,
-  storeImplementation,
-  StoreState,
-} from "../state/store";
+import { initializeStore } from "../state/store";
 
 import { AppContent } from "./App";
 
 // Only the host-message bridge is under test: stub the router and the fetch
 // engine so <AppContent> mounts on its own.
 vi.mock("react-router/dom", () => ({ RouterProvider: () => null }));
-vi.mock("./routing/AppRouter.tsx", () => ({ AppRouter: {} }));
+const navigate = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+vi.mock("./routing/AppRouter.tsx", () => ({
+  getAppRouter: () => ({ navigate }),
+}));
 
 const invalidateLogListing = vi.hoisted(() => vi.fn());
 vi.mock("../log_data", () => ({
@@ -42,11 +41,6 @@ const postHostMessage = (data: unknown) => {
   });
 };
 
-const store = (): StoreState => {
-  if (!storeImplementation) throw new Error("store not initialized");
-  return storeImplementation.getState();
-};
-
 beforeEach(() => {
   initializeStore({
     downloadFiles: false,
@@ -54,7 +48,6 @@ beforeEach(() => {
     webWorkers: false,
     streamSamples: false,
   });
-  store().logsActions.setSelectedLogFile("file:///logs/open.eval");
 });
 
 afterEach(() => {
@@ -79,7 +72,7 @@ describe("in VS Code", () => {
       log_dir: "file:///logs",
     });
 
-    expect(store().logs.selectedLogFile).toBe("file:///logs/open.eval");
+    expect(navigate).not.toHaveBeenCalled();
     expect(invalidateLogListing).toHaveBeenCalledTimes(1);
   });
 
@@ -89,7 +82,15 @@ describe("in VS Code", () => {
     postHostMessage({ type: "updateState", url: "file:///other/run.eval" });
 
     expect(setLogRoot).toHaveBeenCalledWith("file:///other");
-    expect(store().app.initialState?.log).toBe("run.eval");
+    expect(navigate).toHaveBeenCalledWith("/logs/run.eval", { replace: true });
+  });
+
+  it("does not navigate again when the host replays its command on focus", () => {
+    render(<AppContent />);
+    const command = { type: "updateState", url: "file:///logs/new.eval" };
+    postHostMessage(command);
+    postHostMessage(command);
+    expect(navigate).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -112,7 +113,7 @@ describe("outside VS Code", () => {
     });
 
     expect(setLogRoot).not.toHaveBeenCalled();
-    expect(store().app.initialState).toBeUndefined();
+    expect(navigate).not.toHaveBeenCalled();
     expect(invalidateLogListing).not.toHaveBeenCalled();
   });
 });

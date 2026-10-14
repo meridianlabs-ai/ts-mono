@@ -17,8 +17,9 @@ function makeRef(
 }
 
 function link(ordinal: string, id: string, href?: string): string {
-  const h = href ? ` href="${href}"` : "";
-  return `<a${h} class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
+  return href
+    ? `<a href="${href}" class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`
+    : `<span class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</span>`;
 }
 
 describe("injectReferenceLinks", () => {
@@ -150,17 +151,17 @@ describe("injectReferenceLinks attribute escaping", () => {
     ["injects a style attribute", 'x" style="position:fixed" x="'],
     ["injects an event handler", 'x" onmouseover="alert(1)'],
     ["single quotes and ampersands", "a'b&c"],
-  ])("renders a ref id that %s as a single anchor", (_label, id) => {
+  ])("renders a ref id that %s as a single reference", (_label, id) => {
     const refs = [makeRef("M1", id)];
     const html = injectReferenceLinks("See [M1]", refs, CITE_CLASS);
     const root = parse(html);
 
-    const anchors = root.querySelectorAll("a");
-    expect(anchors).toHaveLength(1);
+    const cites = root.querySelectorAll("[data-ref-id]");
+    expect(cites).toHaveLength(1);
     expect(root.querySelectorAll("*")).toHaveLength(1);
-    expect(anchors[0]?.getAttribute("data-ref-id")).toBe(id);
-    expect(anchors[0]?.hasAttribute("href")).toBe(false);
-    expect(anchors[0]?.attributes).toHaveLength(2);
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(cites[0]?.getAttribute("data-ref-id")).toBe(id);
+    expect(cites[0]?.attributes).toHaveLength(2);
     expect(root.textContent).toBe("See [M1]");
   });
 

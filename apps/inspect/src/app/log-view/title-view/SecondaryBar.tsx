@@ -28,7 +28,7 @@ import {
   useSelectedSampleInvalidation,
 } from "../../../state/hooks";
 import { formatDateTime, formatDuration } from "../../../utils/format";
-import { useShowTimeline } from "../useShowTimeline";
+import { useTimelineNavigation } from "../useTimelineNavigation";
 
 import styles from "./SecondaryBar.module.css";
 
@@ -55,7 +55,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   const evalDescriptor = useEvalDescriptor();
   const sampleInvalidation = useSelectedSampleInvalidation();
   const configUpdates = useConfigUpdates();
-  const showTimeline = useShowTimeline();
+  const { href: timelineHref, show: showTimeline } = useTimelineNavigation();
 
   // The chip string reads what the run actually finished under; the
   // aggregate "N changed" chip carries the affordance for the retunes.
@@ -134,6 +134,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
                 id="secondary-bar-config-changes"
                 changes={configChanges}
                 onViewTimeline={showTimeline}
+                timelineHref={timelineHref}
               />
             ) : null}
           </span>

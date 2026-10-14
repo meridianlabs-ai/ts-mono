@@ -9,7 +9,11 @@ import {
   useState,
 } from "react";
 
-import { PopOver, StickyScrollProvider } from "@tsmono/react/components";
+import {
+  InAppLink,
+  PopOver,
+  StickyScrollProvider,
+} from "@tsmono/react/components";
 import { isEditableTarget } from "@tsmono/util";
 
 import styles from "./FocusTurnView.module.css";
@@ -48,6 +52,12 @@ interface FocusTurnViewProps {
    */
   onExit?: () => void;
   /**
+   * Where exiting goes. When set, the exit control is a link, so
+   * cmd/ctrl/middle-click open the transcript in a new tab; `onExit` still
+   * handles plain clicks (and Esc/f).
+   */
+  exitHref?: string;
+  /**
    * Sample/transcript-level error, surfaced as a persistent strip under the
    * header on EVERY focused turn (only the last turn's slice carries the
    * actual error card). Clicking jumps to the last turn.
@@ -69,12 +79,14 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
   header,
   className,
   onExit,
+  exitHref,
   error,
 }) => {
   const {
     scrollRef,
     listHandle,
     slice,
+    checks,
     turnInfo,
     totalTurns,
     onPrev,
@@ -241,15 +253,15 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
           {handleExit && (
             <>
               <span className={styles.divider} />
-              <button
-                type="button"
+              <InAppLink
+                href={exitHref}
+                onNavigate={handleExit}
                 className={styles.button}
                 title="Exit focus mode (Esc or f)"
                 aria-label="Exit focus mode"
-                onClick={handleExit}
               >
                 <i className={kExitFocusIcon} />
-              </button>
+              </InAppLink>
             </>
           )}
         </div>
@@ -302,8 +314,14 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             eventCallbacks={eventCallbacks}
             // Slice starts at the focused model, so the per-node back-scan would
             // compute hasToolEvents=false and the model would inline + expand its
-            // input tool messages. Force true so it renders the compact summary.
-            eventNodeContext={{ hasToolEvents: true }}
+            // input tool messages. Force true so it renders the compact summary;
+            // the slice also lacks the tool events that showed those messages, so
+            // per-call coverage is turned off too.
+            eventNodeContext={{
+              hasToolEvents: true,
+              ...checks,
+              toolEventIds: undefined,
+            }}
           />
         </StickyScrollProvider>
       </div>

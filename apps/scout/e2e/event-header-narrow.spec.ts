@@ -225,11 +225,10 @@ test("model call header stays contained at a narrow viewport with the outline ex
       .click();
   }
 
-  // Expand the outline side panel (collapsed by default in Scout).
-  const showOutline = page.getByRole("button", { name: "Show outline" });
-  if (await showOutline.isVisible()) {
-    await showOutline.click();
-  }
+  // The repro needs the outline side panel open, which is its default.
+  await expect(
+    page.getByRole("button", { name: "Hide outline" })
+  ).toBeVisible();
 
   await expect(page.getByText("turn 1/2").first()).toBeVisible();
 
