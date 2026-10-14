@@ -632,12 +632,14 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
   const messagesSearchLabels =
     searchScope === "messages" ? searchReferenceLabels : undefined;
   const transcriptEventNodeContext = useMemo(
-    () =>
-      mergeTranscriptLabelContext(
+    () => ({
+      ...mergeTranscriptLabelContext(
         scans.eventNodeContext,
         transcriptSearchLabels
       ),
-    [scans.eventNodeContext, transcriptSearchLabels]
+      makeCiteUrl: scans.makeCiteUrl,
+    }),
+    [scans.eventNodeContext, transcriptSearchLabels, scans.makeCiteUrl]
   );
 
   // Build the toolbar in left-to-right groups separated by thin dividers:

@@ -58,6 +58,7 @@ export const TranscriptIcons = {
   model: "bi bi-grid-3x3-gap",
   sample: "bi bi-database",
   sandbox: "bi bi-box-seam",
+  sentinel: "bi bi-binoculars",
   scorer: "bi bi-calculator",
   solvers: {
     use_tools: "bi bi-tools",

@@ -5,7 +5,14 @@ import { renderHook } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { testModelEvent } from "@tsmono/inspect-common/testing";
+import {
+  testApprovalEvent,
+  testModelEvent,
+  testSentinelEvent,
+  testSpanBeginEvent,
+  testToolCall,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 
 import { EventNode } from "../types";
 
@@ -125,5 +132,40 @@ describe("useFocusTurnNavigation — follow latest (running samples)", () => {
     expect(running.result.current.followingLatest).toBe(true);
     const settled = mount(turns(3), "m3", { running: false, following: true });
     expect(settled.result.current.followingLatest).toBe(false);
+  });
+});
+
+describe("useFocusTurnNavigation — tool checks", () => {
+  it("pairs approvals and keeps a span-hosted sentinel step in the slice", () => {
+    const span = new EventNode(
+      "sen",
+      testSpanBeginEvent({ id: "sen", type: "sentinel", name: "sentinel" }),
+      0
+    );
+    // A before-call step whose call was cancelled before its ToolEvent was recorded.
+    span.children = [
+      new EventNode("report", testSentinelEvent({ step_id: "cancelled" }), 1),
+    ];
+    const nodes = [
+      model("m1"),
+      new EventNode(
+        "a1",
+        testApprovalEvent({
+          call: testToolCall({ id: "c1" }),
+          approver: "human",
+          decision: "approve",
+        }),
+        0
+      ),
+      new EventNode("t1", testToolEvent({ id: "c1" }), 0),
+      span,
+      model("m2"),
+    ];
+    const { result } = renderHook(() =>
+      useFocusTurnNavigation(nodes, "m1", "Summary", vi.fn(), null)
+    );
+    expect(result.current.slice.map((n) => n.id)).toEqual(["m1", "t1", "sen"]);
+    expect(result.current.checks.toolApprovals?.get("t1")).toHaveLength(1);
+    expect(result.current.checks.standaloneSentinels?.has("sen")).toBe(true);
   });
 });

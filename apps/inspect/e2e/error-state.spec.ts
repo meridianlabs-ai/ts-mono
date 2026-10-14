@@ -30,7 +30,7 @@ test.describe("Server error state", () => {
 
     // The grid should NOT be visible
     const grid = page.getByRole("grid");
-    await expect(grid).not.toBeVisible();
+    await expect(grid).toBeHidden();
   });
 
   test("clears error and shows grid on successful retry", async ({

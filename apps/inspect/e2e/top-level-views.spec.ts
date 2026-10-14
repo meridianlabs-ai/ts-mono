@@ -2,9 +2,9 @@
  * E2E tests for the three top-level views: Tasks, Folders (Logs), and Samples.
  *
  * Verifies that:
- * - The default route lands on the Tasks view
+ * - The default route lands on the flat Tasks view
  * - The segmented control switches between all three views
- * - Each view renders its expected content
+ * - Folders groups logs by directory
  * - Route prefixes are preserved when navigating into a log and back
  */
 import type { BrowserContext, Locator, Page } from "@playwright/test";
@@ -20,53 +20,6 @@ import { serveEvalLog } from "./fixtures/serve-log";
 import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 test.describe("Top-level views", () => {
-  test("default route shows the Tasks view", async ({ page, network }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-
-    // The Tasks segment should be visible
-    await expect(segmentLink(page, "Tasks")).toBeVisible();
-
-    // Should show task rows in a grid (flat list, no folder grouping)
-    const grid = page.getByRole("grid");
-    await expect(grid).toBeVisible();
-
-    // Should show log file entries
-    await expect(gridCell(page, "task-alpha")).toBeVisible();
-    await expect(gridCell(page, "task-beta")).toBeVisible();
-  });
-
-  test("segmented control navigates to Folders view", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-
-    // Click the Folders segment
-    await segmentLink(page, "Folders").click();
-
-    // URL should update to /logs
-    await expect(page).toHaveURL(/#\/logs/);
-
-    // Should show the grid with a "subdir" folder row
-    await expect(gridCell(page, "subdir")).toBeVisible();
-  });
-
-  test("segmented control navigates to Samples view", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-
-    // Click the Samples segment
-    await segmentLink(page, "Samples").click();
-
-    // URL should update to /samples
-    await expect(page).toHaveURL(/#\/samples/);
-  });
-
   test("Samples view hides the Cost column until it is picked", async ({
     page,
     network,
@@ -92,6 +45,7 @@ test.describe("Top-level views", () => {
     // Switch to Folders
     await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
+    await expect(gridCell(page, "subdir")).toBeVisible();
 
     // Switch to Samples
     await segmentLink(page, "Samples").click();
@@ -136,34 +90,29 @@ test.describe("Top-level views", () => {
     expect(page.url()).toMatch(/#\/logs\//);
   });
 
-  test("Tasks view does not show folder grouping", async ({
+  test("the default route shows the flat Tasks view", async ({
     page,
     network,
   }) => {
     setupLogListHandlers(network);
     await page.goto("/");
 
-    // All three tasks should be visible as flat rows
+    // task-gamma lives in subdir/ but is listed flat, with no folder row.
     await expect(gridCell(page, "task-alpha")).toBeVisible();
     await expect(gridCell(page, "task-beta")).toBeVisible();
     await expect(gridCell(page, "task-gamma")).toBeVisible();
-
-    // "subdir" should NOT appear as a separate folder row
-    // (task-gamma is in subdir/ but should show as a flat entry)
-    const folderRows = page.getByRole("row").filter({ hasText: /^subdir$/ });
-    await expect(folderRows).toHaveCount(0);
+    await expect(gridCell(page, "subdir")).toHaveCount(0);
   });
 
   test("Folders view groups logs by folder", async ({ page, network }) => {
     setupLogListHandlers(network);
     await page.goto("/#/logs");
 
-    // Should show the subdir folder
     await expect(gridCell(page, "subdir")).toBeVisible();
-
-    // The root-level tasks should be visible (file names contain task names)
     await expect(gridCell(page, "task-alpha")).toBeVisible();
     await expect(gridCell(page, "task-beta")).toBeVisible();
+    // task-gamma sits inside the subdir folder, not at the root.
+    await expect(gridCell(page, "task-gamma")).toHaveCount(0);
   });
 });
 
@@ -181,21 +130,7 @@ test.describe("Sorting", () => {
       .first()
       .textContent();
 
-  test("shows no sort indicator on load (natural server order)", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await expect(gridCell(page, "task-alpha")).toBeVisible();
-
-    // Sort arrows are aria-hidden, so locate them by class.
-    const headers = page.getByRole("columnheader");
-    await expect(headers.locator("i.bi-arrow-down")).toHaveCount(0);
-    await expect(headers.locator("i.bi-arrow-up")).toHaveCount(0);
-  });
-
-  test("clicking the Task header sorts rows ascending then descending", async ({
+  test("the Task header cycles ascending, descending and back to unsorted", async ({
     page,
     network,
   }) => {
@@ -204,14 +139,24 @@ test.describe("Sorting", () => {
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
     const taskHeader = columnHeader(page, "Task");
-
-    // Ascending: task-alpha sorts first.
-    await taskHeader.click();
+    await expect(
+      page.locator(
+        '[role="columnheader"]:is([aria-sort="ascending"], [aria-sort="descending"])'
+      )
+    ).toHaveCount(0);
     await expect.poll(() => firstRowText(page)).toContain("task-alpha");
 
-    // Descending: task-gamma sorts first.
     await taskHeader.click();
+    await expect(taskHeader).toHaveAttribute("aria-sort", "ascending");
+    await expect.poll(() => firstRowText(page)).toContain("task-alpha");
+
+    await taskHeader.click();
+    await expect(taskHeader).toHaveAttribute("aria-sort", "descending");
     await expect.poll(() => firstRowText(page)).toContain("task-gamma");
+
+    await taskHeader.click();
+    await expect(taskHeader).toHaveAttribute("aria-sort", "none");
+    await expect.poll(() => firstRowText(page)).toContain("task-alpha");
   });
 
   test("a compact (rotated) score header shows the sort it toggles", async ({
@@ -606,19 +551,6 @@ async function dragResize(
   await page.mouse.up();
 }
 
-test("resizes a column by dragging its divider", async ({ page, network }) => {
-  setupLogListHandlers(network);
-  await page.goto("/");
-  const header = page.locator(
-    '[role="columnheader"]:has([aria-label="Resize task"])'
-  );
-  await expect(header).toBeVisible();
-  const before = (await header.boundingBox())!.width;
-  await dragResize(page, "task", 120);
-  const after = (await header.boundingBox())!.width;
-  expect(after).toBeGreaterThan(before + 60);
-});
-
 test("dragging a column divider resizes without reordering columns", async ({
   page,
   network,
@@ -727,7 +659,7 @@ test("a header drag that starts mid-resize is cancelled", async ({
   await label.dispatchEvent("dragend");
 });
 
-test("keeps a resized width after navigating into a log and back", async ({
+test("a dragged column width survives navigating into a log and back", async ({
   page,
   network,
 }) => {
@@ -737,8 +669,10 @@ test("keeps a resized width after navigating into a log and back", async ({
     '[role="columnheader"]:has([aria-label="Resize task"])'
   );
   await expect(header).toBeVisible();
+  const before = (await header.boundingBox())!.width;
   await dragResize(page, "task", 120);
   const resized = (await header.boundingBox())!.width;
+  expect(resized).toBeGreaterThan(before + 60);
 
   // Into a log and back — the grid remounts on the same scope and should
   // re-read the persisted width from the store (in-memory within the session).

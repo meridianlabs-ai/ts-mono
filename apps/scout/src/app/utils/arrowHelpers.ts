@@ -120,6 +120,9 @@ export const parseScanResultData = async (
     ),
     transcriptError: optionalStringCell(filtered, "transcript_error"),
     transcriptLimit: optionalStringCell(filtered, "transcript_limit"),
+    transcriptTrustContent: trustContentOf(
+      rawCell(filtered, "transcript_trust_content", 0)
+    ),
     validationResult,
     validationTarget,
     ...scanValue,
@@ -178,6 +181,7 @@ const parseScanResultSummary = async (
     transcriptModel: stringOf(cell("transcript_model")),
     transcriptMetadata,
     transcriptSourceId: stringOf(cell("transcript_source_id")) ?? "",
+    transcriptTrustContent: trustContentOf(cell("transcript_trust_content")),
     scanError: stringOf(cell("scan_error")),
     // ?? false matches the parseScanResultData path's default.
     scanErrorRefusal: booleanOf(cell("scan_error_refusal")) ?? false,
@@ -208,6 +212,11 @@ const numberOf = (value: unknown): number | undefined =>
 
 const booleanOf = (value: unknown): boolean | undefined =>
   typeof value === "boolean" ? value : undefined;
+
+// Absent (scans recorded before the column existed) stays absent, which reads
+// as trusted; anything present but not `true` is untrusted, failing closed.
+const trustContentOf = (value: unknown): boolean | undefined =>
+  value === null || value === undefined ? undefined : value === true;
 
 const idOf = (value: unknown): string | number | undefined =>
   stringOf(value) ?? numberOf(value);

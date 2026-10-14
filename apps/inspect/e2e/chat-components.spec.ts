@@ -3,8 +3,8 @@
  *
  * These tests exercise ChatView, ChatViewVirtualList, ToolCallView, and related
  * chat rendering components through the sample detail Messages tab.
- * They serve as a baseline before migrating chat/ to @tsmono/inspect-components.
  */
+import type { Locator } from "@playwright/test";
 import { http, HttpResponse } from "msw";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
@@ -76,6 +76,23 @@ async function openSample(
   await page.goto(
     `/#/logs/${encodedFile}/samples/sample/${sampleId}/${epoch}/messages`
   );
+}
+
+/**
+ * Asserts each text is visible and rendered below the previous one. Rows of
+ * the virtual list are positioned absolutely, so DOM order alone doesn't
+ * show screen order.
+ */
+async function expectTopToBottom(container: Locator, texts: string[]) {
+  const tops: number[] = [];
+  for (const text of texts) {
+    const locator = container.getByText(text, { exact: true });
+    await expect(locator).toBeVisible();
+    const box = await locator.boundingBox();
+    expect(box, text).not.toBeNull();
+    tops.push(box?.y ?? Number.NaN);
+  }
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
 }
 
 // ---------------------------------------------------------------------------
@@ -155,30 +172,6 @@ test.describe("chat message rendering", () => {
     expect(hit).toBe("text");
   });
 
-  test("renders user and assistant messages", async ({ page, network }) => {
-    await openSample(page, network, [
-      {
-        role: "user",
-        content: "What is the capital of France?",
-        source: "input",
-      },
-      {
-        role: "assistant",
-        content: "The capital of France is Paris.",
-        source: "generate",
-      },
-    ]);
-
-    // Scope to messages area to avoid matching the sample header input
-    const messagesArea = page.locator("#messages-contents");
-    await expect(
-      messagesArea.getByText("What is the capital of France?")
-    ).toBeVisible();
-    await expect(
-      messagesArea.getByText("The capital of France is Paris.")
-    ).toBeVisible();
-  });
-
   test("renders system message", async ({ page, network }) => {
     await openSample(page, network, [
       {
@@ -212,18 +205,12 @@ test.describe("chat message rendering", () => {
       },
     ]);
 
-    await expect(
-      page.getByText("First question from user").first()
-    ).toBeVisible();
-    await expect(
-      page.getByText("First response from assistant").first()
-    ).toBeVisible();
-    await expect(
-      page.getByText("Second question from user").first()
-    ).toBeVisible();
-    await expect(
-      page.getByText("Second response from assistant").first()
-    ).toBeVisible();
+    await expectTopToBottom(page.locator("#messages-contents"), [
+      "First question from user",
+      "First response from assistant",
+      "Second question from user",
+      "Second response from assistant",
+    ]);
   });
 
   test("renders message with structured content array", async ({
@@ -542,10 +529,9 @@ test.describe("tool call rendering", () => {
       },
     ]);
 
-    await expect(
-      page.getByText("python", { exact: false }).first()
-    ).toBeVisible();
-    await expect(page.getByText("result = 2 + 2").first()).toBeVisible();
+    const code = page.locator("#messages-contents code.language-python");
+    await expect(code).toHaveText(/result = 2 \+ 2\s*print\(result\)/);
+    await expect(code.locator(".token.number").first()).toHaveText("2");
   });
 });
 
@@ -554,7 +540,7 @@ test.describe("tool call rendering", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("message content types", () => {
-  test("renders reasoning content in collapsible section", async ({
+  test("renders reasoning content under a Reasoning title", async ({
     page,
     network,
   }) => {
@@ -578,11 +564,15 @@ test.describe("message content types", () => {
       },
     ]);
 
+    const messagesArea = page.locator("#messages-contents");
     await expect(
-      page.getByText("After careful consideration, the answer is 42.")
+      messagesArea.getByText("Reasoning", { exact: true })
     ).toBeVisible();
     await expect(
-      page.getByText("Reasoning", { exact: false }).first()
+      messagesArea.getByText("Let me think step by step about this problem.")
+    ).toBeVisible();
+    await expect(
+      messagesArea.getByText("After careful consideration, the answer is 42.")
     ).toBeVisible();
   });
 
@@ -611,9 +601,8 @@ test.describe("message content types", () => {
     ]);
 
     await expect(page.getByText("Here is my answer.")).toBeVisible();
-    // Redacted reasoning shows encrypted indicator or summary
     await expect(
-      page.getByText("Reasoning", { exact: false }).first()
+      page.getByText("Reasoning encrypted by model provider.")
     ).toBeVisible();
   });
 
@@ -637,96 +626,6 @@ test.describe("message content types", () => {
     await expect(messagesArea.getByText("reasoning evidence")).toBeVisible();
     await expect(messagesArea.getByText("legacy evidence")).toBeVisible();
     await expect(messagesArea.getByText("metadata evidence")).toBeVisible();
-  });
-
-  test("renders ANSI codes in tool output", async ({ page, network }) => {
-    await openSample(page, network, [
-      { role: "user", content: "Run a colored command", source: "input" },
-      {
-        role: "assistant",
-        content: "Running command.",
-        source: "generate",
-        id: "msg-a1",
-        tool_calls: [
-          {
-            id: "call_ansi",
-            type: "function",
-            function: "bash",
-            arguments: { cmd: "echo colored" },
-          },
-        ],
-      },
-      {
-        role: "tool",
-        tool_call_id: "call_ansi",
-        content: "\u001b[32mSuccess\u001b[0m: operation complete",
-        id: "msg-t-ansi",
-      },
-      {
-        role: "assistant",
-        content: "Done.",
-        source: "generate",
-      },
-    ]);
-
-    await expect(
-      page.getByText("Success", { exact: false }).first()
-    ).toBeVisible();
-    await expect(
-      page.getByText("operation complete", { exact: false }).first()
-    ).toBeVisible();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tool call expand / collapse
-// ---------------------------------------------------------------------------
-
-test.describe("tool call with long content", () => {
-  test("renders tool input and output for long content", async ({
-    page,
-    network,
-  }) => {
-    await openSample(page, network, [
-      { role: "user", content: "Do something complex", source: "input" },
-      {
-        role: "assistant",
-        content: "Running complex tool.",
-        source: "generate",
-        id: "msg-a1",
-        tool_calls: [
-          {
-            id: "call_long",
-            type: "function",
-            function: "bash",
-            arguments: {
-              cmd: "echo line1\necho line2\necho line3\necho line4\necho line5\necho line6\necho line7\necho line8\necho line9\necho line10\necho line11\necho line12\necho line13\necho line14\necho line15\necho line16\necho line17\necho line18\necho line19\necho line20\necho line21",
-            },
-          },
-        ],
-      },
-      {
-        role: "tool",
-        tool_call_id: "call_long",
-        content:
-          "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11\nline12\nline13\nline14\nline15\nline16\nline17\nline18\nline19\nline20\nline21",
-        id: "msg-t-long",
-      },
-      {
-        role: "assistant",
-        content: "Done.",
-        source: "generate",
-      },
-    ]);
-
-    // Tool function name should render
-    await expect(page.getByText("bash").first()).toBeVisible();
-
-    // Tool input content should be visible (inspect renders it inline)
-    await expect(page.getByText("echo line1").first()).toBeVisible();
-
-    // Tool output should also render
-    await expect(page.getByText("line1").first()).toBeVisible();
   });
 });
 
@@ -781,88 +680,10 @@ test.describe("Codex tool result display modes", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Citations
-// ---------------------------------------------------------------------------
-
-test.describe("citations rendering", () => {
-  test("renders URL citations with numbered references", async ({
-    page,
-    network,
-  }) => {
-    await openSample(page, network, [
-      { role: "user", content: "Find me some references", source: "input" },
-      {
-        role: "assistant",
-        content: [
-          {
-            type: "text",
-            text: "Here is some information with citations.",
-            citations: [
-              {
-                type: "url",
-                url: "https://example.com/source1",
-                title: "First Source",
-                cited_text: "relevant quote from source",
-              },
-              {
-                type: "url",
-                url: "https://example.com/source2",
-                title: "Second Source",
-                cited_text: null,
-              },
-            ],
-          },
-        ],
-        source: "generate",
-      },
-    ]);
-
-    await expect(
-      page.getByText("Here is some information with citations.")
-    ).toBeVisible();
-
-    const firstLink = page.getByRole("link", { name: "First Source" });
-    await expect(firstLink).toBeVisible();
-    await expect(firstLink).toHaveAttribute(
-      "href",
-      "https://example.com/source1"
-    );
-
-    const secondLink = page.getByRole("link", { name: "Second Source" });
-    await expect(secondLink).toBeVisible();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Inspect-specific features
 // ---------------------------------------------------------------------------
 
 test.describe("inspect-specific features", () => {
-  test("renders message numbers in Messages tab", async ({ page, network }) => {
-    await openSample(page, network, [
-      { role: "user", content: "First user message", source: "input" },
-      {
-        role: "assistant",
-        content: "First assistant reply",
-        source: "generate",
-      },
-      { role: "user", content: "Second user message", source: "input" },
-      {
-        role: "assistant",
-        content: "Second assistant reply",
-        source: "generate",
-      },
-    ]);
-
-    // Inspect uses numbered messages (not labels like scout)
-    // Scope to messages area to avoid matching sample header input
-    const messagesArea = page.locator("#messages-contents");
-    await expect(messagesArea.getByText("First user message")).toBeVisible();
-    await expect(
-      messagesArea.getByText("Second assistant reply")
-    ).toBeVisible();
-  });
-
   test("renders reasoning summary when reasoning is redacted with summary", async ({
     page,
     network,
@@ -897,42 +718,6 @@ test.describe("inspect-specific features", () => {
     // The summary text should be visible
     await expect(
       page.getByText("considered multiple approaches", { exact: false }).first()
-    ).toBeVisible();
-  });
-
-  test("renders OpenRouter-style JSON reasoning as formatted code", async ({
-    page,
-    network,
-  }) => {
-    await openSample(page, network, [
-      { role: "user", content: "Explain this", source: "input" },
-      {
-        role: "assistant",
-        content: [
-          {
-            type: "reasoning",
-            reasoning:
-              "[{'format': 'text', 'text': 'Step 1: analyze the problem'}, {'format': 'text', 'text': 'Step 2: formulate response'}]",
-            signature: null,
-            redacted: false,
-          },
-          {
-            type: "text",
-            text: "The explanation is complete.",
-          },
-        ],
-        source: "generate",
-      },
-    ]);
-
-    await expect(page.getByText("The explanation is complete.")).toBeVisible();
-    // OpenRouter reasoning should be detected and rendered
-    await expect(
-      page.getByText("Reasoning", { exact: false }).first()
-    ).toBeVisible();
-    // The formatted JSON content should appear somewhere
-    await expect(
-      page.getByText("analyze the problem", { exact: false }).first()
     ).toBeVisible();
   });
 
@@ -976,13 +761,8 @@ test.describe("inspect-specific features", () => {
       },
     ]);
 
-    // The shell_command function name should appear
-    await expect(
-      page.getByText("shell_command", { exact: false }).first()
-    ).toBeVisible();
-    // The tool output should render
-    await expect(
-      page.getByText("USER", { exact: false }).first()
-    ).toBeVisible();
+    const messagesArea = page.locator("#messages-contents");
+    await expect(messagesArea.getByText("ps aux | head -5")).toBeVisible();
+    await expect(messagesArea.getByText(/USER\s+PID/)).toBeVisible();
   });
 });

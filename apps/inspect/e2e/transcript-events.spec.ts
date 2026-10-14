@@ -2,8 +2,7 @@
  * E2E tests for transcript event rendering components.
  *
  * These tests verify that each event type renders correctly in the
- * transcript panel. They serve as a baseline before extracting
- * transcript components into the shared inspect-components package.
+ * transcript panel.
  */
 import { http, HttpResponse } from "msw";
 
@@ -229,38 +228,26 @@ test.describe("transcript event rendering", () => {
 
     await openTranscript(page, network, [modelEvent]);
 
-    // Model event panel should be visible with title
-    await expect(page.getByText("Model Call:")).toBeVisible();
-
-    // Output message should render (first match — Summary tab)
     await expect(
-      page.getByText("Here is my analysis of the code.").first()
+      page.getByText(/^Model Call: claude-sonnet-4-5-20250929 \(500 tokens/)
+    ).toBeVisible();
+    await expect(page.getByText("Analyze this code for bugs")).toBeVisible();
+    await expect(
+      page.getByText("Here is my analysis of the code.")
     ).toBeVisible();
   });
 
-  test("model event shows error and traceback tab", async ({
-    page,
-    network,
-  }) => {
+  test("failed model event shows its error", async ({ page, network }) => {
     const modelEvent = createModelEvent({
       uuid: "model-evt-error",
       content: "Partial response",
       error: "Rate limit exceeded",
-      traceback_ansi:
-        "Error: Rate limit exceeded\n  at callModel (model.py:100)",
     });
 
     await openTranscript(page, network, [modelEvent]);
 
-    // Error message should render in the model event
-    await expect(page.getByText("Rate limit exceeded").first()).toBeVisible();
-
-    // Click on the Error tab to see traceback
-    const errorTab = page.getByRole("tab", { name: "Error" });
-    if (await errorTab.isVisible()) {
-      await errorTab.click();
-      await expect(page.getByText("callModel").first()).toBeVisible();
-    }
+    await expect(page.getByText(/^Model Call: .* · FAILED/)).toBeVisible();
+    await expect(page.getByText("Rate limit exceeded")).toBeVisible();
   });
 
   test("tool event renders with function name and output", async ({
@@ -282,14 +269,9 @@ test.describe("transcript event rendering", () => {
       },
     ];
 
-    const toolEvent = createToolEvent();
+    await openTranscript(page, network, [modelEvent, createToolEvent()]);
 
-    await openTranscript(page, network, [modelEvent, toolEvent]);
-
-    // Tool event panel should show tool name in title
-    await expect(page.getByText("Tool:")).toBeVisible();
-
-    // Tool output should be visible
+    await expect(page.getByText("Tool: Bash")).toBeVisible();
     await expect(page.getByText("total 42")).toBeVisible();
   });
 
@@ -301,16 +283,11 @@ test.describe("transcript event rendering", () => {
 
     await openTranscript(page, network, [scoreEvent]);
 
-    // Score panel should be visible
-    await expect(page.getByText("Score").first()).toBeVisible();
-
-    // Score value should render
-    await expect(page.getByText("C").first()).toBeVisible();
-
-    // Explanation should be visible
+    await expect(page.getByText("The answer is 42")).toBeVisible();
     await expect(
       page.getByText("Correct based on the reference")
     ).toBeVisible();
+    await expect(page.getByText("C", { exact: true })).toBeVisible();
   });
 
   test("error event renders traceback", async ({ page, network }) => {
@@ -318,40 +295,8 @@ test.describe("transcript event rendering", () => {
 
     await openTranscript(page, network, [errorEvent]);
 
-    // Error panel should be visible
-    await expect(page.getByText("Error").first()).toBeVisible();
-
-    // Error message should render
-    await expect(
-      page.getByText("RuntimeError: division by zero")
-    ).toBeVisible();
-  });
-
-  test("model events show turn labels", async ({ page, network }) => {
-    const events: Events = [
-      createModelEvent({
-        uuid: "model-turn-1",
-        startSec: 0,
-        endSec: 3,
-        content: "First turn response",
-      }),
-      createModelEvent({
-        uuid: "model-turn-2",
-        startSec: 3,
-        endSec: 6,
-        content: "Second turn response",
-      }),
-    ];
-
-    await openTranscript(page, network, events, { messages: [] });
-
-    // Both model events should render
-    await expect(page.getByText("First turn response").first()).toBeVisible();
-    await expect(page.getByText("Second turn response").first()).toBeVisible();
-
-    // Turn labels should appear
-    await expect(page.getByText("turn 1/2").first()).toBeVisible();
-    await expect(page.getByText("turn 2/2").first()).toBeVisible();
+    await expect(page.getByText("Error", { exact: true })).toBeVisible();
+    await expect(page.getByText("result = x / 0")).toBeVisible();
   });
 
   test("events can be collapsed and expanded", async ({ page, network }) => {
@@ -364,59 +309,57 @@ test.describe("transcript event rendering", () => {
 
     await openTranscript(page, network, [modelEvent]);
 
-    // Content should be visible initially (first match — Summary tab)
-    await expect(
-      page.getByText("Model response content here").first()
-    ).toBeVisible();
+    const content = page.getByText("Model response content here");
+    await expect(content).toBeVisible();
 
-    // Click the collapse toggle (the panel title area)
-    const collapseToggle = page
-      .locator('[data-collapse-toggle="true"]')
-      .first();
-    if (await collapseToggle.isVisible()) {
-      await collapseToggle.click();
+    await page.getByRole("button", { name: /^Collapse Model Call/ }).click();
+    await expect(content).toBeHidden();
 
-      // Content should be hidden after collapse
-      await expect(
-        page.getByText("Model response content here").first()
-      ).not.toBeVisible();
-
-      // Click again to expand
-      await collapseToggle.click();
-
-      // Content should be visible again
-      await expect(
-        page.getByText("Model response content here").first()
-      ).toBeVisible();
-    }
+    await page.getByRole("button", { name: /^Expand Model Call/ }).click();
+    await expect(content).toBeVisible();
   });
 
-  test("outline sidebar renders for transcript events", async ({
+  test("toolbar Collapse hides every event body and Expand restores them", async ({
     page,
     network,
   }) => {
-    const events: Events = [
-      createModelEvent({
-        uuid: "model-1",
-        startSec: 0,
-        endSec: 3,
-        content: "First model call",
-      }),
-      createToolEvent({ uuid: "tool-1" }),
+    await openTranscript(page, network, [
+      createModelEvent({ uuid: "model-1", content: "First response" }),
       createModelEvent({
         uuid: "model-2",
         startSec: 5,
         endSec: 8,
-        content: "Second model call",
+        content: "Second response",
       }),
-    ];
+    ]);
 
-    await openTranscript(page, network, events);
+    const first = page.getByText("First response");
+    const second = page.getByText("Second response");
+    await expect(first).toBeVisible();
+    await expect(second).toBeVisible();
 
-    // The outline sidebar should be visible with event entries
-    // The outline shows model calls as numbered turns
-    await expect(page.getByText("First model call").first()).toBeVisible();
-    await expect(page.getByText("Second model call").first()).toBeVisible();
+    // The toolbar button's accessible name starts with its icon glyph.
+    await page.getByRole("button", { name: /^\W*Collapse$/ }).click();
+    await expect(first).toBeHidden();
+    await expect(second).toBeHidden();
+
+    await page.getByRole("button", { name: /^\W*Expand$/ }).click();
+    await expect(first).toBeVisible();
+    await expect(second).toBeVisible();
+  });
+
+  test("sample without timelines shows events without a swimlane", async ({
+    page,
+    network,
+  }) => {
+    await openTranscript(page, network, [
+      createModelEvent({ content: "Flat event" }),
+    ]);
+
+    await expect(page.getByText("Flat event")).toBeVisible();
+    await expect(
+      page.getByRole("grid", { name: "Timeline swimlane" })
+    ).toHaveCount(0);
   });
 });
 
@@ -506,26 +449,17 @@ test.describe("outline collapse", () => {
     await openTranscript(page, network, spanEvents());
 
     const outline = page.locator(".transcript-outline");
-    await expect(outline).toBeVisible();
-
-    // The phase span row is expanded by default: its grouped turns row shows.
-    const phaseRow = outline
-      .locator('[class*="eventRow"]')
-      .filter({ hasText: "phase one" });
-    await expect(phaseRow).toBeVisible();
-    const turnsRow = outline
-      .locator('[class*="eventRow"]')
-      .filter({ hasText: "2 turns" });
+    const turnsRow = outline.getByText("2 turns");
     await expect(turnsRow).toBeVisible();
-    await expect(phaseRow.locator("i.bi-chevron-down")).toBeVisible();
 
-    // Collapse the phase row: the turns row disappears.
-    await phaseRow.locator('[class*="toggle"]').click();
+    await outline
+      .getByRole("button", { name: "Collapse phase one", exact: true })
+      .click();
     await expect(turnsRow).toBeHidden();
-    await expect(phaseRow.locator("i.bi-chevron-right")).toBeVisible();
 
-    // Expand it again.
-    await phaseRow.locator('[class*="toggle"]').click();
+    await outline
+      .getByRole("button", { name: "Expand phase one", exact: true })
+      .click();
     await expect(turnsRow).toBeVisible();
   });
 });

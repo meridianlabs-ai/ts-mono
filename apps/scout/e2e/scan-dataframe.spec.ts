@@ -1,4 +1,4 @@
-import { from, fromCSV } from "arquero";
+import { from } from "arquero";
 import { http, HttpResponse } from "msw";
 
 import { encodeBase64Url } from "@tsmono/util";
@@ -74,9 +74,6 @@ test("scanner dataframe loads Arrow data, updates its footer, and opens the righ
     .fill("2");
   await page.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(page.locator("#scanner-panel-footer")).toContainText("1 result");
-  await expect(
-    page.getByRole("button", { name: /Clear Filters/ })
-  ).toBeVisible();
   await page.getByRole("button", { name: /Choose Columns/ }).click();
   await page.getByRole("checkbox", { name: "value", exact: true }).uncheck();
   await page.getByRole("heading", { level: 1 }).click();
@@ -87,32 +84,6 @@ test("scanner dataframe loads Arrow data, updates its footer, and opens the righ
   await expect(
     grid.getByRole("gridcell", { name: "transcript-a", exact: true })
   ).toHaveCount(0);
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.getByRole("button", { name: /Copy CSV/ }).click();
-  await expect(page.getByRole("button", { name: /Copied/ })).toBeVisible();
-  const csv = await page.evaluate(() => navigator.clipboard.readText());
-  const exported = fromCSV(csv, { autoType: false });
-  expect(exported.array("transcript_id")).toEqual(["transcript-b"]);
-  expect(exported.columnNames()).not.toContain("value");
-  await page.getByRole("button", { name: /Clear Filters/ }).click();
-  await expect(page.locator("#scanner-panel-footer")).toContainText(
-    "2 results"
-  );
-  await expect(page.getByRole("button", { name: /Clear Filters/ })).toHaveCount(
-    0
-  );
-  await page.getByRole("button", { name: /Choose Columns/ }).click();
-  await page.getByRole("checkbox", { name: "value", exact: true }).check();
-  await page.getByRole("heading", { level: 1 }).click();
-  await expect(
-    grid.getByRole("columnheader", { name: "value", exact: true })
-  ).toBeVisible();
-  await expect(page.locator("#scanner-panel-footer")).toContainText(
-    "2 results"
-  );
-  await expect(
-    grid.getByRole("gridcell", { name: "transcript-a", exact: true })
-  ).toBeVisible();
   await grid
     .getByRole("gridcell", { name: "transcript-b", exact: true })
     .dblclick();

@@ -3,6 +3,7 @@ import { FC, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   FocusTurnView,
   useEventNodes,
@@ -11,6 +12,7 @@ import {
   useFocusTurnNavigation,
 } from "@tsmono/inspect-components/transcript";
 import {
+  ContentTrustProvider,
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
@@ -172,18 +174,22 @@ export const TranscriptEventPanel: FC = () => {
   return (
     <>
       <LoadingBar loading={loading} />
-      <FocusTurnView
-        nav={nav}
-        eventId={eventId}
-        header={header}
-        className={styles.focusRoot}
-        error={
-          transcript.error
-            ? { label: "Transcript error", message: transcript.error }
-            : undefined
-        }
-        onExit={onExit}
-      />
+      <ContentTrustProvider
+        value={trustContentSetting(transcript.trust_content)}
+      >
+        <FocusTurnView
+          nav={nav}
+          eventId={eventId}
+          header={header}
+          className={styles.focusRoot}
+          error={
+            transcript.error
+              ? { label: "Transcript error", message: transcript.error }
+              : undefined
+          }
+          onExit={onExit}
+        />
+      </ContentTrustProvider>
     </>
   );
 };

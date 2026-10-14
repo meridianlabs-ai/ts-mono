@@ -152,16 +152,11 @@ test("info event with images shows a more toggle when clipped", async ({
   // until the MITSUBA3 info event is on screen.
   await expect(page.getByText("Info: FILLER0")).toBeVisible();
   await page.mouse.move(640, 400);
-  for (let i = 0; i < 200; i++) {
-    const visible = await page
-      .getByText("Info: MITSUBA3")
-      .isVisible()
-      .catch(() => false);
-    if (visible) break;
+  const target = page.getByText("Info: MITSUBA3");
+  await expect(async () => {
     await page.mouse.wheel(0, 300);
-    await page.waitForTimeout(50);
-  }
-  await expect(page.getByText("Info: MITSUBA3")).toBeVisible();
+    await expect(target).toBeVisible({ timeout: 50 });
+  }).toPass({ intervals: [0], timeout: 20_000 });
 
   // Center the panel and measure in one pass, polling until the images have
   // loaded and the panel is collapsed with clipped content (the resize

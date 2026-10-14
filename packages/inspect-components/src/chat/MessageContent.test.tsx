@@ -194,6 +194,27 @@ describe("MessageContent log-supplied link hrefs", () => {
   });
 });
 
+describe("MessageContent server tool data", () => {
+  it("shows a web_search server_tool_use block's query", async () => {
+    const { container } = renderMessage([
+      {
+        type: "data",
+        data: {
+          type: "server_tool_use",
+          name: "web_search",
+          input: { query: "TypeScript monorepo best practices" },
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(
+        "Web Search:TypeScript monorepo best practices"
+      );
+    });
+  });
+});
+
 // Text and reasoning blocks come from the log; a block that merely looks like
 // JSON must never throw out of render (that unmounts the whole viewer).
 describe("MessageContent JSON-looking blocks", () => {

@@ -50,6 +50,7 @@ test("clicking a scan row opens the scan detail panel", async ({
   );
 
   await page.goto("/#/scans");
+  await expect(page.locator("#scan-job-footer")).toContainText(/\b1 item\b/);
   await page.getByText("eval-safety").first().click();
 
   await expect(page.locator("h1")).toContainText("eval-safety");

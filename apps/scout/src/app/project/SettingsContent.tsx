@@ -1,4 +1,5 @@
 import {
+  VscodeButton,
   VscodeCheckbox,
   VscodeFormHelper,
   VscodeLabel,
@@ -11,6 +12,7 @@ import type {
   CachePolicy,
   GenerateConfig as GenerateConfigInput,
 } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
 import { STABLE_EMPTY_OBJECT } from "@tsmono/react/hooks";
 
 import { ProjectConfigInput } from "../../types/api-types";
@@ -69,11 +71,14 @@ function validateCacheExpiry(value: string | null): string | null {
 export interface SettingsContentProps {
   config: Partial<ProjectConfigInput>;
   onChange: (updates: Partial<ProjectConfigInput>) => void;
+  // The viewer shows plain text because of a setting outside scout.yaml.
+  trustContentOverridden?: boolean;
 }
 
 export const SettingsContent: FC<SettingsContentProps> = ({
   config,
   onChange,
+  trustContentOverridden = false,
 }) => {
   const generateConfig: GenerateConfigInput =
     config.generate_config ?? STABLE_EMPTY_OBJECT;
@@ -357,6 +362,20 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           options={LOG_LEVELS}
           onChange={(v) => onChange({ log_level: v })}
           defaultLabel="Default (warning)"
+        />
+      </div>
+
+      {/* ===== VIEWER SECTION ===== */}
+      <div id="viewer" className={styles.section}>
+        <div className={styles.sectionHeader}>Viewer</div>
+
+        <TrustContentField
+          trusted={config.trust_content !== false}
+          overridden={trustContentOverridden}
+          onChange={(trusted) =>
+            // Trusted is the default, so it's recorded by removing the key.
+            onChange({ trust_content: trusted ? null : false })
+          }
         />
       </div>
 
@@ -708,5 +727,84 @@ export const SettingsContent: FC<SettingsContentProps> = ({
         )}
       </div>
     </>
+  );
+};
+
+interface TrustContentFieldProps {
+  trusted: boolean;
+  overridden: boolean;
+  onChange: (trusted: boolean) => void;
+}
+
+const TrustContentField: FC<TrustContentFieldProps> = ({
+  trusted,
+  overridden,
+  onChange,
+}) => {
+  const [confirming, setConfirming] = useState(false);
+
+  const confirm = () => {
+    setConfirming(false);
+    onChange(true);
+  };
+
+  if (overridden) {
+    return (
+      <div className={fieldStyles.field}>
+        <VscodeLabel>Trust Content</VscodeLabel>
+        <VscodeFormHelper>
+          Scout View is running in untrusted mode, so all model output is shown
+          as plain text.
+        </VscodeFormHelper>
+      </div>
+    );
+  }
+
+  return (
+    <div className={fieldStyles.field}>
+      <VscodeLabel>Trust Content</VscodeLabel>
+      <VscodeFormHelper>
+        Render model output as markdown, with syntax highlighting, media and
+        links. When off, model output is shown as plain text. Untrusted
+        transcripts are always shown as plain text.
+      </VscodeFormHelper>
+      {/* Remounted around the dialog so a cancelled check doesn't stick. */}
+      <VscodeCheckbox
+        key={String(confirming)}
+        id="field-trust-content"
+        checked={trusted}
+        onChange={(e) => {
+          if (eventChecked(e)) {
+            setConfirming(true);
+          } else {
+            onChange(false);
+          }
+        }}
+      >
+        Render model output richly
+      </VscodeCheckbox>
+      <Modal
+        show={confirming}
+        onHide={() => setConfirming(false)}
+        title="Trust Model Output?"
+        footer={
+          <>
+            <VscodeButton secondary onClick={() => setConfirming(false)}>
+              Cancel
+            </VscodeButton>
+            <VscodeButton onClick={confirm}>Trust Content</VscodeButton>
+          </>
+        }
+      >
+        <p>
+          Model output will render as markdown, with media and links. Only
+          enable this for content you trust.
+        </p>
+        <p>
+          This changes <code>scout.yaml</code>, so it applies to everyone using
+          this project.
+        </p>
+      </Modal>
+    </div>
   );
 };

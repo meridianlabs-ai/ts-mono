@@ -6,7 +6,8 @@
   "exports": {
     "./base": "./base.js",
     "./react": "./react.js",
-    "./barrel-only": "./barrel-only.js"
+    "./barrel-only": "./barrel-only.js",
+    "./playwright": "./playwright.js"
   },
   "dependencies": {
     "@css-modules-kit/eslint-plugin": "^1.4.0",
@@ -17,6 +18,7 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-playwright": "^2.12.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
