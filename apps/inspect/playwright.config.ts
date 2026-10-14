@@ -48,5 +48,12 @@ export default defineConfig({
       url: devServerURL,
       reuseExistingServer: !process.env.CI,
     },
+    {
+      // Find specs only: chat-components (math selection), turn-navigation
+      // (scroll leak) and viewer-xss (print) already fail on main under Firefox.
+      name: "firefox",
+      testMatch: /messages-find/,
+      use: { ...devices["Desktop Firefox"] },
+    },
   ],
 });
