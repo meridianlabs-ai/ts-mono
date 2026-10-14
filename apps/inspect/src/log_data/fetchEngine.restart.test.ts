@@ -15,7 +15,8 @@ const makeDetails = (name: string): LogDetails =>
 const createSink = () => {
   const detailWrites: string[] = [];
   const sink: LogsContentSink = {
-    seedRows: () => {},
+    replaceRows: () => {},
+    mergeRows: () => {},
     setListing: () => {},
     mergePreviews: () => {},
     writeListing: () => Promise.resolve([]),

@@ -285,7 +285,8 @@ const createFakeDb = (initialRows: Log[] = []): FakeDb => {
 // resets) without a real database.
 const createFakeSink = (db?: FakeDb) => {
   const calls = {
-    seedRows: [] as Log[][],
+    replaceRows: [] as Log[][],
+    mergeRows: [] as Record<string, Partial<Log>>[],
     setListing: [] as LogHandle[][],
     mergePreviews: [] as Record<string, LogPreview>[],
     writeListing: [] as LogHandle[][],
@@ -304,8 +305,11 @@ const createFakeSink = (db?: FakeDb) => {
     clearAll: 0,
   };
   const sink: LogsContentSink = {
-    seedRows: (rows) => {
-      calls.seedRows.push(rows);
+    replaceRows: (rows) => {
+      calls.replaceRows.push(rows);
+    },
+    mergeRows: (patches) => {
+      calls.mergeRows.push(patches);
     },
     setListing: (handles) => {
       calls.setListing.push(handles);
@@ -454,12 +458,12 @@ describe("FetchEngine.ensure (detailed)", () => {
       database: createFakeDb([cached]),
     });
 
-    const seedsAtStart = sinkCalls.seedRows.length;
+    const mergesAtStart = sinkCalls.mergeRows.length;
     await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
-    // The hit seeds the cached row into the cache (beyond the start() seed).
-    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
-    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
+    // The hit merges the cached row into the cache (beyond the start() seed).
+    expect(sinkCalls.mergeRows.length).toBe(mergesAtStart + 1);
+    expect(sinkCalls.mergeRows[mergesAtStart]).toEqual({ "a.eval": cached });
     // The background refresh still fetches fresh data and writes it through.
     await vi.waitFor(() => {
       expect(fake.detailCalls).toEqual([{ file: "a.eval", cached: false }]);
@@ -477,12 +481,12 @@ describe("FetchEngine.ensure (detailed)", () => {
       database: createFakeDb([cached]),
     });
 
-    const seedsAtStart = sinkCalls.seedRows.length;
+    const mergesAtStart = sinkCalls.mergeRows.length;
     await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
     // The settle came from the network (fresh, success), not the stale row —
-    // no read-through seed happened.
-    expect(sinkCalls.seedRows.length).toBe(seedsAtStart);
+    // no read-through merge happened.
+    expect(sinkCalls.mergeRows.length).toBe(mergesAtStart);
     expect(sinkCalls.writeDetails).toContainEqual({
       "a.eval": makeDetails("a.eval"),
     });
@@ -582,7 +586,7 @@ describe("FetchEngine.start", () => {
       database: createFakeDb(rows),
     });
 
-    expect(sinkCalls.seedRows).toEqual([rows]);
+    expect(sinkCalls.replaceRows).toEqual([rows]);
     expect(engine.listing()).toEqual(rows);
     // Seeding is cache-only: nothing is re-persisted or fetched.
     expect(sinkCalls.writeDetails).toEqual([]);
@@ -618,8 +622,8 @@ describe("FetchEngine.start", () => {
     rowsA.resolve([previewedRow(handle("a.eval", 1))]);
     await startA;
 
-    expect(sinkA.calls.seedRows).toEqual([]);
-    expect(sinkB.calls.seedRows).toEqual([[rowB]]);
+    expect(sinkA.calls.replaceRows).toEqual([]);
+    expect(sinkB.calls.replaceRows).toEqual([[rowB]]);
     expect(engine.listing()).toEqual([rowB]);
   });
 });
@@ -1492,15 +1496,15 @@ describe("FetchEngine passive vs active demand (F2)", () => {
       database: createFakeDb([cached]),
     });
 
-    const seedsAtStart = sinkCalls.seedRows.length;
+    const mergesAtStart = sinkCalls.mergeRows.length;
     await engine.ensure("a.eval", {
       depth: "detailed",
       priority: "user",
       demand: "passive",
     });
 
-    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
-    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
+    expect(sinkCalls.mergeRows.length).toBe(mergesAtStart + 1);
+    expect(sinkCalls.mergeRows[mergesAtStart]).toEqual({ "a.eval": cached });
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
     await tick();
     expect(fake.detailCalls).toEqual([]);
