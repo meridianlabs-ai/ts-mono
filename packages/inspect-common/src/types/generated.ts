@@ -2270,7 +2270,7 @@ export interface components {
          */
         GrepSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /**
              * Ignore Case
              * @default true
@@ -2561,7 +2561,7 @@ export interface components {
          */
         LlmSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /** Messages */
             messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
             /** Model */
@@ -2904,6 +2904,8 @@ export interface components {
             /** Error */
             error?: string | null;
             fallback?: components["schemas"]["ModelFallback"] | null;
+            /** Input Context Tokens */
+            input_context_tokens?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -3624,7 +3626,7 @@ export interface components {
          */
         SentinelEvent: {
             /** Action */
-            action?: ("continue" | "modify" | "reject" | "terminate" | "escalate") | null;
+            action?: ("proceed" | "modify" | "reject" | "terminate" | "escalate") | null;
             /**
              * Audit
              * @default false

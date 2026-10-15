@@ -2693,3 +2693,63 @@ describe("ActivityChart tooltip travel", () => {
     }
   });
 });
+
+describe("ActivityChart model card input", () => {
+  /** One model call billed over several requests (usage) whose input was
+   *  1,000 tokens in context (input_context_tokens, unless absent). */
+  const multiRequestCall = (inputContextTokens?: number): Event[] => {
+    const output = testModelOutput({
+      usage: testModelUsage({
+        input_tokens: 3000,
+        input_tokens_cache_read: 3000,
+        output_tokens: 90,
+        total_tokens: 6090,
+      }),
+    });
+    if (inputContextTokens !== undefined) {
+      output.input_context_tokens = inputContextTokens;
+    }
+    return [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output,
+      }),
+    ];
+  };
+
+  const modelCard = (events: Event[]): string => {
+    const { container } = renderChart(events);
+    const span = container.querySelector("rect[class*='modelSpan']");
+    if (!(span instanceof SVGElement)) throw new Error("expected a span");
+    fireEvent.mouseEnter(span);
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    return container.querySelector("[class*='tooltip']")?.textContent ?? "";
+  };
+
+  it("shows input_context_tokens without the billed cache reads", () => {
+    vi.useFakeTimers();
+    try {
+      const card = modelCard(multiRequestCall(1000));
+      expect(card).toContain("1,000");
+      expect(card).not.toContain("cached");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the cached suffix when input comes from usage (older logs)", () => {
+    vi.useFakeTimers();
+    try {
+      const card = modelCard(multiRequestCall());
+      expect(card).toContain("6,000");
+      expect(card).toContain("3k cached");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

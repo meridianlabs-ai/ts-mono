@@ -56,4 +56,18 @@ describe("useTimeout", () => {
     vi.advanceTimersByTime(500);
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it("uses the latest callback without restarting an unchanged deadline", () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = renderHook(
+      ({ callback }) => useTimeout(callback, 300),
+      { initialProps: { callback: first } }
+    );
+    vi.advanceTimersByTime(100);
+    rerender({ callback: latest });
+    vi.advanceTimersByTime(200);
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledTimes(1);
+  });
 });

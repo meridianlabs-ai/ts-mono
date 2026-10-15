@@ -99,13 +99,13 @@ describe("buildSentinelStep", () => {
 
   it("orders checks as a tree with guides and depth", () => {
     const step = buildSentinelStep([
-      decision("net", "guard/network", "no_network", "continue"),
-      decision("prot", "guard/protected", "protected", "continue"),
+      decision("net", "guard/network", "no_network", "proceed"),
+      decision("prot", "guard/protected", "protected", "proceed"),
       observation("mon", "guard/llm/monitor", "llm_suspicion", 0.2),
-      decision("llm", "guard/llm", "threshold", "continue"),
-      decision("guard", "guard", "sequential", "continue"),
+      decision("llm", "guard/llm", "threshold", "proceed"),
+      decision("guard", "guard", "sequential", "proceed"),
       observation("scope", "scope", "suspicion", 0.4),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
     expect(rowIds(step)).toEqual([
       "root",
@@ -139,7 +139,7 @@ describe("buildSentinelStep", () => {
 
   it("marks the lowest matching descendant of the top decision as taking effect", () => {
     const step = buildSentinelStep([
-      decision("net", "guard/network", "no_network", "continue"),
+      decision("net", "guard/network", "no_network", "proceed"),
       withExplanation(
         decision("llm", "guard/llm", "threshold", "reject"),
         "exfiltration 0.93 is over the 0.80 threshold."
@@ -158,7 +158,7 @@ describe("buildSentinelStep", () => {
 
   it("credits the child whose explanation the parent passed up among several that made the decision", () => {
     const step = buildSentinelStep([
-      decision("c", "c", "rule", "continue"),
+      decision("c", "c", "rule", "proceed"),
       withExplanation(decision("a", "a", "rule", "reject"), "first"),
       withExplanation(decision("b", "b", "rule", "reject"), "second"),
       withExplanation(decision("root", "", "concurrent", "reject"), "second"),
@@ -230,13 +230,13 @@ describe("buildSentinelStep", () => {
 
   it("credits the lowest check under a rewording concurrent layer", () => {
     const rewritten =
-      "`curl` needs the network, which this task does not allow. (network: reject; protected: continue)";
+      "`curl` needs the network, which this task does not allow. (network: reject; protected: proceed)";
     const step = buildSentinelStep([
       withExplanation(
         decision("net", "guard/network", "no_network", "reject"),
         "`curl` needs the network, which this task does not allow."
       ),
-      decision("prot", "guard/protected", "protected", "continue"),
+      decision("prot", "guard/protected", "protected", "proceed"),
       withExplanation(
         decision("guard", "guard", "concurrent", "reject"),
         rewritten
@@ -303,7 +303,7 @@ describe("buildSentinelStep", () => {
 
   it("descends below a decide_final() origin into a child that made its decision", () => {
     const step = buildSentinelStep([
-      decision("quiet", "guard/quiet", "rule", "continue"),
+      decision("quiet", "guard/quiet", "rule", "proceed"),
       withExplanation(decision("inner", "guard/inner", "rule", "reject"), "a"),
       layer("root", "", "concurrent", "bypassed"),
       withExplanation(decision("guard", "guard", "strict", "reject"), "b"),
@@ -323,12 +323,12 @@ describe("buildSentinelStep", () => {
     expect(step.reason).toBe("g");
   });
 
-  it("reads a step whose root returned nothing as continued, whatever a child decided", () => {
+  it("reads a step whose root returned nothing as proceeded, whatever a child decided", () => {
     const step = buildSentinelStep([
       withExplanation(decision("rule", "rule", "rule", "reject"), "no"),
       observation("mon", "monitor", "suspicion", 0.3),
     ]);
-    expect(step.verdict).toBe("continue");
+    expect(step.verdict).toBe("proceed");
     expect(step.outcome).toBeUndefined();
     expect(step.effective).toBeUndefined();
     expect(step.reason).toBeUndefined();
@@ -365,10 +365,10 @@ describe("buildSentinelStep", () => {
         status: "superseded",
         action: "escalate",
       }),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
     expect(rowIds(step)).toEqual(["root", "sup"]);
-    expect(step.verdict).toBe("continue");
+    expect(step.verdict).toBe("proceed");
     expect(step.effective).toBeUndefined();
   });
 
@@ -390,7 +390,7 @@ describe("buildSentinelStep", () => {
     );
     final.event.message = "Blocked (veto).";
     const step = buildSentinelStep([
-      decision("policy", "policy", "always_continue", "continue"),
+      decision("policy", "policy", "always_proceed", "proceed"),
       decision("triage", "gate/triage", "triage", "escalate"),
       observation("history", "audit/history", "history_watch", 0.4),
       layer("gate", "gate", "inspect_sentinel/sequential", "cancelled"),
@@ -420,13 +420,13 @@ describe("buildSentinelStep", () => {
     );
   });
 
-  it("marks nothing as taking effect when every check continued", () => {
+  it("marks nothing as taking effect when every check proceeded", () => {
     const step = buildSentinelStep([
-      decision("rule", "guard", "rule", "continue"),
+      decision("rule", "guard", "rule", "proceed"),
       observation("mon", "scope", "suspicion", 0.15),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
-    expect(step.verdict).toBe("continue");
+    expect(step.verdict).toBe("proceed");
     expect(step.effective).toBeUndefined();
     expect(step.rows.some((r) => r.tookEffect)).toBe(false);
     expect(step.decider?.id).toBe("root");
@@ -446,15 +446,15 @@ describe("buildSentinelStep", () => {
     expect(step.scores).toEqual(["exfiltration 0.08", "failure_count 0.2"]);
   });
 
-  it("calls an explicit root continue continued, with the monitors' scores", () => {
+  it("calls an explicit root proceed proceeded, with the monitors' scores", () => {
     const step = buildSentinelStep([
       observation("mon", "monitor", "llm_suspicion", {
         sabotage: 0.05,
         exfiltration: 0.62,
       }),
-      decision("root", "", "threshold", "continue"),
+      decision("root", "", "threshold", "proceed"),
     ]);
-    expect(step.verdict).toBe("continue");
+    expect(step.verdict).toBe("proceed");
     expect(step.decider?.id).toBe("root");
     expect(step.scores).toEqual(["exfiltration 0.62"]);
   });
@@ -462,7 +462,7 @@ describe("buildSentinelStep", () => {
   it("skips an observation with no scores", () => {
     const step = buildSentinelStep([
       observation("mon", "monitor", "llm_suspicion", {}),
-      decision("root", "", "threshold", "continue"),
+      decision("root", "", "threshold", "proceed"),
     ]);
     expect(step.scores).toEqual([]);
   });
@@ -483,9 +483,9 @@ describe("buildSentinelStep", () => {
     const step = buildSentinelStep([
       failed("broken", "broken", "llm_suspicion"),
       observation("mon", "monitor", "m", 0.3),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
-    expect(step.verdict).toBe("continue");
+    expect(step.verdict).toBe("proceed");
     expect(step.failed).toBe(1);
     expect(step.rows.map((r) => r.node.id)).toEqual(["root", "broken", "mon"]);
   });
@@ -517,7 +517,7 @@ describe("buildSentinelStep", () => {
     flagged.event.audit = true;
     const step = buildSentinelStep([
       flagged,
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
     expect(step.audit).toBe(true);
   });
@@ -551,16 +551,12 @@ describe("pairToolSentinels", () => {
 
   it("pairs parallel calls whose spans and tools interleave", () => {
     const result = pairToolSentinels([
-      span("span-a", [
-        sentinel("a", { step_id: "call_a", action: "continue" }),
-      ]),
+      span("span-a", [sentinel("a", { step_id: "call_a", action: "proceed" })]),
       span("span-b", [sentinel("b", { step_id: "call_b", action: "reject" })]),
       tool("tool-b", "call_b"),
       tool("tool-a", "call_a"),
     ]);
-    expect(result.toolSentinels.get("tool-a")?.before?.verdict).toBe(
-      "continue"
-    );
+    expect(result.toolSentinels.get("tool-a")?.before?.verdict).toBe("proceed");
     expect(result.toolSentinels.get("tool-b")?.before?.verdict).toBe("reject");
     expect(result.sentinelScrollRedirects.get("span-a")).toBe("tool-a");
     expect(result.sentinelScrollRedirects.get("b")).toBe("tool-b");
@@ -568,7 +564,7 @@ describe("pairToolSentinels", () => {
 
   it("keeps steps apart when calls repeat a tool call id", () => {
     const result = pairToolSentinels([
-      span("span-1", [sentinel("s1", { step_id: "dup", action: "continue" })]),
+      span("span-1", [sentinel("s1", { step_id: "dup", action: "proceed" })]),
       tool("tool-1", "dup"),
       span("span-2", [sentinel("s2", { step_id: "dup", action: "reject" })]),
       tool("tool-2", "dup"),
@@ -657,7 +653,7 @@ describe("pairToolSentinels", () => {
   });
 
   it("pairs call and result stages with their tool and hides every event", () => {
-    const before = decision("before", "", "protocol", "continue");
+    const before = decision("before", "", "protocol", "proceed");
     const after = sentinel("after", {
       stage: "tool_result",
       kind: "observation",
@@ -676,7 +672,7 @@ describe("pairToolSentinels", () => {
 
   it("finds tools and events across nested children once each", () => {
     const toolNode = tool("tool-1", "call_1");
-    const event = decision("before", "", "protocol", "continue");
+    const event = decision("before", "", "protocol", "proceed");
     const agent = new EventNode(
       "agent",
       testSpanBeginEvent({ id: "agent", type: "agent" }),
@@ -737,7 +733,7 @@ describe("pairToolSentinels with sentinel spans", () => {
 
   it("gives a step the model calls in its span and hides the span", () => {
     const calls = [monitorCall("mc-1"), monitorCall("mc-2")];
-    const report = decision("before", "", "protocol", "continue");
+    const report = decision("before", "", "protocol", "proceed");
     const span = sentinelSpan("span-1", [...calls, report]);
     const result = pairToolSentinels([span, tool("tool-1", "call_1")]);
 
@@ -751,7 +747,7 @@ describe("pairToolSentinels with sentinel spans", () => {
 
   it("finds span members once each in a flat list", () => {
     const call = monitorCall("mc-1");
-    const report = decision("before", "", "protocol", "continue");
+    const report = decision("before", "", "protocol", "proceed");
     const span = sentinelSpan("span-1", [call, report]);
     const result = pairToolSentinels([
       span,
@@ -884,7 +880,7 @@ describe("pairToolSentinels on a sub-agent run as a tool", () => {
   begin("solvers", "solvers");
   begin("generate", "solver", "solvers");
   propose("m-outer", "generate", [outerCall]);
-  checks("sen-outer-call", "generate", "parent_t0_c0", "tool_call", "continue");
+  checks("sen-outer-call", "generate", "parent_t0_c0", "tool_call", "proceed");
   call(
     "tool-outer",
     "generate",
@@ -896,14 +892,14 @@ describe("pairToolSentinels on a sub-agent run as a tool", () => {
     () => {
       begin("agent", "agent", "tool-outer-span");
       propose("m-0", "agent", [inner("helper_t0_c0", "ls")]);
-      checks("sen-0-call", "agent", "helper_t0_c0", "tool_call", "continue");
+      checks("sen-0-call", "agent", "helper_t0_c0", "tool_call", "proceed");
       call("tool-0", "agent", "helper_t0_c0", "shell", { cmd: "ls" });
       checks("sen-0-result", "agent", "helper_t0_c0", "tool_result");
       propose("m-1", "agent", [inner("helper_t1_c0", "curl")]);
       checks("sen-1-call", "agent", "helper_t1_c0", "tool_call", "reject");
       call("tool-1", "agent", "helper_t1_c0", "shell", { cmd: "curl" });
       propose("m-2", "agent", [inner("helper_t2_c0", "cat")]);
-      checks("sen-2-call", "agent", "helper_t2_c0", "tool_call", "continue");
+      checks("sen-2-call", "agent", "helper_t2_c0", "tool_call", "proceed");
       call("tool-2", "agent", "helper_t2_c0", "shell", { cmd: "cat" });
       checks("sen-2-result", "agent", "helper_t2_c0", "tool_result");
       propose("m-3", "agent", []);
@@ -924,10 +920,10 @@ describe("pairToolSentinels on a sub-agent run as a tool", () => {
       ])
     );
     expect(verdicts).toEqual({
-      "tool-outer": ["continue", "observe", "parent_t0_c0"],
-      "tool-0": ["continue", "observe", "helper_t0_c0"],
+      "tool-outer": ["proceed", "observe", "parent_t0_c0"],
+      "tool-0": ["proceed", "observe", "helper_t0_c0"],
       "tool-1": ["reject", undefined, "helper_t1_c0"],
-      "tool-2": ["continue", "observe", "helper_t2_c0"],
+      "tool-2": ["proceed", "observe", "helper_t2_c0"],
     });
     expect(result.toolSentinels.get("tool-outer")?.before?.rows).toHaveLength(
       4

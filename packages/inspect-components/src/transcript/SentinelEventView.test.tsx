@@ -147,7 +147,7 @@ const rowButton = (label: RegExp) =>
   screen.getByRole("button", { name: label });
 
 const rejectEvents = () => [
-  decision("net", "guard/network", "no_network", "continue"),
+  decision("net", "guard/network", "no_network", "proceed"),
   decision("llm", "guard/llm", "inspect_sentinel/threshold", "reject", {
     explanation: "exfiltration 0.93 is over the 0.80 threshold.",
   }),
@@ -204,13 +204,13 @@ describe("sentinel checks in a tool card", () => {
 
   it("names the check under a rewording combinator and shows what the model received", async () => {
     const own = "`curl` needs the network, which this task does not allow.";
-    const rewritten = `${own} (network: reject; protected: continue)`;
+    const rewritten = `${own} (network: reject; protected: proceed)`;
     const { container } = renderTool(
       [
         decision("net", "guard/network", "no_network", "reject", {
           explanation: own,
         }),
-        decision("prot", "guard/protected", "protected", "continue"),
+        decision("prot", "guard/protected", "protected", "proceed"),
         decision("guard", "guard", "inspect_sentinel/concurrent", "reject", {
           explanation: rewritten,
         }),
@@ -300,7 +300,7 @@ describe("sentinel checks in a tool card", () => {
         explanation: "edits the tests [M2]",
         references: [{ type: "message", id: "msg_2", cite: "[M2]" }],
       }),
-      decision("root", "", "inspect_sentinel/threshold", "continue"),
+      decision("root", "", "inspect_sentinel/threshold", "proceed"),
     ]);
     fireEvent.click(pill(2));
     fireEvent.click(rowButton(/audit/));
@@ -324,7 +324,7 @@ describe("sentinel checks in a tool card", () => {
     const { container } = renderTool([
       observation("args", "check", "checker", 0.1, { function: "check_args" }),
       observation("cwd", "check", "checker", 0.2, { function: "check_cwd" }),
-      decision("root", "", "concurrent", "continue", { function: "protocol" }),
+      decision("root", "", "concurrent", "proceed", { function: "protocol" }),
     ]);
     fireEvent.click(pill(3));
     fireEvent.click(rowButton(/\(top\)/));
@@ -419,7 +419,7 @@ describe("sentinel checks in a tool card", () => {
         explanation: "CHILD_REASON",
       }),
     ]);
-    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.getByText("Proceeded")).toBeTruthy();
     expect(screen.queryByText("Rejected")).toBeNull();
     expect(container.textContent).toContain("RESULT_TEXT");
     expect(container.textContent).not.toContain("Did not run");
@@ -518,11 +518,11 @@ describe("sentinel checks in a tool card", () => {
 
   it("starts a quiet step collapsed with no row open", () => {
     const { container } = renderTool([
-      decision("rule", "guard", "no_network", "continue"),
+      decision("rule", "guard", "no_network", "proceed"),
       observation("mon", "scope", "suspicion", 0.15),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
-    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.getByText("Proceeded")).toBeTruthy();
     expect(screen.getByText("suspicion 0.15")).toBeTruthy();
     expect(container.textContent).not.toContain(" by ");
     fireEvent.click(pill(3));
@@ -544,15 +544,15 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.getByText("failure_count 0.2")).toBeTruthy();
   });
 
-  it("calls an explicit root continue continued, with the monitors' scores", () => {
+  it("calls an explicit root proceed proceeded, with the monitors' scores", () => {
     renderTool([
       observation("mon", "monitor", "llm_suspicion", {
         exfiltration: 0.62,
         sabotage: 0.05,
       }),
-      decision("root", "", "threshold", "continue"),
+      decision("root", "", "threshold", "proceed"),
     ]);
-    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.getByText("Proceeded")).toBeTruthy();
     expect(screen.getByText("exfiltration 0.62")).toBeTruthy();
   });
 
@@ -679,7 +679,7 @@ describe("sentinel checks in a tool card", () => {
 
   it("puts the checks of a custom tool view below the view", () => {
     const { container } = renderTool(
-      [decision("root", "", "rule", "continue", { explanation: "CHECK_TEXT" })],
+      [decision("root", "", "rule", "proceed", { explanation: "CHECK_TEXT" })],
       {
         function: "submit",
         arguments: { answer: "ANSWER_TEXT" },
@@ -720,7 +720,7 @@ describe("sentinel checks in a tool card", () => {
 
   it("renders before-call checks in the input region and after-call checks after the result", () => {
     const { container } = renderTool([
-      decision("before", "", "before_protocol", "continue", {
+      decision("before", "", "before_protocol", "proceed", {
         explanation: "BEFORE_REASON",
       }),
       observation("after", "", "after_monitor", 0.3, {
@@ -764,7 +764,7 @@ describe("sentinel checks in a tool card", () => {
         function: null,
         action: null,
       }),
-      decision("root", "", "concurrent", "continue"),
+      decision("root", "", "concurrent", "proceed"),
     ]);
     fireEvent.click(pill(4));
     expect(screen.getByText("cancelled")).toBeTruthy();
@@ -825,7 +825,7 @@ describe("sentinel checks in a tool card", () => {
           1
         )
     );
-    span.children.push(decision("before", "", "llm_monitor", "continue"));
+    span.children.push(decision("before", "", "llm_monitor", "proceed"));
     const { toolSentinels } = pairToolSentinels([span, tool]);
     renderWithState(
       <ToolEventView
@@ -861,7 +861,7 @@ describe("SentinelEventView", () => {
         stage: "model_output",
         step_id: "msg_1",
       }),
-      decision("m2", "", "threshold", "continue", {
+      decision("m2", "", "threshold", "proceed", {
         stage: "model_output",
         step_id: "msg_1",
       }),
@@ -874,7 +874,7 @@ describe("SentinelEventView", () => {
       />
     );
     expect(container.textContent).toContain("model output");
-    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.getByText("Proceeded")).toBeTruthy();
     fireEvent.click(pill(2));
     expect(screen.getByText("(top)")).toBeTruthy();
   });
@@ -929,6 +929,6 @@ describe("SentinelEventView", () => {
       />
     );
     expect(screen.getByText("Bypassed")).toBeTruthy();
-    expect(container.textContent).not.toContain("Continued");
+    expect(container.textContent).not.toContain("Proceeded");
   });
 });

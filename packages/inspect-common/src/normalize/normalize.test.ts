@@ -548,6 +548,15 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  it("sentinel: reads an old log's continue action as proceed", () => {
+    const event = { ...base, event: "sentinel", kind: "decision" };
+    expect(normalizeEvent({ ...event, action: "continue" })).toMatchObject({
+      action: "proceed",
+    });
+    const current = { ...event, action: "proceed" };
+    expect(normalizeEvent(current)).toBe(current);
+  });
+
   it("span_begin / span_end: fill ids and names", () => {
     expect(normalizeEvent({ ...base, event: "span_begin" })).toMatchObject({
       id: "",
