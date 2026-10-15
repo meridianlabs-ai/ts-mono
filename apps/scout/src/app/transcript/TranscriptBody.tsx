@@ -41,6 +41,7 @@ import {
 import {
   navigateAndForget,
   useCopyToClipboard,
+  useMountEffect,
   useProperty,
   useReflectEventNavigationInUrl,
   useVisitId,
@@ -99,8 +100,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
   const tabsRef = useRef<HTMLUListElement | null>(null);
   const [tabBarHeight, setTabBarHeight] = useState(40);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     const el = tabsRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => {
@@ -109,7 +109,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     observer.observe(el);
     setTabBarHeight(el.getBoundingClientRect().height);
     return () => observer.disconnect();
-  }, []);
+  });
 
   const [searchParams, setSearchParams] = useSearchParams();
   const {

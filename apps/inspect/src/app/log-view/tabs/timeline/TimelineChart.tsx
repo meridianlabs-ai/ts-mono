@@ -5,7 +5,6 @@ import {
   Fragment,
   MouseEvent as ReactMouseEvent,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -19,6 +18,7 @@ import {
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
 import { ErrorPanel } from "@tsmono/react/components";
+import { useUnmount } from "@tsmono/react/hooks";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
@@ -252,15 +252,11 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
     }
     popoverCloseTimer.current = window.setTimeout(() => setPopover(null), 250);
   };
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(
-    () => () => {
-      if (popoverCloseTimer.current !== null) {
-        window.clearTimeout(popoverCloseTimer.current);
-      }
-    },
-    []
-  );
+  useUnmount(() => {
+    if (popoverCloseTimer.current !== null) {
+      window.clearTimeout(popoverCloseTimer.current);
+    }
+  });
 
   const postRunCount = markers.filter((m) => m.postRun).length;
   const hasPostRun = postRunCount > 0;

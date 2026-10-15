@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 import { data, loading } from "@tsmono/util";
 
+import { testLogDetails } from "../../../client/api/testClientApi";
 import { LogDetails } from "../../../client/api/types";
 
 import { LogLoadController } from "./LogLoadController";
@@ -37,17 +38,16 @@ vi.mock("../../../state/store", () => ({
     }),
 }));
 
-const makeDetails = (n: number): LogDetails => ({
-  version: 2,
-  status: "started",
-  eval: testEvalSpec({
-    eval_id: `e${n}`,
-    run_id: `r${n}`,
-    task: "t",
-    model: "m",
-  }),
-  sampleSummaries: [],
-});
+const makeDetails = (n: number): LogDetails =>
+  testLogDetails({
+    status: "started",
+    eval: testEvalSpec({
+      eval_id: `e${n}`,
+      run_id: `r${n}`,
+      task: "t",
+      model: "m",
+    }),
+  });
 
 beforeEach(() => {
   clearSelectedScores.mockReset();

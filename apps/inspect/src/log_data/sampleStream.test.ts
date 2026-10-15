@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   expectEvent,
   testInfoEvent,
+  testModelCall,
   testModelEvent,
   testModelOutput,
 } from "@tsmono/inspect-common/testing";
@@ -388,12 +389,12 @@ describe("createSampleStreamSession", () => {
               input_refs: [[0, 3]],
               model: "test",
               output: testModelOutput({ model: "test" }),
-              call: {
+              call: testModelCall({
                 request: { model: "test" },
                 response: null,
                 call_refs: [[0, 3]],
                 call_key: "messages",
-              },
+              }),
             })
           ),
         ],
