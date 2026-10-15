@@ -41,9 +41,9 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
 });
 
 // Renders the trust beside whether the selected log's header has settled,

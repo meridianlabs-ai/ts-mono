@@ -59,9 +59,9 @@ describe("RetryAttemptCard", () => {
     vi.stubGlobal("ResizeObserver", ResizeObserverStub);
     startTestApp();
   });
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
-    stopTestApp();
+    await stopTestApp();
     vi.unstubAllGlobals();
   });
 

@@ -52,11 +52,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
   vi.unstubAllGlobals();
-  const db = await OpenDatabase.open();
-  await db.clearAllData();
-  db.close();
 });
 
 const wrapper = atRoute();

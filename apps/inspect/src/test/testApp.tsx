@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import Dexie from "dexie";
 import { FC, ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 
@@ -12,7 +13,9 @@ import { testIcons } from "@tsmono/react/testing";
 import { APP_CONFIG_KEY, initAppConfig, type AppConfig } from "../app_config";
 import { CurrentSelectionProvider } from "../app/routing/currentSelection";
 import { testClientAPI } from "../client/api/testClientApi";
+import { DB_NAME } from "../client/database";
 import { FetchEngineController } from "../log_data";
+import { releaseDatabase } from "../log_data/databaseInstance";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient";
 import { initializeStore } from "../state/store";
@@ -45,10 +48,13 @@ export const startTestApp = (overrides: Partial<AppConfig> = {}): AppConfig => {
   return config;
 };
 
-/** Drop everything the viewer cached. Unmount first (`cleanup()`): that
- *  stops the fetch engine. */
-export const stopTestApp = (): void => {
+/** Drop everything the viewer cached or stored: the query cache, the
+ *  shared database handle, and the database. Unmount first (`cleanup()`):
+ *  that stops the fetch engine. */
+export const stopTestApp = async (): Promise<void> => {
   queryClient.clear();
+  releaseDatabase();
+  await Dexie.delete(DB_NAME);
 };
 
 /**
@@ -81,9 +87,9 @@ export const atRoute = (path?: string): FC<{ children: ReactNode }> => {
 };
 
 /**
- * The component-level context the app provides around every view (see
- * `AppContent`): icons, component state backed by the store (needs
- * `startTestApp`), and transcript search.
+ * The component-level context views render under in the app: icons and
+ * component state backed by the store (from `AppContent`; needs
+ * `startTestApp`), and transcript search (from `LogViewLayout`).
  */
 export const ComponentProviders: FC<{ children: ReactNode }> = ({
   children,

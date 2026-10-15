@@ -44,6 +44,9 @@ const postHostMessage = (data: unknown) => {
   });
 };
 
+const syncQueries = () =>
+  queryClient.getQueryCache().findAll({ queryKey: ["log_data", "sync"] });
+
 const renderApp = async () => {
   render(
     <QueryClientProvider client={queryClient}>
@@ -54,9 +57,7 @@ const renderApp = async () => {
   // during a query's first fetch is absorbed by that fetch, so a host event
   // posted earlier would not re-sync.
   await waitFor(() => {
-    const syncs = queryClient
-      .getQueryCache()
-      .findAll({ queryKey: ["log_data", "sync"] });
+    const syncs = syncQueries();
     expect(syncs.length).toBeGreaterThan(0);
     for (const sync of syncs) {
       expect(sync.state.status).toBe("success");
@@ -101,9 +102,9 @@ beforeEach(async () => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
   delete window.acquireVsCodeApi;
   document.getElementById("inspect-host-capabilities")?.remove();
   getLogs.mockClear();
@@ -177,8 +178,12 @@ describe("outside VS Code", () => {
 
     expect(getAppConfig().logDir).toBe("file:///logs");
     expect(location()).toBe(before);
-    // Nothing to wait on for an absence: give a listing refresh time to run.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // A listing refresh invalidates the sync queries synchronously, on the
+    // message; none were.
+    for (const sync of syncQueries()) {
+      expect(sync.state.isInvalidated).toBe(false);
+      expect(sync.state.fetchStatus).toBe("idle");
+    }
     expect(getLogs.mock.calls.length).toBe(syncs);
   });
 });

@@ -99,9 +99,9 @@ describe("TranscriptPanel linking", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
-    stopTestApp();
+    await stopTestApp();
   });
 
   it("hands the copy button an absolute URL including the host page prefix", () => {

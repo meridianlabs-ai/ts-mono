@@ -14,6 +14,7 @@ import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { acquireDatabase, releaseDatabase } from "./databaseInstance";
+import { fetchEngine } from "./fetchEngine";
 import { useLogFetchState, useLogHeader } from "./log";
 import {
   clearFile,
@@ -166,10 +167,12 @@ describe("useLogHeader", () => {
   });
 
   it("demands exactly one engine fetch per (dir, file) mount", async () => {
-    const getLogDetails = vi.fn((_file: string) =>
-      Promise.resolve(makeDetails(LOG_FILE))
-    );
+    // Hold the network read, so re-renders land while the fetch is in flight
+    // (a re-demand then would be a new engine request, not a cache hit).
+    const details = Promise.withResolvers<LogDetails>();
+    const getLogDetails = vi.fn((_file: string) => details.promise);
     await activate(testClientAPI({ get_log_details: getLogDetails }));
+    const ensure = vi.spyOn(fetchEngine, "ensure");
 
     const { result, rerender } = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
@@ -178,16 +181,23 @@ describe("useLogHeader", () => {
       }
     );
 
-    await waitFor(() => expect(result.current.data).toBeDefined());
+    await waitFor(() => expect(getLogDetails).toHaveBeenCalledTimes(1));
     rerender();
+    rerender();
+    details.resolve(makeDetails(LOG_FILE));
+    // The landing takes far longer than any re-demand would to reach the
+    // engine, so counting after it sees them all.
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(ensure).toHaveBeenCalledTimes(1);
+    expect(ensure.mock.calls[0]?.[0]).toBe(LOG_FILE);
     expect(getLogDetails).toHaveBeenCalledTimes(1);
-    expect(getLogDetails.mock.calls[0]?.[0]).toBe(LOG_FILE);
   });
 
   it("passive demand on a cached log neither refreshes it nor signals a load", async () => {
     await seedDetailedRow();
     const getLogDetails = vi.fn(() => Promise.resolve(makeDetails(LOG_FILE)));
     await activate(testClientAPI({ get_log_details: getLogDetails }));
+    const ensure = vi.spyOn(fetchEngine, "ensure");
 
     const { result } = renderHook(
       () => ({
@@ -200,8 +210,10 @@ describe("useLogHeader", () => {
     );
 
     await waitFor(() => expect(result.current.header.data).toBeDefined());
-    // Nothing to wait on for an absence: give a refresh time to be issued.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // A cache hit settles the demand and issues any refresh in the same
+    // step, so once the demand has settled a refresh would have been made.
+    await waitFor(() => expect(ensure).toHaveBeenCalledTimes(1));
+    await ensure.mock.results[0]?.value;
     expect(getLogDetails).not.toHaveBeenCalled();
     expect(result.current.fetchState.data?.details_settled_seq).toBe(0);
   });

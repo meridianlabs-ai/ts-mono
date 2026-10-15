@@ -13,6 +13,10 @@ import { LogLoadController } from "./LogLoadController";
 // identity — a running log's details cache entry also receives poll-tick
 // merges, which must not re-run the settle effect. Mock the log_data hooks so
 // the two signals (data identity, settled seq) can be driven independently.
+// Mocks kept on purpose: over the real data layer, a details merge resets the
+// cached details_settled_seq to 0 (logsContent mergePatches copies the logs
+// collection row, which the engine's seq bump never updates), refiring this
+// controller — the poll-merge case below fails until that bug is fixed.
 const useLogHeader = vi.hoisted(() => vi.fn());
 const resolveLogKey = vi.hoisted(() => vi.fn());
 const useLogFetchState = vi.hoisted(() => vi.fn());

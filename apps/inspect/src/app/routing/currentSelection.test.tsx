@@ -36,9 +36,9 @@ beforeEach(() => {
     }),
   });
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
 });
 
 const highlighted = () => storeImplementation?.getState().log.highlightedSample;

@@ -42,9 +42,9 @@ beforeEach(async () => {
   });
   await navigate("/logs/run.eval/samples/sample/one/1");
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
 });
 
 describe("embedding hooks outside RouterProvider", () => {

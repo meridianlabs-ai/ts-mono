@@ -23,6 +23,12 @@ export default tseslint.config(
   ...playwrightConfig,
   ...barrelOnly(["app_config", "log_data"]),
   {
+    // Test harnesses (test-only code) set up and tear down subsystem
+    // internals, e.g. releasing the shared database handle between tests.
+    files: ["src/test/**/*.{ts,tsx}"],
+    rules: { "no-restricted-imports": "off" },
+  },
+  {
     files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       globals: {

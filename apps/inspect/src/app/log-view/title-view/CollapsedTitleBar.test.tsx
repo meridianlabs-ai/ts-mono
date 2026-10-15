@@ -38,9 +38,9 @@ describe("CollapsedTitleBar", () => {
     startTestApp();
   });
   // Auto-cleanup needs vitest `globals: true`, which this config doesn't set.
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
-    stopTestApp();
+    await stopTestApp();
   });
 
   test("shows the primary model before parenthesized custom roles", () => {

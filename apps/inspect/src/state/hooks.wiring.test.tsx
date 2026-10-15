@@ -38,9 +38,9 @@ const details = (overrides: Partial<LogDetails> = {}): LogDetails =>
 
 const start = (api: ClientAPI) => startTestApp({ logDir: LOG_DIR, api });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  stopTestApp();
+  await stopTestApp();
 });
 
 describe("useSelectedRunningMetrics", () => {
