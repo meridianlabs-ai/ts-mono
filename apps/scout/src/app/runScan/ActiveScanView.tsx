@@ -1,10 +1,11 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useState } from "react";
 
 import {
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
+import { useInterval } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../icons";
 import {
@@ -72,11 +73,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   const [now, setNow] = useState(Date.now());
 
   // Update time every second for elapsed/remaining
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  useInterval(() => setNow(Date.now()), 1000);
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
