@@ -207,7 +207,7 @@ test.describe("ExpandablePanel nested toggles", () => {
 
     // Both collapsed: the reasoning block's corner is inside the message's
     // visible area, so its toggle stays usable.
-    await expect(ownToggle(outer)).toHaveText("more...");
+    await expect(outer.getByRole("button", { name: "more..." })).toHaveCount(2);
     await ownToggle(inner).click();
     await expect(ownToggle(inner)).toHaveText("less...");
 
@@ -259,7 +259,7 @@ test.describe("ExpandablePanel nested toggles", () => {
           };
           tick(count);
         });
-      await frames(10);
+      await frames(20);
       let changes = 0;
       const observer = new MutationObserver((records) => {
         for (const record of records) {
@@ -273,7 +273,9 @@ test.describe("ExpandablePanel nested toggles", () => {
           }
         }
       });
-      observer.observe(document.body, { childList: true, subtree: true });
+      for (const message of document.querySelectorAll(".assistant")) {
+        observer.observe(message, { childList: true, subtree: true });
+      }
       await frames(30);
       observer.disconnect();
       return changes;

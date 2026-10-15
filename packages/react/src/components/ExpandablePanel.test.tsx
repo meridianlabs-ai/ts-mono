@@ -196,8 +196,8 @@ describe("ExpandablePanel nesting", () => {
     await waitFor(() => expect(toggleLabels()).toEqual(["more...", "less..."]));
   };
 
-  // The outer panel measures the inner subtree, so an in-flow nested toggle
-  // that came and went with the outer's overflow would oscillate.
+  // Whether a nested toggle renders must not depend on an ancestor's
+  // overflow: the ancestor measures this subtree, including the toggle.
   it.each(["inline-right", "block-left"] as const)(
     "keeps %s nested toggles while an ancestor is collapsed",
     async (togglePosition) => {
