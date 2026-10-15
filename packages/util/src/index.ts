@@ -17,6 +17,7 @@ export * from "./hiddenCharacters";
 export * from "./html";
 export * from "./json";
 export * from "./json-value";
+export * from "./json-parse-worker-scope";
 export * from "./json-worker";
 export * from "./jsonrpc";
 export * from "./jsonrpc-fetch";

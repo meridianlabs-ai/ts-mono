@@ -1,6 +1,6 @@
 /**
  * JSON parsing helpers shared by the main-thread parser in json-worker.ts and
- * the worker entry in json-parse.worker.ts, plus the message shapes the two
+ * the worker side in json-parse-worker-scope.ts, plus the message shapes the two
  * exchange.
  */
 
@@ -82,7 +82,7 @@ export const restoreRootSentinel = (
         : value;
 
 // Above this size, node-dense strict-JSON results skip the structured clone
-// and are re-parsed on the main thread instead (see json-parse.worker.ts). Below it,
+// and are re-parsed on the main thread instead (see json-parse-worker-scope.ts). Below it,
 // clone stalls are ~20ms or less and cloning avoids the second parse.
 export const kReparseThresholdChars = 10_000_000;
 

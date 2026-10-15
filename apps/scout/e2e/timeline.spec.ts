@@ -1,7 +1,7 @@
 import type { NetworkFixture } from "@msw/playwright";
 import { http, HttpResponse } from "msw";
 
-import { encodeBase64Url } from "@tsmono/util/base64url";
+import { encodeBase64Url } from "@tsmono/util";
 
 import type {
   MessagesEventsResponse,

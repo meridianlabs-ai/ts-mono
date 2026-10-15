@@ -1,4 +1,3 @@
-/// <reference types="./vite-imports.d.ts" />
 import JSON5 from "json5";
 
 import {
@@ -11,8 +10,30 @@ import {
   replaceSentinelsInPlace,
   restoreRootSentinel,
 } from "./json-parse-shared";
-import jsonParseWorkerUrl from "./json-parse.worker?worker&url";
 import { WorkerLauncher, workerLauncher } from "./worker";
+
+let workerScriptUrl: string | null = null;
+
+/**
+ * Parse large inputs in workers started from `scriptUrl`: a bundled worker
+ * entry that calls `serveJsonParseRequests(self)`, which an app passes in from
+ * a `?worker&url` import. The app resolves it, not this package, so
+ * `@tsmono/util` stays importable outside a bundler. Until this is called, and
+ * after a worker fails to start, every input parses on the calling thread.
+ */
+export const configureJsonParseWorker = (scriptUrl: string): void => {
+  workerScriptUrl = scriptUrl;
+};
+
+let warnedUnavailable = false;
+const warnUnavailable = (reason: unknown): void => {
+  if (warnedUnavailable) return;
+  warnedUnavailable = true;
+  console.warn(
+    "JSON parse worker unavailable; parsing on the main thread:",
+    reason
+  );
+};
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -24,32 +45,65 @@ interface PendingRequest {
 // Pool of workers to parse JSON/JSON5 off the main thread
 class JsonWorkerPool {
   private workers: Worker[] = [];
-  private launcher: Promise<WorkerLauncher> | null = null;
   private launched: WorkerLauncher | null = null;
-  // Workers whose script loaded (they post a ready message). One that errors
-  // before that (a missing script, a blocked worker) is not replaced, or a
-  // worker that can never start would be respawned in a tight loop.
+  // Settles once the first worker starts (true) or one fails first (false).
+  // Nothing is sent before then, so a failed launch loses no request and
+  // transfers no bytes. A failed launch is never retried: a worker that can't
+  // start (a missing script, a policy blocking it) fails the same way on
+  // every call, so the pool falls back to the main thread instead.
+  private availability: Promise<boolean> | null = null;
+  private settleLaunch: ((started: boolean) => void) | null = null;
+  // Workers whose script loaded (they post a ready message).
   private started = new WeakSet<Worker>();
   private nextRequestId = 0;
   private pendingRequests = new Map<number, PendingRequest>();
   private readonly poolSize = 4;
 
-  private async ensureWorkers(): Promise<void> {
-    const pending = (this.launcher ??= workerLauncher(jsonParseWorkerUrl));
-    let launcher: WorkerLauncher;
+  /** Whether parses go to workers; launches the pool on first use. */
+  private available(): Promise<boolean> {
+    return (this.availability ??= this.launch());
+  }
+
+  private async launch(): Promise<boolean> {
+    const scriptUrl = workerScriptUrl;
+    if (scriptUrl === null) return false;
+    let launched: WorkerLauncher;
     try {
-      launcher = await pending;
+      launched = await workerLauncher(scriptUrl);
     } catch (error) {
-      // Only forget the attempt that failed, not a newer one.
-      if (this.launcher === pending) this.launcher = null;
-      throw error;
+      warnUnavailable(error);
+      return false;
     }
-    this.launched = launcher;
-    if (this.workers.length === 0) {
+    this.launched = launched;
+    const started = new Promise<boolean>((resolve) => {
+      this.settleLaunch = resolve;
+    });
+    try {
       for (let i = 0; i < this.poolSize; i++) {
-        this.workers.push(this.createWorker(launcher));
+        this.workers.push(this.createWorker(launched));
       }
+    } catch (error) {
+      this.settleLaunch?.(false);
+      this.settleLaunch = null;
+      warnUnavailable(error);
     }
+    if (await started) return true;
+    this.stopWorkers();
+    return false;
+  }
+
+  /** Give up on workers for the rest of the session. */
+  private markUnavailable(reason: unknown) {
+    warnUnavailable(reason);
+    this.availability = Promise.resolve(false);
+    this.stopWorkers();
+  }
+
+  private stopWorkers() {
+    this.workers.forEach((w) => w.terminate());
+    this.workers = [];
+    this.launched?.release();
+    this.launched = null;
   }
 
   private createWorker(launcher: WorkerLauncher): Worker {
@@ -69,6 +123,8 @@ class JsonWorkerPool {
 
   private handleMessage(worker: Worker, e: MessageEvent) {
     this.started.add(worker);
+    this.settleLaunch?.(true);
+    this.settleLaunch = null;
     if (isWorkerReady(e.data)) return;
     const {
       requestId,
@@ -92,7 +148,7 @@ class JsonWorkerPool {
         // The worker validated this as strict JSON; one plain JSON.parse
         // here is the cheapest way to materialize a large result on this
         // thread (structured clone of a big graph costs more, and a reviver
-        // is ~8x slower than plain parse — see json-parse.worker.ts). For
+        // is ~8x slower than plain parse — see json-parse-worker-scope.ts). For
         // repaired payloads the worker pre-located the sentinel values, so
         // restoring NaN/Infinity is a targeted walk of just those paths (~µs).
         try {
@@ -130,6 +186,13 @@ class JsonWorkerPool {
   // future request routed to it.
   private failWorker(worker: Worker, err: Error) {
     this.rejectPendingFor(worker, err);
+    if (!this.started.has(worker) && this.settleLaunch) {
+      // The first worker failed before any started: the launch failed.
+      warnUnavailable(err);
+      this.settleLaunch(false);
+      this.settleLaunch = null;
+      return;
+    }
     const index = this.workers.indexOf(worker);
     worker.terminate();
     if (index < 0) return;
@@ -137,6 +200,7 @@ class JsonWorkerPool {
       this.workers[index] = this.createWorker(this.launched);
     } else {
       this.workers.splice(index, 1);
+      if (this.workers.length === 0) this.markUnavailable(err);
     }
   }
 
@@ -145,10 +209,16 @@ class JsonWorkerPool {
   // thread before transferring. The text is retained so a reparse response
   // doesn't need to ship it back.
   async parse(text: string): Promise<unknown> {
+    if (!(await this.available()) || this.workers.length === 0) {
+      return jsonParse(text);
+    }
     return this.submit({ text }, [], text);
   }
 
   async parseBytes(data: Uint8Array): Promise<unknown> {
+    if (!(await this.available()) || this.workers.length === 0) {
+      return jsonParse(new TextDecoder("utf-8").decode(data));
+    }
     // Ensure we own the full buffer before transferring
     const owned =
       data.byteOffset === 0 &&
@@ -183,8 +253,6 @@ class JsonWorkerPool {
     transfer: Transferable[] = [],
     sourceText?: string
   ): Promise<unknown> {
-    await this.ensureWorkers();
-
     const requestId = this.nextRequestId++;
     const worker = this.pickWorker();
 
@@ -212,11 +280,8 @@ class JsonWorkerPool {
   }
 
   terminate() {
-    this.workers.forEach((w) => w.terminate());
-    this.workers = [];
-    this.launched?.release();
-    this.launched = null;
-    this.launcher = null;
+    this.stopWorkers();
+    this.availability = null;
     const err = new Error("Worker pool terminated");
     for (const pending of this.pendingRequests.values()) {
       pending.reject(err);

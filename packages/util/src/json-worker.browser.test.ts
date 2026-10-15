@@ -10,7 +10,8 @@ import {
 } from "vitest";
 
 // json-worker.test.ts covers only the <50KB main-thread paths; the worker
-// itself (json-parse.worker.ts) needs a real Web Worker, which Vitest's node
+// itself (bench/json-parse.worker.ts, which serves
+// json-parse-worker-scope.ts) needs a real Web Worker, which Vitest's node
 // environment can never run. This suite bundles the bench harness with
 // esbuild and drives real Chromium (real Web Workers) via playwright-core so
 // a syntax, serialization, or lifecycle regression inside the worker fails

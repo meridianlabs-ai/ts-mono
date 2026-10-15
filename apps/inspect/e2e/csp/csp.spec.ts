@@ -57,8 +57,16 @@ test("the preview serves the built policy file as its header", async ({
   expect(policyFileDirectives(file).join("; ")).toBe(header);
 });
 
-test("data: audio and video load", async ({ page, network }) => {
+// The worker check covers the app wiring the JSON parser to its worker
+// (configureJsonParseWorker): without it, parsing silently stays on the main
+// thread.
+test("a large log parses in the app's JSON worker, and its data: audio and video load", async ({
+  page,
+  network,
+}) => {
   serveEvalLog(network, mainLog, "csp-main.json");
+  const workers: string[] = [];
+  page.on("worker", (worker) => workers.push(worker.url()));
   await page.goto(sampleUrl("csp-main.json", "media", "messages"));
   for (const selector of ["audio", "video"]) {
     await expect
@@ -70,6 +78,7 @@ test("data: audio and video load", async ({ page, network }) => {
       )
       .toBeGreaterThanOrEqual(1);
   }
+  expect(workers).toContainEqual(expect.stringContaining("json-parse.worker"));
 });
 
 // CodeMirror styles itself through style-mod, which patches/style-mod.patch

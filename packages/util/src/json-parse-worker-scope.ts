@@ -87,41 +87,56 @@ const parse = (text: string | undefined, bytes: Uint8Array): ParseOutcome => {
   return { result };
 };
 
-self.addEventListener("message", (event: MessageEvent<unknown>) => {
-  const message = event.data;
-  if (
-    typeof message !== "object" ||
-    message === null ||
-    !("type" in message) ||
-    message.type !== "parse" ||
-    !("requestId" in message) ||
-    typeof message.requestId !== "number"
-  ) {
-    return;
-  }
-  const { requestId } = message;
-  const text =
-    "text" in message && typeof message.text === "string"
-      ? message.text
-      : undefined;
-  const bytes =
-    "bytes" in message && message.bytes instanceof Uint8Array
-      ? message.bytes
-      : new Uint8Array();
-  let response: ParseResponse;
-  try {
-    response = { ...parse(text, bytes), requestId, success: true };
-  } catch (err) {
-    response = {
-      requestId,
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? (err.stack ?? "") : "",
-    };
-  }
-  self.postMessage(response);
-});
+/** The parts of a worker's global scope the parser uses. */
+export interface JsonParseWorkerScope {
+  addEventListener(
+    type: "message",
+    listener: (event: MessageEvent<unknown>) => void
+  ): void;
+  postMessage(message: ParseResponse | WorkerReady): void;
+}
 
-// Lets the pool tell a worker that started (and may later fail, e.g. out of
-// memory on a huge parse) from one whose script never loaded.
-self.postMessage({ type: "ready" } satisfies WorkerReady);
+/**
+ * Run the JSON parse worker in `scope` (the worker's `self`). An app's worker
+ * entry calls this, and passes that entry's URL to `configureJsonParseWorker`.
+ */
+export const serveJsonParseRequests = (scope: JsonParseWorkerScope): void => {
+  scope.addEventListener("message", (event) => {
+    const message = event.data;
+    if (
+      typeof message !== "object" ||
+      message === null ||
+      !("type" in message) ||
+      message.type !== "parse" ||
+      !("requestId" in message) ||
+      typeof message.requestId !== "number"
+    ) {
+      return;
+    }
+    const { requestId } = message;
+    const text =
+      "text" in message && typeof message.text === "string"
+        ? message.text
+        : undefined;
+    const bytes =
+      "bytes" in message && message.bytes instanceof Uint8Array
+        ? message.bytes
+        : new Uint8Array();
+    let response: ParseResponse;
+    try {
+      response = { ...parse(text, bytes), requestId, success: true };
+    } catch (err) {
+      response = {
+        requestId,
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? (err.stack ?? "") : "",
+      };
+    }
+    scope.postMessage(response);
+  });
+
+  // Lets the pool tell a worker that started (and may later fail, e.g. out of
+  // memory on a huge parse) from one whose script never loaded.
+  scope.postMessage({ type: "ready" } satisfies WorkerReady);
+};

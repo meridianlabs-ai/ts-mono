@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-/// <reference types="@tsmono/util/vite-imports" />
 import markdownit from "markdown-it";
 import { expect, it } from "vitest";
 
