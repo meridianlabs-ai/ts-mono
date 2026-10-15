@@ -212,27 +212,78 @@ const EVALS_CODE = new RegExp(
   ].join("|")
 );
 
-/** Throw if an emitted script contains code a policy without
- *  `'unsafe-eval'` would block. */
-const rejectEval = (bundle) => {
-  const offenders = Object.values(bundle)
-    .filter((output) => output.fileName.endsWith(".js"))
-    .filter((output) =>
-      EVALS_CODE.test(
-        output.type === "chunk"
-          ? output.code
-          : typeof output.source === "string"
-            ? output.source
-            : new TextDecoder().decode(output.source)
-      )
-    )
-    .map((output) => output.fileName);
+const sourceText = (source) =>
+  typeof source === "string" ? source : new TextDecoder().decode(source);
+
+/** A module id as `evalAllowedIn` and errors name it: its path inside
+ *  node_modules, or else relative to the Vite root. */
+const moduleName = (id, root) => {
+  const path = id.replace(/\\/g, "/");
+  const inPackage = path.lastIndexOf("/node_modules/");
+  return inPackage >= 0
+    ? path.slice(inPackage + "/node_modules/".length)
+    : relative(root, id).replace(/\\/g, "/");
+};
+
+/**
+ * Throw if an emitted script contains code a policy without `'unsafe-eval'`
+ * would block. Chunks are checked module by module, so an `evalAllowedIn`
+ * entry (a path inside node_modules, e.g. "arquero/src/expression/compile.js")
+ * exempts just that module. Worker scripts are emitted as assets and are
+ * always checked whole: the page can't see a worker's violations.
+ */
+const rejectEval = (bundle, evalAllowedIn, root) => {
+  const offenders = [];
+  for (const output of Object.values(bundle)) {
+    if (!output.fileName.endsWith(".js")) continue;
+    const modules =
+      output.type === "chunk"
+        ? Object.entries(output.modules).filter(([, m]) => m.code !== null)
+        : [];
+    if (modules.length === 0) {
+      const code =
+        output.type === "chunk" ? output.code : sourceText(output.source);
+      if (EVALS_CODE.test(code)) offenders.push(output.fileName);
+      continue;
+    }
+    for (const [id, module] of modules) {
+      const name = moduleName(id, root);
+      if (EVALS_CODE.test(module.code) && !evalAllowedIn.includes(name)) {
+        offenders.push(`${output.fileName} (${name})`);
+      }
+    }
+  }
   if (offenders.length > 0) {
     throw new Error(
       `contentSecurityPolicy: script-src has no 'unsafe-eval', but these scripts evaluate code: ${offenders.join(", ")}`
     );
   }
 };
+
+/**
+ * The Content-Security-Policy both viewers (inspect, scout) build with. They
+ * render untrusted content, and this is the second layer behind the
+ * sanitizer. 'wasm-unsafe-eval' is for the asciinema player's WebAssembly,
+ * and inline style attributes carry MathJax's per-glyph layout. Hosts rely
+ * on worker-src staying explicit (the VS Code extension adds blob: to it for
+ * cross-origin workers) and on an empty list meaning a directive without
+ * sources.
+ */
+export const VIEWER_CSP_DIRECTIVES = Object.freeze({
+  "default-src": ["'none'"],
+  "script-src": ["'self'", "'wasm-unsafe-eval'"],
+  "worker-src": ["'self'"],
+  "style-src-elem": ["'self'"],
+  "style-src-attr": ["'unsafe-inline'"],
+  "img-src": ["'self'", "data:"],
+  "media-src": ["data:"],
+  "font-src": ["'self'"],
+  "connect-src": ["'self'"],
+  "object-src": ["'none'"],
+  "frame-src": ["'none'"],
+  "base-uri": ["'none'"],
+  "form-action": ["'none'"],
+});
 
 /** File the build writes next to index.html; hosts deliver the policy from it. */
 export const CSP_FILE = "content-security-policy.json";
@@ -262,14 +313,20 @@ export const policyString = (directives) =>
  * client and React preamble are inline and differ per session.
  *
  * @param {Record<string, string[]>} directives the policy, in order
+ * @param {{ evalAllowedIn?: string[] }} [options] `evalAllowedIn`: modules,
+ *   as paths inside node_modules, that the eval check skips. Only for code
+ *   the app can be shown never to run (its e2e under the policy, and
+ *   `@no-unsafe-eval` unit tests, cover what it does run).
  * @returns {import("vite").Plugin}
  */
-export function contentSecurityPolicy(directives) {
+export function contentSecurityPolicy(directives, { evalAllowedIn = [] } = {}) {
   let outDir = "dist";
+  let root = process.cwd();
   return {
     name: "content-security-policy",
     apply: (_config, env) => env.command === "build" || env.isPreview === true,
     configResolved(config) {
+      root = config.root;
       outDir = resolvePath(config.root, config.build.outDir);
     },
     buildStart() {
@@ -277,7 +334,7 @@ export function contentSecurityPolicy(directives) {
     },
     generateBundle(_options, bundle) {
       if (!directives["script-src"]?.includes("'unsafe-eval'")) {
-        rejectEval(bundle);
+        rejectEval(bundle, evalAllowedIn, root);
       }
     },
     writeBundle(options) {
