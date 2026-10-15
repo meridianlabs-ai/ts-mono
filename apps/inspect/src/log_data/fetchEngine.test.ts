@@ -27,6 +27,7 @@ import {
   testClientAPI,
   testEngineDatabase,
   testLogDetails,
+  testLogPreview,
 } from "./testFixtures";
 
 // --- fakes (no jsdom, no react-query) ---
@@ -57,15 +58,14 @@ const makeHeader = (
 const makePreview = (
   name: string,
   status: "success" | "started" = "success"
-): LogPreview => ({
-  eval_id: name,
-  run_id: `run-${name}`,
-  task: "task",
-  task_id: "task_1",
-  task_version: 0,
-  model: "m",
-  status,
-});
+): LogPreview =>
+  testLogPreview({
+    eval_id: name,
+    run_id: `run-${name}`,
+    task: "task",
+    model: "m",
+    status,
+  });
 
 const handle = (name: string, mtime?: number): LogHandle =>
   mtime === undefined ? { name } : { name, mtime };

@@ -3,14 +3,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { EvalError, EvalSampleLimit } from "@tsmono/inspect-common";
+import { testEvalError } from "@tsmono/inspect-common/testing";
 
 import { RetryTerminalAnchor } from "./RetryTerminalAnchor";
 
-const makeError = (message: string): EvalError => ({
-  message,
-  traceback: message,
-  traceback_ansi: message,
-});
+const makeError = (message: string): EvalError =>
+  testEvalError({ message, traceback: message, traceback_ansi: message });
 
 describe("RetryTerminalAnchor", () => {
   afterEach(() => cleanup());
