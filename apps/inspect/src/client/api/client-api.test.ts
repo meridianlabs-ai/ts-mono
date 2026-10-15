@@ -1,16 +1,16 @@
+import { strToU8, zipSync } from "fflate";
 import { describe, expect, test, vi } from "vitest";
 
 import {
   testEvalLog,
+  testEvalPlan,
   testEvalSample,
   testEvalSpec,
 } from "@tsmono/inspect-common/testing";
 
-import { openRemoteLogFile, RemoteLogFile } from "../remote/remoteLogFile";
 import { DirectFetchError } from "../remote/remotePendingSampleData";
 
 import { clientApi } from "./client-api";
-import { notImplemented, testLogDetails } from "./testClientApi";
 import {
   EditLogResult,
   LogContents,
@@ -20,13 +20,6 @@ import {
   SampleData,
   SampleDataResponse,
 } from "./types";
-
-// Mock the remote zip reader so .eval cache tests don't try to talk to the
-// real backend. The factory must be hoisted before clientApi is exercised.
-vi.mock("../remote/remoteLogFile", () => ({
-  openRemoteLogFile: vi.fn(),
-  SampleNotFoundError: class SampleNotFoundError extends Error {},
-}));
 
 const emptySampleData: SampleData = {
   events: [],
@@ -41,16 +34,45 @@ const okResponse = (has_more = false): SampleDataResponse => ({
   has_more,
 });
 
-const remoteLogFileWith = (
-  overrides: Partial<RemoteLogFile> = {}
-): RemoteLogFile => ({
-  readEvalBasicInfo: vi.fn(notImplemented("readEvalBasicInfo")),
-  readLogSummary: vi.fn(notImplemented("readLogSummary")),
-  readSample: vi.fn(notImplemented("readSample")),
-  zipAccess: vi.fn(notImplemented("zipAccess")),
-  readCompleteLog: vi.fn(notImplemented("readCompleteLog")),
-  ...overrides,
-});
+/**
+ * A real in-memory .eval (header + empty summaries) served through the
+ * byte-range api, the way a view server serves one. Each open of the zip
+ * stats the file first, so `get_log_info` calls count opens; its etag
+ * (changed with `setEtag`, as another writer would) is what the client
+ * lifts onto `LogDetails.etag`.
+ */
+const evalLogApi = (
+  status: LogDetails["status"] = "success",
+  etag?: string
+) => {
+  const bytes = zipSync({
+    "header.json": strToU8(
+      JSON.stringify({
+        version: 2,
+        status,
+        eval: testEvalSpec(),
+        plan: testEvalPlan(),
+      })
+    ),
+    "summaries.json": strToU8("[]"),
+  });
+  let currentEtag = etag;
+  const get_log_info = vi.fn<LogViewAPI["get_log_info"]>(() =>
+    Promise.resolve({ size: bytes.length, etag: currentEtag })
+  );
+  const api: Pick<LogViewAPI, "get_log_info" | "get_log_bytes"> = {
+    get_log_info,
+    get_log_bytes: (_file, start, end) =>
+      Promise.resolve(bytes.slice(start, end + 1)),
+  };
+  return {
+    api,
+    opens: get_log_info,
+    setEtag: (next: string) => {
+      currentEtag = next;
+    },
+  };
+};
 
 const baseApi = (): LogViewAPI => ({
   client_events: vi.fn().mockResolvedValue([]),
@@ -289,79 +311,58 @@ describe("clientApi.edit_log cache invalidation", () => {
   };
 
   test("subsequent reads on the same .eval file re-open after an edit", async () => {
-    const remoteLogFile = remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(testLogDetails()),
-    });
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockResolvedValue(remoteLogFile);
+    const { api: evalApi, opens } = evalLogApi();
 
     const edit_log = vi
       .fn<NonNullable<LogViewAPI["edit_log"]>>()
       .mockResolvedValue(okEdit);
-    const client = clientApi({ ...baseApi(), edit_log });
+    const client = clientApi({ ...baseApi(), ...evalApi, edit_log });
 
     await client.get_log_details("log.eval", true);
     await client.get_log_details("log.eval", true);
     // Sanity: second read was a cache hit.
-    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(opens).toHaveBeenCalledTimes(1);
 
     await client.edit_log!("log.eval", okUpdate);
 
     await client.get_log_details("log.eval", true);
     // Edit invalidated the cache → next read re-opened the zip and would
     // pick up the new header bytes from disk.
-    expect(openMock).toHaveBeenCalledTimes(2);
+    expect(opens).toHaveBeenCalledTimes(2);
   });
 
   test("an edit on a different log preserves the cached one", async () => {
-    const remoteLogFile = remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(testLogDetails()),
-    });
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockResolvedValue(remoteLogFile);
+    const { api: evalApi, opens } = evalLogApi();
 
     const edit_log = vi
       .fn<NonNullable<LogViewAPI["edit_log"]>>()
       .mockResolvedValue(okEdit);
-    const client = clientApi({ ...baseApi(), edit_log });
+    const client = clientApi({ ...baseApi(), ...evalApi, edit_log });
 
     await client.get_log_details("a.eval", true);
     // Edit a different file — `a.eval`'s cache should survive.
     await client.edit_log!("b.eval", okUpdate);
     await client.get_log_details("a.eval", true);
 
-    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(opens).toHaveBeenCalledTimes(1);
   });
 
   test("a failed edit does not invalidate the cache", async () => {
     // Cache is dropped only after the underlying call resolves; a
     // rejection propagates without disturbing the cached reader. This
     // matters so a 412 conflict doesn't trigger an unnecessary refetch.
-    const remoteLogFile = remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(testLogDetails()),
-    });
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockResolvedValue(remoteLogFile);
+    const { api: evalApi, opens } = evalLogApi();
 
     const edit_log = vi
       .fn<NonNullable<LogViewAPI["edit_log"]>>()
       .mockRejectedValue(new Error("412 Precondition Failed"));
-    const client = clientApi({ ...baseApi(), edit_log });
+    const client = clientApi({ ...baseApi(), ...evalApi, edit_log });
 
     await client.get_log_details("log.eval", true);
     await expect(client.edit_log!("log.eval", okUpdate)).rejects.toThrow("412");
     await client.get_log_details("log.eval", true);
 
-    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(opens).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -372,41 +373,26 @@ describe("clientApi.get_log_details running-log caching", () => {
   // for cached reads leaves live views permanently stale (any consumer that
   // reads without an explicit cached=false lands on it).
 
-  const remoteFileWith = (status: LogDetails["status"]) =>
-    remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(testLogDetails({ status })),
-    });
-
   test("a running log is not re-served from the memoized remote file", async () => {
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockImplementation(() =>
-      Promise.resolve(remoteFileWith("started"))
-    );
-    const client = clientApi(baseApi());
+    const { api: evalApi, opens } = evalLogApi("started");
+    const client = clientApi({ ...baseApi(), ...evalApi });
 
     await client.get_log_details("log.eval", true);
     await client.get_log_details("log.eval", true);
 
     // Each read re-opened the zip — a fresh central directory that sees
     // newly flushed samples.
-    expect(openMock).toHaveBeenCalledTimes(2);
+    expect(opens).toHaveBeenCalledTimes(2);
   });
 
   test("a completed log stays memoized across cached reads", async () => {
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockImplementation(() =>
-      Promise.resolve(remoteFileWith("success"))
-    );
-    const client = clientApi(baseApi());
+    const { api: evalApi, opens } = evalLogApi("success");
+    const client = clientApi({ ...baseApi(), ...evalApi });
 
     await client.get_log_details("log.eval", true);
     await client.get_log_details("log.eval", true);
 
-    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(opens).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -535,19 +521,12 @@ describe("clientApi.edit_log etag plumbing", () => {
     // `get_log_info` S3 head_object response), so the *first* save in
     // a session also carries `If-Match`. Without this seeding, only
     // chained edits would be protected.
-    const remoteLogFile = remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(testLogDetails({ etag: "initial-from-s3" })),
-    });
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockResolvedValue(remoteLogFile);
+    const { api: evalApi } = evalLogApi("success", "initial-from-s3");
 
     const edit_log = vi
       .fn<NonNullable<LogViewAPI["edit_log"]>>()
       .mockResolvedValue({ log: okLog, etag: "after-edit" });
-    const client = clientApi({ ...baseApi(), edit_log });
+    const client = clientApi({ ...baseApi(), ...evalApi, edit_log });
 
     await client.get_log_details("log.eval", true);
     await client.edit_log!("log.eval", okUpdate);
@@ -563,24 +542,17 @@ describe("clientApi.edit_log etag plumbing", () => {
     // cached etag must update to the new value — otherwise the next
     // edit would race using the stale etag and get a (correct but
     // confusing) 412 even though the user's local view is in sync.
-    const remoteLogFile = remoteLogFileWith({
-      readLogSummary: vi
-        .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValueOnce(testLogDetails({ etag: "v1" }))
-        .mockResolvedValueOnce(testLogDetails({ etag: "v2" })),
-    });
-    const openMock = vi.mocked(openRemoteLogFile);
-    openMock.mockReset();
-    openMock.mockResolvedValue(remoteLogFile);
+    const { api: evalApi, setEtag } = evalLogApi("success", "v1");
 
     const edit_log = vi
       .fn<NonNullable<LogViewAPI["edit_log"]>>()
       .mockResolvedValue({ log: okLog });
-    const client = clientApi({ ...baseApi(), edit_log });
+    const client = clientApi({ ...baseApi(), ...evalApi, edit_log });
 
     // First open: caches v1.
     await client.get_log_details("log.eval", true);
-    // Refresh: caches v2.
+    // Someone else edits the file; a refresh re-opens it and caches v2.
+    setEtag("v2");
     await client.get_log_details("log.eval", false);
     await client.edit_log!("log.eval", okUpdate);
     expect(edit_log).toHaveBeenCalledWith("log.eval", okUpdate, "v2");
