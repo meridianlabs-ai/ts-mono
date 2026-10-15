@@ -61,12 +61,13 @@ class JsonWorkerPool {
 
   /** Whether parses go to workers; launches the pool on first use. */
   private available(): Promise<boolean> {
-    return (this.availability ??= this.launch());
+    // Not cached while unconfigured, so a later configureJsonParseWorker
+    // still takes effect.
+    if (workerScriptUrl === null) return Promise.resolve(false);
+    return (this.availability ??= this.launch(workerScriptUrl));
   }
 
-  private async launch(): Promise<boolean> {
-    const scriptUrl = workerScriptUrl;
-    if (scriptUrl === null) return false;
+  private async launch(scriptUrl: string): Promise<boolean> {
     let launched: WorkerLauncher;
     try {
       launched = await workerLauncher(scriptUrl);
@@ -209,14 +210,14 @@ class JsonWorkerPool {
   // thread before transferring. The text is retained so a reparse response
   // doesn't need to ship it back.
   async parse(text: string): Promise<unknown> {
-    if (!(await this.available()) || this.workers.length === 0) {
+    if (!(await this.available()) || this.startedWorkers().length === 0) {
       return jsonParse(text);
     }
     return this.submit({ text }, [], text);
   }
 
   async parseBytes(data: Uint8Array): Promise<unknown> {
-    if (!(await this.available()) || this.workers.length === 0) {
+    if (!(await this.available()) || this.startedWorkers().length === 0) {
       return jsonParse(new TextDecoder("utf-8").decode(data));
     }
     // Ensure we own the full buffer before transferring
@@ -231,14 +232,22 @@ class JsonWorkerPool {
 
   // Least-loaded dispatch: pure round-robin would queue small requests
   // behind a multi-second parse while other workers sit idle.
+  // Only workers that have started take requests: one still loading (or a
+  // replacement that never will) would get, and with bytes keep, a request
+  // it can't answer.
+  private startedWorkers(): Worker[] {
+    return this.workers.filter((worker) => this.started.has(worker));
+  }
+
   private pickWorker(): Worker {
+    const candidates = this.startedWorkers();
     const inflight = new Map<Worker, number>();
     for (const pending of this.pendingRequests.values()) {
       inflight.set(pending.worker, (inflight.get(pending.worker) ?? 0) + 1);
     }
-    let best = this.workers[this.nextRequestId % this.workers.length]!;
+    let best = candidates[this.nextRequestId % candidates.length]!;
     let bestCount = inflight.get(best) ?? 0;
-    for (const worker of this.workers) {
+    for (const worker of candidates) {
       const count = inflight.get(worker) ?? 0;
       if (count < bestCount) {
         best = worker;
@@ -277,16 +286,6 @@ class JsonWorkerPool {
         );
       }
     });
-  }
-
-  terminate() {
-    this.stopWorkers();
-    this.availability = null;
-    const err = new Error("Worker pool terminated");
-    for (const pending of this.pendingRequests.values()) {
-      pending.reject(err);
-    }
-    this.pendingRequests.clear();
   }
 }
 
