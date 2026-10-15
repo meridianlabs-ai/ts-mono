@@ -1,5 +1,5 @@
 import { defineNetworkFixture, type NetworkFixture } from "@msw/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
 
 import { defaultHandlers } from "./handlers";
 
@@ -47,6 +47,12 @@ const MOCK_EVENT_SOURCE_SCRIPT = `
   };
 `;
 
+declare global {
+  interface Window {
+    __reportCspViolation?: (violation: string) => void;
+  }
+}
+
 interface AppFixtures {
   network: NetworkFixture;
   disableRetries: void;
@@ -88,14 +94,21 @@ export const test = base.extend<AppFixtures>({
   cspViolations: [
     async ({ context, allowCspViolations }, use) => {
       const violations: string[] = [];
-      const watch = (page: Page) =>
-        page.on("console", (message) => {
-          if (message.text().includes("Content Security Policy")) {
-            violations.push(message.text());
-          }
+      // The violation event, not console text: a blocked eval throws an
+      // EvalError and logs nothing, so only the event reports it.
+      await context.exposeBinding(
+        "__reportCspViolation",
+        (_source, violation: string) => {
+          violations.push(violation);
+        }
+      );
+      await context.addInitScript(() => {
+        document.addEventListener("securitypolicyviolation", (event) => {
+          window.__reportCspViolation?.(
+            `${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`
+          );
         });
-      context.pages().forEach(watch);
-      context.on("page", watch);
+      });
       await use(violations);
       if (!allowCspViolations) {
         expect(violations, "CSP violations").toEqual([]);

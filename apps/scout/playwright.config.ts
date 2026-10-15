@@ -8,7 +8,7 @@ const previewURL = "http://localhost:5176";
 // The dataframe spec drives a harness page under e2e/fixtures that only the
 // dev server serves.
 const devServerURL = "http://localhost:5178";
-const devServerSpecs = /dataframe\.spec\.ts$/;
+const devServerSpecs = /(^|\/)dataframe\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
