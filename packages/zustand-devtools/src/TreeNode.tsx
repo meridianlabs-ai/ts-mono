@@ -1,4 +1,4 @@
-import { FC, memo, useEffect, useRef, useState } from "react";
+import { FC, memo, useState } from "react";
 
 import {
   entriesOf,
@@ -39,17 +39,19 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     const [copied, setCopied] = useState(false);
     const expandable = isExpandable(value);
 
-    // Remounting the value span (via key) restarts the flash animation on
-    // every change; the ref comparison relies on immer structural sharing.
-    const previousValue = useRef(value);
-    const [flashKey, setFlashKey] = useState(0);
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (previousValue.current !== value) {
-        previousValue.current = value;
-        setFlashKey((k) => k + 1);
-      }
-    }, [value]);
+    // Remounting the value span (via key) restarts the flash animation; the
+    // reference comparison relies on immer structural sharing. Object.is
+    // guards the update (NaN !== NaN would loop); !== keeps 0 and -0, which
+    // render identically, from flashing. The value is wrapped because store
+    // values can be functions, which useState would call as initializers.
+    const [flash, setFlash] = useState({ value, key: 0 });
+    if (!Object.is(flash.value, value)) {
+      setFlash({
+        value,
+        key: flash.value !== value ? flash.key + 1 : flash.key,
+      });
+    }
+    const flashKey = flash.key;
 
     const toggle = () => {
       if (expandable) setExpanded((e) => !e);

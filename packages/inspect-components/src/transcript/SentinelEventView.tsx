@@ -504,9 +504,9 @@ const rejectLook = {
 } as const;
 
 const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
-  continue: {
+  proceed: {
     icon: TranscriptIcons.sentinel,
-    word: "Continued",
+    word: "Proceeded",
     tone: "neutral",
   },
   observe: {
@@ -590,7 +590,7 @@ const decisionClass = (
     case "escalate":
     case "modify":
       return checkClasses.modifyText;
-    case "continue":
-      return styles.continue;
+    case "proceed":
+      return styles.proceed;
   }
 };

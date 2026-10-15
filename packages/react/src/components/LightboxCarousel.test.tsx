@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { FC, ReactNode, useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
 import { makeReactiveStateHooks } from "../test/component-state-hooks";
@@ -97,5 +97,60 @@ describe("LightboxCarousel", () => {
 
     pressKey("ArrowLeft");
     expect(screen.getByText("slide-1-body")).toBeTruthy();
+  });
+});
+
+describe("LightboxCarousel fade-out", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderOpenedWithFakeTimers() {
+    render(
+      <Wrapper>
+        <LightboxCarousel id="lightbox" slides={slides} />
+      </Wrapper>
+    );
+    fireEvent.click(screen.getByText("first"));
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(document.querySelector(`.${styles.open}`)).toBeTruthy();
+  }
+
+  it("keeps the overlay mounted for the full fade-out after closing", () => {
+    renderOpenedWithFakeTimers();
+    pressKey("Escape");
+
+    act(() => {
+      vi.advanceTimersByTime(299);
+    });
+    expect(screen.getByText("slide-0-body")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByText("slide-0-body")).toBeNull();
+  });
+
+  it("cancels the pending removal when reopened mid-fade", () => {
+    renderOpenedWithFakeTimers();
+    pressKey("Escape");
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    fireEvent.click(screen.getByText("first"));
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(document.querySelector(`.${styles.open}`)).toBeTruthy();
+    expect(screen.getByText("slide-0-body")).toBeTruthy();
   });
 });

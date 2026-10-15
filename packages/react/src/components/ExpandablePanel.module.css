@@ -103,3 +103,13 @@
   bottom: 0.25em;
   z-index: 2;
 }
+
+/* Inside a collapsed panel, nested inline toggles stay at their own corners.
+   The collapsed wrapper's `overflow: hidden` makes it their scroll container,
+   so a sticky nested toggle would pin to the clipped edge, on top of this
+   panel's own toggle; static, a clipped-away toggle stays out of sight.
+   Block-left toggles stay sticky: they sit on the other side.
+   `static` (not `relative`) so the stacking `bottom` doesn't shift it. */
+.collapsedContent .inlineToggleSticky {
+  position: static;
+}

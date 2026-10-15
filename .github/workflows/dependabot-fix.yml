@@ -338,7 +338,7 @@ jobs:
       # own App token: `gh` here can read (advisories, PR list/view) and
       # nothing else. --add-dir lets the agent read the alert list and write
       # the PR text in its landing directory.
-      - uses: anthropics/claude-code-action@6c690188da61cf16ee7debb28383ba67f02abb4c # v1.0.242
+      - uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
         id: claude
         with:
           anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
@@ -661,7 +661,7 @@ jobs:
       # writes, and no other channel (handback, hand-off, stage, replies,
       # issues, ...) is present. Everything else is the composite's job.
       - name: Download the landing manifest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: landing
           path: ${{ runner.temp }}/landing-check

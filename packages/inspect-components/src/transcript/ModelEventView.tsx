@@ -93,8 +93,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     return recentInputMessages(event.input, {
       agentResultsFiltered,
       hasToolEvents: context?.hasToolEvents,
+      toolEventIds: context?.toolEventIds,
     });
-  }, [event, context?.hasToolEvents]);
+  }, [event, context?.hasToolEvents, context?.toolEventIds]);
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);
@@ -109,9 +110,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       event.pending || isCancelled
         ? outputMessages.filter((m) => !isLivePlaceholderMessage(m))
         : outputMessages;
-    return showAllMessages
+    const messages = showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
+    const toolEventIds = context?.toolEventIds;
+    return toolEventIds
+      ? messages.map((m) => withoutToolCallsIn(m, toolEventIds))
+      : messages;
   }, [
     showAllMessages,
     event.input,
@@ -119,7 +124,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     isCancelled,
     outputMessages,
     userMessages,
+    context?.toolEventIds,
   ]);
+
+  // Folded under their calls, results the summary shows would vanish with calls it omits.
+  const collapseSummaryToolMessages =
+    context?.hasToolEvents !== false &&
+    !userMessages.some((m) => m.role === "tool");
 
   const summaryLabels = useMemo(() => {
     const map = context?.messageLabels;
@@ -207,8 +218,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           id={`${eventNode.id}-model-output`}
           messages={summaryMessages}
           tools={{
-            callStyle: showToolCalls ? "complete" : "omit",
-            collapseToolMessages: context?.hasToolEvents !== false,
+            callStyle:
+              context?.toolEventIds || showToolCalls ? "complete" : "omit",
+            collapseToolMessages: collapseSummaryToolMessages,
           }}
           labels={summaryLabels}
         />
@@ -449,4 +461,20 @@ const ToolChoiceView: FC<ToolChoiceViewProps> = ({ toolChoice }) => {
   } else {
     return <code>`${toolChoice.name}()`</code>;
   }
+};
+
+// A bridged agent's own calls have no tool event, so they stay inline.
+const withoutToolCallsIn = (
+  message: ChatMessage,
+  toolEventIds: ReadonlySet<string>
+): ChatMessage => {
+  if (message.role !== "assistant" || !message.tool_calls?.length) {
+    return message;
+  }
+  const toolCalls = message.tool_calls.filter(
+    (call) => !toolEventIds.has(call.id)
+  );
+  return toolCalls.length === message.tool_calls.length
+    ? message
+    : { ...message, tool_calls: toolCalls };
 };

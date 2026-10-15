@@ -753,9 +753,6 @@
     "react-hooks/purity": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/scout/src/app/scan/scanners/dataframe/ScannerDataframeColumnsPopover.tsx": {
@@ -1355,7 +1352,7 @@
   },
   "packages/react/src/components/LightboxCarousel.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/react/src/components/MarkdownDiv.tsx": {
@@ -1652,9 +1649,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   }
 }
