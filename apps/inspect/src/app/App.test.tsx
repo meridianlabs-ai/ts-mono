@@ -1,39 +1,42 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getVscodeApi } from "@tsmono/util";
-
-import { initializeStore } from "../state/store";
+import { getAppConfig } from "../app_config";
+import { testClientAPI } from "../client/api/testClientApi";
+import { queryClient } from "../state/queryClient";
+import { startTestApp, stopTestApp } from "../test/testApp";
 
 import { AppContent } from "./App";
+import { getAppRouter } from "./routing/AppRouter";
 
-// Only the host-message bridge is under test: stub the router and the fetch
-// engine so <AppContent> mounts on its own.
-vi.mock("react-router/dom", () => ({ RouterProvider: () => null }));
-const navigate = vi.hoisted(() => vi.fn(() => Promise.resolve()));
-vi.mock("./routing/AppRouter.tsx", () => ({
-  getAppRouter: () => ({ navigate }),
-}));
+// The host-message bridge, over the real router, config and data layer.
+// The app runs in directory mode on /logs with an empty listing; its
+// listing sync is the observable for a `backgroundUpdate`.
 
-const invalidateLogListing = vi.hoisted(() => vi.fn());
-vi.mock("../log_data", () => ({
-  FetchEngineController: () => null,
-  imperativeLogData: { invalidateLogListing },
-}));
+const getLogs = vi.fn(() =>
+  Promise.resolve({ files: [], response_type: "full" as const })
+);
 
-const setLogRoot = vi.hoisted(() => vi.fn());
-vi.mock("../app_config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../app_config")>()),
-  setLogRoot,
-}));
+// The VS Code host. It advertises the http_request proxy (so a re-pointed
+// config builds a working api) but never answers it: nothing here reads
+// from the re-pointed dir.
+const vscodeHost = {
+  postMessage: () => {},
+  getState: () => undefined,
+  setState: () => {},
+};
+const installVscodeHost = () => {
+  window.acquireVsCodeApi = () => vscodeHost;
+  const capabilities = document.createElement("script");
+  capabilities.id = "inspect-host-capabilities";
+  capabilities.type = "application/json";
+  capabilities.textContent = JSON.stringify(["http_request"]);
+  document.body.appendChild(capabilities);
+};
 
-vi.mock("@tsmono/util", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tsmono/util")>()),
-  getVscodeApi: vi.fn(),
-}));
-
-const hostApi = { postMessage: vi.fn(), getState: vi.fn(), setState: vi.fn() };
+const location = () => getAppRouter().state.location;
 
 const postHostMessage = (data: unknown) => {
   act(() => {
@@ -41,30 +44,72 @@ const postHostMessage = (data: unknown) => {
   });
 };
 
-beforeEach(() => {
-  initializeStore({
-    downloadFiles: false,
-    downloadLogs: false,
-    webWorkers: false,
-    streamSamples: false,
+const renderApp = async () => {
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
+  );
+  // Settled: the root listing panel has synced.
+  await waitFor(() => expect(getLogs).toHaveBeenCalled());
+};
+
+beforeEach(async () => {
+  // Browser APIs jsdom lacks, which the app's layout reads.
+  vi.stubGlobal("matchMedia", (query: string): MediaQueryList =>
+    Object.assign(new EventTarget(), {
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+    })
+  );
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+  startTestApp({
+    logDir: "file:///logs",
+    singleFileMode: false,
+    api: testClientAPI({
+      get_logs: getLogs,
+      get_log_summaries_settled: () => Promise.resolve([]),
+      get_eval_set: () => Promise.resolve(undefined),
+      get_flow: () => Promise.resolve(undefined),
+      client_events: () => Promise.resolve([]),
+    }),
+  });
+  await act(async () => {
+    await getAppRouter().navigate("/");
   });
 });
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  stopTestApp();
+  delete window.acquireVsCodeApi;
+  document.getElementById("inspect-host-capabilities")?.remove();
+  getLogs.mockClear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("in VS Code", () => {
   beforeEach(() => {
-    vi.mocked(getVscodeApi).mockReturnValue(hostApi);
+    installVscodeHost();
   });
 
-  it("backgroundUpdate refreshes the listing and leaves the selected log alone", () => {
+  it("backgroundUpdate refreshes the listing and leaves the selected log alone", async () => {
     // The host posts backgroundUpdate while the webview is unfocused.
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
-    render(<AppContent />);
+    await renderApp();
+    const syncs = getLogs.mock.calls.length;
+    const before = location();
 
     postHostMessage({
       type: "backgroundUpdate",
@@ -72,35 +117,41 @@ describe("in VS Code", () => {
       log_dir: "file:///logs",
     });
 
-    expect(navigate).not.toHaveBeenCalled();
-    expect(invalidateLogListing).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(getLogs.mock.calls.length).toBeGreaterThan(syncs)
+    );
+    expect(location()).toBe(before);
+    expect(getAppConfig().logDir).toBe("file:///logs");
   });
 
-  it("updateState re-points the log root at the host's file", () => {
-    render(<AppContent />);
+  it("updateState re-points the log root at the host's file", async () => {
+    await renderApp();
 
     postHostMessage({ type: "updateState", url: "file:///other/run.eval" });
 
-    expect(setLogRoot).toHaveBeenCalledWith("file:///other");
-    expect(navigate).toHaveBeenCalledWith("/logs/run.eval", { replace: true });
+    expect(getAppConfig().logDir).toBe("file:///other");
+    await waitFor(() => expect(location().pathname).toBe("/logs/run.eval"));
   });
 
-  it("does not navigate again when the host replays its command on focus", () => {
-    render(<AppContent />);
+  it("does not navigate again when the host replays its command on focus", async () => {
+    await renderApp();
     const command = { type: "updateState", url: "file:///logs/new.eval" };
     postHostMessage(command);
+    await waitFor(() => expect(location().pathname).toBe("/logs/new.eval"));
+    const navigated = location();
+
     postHostMessage(command);
-    expect(navigate).toHaveBeenCalledTimes(1);
+
+    // A replace navigation would mint a new location even to the same path.
+    expect(location()).toBe(navigated);
   });
 });
 
 describe("outside VS Code", () => {
-  beforeEach(() => {
-    vi.mocked(getVscodeApi).mockReturnValue(undefined);
-  });
-
-  it("ignores window messages: an embedding page can't choose the log location", () => {
-    render(<AppContent />);
+  it("ignores window messages: an embedding page can't choose the log location", async () => {
+    await renderApp();
+    const syncs = getLogs.mock.calls.length;
+    const before = location();
 
     postHostMessage({
       type: "updateState",
@@ -112,9 +163,11 @@ describe("outside VS Code", () => {
       log_dir: "file:///logs",
     });
 
-    expect(setLogRoot).not.toHaveBeenCalled();
-    expect(navigate).not.toHaveBeenCalled();
-    expect(invalidateLogListing).not.toHaveBeenCalled();
+    expect(getAppConfig().logDir).toBe("file:///logs");
+    expect(location()).toBe(before);
+    // Nothing to wait on for an absence: give a listing refresh time to run.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(getLogs.mock.calls.length).toBe(syncs);
   });
 });
 
@@ -141,9 +194,8 @@ describe("log-authored markup", () => {
     delete (document as Partial<Document>).execCommand;
   });
 
-  it("cannot trigger a clipboard write by carrying copy-button classes", () => {
-    vi.mocked(getVscodeApi).mockReturnValue(undefined);
-    render(<AppContent />);
+  it("cannot trigger a clipboard write by carrying copy-button classes", async () => {
+    await renderApp();
 
     act(() => {
       planted.click();
