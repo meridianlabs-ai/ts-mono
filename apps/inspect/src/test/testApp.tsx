@@ -1,0 +1,73 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { FC, ReactNode } from "react";
+import { MemoryRouter } from "react-router";
+
+import { APP_CONFIG_KEY, initAppConfig, type AppConfig } from "../app_config";
+import { CurrentSelectionProvider } from "../app/routing/currentSelection";
+import { testClientAPI } from "../client/api/testClientApi";
+import { FetchEngineController } from "../log_data";
+import { queryClient } from "../state/queryClient";
+import { initializeStore } from "../state/store";
+
+/**
+ * Resolve the viewer's state the way `main.tsx` and `<AppConfigGate>` do,
+ * without rendering the app: initialize the store, and resolve the config
+ * (the module singleton plus the react-query entry `useAppConfig` and
+ * `useLogDir` read) over `config.api`. Defaults to single-file mode, whose
+ * fetch engine opens no IndexedDB (writes are cache-only).
+ */
+export const startTestApp = (overrides: Partial<AppConfig> = {}): AppConfig => {
+  initializeStore({
+    downloadFiles: false,
+    downloadLogs: false,
+    webWorkers: false,
+    streamSamples: false,
+  });
+  const singleFileMode = overrides.singleFileMode ?? true;
+  const config = initAppConfig({
+    api: testClientAPI(),
+    loader: singleFileMode ? "direct" : "replicator",
+    inspect_version: "test",
+    scout_version: null,
+    logDir: "/logs",
+    ...overrides,
+    singleFileMode,
+  });
+  queryClient.setQueryData(APP_CONFIG_KEY, config);
+  return config;
+};
+
+/** Drop everything the viewer cached. Unmount first (`cleanup()`): that
+ *  stops the fetch engine. */
+export const stopTestApp = (): void => {
+  queryClient.clear();
+};
+
+/**
+ * What the app renders below the config gate, for a subtree under test: the
+ * query client, the fetch engine, and — given a `path` — a router at that
+ * path with the route-derived selection.
+ */
+export const TestApp: FC<{ path?: string; children: ReactNode }> = ({
+  path,
+  children,
+}) => (
+  <QueryClientProvider client={queryClient}>
+    <FetchEngineController />
+    {path === undefined ? (
+      children
+    ) : (
+      <MemoryRouter initialEntries={[path]}>
+        <CurrentSelectionProvider>{children}</CurrentSelectionProvider>
+      </MemoryRouter>
+    )}
+  </QueryClientProvider>
+);
+
+/** A `renderHook` wrapper rendering below `<TestApp path={path}>`. */
+export const atRoute = (path?: string): FC<{ children: ReactNode }> => {
+  const AtRoute: FC<{ children: ReactNode }> = ({ children }) => (
+    <TestApp path={path}>{children}</TestApp>
+  );
+  return AtRoute;
+};
