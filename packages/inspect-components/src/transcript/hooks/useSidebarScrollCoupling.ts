@@ -12,7 +12,9 @@
  * Nothing here is transcript-specific; candidate for @tsmono/react/hooks.
  */
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
+
+import { useLatestRef } from "@tsmono/react/hooks";
 
 export interface SidebarScrollTarget {
   /** The sidebar's sticky scroll container. Assumed stable across renders. */
@@ -41,11 +43,7 @@ export function useSidebarScrollCoupling(
 
   // Mirror the latest targets so wheel handlers read current sticky offsets.
   // Declared before the effects below so the mirror updates first in a flush.
-  const sidebarsRef = useRef(sidebars);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    sidebarsRef.current = sidebars;
-  });
+  const sidebarsRef = useLatestRef(sidebars);
 
   // Value-stable re-attachment signal: changes only when a sidebar's remount
   // key does, never when offsets do.
@@ -116,5 +114,5 @@ export function useSidebarScrollCoupling(
         el.removeEventListener("wheel", handler);
       }
     };
-  }, [mainScrollRef, structureKey]);
+  }, [mainScrollRef, structureKey, sidebarsRef]);
 }

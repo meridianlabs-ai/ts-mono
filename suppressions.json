@@ -195,7 +195,7 @@
   },
   "apps/inspect/src/app/samples/InlineSampleDisplay.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/list/SampleList.tsx": {
@@ -791,11 +791,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/scannerResult/result/ResultBody.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/scannerResult/ScannerResultPanel.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
@@ -836,11 +831,6 @@
     },
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "apps/scout/src/app/transcript/TranscriptPanel.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/scout/src/app/transcripts/columns.tsx": {
@@ -1185,7 +1175,7 @@
   },
   "packages/inspect-components/src/transcript/hooks/useSidebarScrollCoupling.ts": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/hooks/useStickyStuck.ts": {
@@ -1220,7 +1210,7 @@
   },
   "packages/inspect-components/src/transcript/search/useTranscriptSearchSource.ts": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/state/StateEventView.tsx": {
@@ -1255,7 +1245,7 @@
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/TranscriptVirtualListComponent.tsx": {
@@ -1423,7 +1413,7 @@
   },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/react/src/components/ToolDropdownButton.tsx": {

@@ -7,7 +7,11 @@ import {
   type ExtendedFindFn,
   type FindDirection,
 } from "@tsmono/react/components";
-import { useEventListener, useUnmount } from "@tsmono/react/hooks";
+import {
+  useEventListener,
+  useLatestRef,
+  useUnmount,
+} from "@tsmono/react/hooks";
 
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import type { TranscriptViewNodesHandle } from "../TranscriptViewNodes";
@@ -98,11 +102,7 @@ export function useTranscriptSearchSource(
 
   // Read across `await` boundaries to detect "user is already on this row"
   // mid-search; needs to be a ref so a row-switch in flight sees the update.
-  const selectedRef = useRef(selected);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    selectedRef.current = selected;
-  }, [selected]);
+  const selectedRef = useLatestRef(selected);
 
   const lastResolvedRef = useRef<{ match: SampleMatch; term: string } | null>(
     null
@@ -266,6 +266,7 @@ export function useTranscriptSearchSource(
       setFindTarget,
       onHeadroomResetAnchor,
       onHeadroomSetHidden,
+      selectedRef,
     ]
   );
 

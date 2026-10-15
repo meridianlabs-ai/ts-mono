@@ -1,6 +1,6 @@
 import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { trustContentSetting } from "@tsmono/inspect-components/content";
@@ -12,6 +12,7 @@ import {
 import {
   useChromeNavOwnership,
   useDocumentTitle,
+  useLatestRef,
   useRequiredParams,
 } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
@@ -74,11 +75,7 @@ export const TranscriptPanel: FC = () => {
   // changes and flicker the chrome open/closed. Freeze headroom detection
   // while find is active (a ref so the scroll handler sees the live value).
   const showFind = useStore((state) => state.showFind) ?? false;
-  const findActiveRef = useRef(showFind);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    findActiveRef.current = showFind;
-  }, [showFind]);
+  const findActiveRef = useLatestRef(showFind);
 
   // Nav-owned chrome (see useChromeNavOwnership). Scout's whole chrome (this
   // title headroom + the swimlane strip inside TranscriptLayout) hangs off
