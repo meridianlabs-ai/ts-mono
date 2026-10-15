@@ -43,6 +43,7 @@ test("scanner dataframe loads Arrow data, updates its footer, and opens the righ
                 scans: 2,
                 results: 2,
                 tokens: 0,
+                unscored: 0,
                 errors: 0,
                 model_usage: {},
               },

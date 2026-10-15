@@ -53,6 +53,7 @@ describe("normalizeStatus", () => {
       results: 0,
       scans: 0,
       tokens: 0,
+      unscored: 0,
       model_usage: {
         m: { input_tokens: 3, output_tokens: 0, total_tokens: 0 },
       },
@@ -125,6 +126,7 @@ describe("normalizeStatus", () => {
             results: 2,
             scans: 3,
             tokens: 4,
+            unscored: 1,
             model_usage: {},
             metrics: { s1: { mean: 0.5 } },
             validation: {
@@ -188,6 +190,7 @@ describe("normalizeActiveScans", () => {
           results: 0,
           scans: 0,
           tokens: 0,
+          unscored: 0,
           model_usage: {},
           validation: {
             entries: [],
