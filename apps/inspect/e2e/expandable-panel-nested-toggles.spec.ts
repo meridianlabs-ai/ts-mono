@@ -5,79 +5,63 @@
  * panels' bottom-right corners coincide and their sticky toggles share the
  * same stuck position.
  */
-import { http, HttpResponse } from "msw";
+import type { NetworkFixture } from "@msw/playwright";
+import type { Locator, Page } from "@playwright/test";
 
-import type { ChatMessage } from "@tsmono/inspect-common/types";
+import type { ChatMessage, Content } from "@tsmono/inspect-common/types";
 
 import { expect, test } from "./fixtures/app";
-import {
-  createEvalLog,
-  createEvalSample,
-  createLogDetails,
-} from "./fixtures/test-data";
+import { serveEvalLog } from "./fixtures/serve-log";
+import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 const LOG_FILE = "test-nested-toggles.json";
 
-type Page = Parameters<Parameters<typeof test>[2]>[0]["page"];
-type Network = Parameters<Parameters<typeof test>[2]>[0]["network"];
 type Box = { x: number; y: number; width: number; height: number };
 
-const LONG_REASONING = Array.from(
-  { length: 200 },
-  (_, i) => `reasoning line ${i}`
-).join("\n\n");
+const lines = (prefix: string, count: number) =>
+  Array.from({ length: count }, (_, i) => `${prefix} line ${i}`).join("\n\n");
 
-async function openNestedSample(page: Page, network: Network) {
+const reasoning = (count: number): Content => ({
+  type: "reasoning",
+  reasoning: lines("reasoning", count),
+  signature: null,
+  redacted: false,
+});
+
+async function openSample(
+  page: Page,
+  network: NetworkFixture,
+  assistant: ChatMessage[]
+) {
   const messages: ChatMessage[] = [
     { role: "user", content: "Think it through", source: "input" },
-    {
-      role: "assistant",
-      content: [
-        { type: "text", text: "Here is how I got there." },
-        {
-          type: "reasoning",
-          reasoning: LONG_REASONING,
-          signature: null,
-          redacted: false,
-        },
-      ],
-      source: "generate",
-    },
+    ...assistant,
   ];
   const sample = createEvalSample({ id: 1, epoch: 1, messages });
-  const evalLog = createEvalLog({ samples: [sample] });
-  const logDetails = createLogDetails(evalLog);
-
-  network.use(
-    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({
-        files: [{ name: LOG_FILE, task: "nested-test", task_id: "nested" }],
-        response_type: "full",
-      })
-    ),
-    http.get("*/api/logs/:file", () => HttpResponse.json(evalLog)),
-    http.get("*/api/log-headers*", () =>
-      HttpResponse.json([
-        {
-          eval_id: logDetails.eval.eval_id,
-          run_id: logDetails.eval.run_id,
-          task: logDetails.eval.task,
-          task_id: logDetails.eval.task_id,
-          task_version: logDetails.eval.task_version,
-          model: logDetails.eval.model,
-          status: logDetails.status,
-          started_at: logDetails.stats?.started_at,
-          completed_at: logDetails.stats?.completed_at,
-        },
-      ])
-    )
+  serveEvalLog(
+    network,
+    createEvalLog({ samples: [sample] }),
+    LOG_FILE,
+    "nested-test"
   );
-
   await page.goto(
     `/#/logs/${encodeURIComponent(LOG_FILE)}/samples/sample/1/1/messages`
   );
 }
+
+/** Short text, then long reasoning: the reasoning panel is the message
+ * panel's last content, so their corners coincide. */
+const openReasoningLast = (page: Page, network: NetworkFixture) =>
+  openSample(page, network, [
+    {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Here is how I got there." },
+        reasoning(200),
+      ],
+      source: "generate",
+    },
+  ]);
 
 const TOGGLE_NAME = /^(more|less)\.\.\.$/;
 
@@ -94,13 +78,16 @@ function panels(page: Page) {
 
 /** The panel's own toggle is the last one inside it in DOM order — nested
  * panels' toggles come first, inside the content. */
-const ownToggle = (panel: ReturnType<Page["locator"]>) =>
+const ownToggle = (panel: Locator) =>
   panel.getByRole("button", { name: TOGGLE_NAME }).last();
 
-async function boxOf(locator: ReturnType<Page["locator"]>): Promise<Box> {
+/** The wrapper that clips a collapsed panel's content. */
+const contentOf = (panel: Locator) => panel.locator(":scope > div").first();
+
+async function boxOf(locator: Locator): Promise<Box> {
   const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
-  return box!;
+  if (!box) throw new Error("expected a laid-out element");
+  return box;
 }
 
 const intersects = (a: Box, b: Box) =>
@@ -116,6 +103,7 @@ async function expandInner(page: Page) {
   await expect(outer).toBeVisible();
   await expect(outer.getByRole("button", { name: TOGGLE_NAME })).toHaveCount(1);
   await inner.getByRole("button", { name: "more..." }).click();
+  await expect(ownToggle(outer)).toHaveText("more...");
   return { outer, inner };
 }
 
@@ -128,32 +116,33 @@ async function expandBoth(page: Page) {
 }
 
 test.describe("ExpandablePanel nested toggles", () => {
-  test("a collapsed outer panel shows only its own toggle", async ({
+  test("a collapsed outer panel clips the nested toggle out of view", async ({
     page,
     network,
   }) => {
-    await openNestedSample(page, network);
+    await openReasoningLast(page, network);
     const { outer, inner } = await expandInner(page);
-    await expect(ownToggle(outer)).toHaveText("more...");
-    await expect(outer.getByRole("button", { name: TOGGLE_NAME })).toHaveCount(
-      1
-    );
-    await expect(inner.getByRole("button", { name: TOGGLE_NAME })).toHaveCount(
-      0
-    );
+
+    // Pinned to the clip edge, the nested "less…" would sit beside the outer
+    // "more…"; it belongs at its own panel's corner, below the clip.
+    const clip = await boxOf(contentOf(outer));
+    const innerToggle = await boxOf(ownToggle(inner));
+    expect(innerToggle.y).toBeGreaterThanOrEqual(clip.y + clip.height);
+
+    await ownToggle(outer).click();
+    await expect(ownToggle(outer)).toHaveText("less...");
   });
 
   test("stuck toggles of expanded nested panels don't overlap", async ({
     page,
     network,
   }) => {
-    await openNestedSample(page, network);
+    await openReasoningLast(page, network);
     const { outer, inner } = await expandBoth(page);
 
     // Put the middle of the reasoning block on screen: both panels'
     // bottoms are below the viewport, so both toggles are stuck.
-    await inner.evaluate((el) => el.scrollIntoView({ block: "start" }));
-    await page.mouse.wheel(0, 600);
+    await inner.evaluate((el) => el.scrollIntoView({ block: "center" }));
 
     const viewportHeight = page.viewportSize()?.height ?? 0;
     await expect(async () => {
@@ -177,7 +166,7 @@ test.describe("ExpandablePanel nested toggles", () => {
     page,
     network,
   }) => {
-    await openNestedSample(page, network);
+    await openReasoningLast(page, network);
     const { outer, inner } = await expandBoth(page);
 
     await outer.evaluate((el) => el.scrollIntoView({ block: "end" }));
@@ -201,5 +190,94 @@ test.describe("ExpandablePanel nested toggles", () => {
       const innerToggle = await boxOf(ownToggle(inner));
       expect(intersects(outerToggle, innerToggle)).toBe(false);
     }).toPass({ timeout: 5_000 });
+  });
+
+  test("reasoning before a long answer keeps its toggle and adds no gap", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        content: [reasoning(60), { type: "text", text: lines("answer", 60) }],
+        source: "generate",
+      },
+    ]);
+    const { outer, inner } = panels(page);
+
+    // Both collapsed: the reasoning block's corner is inside the message's
+    // visible area, so its toggle stays usable.
+    await expect(ownToggle(outer)).toHaveText("more...");
+    await ownToggle(inner).click();
+    await expect(ownToggle(inner)).toHaveText("less...");
+
+    // The reasoning ends far above the message's corner, so the expanded
+    // message reserves no extra space below its content.
+    await ownToggle(outer).click();
+    await expect(ownToggle(outer)).toHaveText("less...");
+    const panel = await boxOf(outer);
+    const content = await boxOf(contentOf(outer));
+    expect(panel.y + panel.height - (content.y + content.height)).toBeLessThan(
+      1
+    );
+  });
+
+  // A collapsed panel decides whether it overflows by measuring its content,
+  // nested toggles included. If nested toggles came and went with that
+  // decision, a message near the threshold would re-render every frame.
+  test("toggles of collapsed messages with nested JSON values settle", async ({
+    page,
+    network,
+  }) => {
+    // Each message is one long value (its own block-left toggle) plus `n`
+    // short fields; the range spans the message panel's overflow threshold.
+    const longValue = Array.from(
+      { length: 40 },
+      (_, i) => `value line ${i}`
+    ).join("\n");
+    const assistant: ChatMessage[] = Array.from({ length: 15 }, (_, n) => ({
+      role: "assistant",
+      content: JSON.stringify({
+        long: longValue,
+        ...Object.fromEntries(
+          Array.from({ length: n }, (_, j) => [`k${j}`, `v${j}`])
+        ),
+      }),
+      source: "generate",
+    }));
+    // Tall enough that every message mounts at once.
+    await page.setViewportSize({ width: 1000, height: 8000 });
+    await openSample(page, network, assistant);
+    await expect(page.getByRole("button", { name: "long:" })).toHaveCount(15);
+
+    const churn = await page.evaluate(async () => {
+      const frames = (count: number) =>
+        new Promise<void>((resolve) => {
+          const tick = (left: number) => {
+            if (left === 0) resolve();
+            else requestAnimationFrame(() => tick(left - 1));
+          };
+          tick(count);
+        });
+      await frames(10);
+      let changes = 0;
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of [...record.addedNodes, ...record.removedNodes]) {
+            if (
+              node instanceof Element &&
+              (node.matches("button") || node.querySelector("button"))
+            ) {
+              changes++;
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      await frames(30);
+      observer.disconnect();
+      return changes;
+    });
+    expect(churn).toBe(0);
   });
 });

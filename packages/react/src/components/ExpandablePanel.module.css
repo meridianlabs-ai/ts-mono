@@ -104,8 +104,12 @@
   z-index: 2;
 }
 
-/* Keeps this panel's inline toggle below a nested panel's toggle when the
-   nested panel ends flush with this one (their corners would coincide). */
-.nestedToggleStrip {
-  height: 24px;
+/* Inside a collapsed panel, nested toggles stay at their own corners. The
+   collapsed wrapper's `overflow: hidden` makes it their scroll container, so
+   a sticky nested toggle would pin to the clipped edge, on top of this
+   panel's own toggle; static, a clipped-away toggle stays out of sight.
+   `static` (not `relative`) so the inline stacking `bottom` doesn't shift it. */
+.collapsedContent .inlineToggleSticky,
+.collapsedContent .moreToggle.blockLeft {
+  position: static;
 }

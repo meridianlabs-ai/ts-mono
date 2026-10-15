@@ -17,24 +17,33 @@ import { useCollapsedState, useResizeObserver } from "../hooks";
 import styles from "./ExpandablePanel.module.css";
 import { useFindTarget } from "./FindTargetContext";
 
-// Toggle bar height (20px, see `.moreToggle`) plus a gap. Nested toggles
-// offset their sticky `bottom` by this per level, and a panel reserves this
-// much space below a nested toggle so the two corners never coincide.
+// Toggle bar height (20px, see `.moreToggle`) plus a gap. A nested toggle
+// lifts its sticky `bottom` by this per ancestor toggle on the same side, and
+// a panel reserves this much space below a nested toggle that would otherwise
+// share its corner.
 const kNestedToggleStep = 24;
 
+// A ref callback that returns its own cleanup (React 19, so it is never
+// called with null; the type still admits it). Each panel chains it to its
+// ancestors, so every panel sees all inline toggles below it.
+type RegisterNestedToggle = (
+  holder: HTMLElement | null
+) => (() => void) | undefined;
+
+// Ancestors measure this subtree to decide whether they overflow, so nothing
+// derived from an ancestor's measurement may change this subtree's layout:
+// that feeds back into the measurement and oscillates. Only paint-level
+// properties (sticky offsets) may depend on it.
 interface PanelNesting {
-  depth: number;
-  // Some ancestor clips its content, so this panel's toggle would render
-  // under the ancestor's mask/toggle rather than somewhere usable.
-  ancestorCollapsed: boolean;
-  // Chains to every ancestor; returns the unregister function. Used directly
-  // as a ref callback on a nested toggle, so it runs on toggle mount/unmount.
-  registerNestedToggle: (() => () => void) | null;
+  // Ancestor toggles showing on each side; stuck toggles stack above them.
+  rightToggles: number;
+  leftToggles: number;
+  registerNestedToggle: RegisterNestedToggle | null;
 }
 
 const PanelNestingContext = createContext<PanelNesting>({
-  depth: 0,
-  ancestorCollapsed: false,
+  rightToggles: 0,
+  leftToggles: 0,
   registerNestedToggle: null,
 });
 
@@ -63,6 +72,24 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     const [showToggle, setShowToggle] = useState(false);
     const rootFontSizeRef = useRef<number>(0);
 
+    const nestedToggles = useRef(new Set<HTMLElement>());
+    const [nestedToggleAtCorner, setNestedToggleAtCorner] = useState(false);
+    // A nested inline toggle rests at its panel's bottom-right corner. If that
+    // corner is within one toggle of our content's bottom, our toggle would
+    // rest on top of it.
+    const measureNestedToggles = useCallback((content: Element) => {
+      const bottom = content.getBoundingClientRect().bottom;
+      let atCorner = false;
+      for (const holder of nestedToggles.current) {
+        const gap = bottom - holder.getBoundingClientRect().bottom;
+        if (gap > -1 && gap < kNestedToggleStep) {
+          atCorner = true;
+          break;
+        }
+      }
+      setNestedToggleAtCorner(atCorner);
+    }, []);
+
     const checkOverflow = useCallback(
       (entry: ResizeObserverEntry) => {
         const element = entry.target;
@@ -82,8 +109,9 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
 
         // 1px tolerance guards against sub-pixel rounding.
         setShowToggle(contentHeight - maxCollapsedHeight > 1);
+        measureNestedToggles(element);
       },
-      [lines]
+      [lines, measureNestedToggles]
     );
     const contentRef = useResizeObserver(checkOverflow);
 
@@ -121,37 +149,48 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     const effectiveCollapsed = containsFindTarget ? false : collapsed;
 
     const nesting = useContext(PanelNestingContext);
-    const toggleVisible = showToggle && !nesting.ancestorCollapsed;
     const parentRegister = nesting.registerNestedToggle;
-    const [nestedToggleCount, setNestedToggleCount] = useState(0);
     // Stable identity is a correctness requirement, not an optimization:
     // descendants use this as a ref callback, and a new identity per render
-    // would unregister/re-register (two state updates here) on every commit.
-    const registerNestedToggle = useCallback(() => {
-      setNestedToggleCount((count) => count + 1);
-      const unregisterParent = parentRegister?.();
-      return () => {
-        setNestedToggleCount((count) => count - 1);
-        unregisterParent?.();
-      };
-    }, [parentRegister]);
+    // would unregister/re-register (and re-measure) on every commit.
+    const registerNestedToggle = useCallback<RegisterNestedToggle>(
+      (holder) => {
+        if (!holder) return undefined;
+        const remeasure = () => {
+          if (contentRef.current) measureNestedToggles(contentRef.current);
+        };
+        nestedToggles.current.add(holder);
+        remeasure();
+        const unregisterParent = parentRegister?.(holder);
+        return () => {
+          nestedToggles.current.delete(holder);
+          remeasure();
+          unregisterParent?.();
+        };
+      },
+      [parentRegister, measureNestedToggles, contentRef]
+    );
     const childNesting: PanelNesting = {
-      depth: nesting.depth + 1,
-      ancestorCollapsed:
-        nesting.ancestorCollapsed || (effectiveCollapsed && showToggle),
+      rightToggles:
+        nesting.rightToggles +
+        (showToggle && layout === "inline-right" ? 1 : 0),
+      leftToggles:
+        nesting.leftToggles + (showToggle && layout === "block-left" ? 1 : 0),
       registerNestedToggle,
     };
     // Sticky `bottom` only applies while stuck, so at rest every toggle still
     // sits in its own panel's corner; while stuck, nested ones stack upward.
+    const togglesBelow =
+      layout === "inline-right" ? nesting.rightToggles : nesting.leftToggles;
     const stickyStyle: CSSProperties | undefined =
-      nesting.depth > 0
-        ? { bottom: `calc(0.25em + ${nesting.depth * kNestedToggleStep}px)` }
+      togglesBelow > 0
+        ? { bottom: `calc(0.25em + ${togglesBelow * kNestedToggleStep}px)` }
         : undefined;
     const reserveNestedToggleStrip =
-      toggleVisible &&
+      showToggle &&
       layout === "inline-right" &&
       !effectiveCollapsed &&
-      nestedToggleCount > 0;
+      nestedToggleAtCorner;
 
     // `overflow: hidden` + `maxHeight` live on the inner content wrapper, not
     // the outer panel. Two reasons:
@@ -215,6 +254,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             ref={contentRef}
             style={contentStyles}
             className={clsx(
+              effectiveCollapsed ? styles.collapsedContent : undefined,
               effectiveCollapsed && showToggle
                 ? styles.expandableTruncated
                 : undefined
@@ -227,10 +267,10 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
           {reserveNestedToggleStrip && (
             <div
               data-nested-toggle-strip="true"
-              className={styles.nestedToggleStrip}
+              style={{ height: kNestedToggleStep }}
             />
           )}
-          {toggleVisible && layout === "inline-right" && (
+          {showToggle && layout === "inline-right" && (
             <div
               ref={parentRegister ?? undefined}
               className={styles.inlineToggleHolder}
@@ -246,7 +286,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             </div>
           )}
         </div>
-        {toggleVisible && layout === "block-left" && (
+        {showToggle && layout === "block-left" && (
           <MoreToggle
             collapsed={collapsed}
             onToggle={handleToggle}

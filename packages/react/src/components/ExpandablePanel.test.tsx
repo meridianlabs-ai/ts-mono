@@ -168,13 +168,20 @@ const hasToggleStrip = (container: HTMLElement) =>
 const toggleLabels = () =>
   screen.queryAllByRole("button").map((b) => b.textContent);
 
+const buttonAt = (index: number): HTMLElement => {
+  const button = screen.getAllByRole("button")[index];
+  if (!button) throw new Error(`no button at index ${index}`);
+  return button;
+};
+
 describe("ExpandablePanel nesting", () => {
   // Toggling writes collapse state, so these need the reactive store.
   const nested = (
-    innerProps: Partial<React.ComponentProps<typeof ExpandablePanel>> = {}
+    innerProps: Partial<React.ComponentProps<typeof ExpandablePanel>> = {},
+    outerProps: Partial<React.ComponentProps<typeof ExpandablePanel>> = {}
   ) => (
     <ComponentStateProvider hooks={makeReactiveStateHooks()}>
-      <ExpandablePanel id="outer" collapse={true} lines={5}>
+      <ExpandablePanel id="outer" collapse={true} lines={5} {...outerProps}>
         <ExpandablePanel id="inner" collapse={true} lines={5} {...innerProps}>
           {longContent}
         </ExpandablePanel>
@@ -182,47 +189,57 @@ describe("ExpandablePanel nesting", () => {
     </ComponentStateProvider>
   );
 
+  // Inner toggle (inside the content) precedes the outer one in the DOM.
   const expandOuter = async () => {
-    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
-    fireEvent.click(screen.getByRole("button", { name: "more..." }));
-    await waitFor(() => expect(toggleLabels()).toContain("less..."));
+    await waitFor(() => expect(toggleLabels()).toEqual(["more...", "more..."]));
+    fireEvent.click(buttonAt(1));
+    await waitFor(() => expect(toggleLabels()).toEqual(["more...", "less..."]));
   };
 
-  it("hides nested toggles while an ancestor is collapsed", async () => {
+  // The outer panel measures the inner subtree, so an in-flow nested toggle
+  // that came and went with the outer's overflow would oscillate.
+  it.each(["inline-right", "block-left"] as const)(
+    "keeps %s nested toggles while an ancestor is collapsed",
+    async (togglePosition) => {
+      render(nested({ togglePosition }));
+      await waitFor(() =>
+        expect(toggleLabels()).toEqual(["more...", "more..."])
+      );
+    }
+  );
+
+  it("lifts a stuck nested toggle above each ancestor toggle on its side", async () => {
     render(nested());
     await expandOuter();
-    // Inner toggle (inside the content) precedes the outer one in the DOM.
-    expect(toggleLabels()).toEqual(["more...", "less..."]);
-
-    fireEvent.click(screen.getByRole("button", { name: "less..." }));
-    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
+    expect(stickyBottom(buttonAt(1))).toBe("");
+    expect(stickyBottom(buttonAt(0))).toBe("calc(0.25em + 24px)");
   });
 
-  it("also hides block-left toggles under a collapsed ancestor", async () => {
+  it("does not lift for an ancestor that shows no toggle", async () => {
+    // 100rem = 1600px exceeds the stubbed 999px scrollHeight: no overflow.
+    render(nested({}, { lines: 100 }));
+    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
+    expect(stickyBottom(screen.getByRole("button"))).toBe("");
+  });
+
+  it("does not lift a block-left toggle for an inline-right ancestor", async () => {
     render(nested({ togglePosition: "block-left" }));
     await expandOuter();
-    expect(toggleLabels()).toEqual(["more...", "less..."]);
+    expect(stickyBottom(buttonAt(0))).toBe("");
   });
 
-  it("offsets the sticky position of nested toggles by depth", async () => {
-    render(nested());
-    await expandOuter();
-    const outer = screen.getByRole("button", { name: "less..." });
-    const inner = screen.getByRole("button", { name: "more..." });
-    expect(stickyBottom(outer)).toBe("");
-    expect(stickyBottom(inner)).toBe("calc(0.25em + 24px)");
-  });
-
-  it("reserves a strip below a nested toggle only while it is showing", async () => {
+  // jsdom lays nothing out, so every rect is empty and the nested toggle's
+  // corner always coincides with the outer panel's.
+  it("reserves a strip below a nested toggle sharing its corner while expanded", async () => {
     const { container } = render(nested());
-    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
+    await waitFor(() => expect(toggleLabels()).toEqual(["more...", "more..."]));
     expect(hasToggleStrip(container)).toBe(false);
 
     await expandOuter();
     await waitFor(() => expect(hasToggleStrip(container)).toBe(true));
 
     fireEvent.click(screen.getByRole("button", { name: "less..." }));
-    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
+    await waitFor(() => expect(toggleLabels()).toEqual(["more...", "more..."]));
     expect(hasToggleStrip(container)).toBe(false);
   });
 
@@ -233,10 +250,10 @@ describe("ExpandablePanel nesting", () => {
   });
 
   it("reserves no strip when the nested panel has no toggle", async () => {
-    // 100rem = 1600px exceeds the stubbed 999px scrollHeight: no overflow.
     const { container } = render(nested({ lines: 100 }));
-    await expandOuter();
-    expect(toggleLabels()).toEqual(["less..."]);
+    await waitFor(() => expect(toggleLabels()).toEqual(["more..."]));
+    fireEvent.click(screen.getByRole("button", { name: "more..." }));
+    await waitFor(() => expect(toggleLabels()).toEqual(["less..."]));
     expect(hasToggleStrip(container)).toBe(false);
   });
 
