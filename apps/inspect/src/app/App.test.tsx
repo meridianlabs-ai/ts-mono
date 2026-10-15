@@ -50,8 +50,20 @@ const renderApp = async () => {
       <AppContent />
     </QueryClientProvider>
   );
-  // Settled: the root listing panel has synced.
-  await waitFor(() => expect(getLogs).toHaveBeenCalled());
+  // Settled: the listing panel's sync has completed. An invalidation landing
+  // during a query's first fetch is absorbed by that fetch, so a host event
+  // posted earlier would not re-sync.
+  await waitFor(() => {
+    const syncs = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: ["log_data", "sync"] });
+    expect(syncs.length).toBeGreaterThan(0);
+    for (const sync of syncs) {
+      expect(sync.state.status).toBe("success");
+      expect(sync.state.fetchStatus).toBe("idle");
+    }
+  });
+  expect(getLogs).toHaveBeenCalled();
 };
 
 beforeEach(async () => {

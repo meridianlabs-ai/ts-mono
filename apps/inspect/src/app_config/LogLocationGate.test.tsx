@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 
 // The gate reads the session's bootstrap, resolved once from the page URL;
 // each test opens the viewer at its own URL with a fresh module graph.
@@ -14,6 +14,12 @@ const renderGateAt = async (search: string) => {
     </LogLocationGate>
   );
 };
+
+// Transform the gate's module graph once, outside any test's timeout; the
+// per-test re-import then only re-evaluates it.
+beforeAll(async () => {
+  await import("./LogLocationGate");
+});
 
 afterEach(() => {
   cleanup();
