@@ -2,10 +2,18 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { FC, ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 
+import {
+  ComponentIconProvider,
+  ExtendedFindProvider,
+} from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { testIcons } from "@tsmono/react/testing";
+
 import { APP_CONFIG_KEY, initAppConfig, type AppConfig } from "../app_config";
 import { CurrentSelectionProvider } from "../app/routing/currentSelection";
 import { testClientAPI } from "../client/api/testClientApi";
 import { FetchEngineController } from "../log_data";
+import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient";
 import { initializeStore } from "../state/store";
 
@@ -71,3 +79,18 @@ export const atRoute = (path?: string): FC<{ children: ReactNode }> => {
   );
   return AtRoute;
 };
+
+/**
+ * The component-level context the app provides around every view (see
+ * `AppContent`): icons, component state backed by the store (needs
+ * `startTestApp`), and transcript search.
+ */
+export const ComponentProviders: FC<{ children: ReactNode }> = ({
+  children,
+}) => (
+  <ComponentIconProvider icons={testIcons}>
+    <ComponentStateProvider hooks={inspectStateHooks}>
+      <ExtendedFindProvider>{children}</ExtendedFindProvider>
+    </ComponentStateProvider>
+  </ComponentIconProvider>
+);

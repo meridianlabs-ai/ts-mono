@@ -31,11 +31,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/log-list/listing/databaseListing.test.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
