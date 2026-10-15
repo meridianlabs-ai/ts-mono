@@ -54,9 +54,8 @@ bar, and scroll/header state while moving between samples.
   `header-v2/`, `status/`, and `error/`.
 - Tab/visit/scroll orchestration: `apps/inspect/src/app/samples/SampleDisplay.tsx`
   and `packages/react/src/hooks/useChromeNavOwnership.ts`.
-- Selection/data adapters: `apps/inspect/src/state/hooks.ts`,
-  `apps/inspect/src/log_data/sampleData.ts`, and
-  `apps/inspect/src/app/samples/sampleDataAdapter.ts`.
+- Selection/data hooks: `apps/inspect/src/state/hooks.ts` and
+  `apps/inspect/src/log_data/sampleData.ts`.
 - Regression coverage: `apps/inspect/e2e/turn-navigation.spec.ts`,
   `message-deeplink.spec.ts`, loader tests, and sample summary/status tests.
 
