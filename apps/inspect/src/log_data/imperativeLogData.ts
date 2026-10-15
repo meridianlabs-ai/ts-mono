@@ -10,7 +10,7 @@ import { invalidateLogListing } from "./useLogsSync";
  * mis-homed mechanism. There is no *initialize* verb — the subsystem wires
  * itself lazily on first activation, reading the api from app_config.
  * Everything else consumers do is declarative hook subscription (see
- * design/migration/domain-ownership.md). Every verb is fire-and-forget —
+ * apps/inspect/design/domain-ownership.md). Every verb is fire-and-forget —
  * consequences are observed through the data hooks, never awaited. Growing
  * this interface is a design decision, not a convenience.
  */

@@ -1,5 +1,5 @@
 // Public surface of the log-data acquisition subsystem (see
-// design/migration/domain-ownership.md): data hooks plus the single
+// apps/inspect/design/domain-ownership.md): data hooks plus the single
 // imperative entry-point object. Everything not exported here is
 // subsystem-private; external modules must import from this barrel.
 //

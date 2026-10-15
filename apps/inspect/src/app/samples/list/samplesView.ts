@@ -43,7 +43,7 @@ export interface SamplesViewState {
     extraColumnFilters: Record<string, unknown>;
   };
   /**
-   * Row layout. `true` = list-style multi-line rows (88px);
+   * Row layout. `true` = list-style multi-line rows (70px);
    * `false` = compact single-line rows (30px).
    */
   multiline: boolean;

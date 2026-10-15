@@ -284,8 +284,7 @@ export interface DataGridProps<TRow extends RowData> {
  * click-to-activate.
  *
  * Sorting, filtering, keyboard navigation, column resizing (drag +
- * double-click auto-size), pinning, reordering, and find are wired up —
- * see design/migration/archive/loglistgrid-tanstack.md.
+ * double-click auto-size), pinning, reordering, and find are wired up.
  */
 export function DataGrid<TRow extends RowData>({
   data,
