@@ -32,3 +32,13 @@ export async function acquireDatabase(): Promise<OpenDatabase> {
  * open one; their reads miss and writes stay cache-only).
  */
 export const currentDatabase = (): OpenDatabase | null => current;
+
+/**
+ * Close and forget the shared handle, so the next `acquireDatabase` opens a
+ * fresh one. Test teardown only, like `OpenDatabase.close`: production holds
+ * the handle for the life of the page.
+ */
+export const releaseDatabase = (): void => {
+  current?.close();
+  current = null;
+};
