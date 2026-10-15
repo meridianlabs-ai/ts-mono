@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { messagesToStr } from "@tsmono/inspect-components/chat";
 
 import { openZipFileFromBuffer } from "../../client/remote/remoteZipFile";
-import { installNodeBlobWorker } from "../../test/nodeBlobWorker";
+import { installNodeWorker } from "../../test/nodeWorker";
 import { chunkedConversation } from "../conversation";
 import { inMemoryMessageRows, type SampleMessagesData } from "../messageRows";
 import { windowedMessageRows } from "../messageRowsWindowed";
@@ -292,4 +292,4 @@ describe("chunked corpus", () => {
   });
 });
 
-installNodeBlobWorker();
+installNodeWorker();

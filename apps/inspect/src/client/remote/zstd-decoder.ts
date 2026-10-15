@@ -1,7 +1,6 @@
 import type { Decompress as ZstdDecompress } from "fzstd";
 
-// Self-contained: the same typed implementation is embedded in the Blob worker
-// via toString(), matching the viewer's JSON worker pattern.
+// Shared by the main-thread path and decompression.worker.ts.
 export function createZstdDecoder(Decompress: typeof ZstdDecompress) {
   /**
    * Maximum history allocation allowed by the viewer (2^25 = 32 MiB).

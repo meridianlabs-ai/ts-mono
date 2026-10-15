@@ -25,7 +25,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const benchDir = dirname(fileURLToPath(import.meta.url));
@@ -234,6 +234,41 @@ const fixtureCases = fixtureFiles.map((f) => {
 const { build } = await import("esbuild");
 const { chromium } = await import("playwright-core");
 
+// `?worker&url` imports become separately bundled worker scripts served
+// next to the harness, as in the app build.
+const workers = new Map();
+const workerUrlPlugin = {
+  name: "worker-url",
+  setup(pluginBuild) {
+    pluginBuild.onResolve({ filter: /\?worker&url$/ }, (args) => ({
+      path: join(
+        args.resolveDir,
+        `${args.path.replace(/\?worker&url$/, "")}.ts`
+      ),
+      namespace: "worker-url",
+    }));
+    pluginBuild.onLoad(
+      { filter: /.*/, namespace: "worker-url" },
+      async (args) => {
+        const name = `${basename(args.path, ".ts")}.js`;
+        const worker = await build({
+          entryPoints: [args.path],
+          bundle: true,
+          write: false,
+          format: "iife",
+          platform: "browser",
+          target: "es2022",
+        });
+        workers.set(`/${name}`, worker.outputFiles[0].text);
+        return {
+          contents: `export default new URL(${JSON.stringify(name)}, document.currentScript.src).href;`,
+          loader: "js",
+        };
+      }
+    );
+  },
+};
+
 const bundle = await build({
   entryPoints: [join(benchDir, "browser-entry.ts")],
   bundle: true,
@@ -242,6 +277,7 @@ const bundle = await build({
   platform: "browser",
   target: "es2022",
   absWorkingDir: benchDir,
+  plugins: [workerUrlPlugin],
 });
 const bundleJs = bundle.outputFiles[0].text;
 
@@ -251,9 +287,9 @@ const server = createServer((req, res) => {
     res.end(
       "<!doctype html><title>bench</title><script src='/bench.js'></script>"
     );
-  } else if (req.url === "/bench.js") {
+  } else if (req.url === "/bench.js" || workers.has(req.url)) {
     res.writeHead(200, { "content-type": "application/javascript" });
-    res.end(bundleJs);
+    res.end(req.url === "/bench.js" ? bundleJs : workers.get(req.url));
   } else if (req.url?.startsWith("/fixture/")) {
     const name = decodeURIComponent(req.url.slice("/fixture/".length));
     // exact-match against the discovered list — no path traversal

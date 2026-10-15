@@ -1,11 +1,11 @@
-import { ColumnTable, from } from "arquero";
+import { table as arqueroTable, ColumnTable } from "arquero";
 import JSON5 from "json5";
 
 import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
-import { rowRecords } from "./arrowCells";
+import { partitionRowIndices, rowRecords } from "./arrowCells";
 
 interface Result {
   uuid?: string | null;
@@ -65,26 +65,20 @@ export async function expandResultsetRows(
     return columnTable;
   }
 
-  // Are there any results sets to explode?
-  const resultsetCount = columnTable
-    .filter((d: { value_type: string }) => d.value_type === "resultset")
-    .numRows();
-  if (resultsetCount === 0) {
+  // Split into resultset and non-resultset rows
+  const { matching: resultsetIndices, rest: otherIndices } =
+    partitionRowIndices(
+      columnTable,
+      "value_type",
+      (valueType) => valueType === "resultset"
+    );
+  if (resultsetIndices.length === 0) {
     // No result sets
     return columnTable;
   }
 
-  // Split into resultset and non-resultset rows
-  const resultsetRows = columnTable.filter(
-    (d: { value_type: string }) => d.value_type === "resultset"
-  );
-  const otherRows = columnTable.filter(
-    (d: { value_type: string }) => d.value_type !== "resultset"
-  );
-
   // Parse JSON value strings and expand into multiple rows
-  // (Arquero doesn't support try-catch in derive expressions, so we do this in plain JS)
-  const resultObjs = rowRecords(resultsetRows);
+  const resultObjs = rowRecords(columnTable.reify(resultsetIndices));
   const explodedResultsetRows: Record<string, unknown>[] = [];
 
   for (const row of resultObjs) {
@@ -174,20 +168,46 @@ export async function expandResultsetRows(
 
   // Combine with non-resultset rows
   if (explodedResultsetRows.length === 0) {
-    return otherRows;
+    return columnTable.reify(otherIndices);
   } else {
-    // Create an array merging all the rows and convert back to a column table
-    const otherRowsArray = rowRecords(otherRows);
-
-    const allRowsArray = [
-      ...otherRowsArray,
+    return appendRows(columnTable, otherIndices, [
       ...explodedResultsetRows,
       ...syntheticRows,
-    ];
-
-    // Create new table from combined array
-    return from(allRowsArray);
+    ]);
   }
+}
+
+/**
+ * The table's rows at `indices` followed by `rows`, without a record per
+ * table row: most rows of a large scan aren't resultsets, and copying their
+ * columns is far cheaper than making records. The columns are the table's
+ * plus any key only `rows` carry (e.g. `answer`), which those table rows
+ * leave undefined.
+ */
+function appendRows(
+  table: ColumnTable,
+  indices: number[],
+  rows: Record<string, unknown>[]
+): ColumnTable {
+  const names = new Set(table.columnNames());
+  for (const row of rows) {
+    for (const name of Object.keys(row)) names.add(name);
+  }
+  const columns: Record<string, unknown[]> = {};
+  for (const name of names) {
+    const source = table.column(name);
+    // Preallocated: pushing makes a 200k-row scan about 2x slower.
+    const cells = new Array<unknown>(indices.length + rows.length);
+    let next = 0;
+    for (const index of indices) {
+      cells[next++] = source?.at(index);
+    }
+    for (const row of rows) {
+      cells[next++] = row[name];
+    }
+    columns[name] = cells;
+  }
+  return arqueroTable(columns, [...names]);
 }
 
 async function extractLabelValidation(

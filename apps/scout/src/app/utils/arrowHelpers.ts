@@ -1,6 +1,6 @@
 import { ColumnTable } from "arquero";
 
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { asyncJsonParse } from "@tsmono/util";
 
 import { ScanResultData, ScanResultSummary } from "../types";
 
@@ -137,14 +137,25 @@ export const parseScanResultData = async (
 };
 
 export const parseScanResultSummaries = async (
-  rowData: object[]
-): Promise<ScanResultSummary[]> =>
-  Promise.all(rowData.map((row) => parseScanResultSummary(row)));
+  table: ColumnTable
+): Promise<ScanResultSummary[]> => {
+  // Read straight from the columns: a record per row costs far more than
+  // the lookups on a large scan.
+  const columns = new Map(
+    table
+      .columnNames()
+      .map((name): [string, ArrayLike<unknown>] => [name, table.array(name)])
+  );
+  return Promise.all(
+    Array.from({ length: table.numRows() }, (_, row) =>
+      parseScanResultSummary((column) => columns.get(column)?.[row])
+    )
+  );
+};
 
 const parseScanResultSummary = async (
-  row: object
+  cell: (column: string) => unknown
 ): Promise<ScanResultSummary> => {
-  const cell = rowCell(row);
   const valueTag = normalizeValueType(cell("value_type"));
 
   const [
@@ -165,8 +176,7 @@ const parseScanResultSummary = async (
 
   const baseSummary = {
     identifier: stringOf(cell("identifier")) ?? "",
-    // Null cells fold into undefined (synthetic rows and arquero .objects()
-    // both yield null) so optional fields stay honest.
+    // Null cells fold into undefined so optional fields stay honest.
     uuid: stringOf(cell("uuid")),
     label: stringOf(cell("label")),
     explanation: stringOf(cell("explanation")),
@@ -192,17 +202,6 @@ const parseScanResultSummary = async (
 
   return { ...baseSummary, inputType: normalizeInputType(cell("input_type")) };
 };
-
-/**
- * Summary rows arrive as arquero `.objects()` output, typed `object` with no
- * index signature. Reading a column off one is the same untyped-cell boundary
- * the ColumnTable readers cross, so it gets the same treatment: `unknown` out,
- * narrowed by the `*Of` helpers below.
- */
-const rowCell =
-  (row: object) =>
-  (column: string): unknown =>
-    isRecord(row) ? row[column] : undefined;
 
 const stringOf = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;

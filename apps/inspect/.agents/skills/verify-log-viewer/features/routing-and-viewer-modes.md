@@ -23,9 +23,9 @@ mode, static hosting, VS Code, and the embeddable library.
   navigate in place; Cmd/Ctrl/Shift/middle-click and "Open link in new tab"
   are the browser's. Inside VS Code they fall back to buttons (grid rows to
   `div role="row"`); outline and reference anchors stay `<a>`.
-- `log-location-gate` holds a cross-origin `?log_dir=` / `?log_file=` on a
-  browser-direct (static HTTP) backend behind an approval prompt; no request
-  reaches that origin until the user opens it.
+- `log-location-gate` refuses a cross-origin `?log_dir=` / `?log_file=` on a
+  browser-direct (static HTTP) backend; no request reaches that origin, and
+  "Continue without it" strips the param from the URL.
 
 ## How to get to it (user POV)
 
@@ -60,9 +60,11 @@ mode, static hosting, VS Code, and the embeddable library.
 - **Log-location gate.** Only a static-HTTP host triggers it, so drive it the
   way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
   `getByTestId("log-location-gate")` /
-  `getByRole("alertdialog", { name: /Open logs from/ })`, that no request
-  reaches the proposed origin, then `Open` or `Don't open` (which strips the
-  proposal from the URL).
+  `getByRole("heading", { name: /Can't open logs from/ })`, then
+  `Continue without it` (which strips the proposal from the URL). On the
+  preview build a request to the proposed origin never reaches MSW (the CSP
+  blocks it), so check for it as a `connect-src` CSP violation, not an MSW
+  hit.
 
 ## Code landmarks
 
