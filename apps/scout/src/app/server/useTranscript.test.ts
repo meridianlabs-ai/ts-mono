@@ -282,16 +282,7 @@ it("returns error for unsupported X-Content-Encoding", async () => {
 
 it("handles attachments in messages-events response", async () => {
   const messagesWithAttachmentRefs: MessagesEventsResponse = {
-    messages: [
-      {
-        role: "user",
-        content: "See attachment: {{att:image1}}",
-        id: null,
-        metadata: null,
-        source: null,
-        tool_call_id: null,
-      },
-    ],
+    messages: [testUserMessage({ content: "See attachment: {{att:image1}}" })],
     events: [],
     timelines: [],
     attachments: {
