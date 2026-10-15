@@ -5,7 +5,8 @@ export function download_file(
   filename: string,
   filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
 ): Promise<void> {
-  // An executor so a malformed data URL rejects rather than throws.
+  // An executor rather than `async`, which require-await rejects with no
+  // await here: either way a malformed data URL rejects rather than throws.
   return new Promise((resolve) => {
     const blob =
       typeof filecontents === "string" && filecontents.startsWith("data:")
