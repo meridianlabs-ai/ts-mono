@@ -364,4 +364,21 @@ describe("worker pool lifecycle", () => {
     await vi.waitFor(() => expect(console.warn).toHaveBeenCalledTimes(1));
     await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
   });
+
+  test("falls back to the main thread when the only started worker dies while the rest still load", async () => {
+    let created = 0;
+    const { asyncJsonParse, asyncJsonParseBytes } = await loadPool(() =>
+      created++ === 0 ? "starts-then-dies" : "loading"
+    );
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: out of memory"
+    );
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
+    await expect(
+      asyncJsonParseBytes(new TextEncoder().encode(largeArray))
+    ).resolves.toEqual(parsedLargeArray);
+    expect(workers.slice(1).every((worker) => worker.received === 0)).toBe(
+      true
+    );
+  });
 });

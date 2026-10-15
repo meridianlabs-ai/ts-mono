@@ -2,6 +2,7 @@ import { build, type Plugin } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright-core";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   describe,
   expect,
@@ -141,18 +142,22 @@ let workerUrls: string[] = [];
 let crossOriginPage: Page | null = null;
 let crossOriginWorkerUrls: string[] = [];
 
-// Skip (rather than fail) where no Chromium exists at all — e.g. a bare
-// local checkout. CI runners always provide one, so coverage there is real.
 // The pool's warning when its worker can't start. It then parses on the main
-// thread, which would let every worker-path test here pass without a worker.
+// thread, which would let every worker-path test here pass without a worker,
+// so each test fails if the warning appeared by the time it ends.
 const kFallbackWarning = "JSON parse worker unavailable";
 const fallbackWarnings: string[] = [];
 
+afterEach(() => {
+  expect(fallbackWarnings).toEqual([]);
+});
+
+// Skip (rather than fail) where no Chromium exists at all — e.g. a bare
+// local checkout. CI runners always provide one, so coverage there is real.
 const requirePage = (ctx: TestContext): Page => {
   if (!page) {
     ctx.skip("no Chromium/Chrome available in this environment");
   }
-  expect(fallbackWarnings).toEqual([]);
   return page;
 };
 
