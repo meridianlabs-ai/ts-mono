@@ -27,6 +27,8 @@ type Method = "zstd" | "deflate";
 
 let worker: Worker | null = null;
 let workerInitPromise: Promise<Worker> | null = null;
+// Releases the worker script's Blob URL (VS Code), held while its worker runs.
+let releaseWorkerScript = (): void => {};
 let nextRequestId = 0;
 const pendingRequests = new Map<
   number,
@@ -43,10 +45,21 @@ function messageError(message: object, fallback: string): Error {
 
 async function startWorker(): Promise<Worker> {
   const launcher = await workerLauncher(workerUrl);
-  const started = launcher.start();
-  // The launcher's Blob URL (VS Code) is only needed to construct the worker.
-  launcher.release();
+  let started: Worker;
+  try {
+    started = launcher.start();
+  } catch (error) {
+    launcher.release();
+    throw error;
+  }
+  releaseWorkerScript = launcher.release;
   return started;
+}
+
+function stopWorker(target: Worker): void {
+  target.terminate();
+  releaseWorkerScript();
+  releaseWorkerScript = () => {};
 }
 
 function initWorker(started: Worker): Promise<Worker> {
@@ -57,7 +70,7 @@ function initWorker(started: Worker): Promise<Worker> {
       reject(error);
       for (const pending of pendingRequests.values()) pending.reject(error);
       pendingRequests.clear();
-      started.terminate();
+      stopWorker(started);
       worker = null;
       workerInitPromise = null;
     };
@@ -118,7 +131,7 @@ function getWorker(): Promise<Worker> {
  * to a dead worker and never hears back.
  */
 export function resetDecompressionWorker(): void {
-  worker?.terminate();
+  if (worker) stopWorker(worker);
   worker = null;
   workerInitPromise = null;
   pendingRequests.clear();
