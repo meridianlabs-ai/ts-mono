@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -49,6 +50,7 @@ const renderDialog = (overrides: Partial<ClientAPI>) => {
   );
   const view = render(dialog(true));
   return {
+    client,
     reopen: () => {
       view.rerender(dialog(false));
       view.rerender(dialog(true));
@@ -57,6 +59,17 @@ const renderDialog = (overrides: Partial<ClientAPI>) => {
 };
 
 const authorField = () => screen.getByLabelText<HTMLInputElement>(/Author/);
+
+// React Query hands results to components on a later timer, so wait for the
+// request to finish and then flush that timer before asserting on the field.
+const settled = async (client: QueryClient) => {
+  await waitFor(() =>
+    expect(client.getQueryState(["user-info"])?.fetchStatus ?? "idle").toBe(
+      "idle"
+    )
+  );
+  await act(() => new Promise((r) => setTimeout(r, 0)));
+};
 
 afterEach(() => {
   cleanup();
@@ -84,7 +97,7 @@ describe("EditTagsDialog author prefill", () => {
 
   it("keeps an author typed before the identity arrives", async () => {
     let resolve: (info: { name: string }) => void = () => {};
-    renderDialog({
+    const { client } = renderDialog({
       get_user_info: () =>
         new Promise((r) => {
           resolve = r;
@@ -93,7 +106,7 @@ describe("EditTagsDialog author prefill", () => {
     fireEvent.change(authorField(), { target: { value: "Grace" } });
 
     resolve({ name: "Ada" });
-    await waitFor(() => expect(screen.getByDisplayValue("Grace")).toBeTruthy());
+    await settled(client);
     expect(authorField().value).toBe("Grace");
   });
 
@@ -105,10 +118,9 @@ describe("EditTagsDialog author prefill", () => {
     ],
     ["the name is empty", { get_user_info: () => Promise.resolve({}) }],
   ])("leaves Author blank when %s", async (_, overrides) => {
-    renderDialog(overrides);
+    const { client } = renderDialog(overrides);
 
-    // Let any pending request settle before asserting the field stayed blank.
-    await new Promise((r) => setTimeout(r, 0));
+    await settled(client);
     expect(authorField().value).toBe("");
   });
 });

@@ -16,6 +16,7 @@ export const useUserInfoName = (enabled: boolean): string | undefined => {
     queryKey: ["user-info"],
     queryFn: enabled && getUserInfo ? () => getUserInfo() : skipToken,
     staleTime: Infinity,
+    gcTime: Infinity,
     retry: false,
   });
   return data?.name || undefined;
