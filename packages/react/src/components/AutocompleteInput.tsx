@@ -120,13 +120,13 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
     }
   }, [showDropdown]);
 
-  // Reset highlight when suggestions change (no selection by default)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Reset highlight when suggestions change (no selection by default).
+  // Uses the "adjust state during render" pattern to avoid an effect cycle.
+  const [prevSuggestions, setPrevSuggestions] = useState(filteredSuggestions);
+  if (prevSuggestions !== filteredSuggestions) {
+    setPrevSuggestions(filteredSuggestions);
     setHighlightedIndex(-1);
-  }, [filteredSuggestions]);
+  }
 
   // Select all text when autoFocus is enabled (show start of text, not end)
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state

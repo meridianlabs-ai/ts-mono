@@ -714,16 +714,12 @@
     }
   },
   "apps/scout/src/app/project/components/FormFields.tsx": {
-    "react-hooks/exhaustive-deps": {
+    "react-hooks/set-state-in-effect": {
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/set-state-in-effect": {
-      "count": 2,
-      "undescribed": 2
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/project/hooks/useNestedConfig.ts": {
@@ -1280,12 +1276,8 @@
     "jsx-a11y/no-autofocus": {
       "count": 1
     },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/react/src/components/CopyButton.tsx": {
