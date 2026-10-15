@@ -74,6 +74,7 @@ import {
   useEventListener,
   useVisitId,
 } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
@@ -118,7 +119,6 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 import { SelectedSampleContentTrustProvider } from "../shared/contentTrust";
-import { openInNewTab } from "../shared/openInNewTab";
 import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
@@ -445,7 +445,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
             )
           : undefined
       );
-      openInNewTab(printUrl);
+      openRouteInNewTab(printUrl);
     }
   }, [
     printLogPath,
@@ -526,7 +526,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
       sampleEpoch
     );
     if (event.metaKey || event.ctrlKey || event.shiftKey) {
-      openInNewTab(`#${url}`);
+      openRouteInNewTab(url);
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);

@@ -34,9 +34,9 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
+import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isRecord, isVscode } from "@tsmono/util";
 
-import { openHrefInNewTab } from "../openInNewTab";
 import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";

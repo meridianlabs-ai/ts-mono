@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router";
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
 import { useEventListener } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { basename, isRecord, valueAsString } from "@tsmono/util";
@@ -245,7 +246,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
         searchParams
       );
       if (newWindow) {
-        window.open(route, "_blank");
+        openRouteInNewTab(route);
       } else {
         navigate(route);
       }
