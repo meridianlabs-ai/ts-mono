@@ -143,10 +143,16 @@ let crossOriginWorkerUrls: string[] = [];
 
 // Skip (rather than fail) where no Chromium exists at all — e.g. a bare
 // local checkout. CI runners always provide one, so coverage there is real.
+// The pool's warning when its worker can't start. It then parses on the main
+// thread, which would let every worker-path test here pass without a worker.
+const kFallbackWarning = "JSON parse worker unavailable";
+const fallbackWarnings: string[] = [];
+
 const requirePage = (ctx: TestContext): Page => {
   if (!page) {
     ctx.skip("no Chromium/Chrome available in this environment");
   }
+  expect(fallbackWarnings).toEqual([]);
   return page;
 };
 
@@ -191,6 +197,8 @@ const openHarness = async (
   p.setDefaultTimeout(60_000);
   p.on("console", (msg) => {
     if (msg.type() === "error") console.error("[page]", msg.text());
+    if (msg.text().includes(kFallbackWarning))
+      fallbackWarnings.push(msg.text());
   });
   p.on("pageerror", (err) => console.error("[pageerror]", err.message));
   p.on("worker", (worker) => urls.push(worker.url()));

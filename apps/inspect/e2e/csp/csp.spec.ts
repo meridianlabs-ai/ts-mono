@@ -67,6 +67,14 @@ test("a large log parses in the app's JSON worker, and its data: audio and video
   serveEvalLog(network, mainLog, "csp-main.json");
   const workers: string[] = [];
   page.on("worker", (worker) => workers.push(worker.url()));
+  // Logged when the worker can't start and parsing falls back to the main
+  // thread, which still renders the log.
+  const fallbacks: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("JSON parse worker unavailable")) {
+      fallbacks.push(message.text());
+    }
+  });
   await page.goto(sampleUrl("csp-main.json", "media", "messages"));
   for (const selector of ["audio", "video"]) {
     await expect
@@ -79,6 +87,7 @@ test("a large log parses in the app's JSON worker, and its data: audio and video
       .toBeGreaterThanOrEqual(1);
   }
   expect(workers).toContainEqual(expect.stringContaining("json-parse.worker"));
+  expect(fallbacks).toEqual([]);
 });
 
 // CodeMirror styles itself through style-mod, which patches/style-mod.patch
