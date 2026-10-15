@@ -5,7 +5,7 @@ import { ScanResultData, ScanResultSummary } from "../types";
 
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
-// Typical row data as it would come from arquero .objects()
+// Typical scan dataframe row
 const typicalSummaryRow = {
   identifier: "test-uuid-123",
   uuid: "test-uuid-123",
@@ -143,7 +143,7 @@ describe("parseScanResultSummaries", () => {
   ])(
     "returns expected output for %s",
     async (input, expected, _desc: string) => {
-      const result = await parseScanResultSummaries(input);
+      const result = await parseScanResultSummaries(from(input));
       expect(result).toHaveLength(expected.length);
       for (const [i, r] of result.entries()) {
         expect(r).toMatchObject(expected[i]!);
@@ -164,7 +164,7 @@ describe("parseScanResultSummaries", () => {
       transcript_task_repeat: undefined,
       transcript_model: undefined,
     };
-    const [result] = await parseScanResultSummaries([legacyRow]);
+    const [result] = await parseScanResultSummaries(from([legacyRow]));
     expect(result).toBeDefined();
     expect(result?.validationResult).toBe(false);
     expect(result?.validationTarget).toBe(true);
@@ -187,7 +187,7 @@ describe("parseScanResultSummaries", () => {
       validation_result: null,
       validation_target: undefined,
     };
-    const [result] = await parseScanResultSummaries([row]);
+    const [result] = await parseScanResultSummaries(from([row]));
     expect(result?.validationResult).toBeUndefined();
     expect(result?.validationTarget).toBeUndefined();
   });
@@ -270,9 +270,9 @@ describe("transcript_trust_content", () => {
     ["true", false],
     [0, false],
   ])("parses %s as %s", async (cell, expected) => {
-    const [summary] = await parseScanResultSummaries([
-      { ...typicalSummaryRow, transcript_trust_content: cell },
-    ]);
+    const [summary] = await parseScanResultSummaries(
+      from([{ ...typicalSummaryRow, transcript_trust_content: cell }])
+    );
     const data = await parseScanResultData(
       from([{ ...typicalColumnData, transcript_trust_content: cell }])
     );

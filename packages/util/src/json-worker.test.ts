@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { asyncJsonParse, asyncJsonParseBytes, jsonParse } from "./json-worker";
 
@@ -180,5 +180,205 @@ describe("asyncJsonParseBytes (main-thread path)", () => {
 
   test("rejects on invalid input", async () => {
     await expect(asyncJsonParseBytes(encode("]["))).rejects.toThrow();
+  });
+});
+
+// The pool's lifecycle, with a stand-in Worker: the parse itself runs in real
+// Chromium (json-worker.browser.test.ts).
+describe("worker pool lifecycle", () => {
+  const largeArray = `[${"1,".repeat(30_000)}1]`;
+  const parsedLargeArray: unknown = JSON.parse(largeArray);
+  // What a stand-in worker answers, so a test can tell it from a
+  // main-thread parse.
+  const fromWorker = "parsed by a worker";
+
+  // "loading" never posts ready or errors: its script is still loading.
+  type Behavior = "starts" | "never-starts" | "starts-then-dies" | "loading";
+  let workers: StubWorker[] = [];
+
+  class StubWorker {
+    onmessage: ((event: { data: unknown }) => void) | null = null;
+    onerror: ((event: { message: string }) => void) | null = null;
+    onmessageerror: (() => void) | null = null;
+    terminated = false;
+    answered = false;
+    received = 0;
+
+    constructor(readonly behavior: Behavior) {
+      workers.push(this);
+      queueMicrotask(() => {
+        if (behavior === "loading") return;
+        if (behavior === "never-starts") {
+          this.onerror?.({ message: "script blocked" });
+        } else {
+          this.onmessage?.({ data: { type: "ready" } });
+        }
+      });
+    }
+
+    postMessage(message: { requestId: number }): void {
+      this.received++;
+      queueMicrotask(() => {
+        if (this.behavior === "starts-then-dies") {
+          this.onerror?.({ message: "out of memory" });
+          return;
+        }
+        this.answered = true;
+        this.onmessage?.({
+          data: {
+            requestId: message.requestId,
+            success: true,
+            result: fromWorker,
+          },
+        });
+      });
+    }
+
+    terminate(): void {
+      this.terminated = true;
+    }
+  }
+
+  const loadPool = async (behavior: () => Behavior, configure = true) => {
+    workers = [];
+    vi.resetModules();
+    vi.stubGlobal("location", new URL("http://viewer.test/"));
+    vi.stubGlobal(
+      "Worker",
+      class extends StubWorker {
+        constructor() {
+          super(behavior());
+        }
+      }
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const pool = await import("./json-worker");
+    if (configure) {
+      pool.configureJsonParseWorker("/assets/json-parse.worker.js");
+    }
+    return pool;
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  test("parses on the main thread until an app configures a worker", async () => {
+    const { asyncJsonParse } = await loadPool(() => "starts", false);
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
+    expect(workers).toHaveLength(0);
+  });
+
+  test("parses in a worker once one starts", async () => {
+    const { asyncJsonParse } = await loadPool(() => "starts");
+    await expect(asyncJsonParse(largeArray)).resolves.toBe(fromWorker);
+  });
+
+  test("falls back to the main thread for good when no worker starts", async () => {
+    const { asyncJsonParse, asyncJsonParseBytes } = await loadPool(
+      () => "never-starts"
+    );
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
+    // Nothing was sent before the launch failed, so bytes aren't transferred
+    // to a dead worker, and later calls don't start more workers.
+    await expect(
+      asyncJsonParseBytes(new TextEncoder().encode(largeArray))
+    ).resolves.toEqual(parsedLargeArray);
+    expect(workers).toHaveLength(4);
+    expect(workers.every((worker) => worker.terminated)).toBe(true);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
+  test("a worker that started but dies on a job is replaced", async () => {
+    const { asyncJsonParse } = await loadPool(() => "starts-then-dies");
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: out of memory"
+    );
+    expect(workers).toHaveLength(5);
+  });
+
+  test("a worker that fails after answering is replaced", async () => {
+    let behavior: Behavior = "starts";
+    const { asyncJsonParse } = await loadPool(() => behavior);
+    await expect(asyncJsonParse(largeArray)).resolves.toBe(fromWorker);
+    const busy = workers.find((worker) => worker.answered);
+    behavior = "starts-then-dies";
+    busy?.onerror?.({ message: "out of memory" });
+    expect(busy?.terminated).toBe(true);
+    expect(workers).toHaveLength(5);
+  });
+
+  test("concurrent first calls wait for the launch and send nothing to workers that never start", async () => {
+    const { asyncJsonParse, asyncJsonParseBytes } = await loadPool(
+      () => "never-starts"
+    );
+    await expect(
+      Promise.all([
+        asyncJsonParse(largeArray),
+        asyncJsonParseBytes(new TextEncoder().encode(largeArray)),
+      ])
+    ).resolves.toEqual([parsedLargeArray, parsedLargeArray]);
+    expect(workers.every((worker) => worker.received === 0)).toBe(true);
+  });
+
+  test("uses a worker configured after an earlier large parse", async () => {
+    const pool = await loadPool(() => "starts", false);
+    await expect(pool.asyncJsonParse(largeArray)).resolves.toEqual(
+      parsedLargeArray
+    );
+    pool.configureJsonParseWorker("/assets/json-parse.worker.js");
+    await expect(pool.asyncJsonParse(largeArray)).resolves.toBe(fromWorker);
+  });
+
+  test("sends requests only to workers that have started", async () => {
+    let behavior: Behavior = "starts";
+    const { asyncJsonParse } = await loadPool(() => behavior);
+    await expect(asyncJsonParse(largeArray)).resolves.toBe(fromWorker);
+    behavior = "loading";
+    workers[0]?.onerror?.({ message: "out of memory" });
+    const replacement = workers[4];
+
+    // Enough concurrent requests that least-loaded dispatch would reach the
+    // replacement if it counted; then fail it, as a script that never loads.
+    const calls = Promise.all(
+      Array.from({ length: 4 }, () => asyncJsonParse(largeArray))
+    );
+    const received = () =>
+      workers.reduce((total, worker) => total + worker.received, 0);
+    await vi.waitFor(() => expect(received()).toBe(5));
+    replacement?.onerror?.({ message: "script blocked" });
+
+    await expect(calls).resolves.toEqual(Array(4).fill(fromWorker));
+    expect(replacement?.received).toBe(0);
+  });
+
+  test("falls back to the main thread once every replacement fails to start", async () => {
+    let behavior: Behavior = "starts";
+    const { asyncJsonParse } = await loadPool(() => behavior);
+    await expect(asyncJsonParse(largeArray)).resolves.toBe(fromWorker);
+    behavior = "never-starts";
+    for (const worker of workers.slice(0, 4)) {
+      worker.onerror?.({ message: "out of memory" });
+    }
+    await vi.waitFor(() => expect(console.warn).toHaveBeenCalledTimes(1));
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
+  });
+
+  test("falls back to the main thread when the only started worker dies while the rest still load", async () => {
+    let created = 0;
+    const { asyncJsonParse, asyncJsonParseBytes } = await loadPool(() =>
+      created++ === 0 ? "starts-then-dies" : "loading"
+    );
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: out of memory"
+    );
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual(parsedLargeArray);
+    await expect(
+      asyncJsonParseBytes(new TextEncoder().encode(largeArray))
+    ).resolves.toEqual(parsedLargeArray);
+    expect(workers.slice(1).every((worker) => worker.received === 0)).toBe(
+      true
+    );
   });
 });

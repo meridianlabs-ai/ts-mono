@@ -1,7 +1,6 @@
 import { CompressionType, setCompressionCodec } from "@uwdata/flechette";
 import type { Codec } from "@uwdata/flechette";
-import type { ColumnTable } from "arquero";
-import { table as arqueroTable, escape, fromArrow } from "arquero";
+import { table as arqueroTable, fromArrow } from "arquero";
 import * as lz4js from "lz4js";
 
 export const decodeArrowBase64 = (base64: string) => {
@@ -23,11 +22,7 @@ export const decodeArrowBytes = (bytes: ArrayBuffer | Uint8Array) => {
   ensureLZ4CodecRegistered();
 
   const input = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let table = fromArrow(input);
-
-  // Cast columns to appropriate types
-  // (Mixed-type columns get converted to strings by Arrow/Pandas)
-  table = castColumns(table);
+  const table = fromArrow(input);
 
   // Eagerly materialize the table to prevent Safari from
   // detaching the underlying ArrayBuffer during navigation.
@@ -47,6 +42,9 @@ export const decodeArrowBytes = (bytes: ArrayBuffer | Uint8Array) => {
       ? colData
       : Array.from(colData as Iterable<unknown>);
   }
+
+  // Mixed-type columns get converted to strings by Arrow/Pandas
+  castColumns(columns);
 
   // Recreate the table from the materialized column arrays
   // This ensures the table no longer has any references to detachable buffers
@@ -110,42 +108,21 @@ export const castScanValue = (value: unknown, valueType: string): unknown => {
 
 // When Arrow/Pandas encounters mixed-type columns (e.g., numbers and nulls),
 // it converts everything to strings for safety. This function restores the
-// original types based on the value_type column (or a known type).
-function castColumns(table: ColumnTable): ColumnTable {
-  const columnNames = table.columnNames();
-  const hasValue =
-    columnNames.includes("value") && columnNames.includes("value_type");
-  const hasScanRefusal = columnNames.includes("scan_error_refusal");
+// original types based on the value_type column (or a known type). Plain
+// loops, since arquero's derive() needs 'unsafe-eval'.
+function castColumns(columns: Record<string, unknown[]>): void {
+  const { value, value_type: valueType, scan_error_refusal } = columns;
 
-  // If neither column needs casting, return as-is
-  if (!hasValue && !hasScanRefusal) {
-    return table;
-  }
-
-  // Build derivation object for all columns that need casting
-  const derivations: {
-    value?: ReturnType<typeof escape>;
-    scan_error_refusal?: ReturnType<typeof escape>;
-  } = {};
-
-  if (hasValue) {
-    derivations.value = escape((d: { value: unknown; value_type: string }) => {
-      return castScanValue(d.value, d.value_type);
+  if (value && valueType) {
+    columns.value = value.map((cell, row) => {
+      const type = valueType[row];
+      return castScanValue(cell, typeof type === "string" ? type : "");
     });
   }
 
-  if (hasScanRefusal) {
-    derivations.scan_error_refusal = escape(
-      (d: { scan_error_refusal: string }) => {
-        if (typeof d.scan_error_refusal === "string") {
-          return d.scan_error_refusal.toLowerCase() === "true";
-        }
-
-        return !!d.scan_error_refusal;
-      }
+  if (scan_error_refusal) {
+    columns.scan_error_refusal = scan_error_refusal.map((cell) =>
+      typeof cell === "string" ? cell.toLowerCase() === "true" : !!cell
     );
   }
-
-  // Apply all derivations in a single pass
-  return table.derive(derivations);
 }

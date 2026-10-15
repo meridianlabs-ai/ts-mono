@@ -1,10 +1,11 @@
+import { deflateSync } from "fflate";
 import { expect, test } from "vitest";
 
-import { installNodeBlobWorker } from "../../test/nodeBlobWorker";
+import { installNodeWorker } from "../../test/nodeWorker";
 
 import { CompressionMethod, decompressData } from "./decompression";
 
-installNodeBlobWorker();
+installNodeWorker();
 
 test.each([300_000, 999_999, 1_000_000])(
   "bounds empty-block work independently of output and window sizes (%s)",
@@ -221,3 +222,45 @@ test.each([0, 1, 2, 3])(
     expect(await decompress(data, size)).toEqual(new Uint8Array(size).fill(65));
   }
 );
+
+// Past the 1 MiB threshold, so these run in the worker; the small cases
+// exercise the same inflateBounded synchronously.
+test.each([64 * 1024, 2 * 1024 * 1024])(
+  "inflates DEFLATE entries of %s bytes",
+  async (size) => {
+    const expected = new Uint8Array(size);
+    let state = 7;
+    for (let index = 0; index < size; index++) {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      expected[index] = state >>> 28;
+    }
+    const inflated = await decompressData(
+      deflateSync(expected),
+      CompressionMethod.DEFLATE,
+      size,
+      "sample.json"
+    );
+    expect(Buffer.from(inflated).equals(expected)).toBe(true);
+  }
+);
+
+test.each([
+  ["over", 2 * 1024 * 1024, 2 * 1024 * 1024 - 1],
+  ["under", 2 * 1024 * 1024, 2 * 1024 * 1024 + 1],
+  ["over (small)", 1024, 1023],
+])(
+  "rejects DEFLATE output %s its declared size",
+  async (_label, actual, declared) => {
+    const data = deflateSync(new Uint8Array(actual).fill(65));
+    await expect(
+      decompressData(data, CompressionMethod.DEFLATE, declared, "sample.json")
+    ).rejects.toThrow(/size does not match/);
+  }
+);
+
+test("rejects truncated DEFLATE data", async () => {
+  const data = deflateSync(new Uint8Array(4096).fill(66)).subarray(0, 8);
+  await expect(
+    decompressData(data, CompressionMethod.DEFLATE, 4096, "sample.json")
+  ).rejects.toThrow();
+});

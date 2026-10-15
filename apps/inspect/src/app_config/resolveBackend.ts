@@ -57,12 +57,12 @@ export interface BackendBootstrap {
   capabilities: BackendCapabilities;
   /** Whether the browser itself fetches from the log location (static-http)
    *  rather than a server or host proxy that applies its own trust policy.
-   *  Only then does a location named by the page URL or a route need the
-   *  viewer's own approval (#615). */
+   *  Only then does the viewer itself refuse a location on another origin
+   *  named by the page URL or a route (#615). */
   browserDirect: boolean;
   /** Set when a `?log_dir=` in the invocation chose this backend's dir. Absent
    *  when embedded config or a host fixed it: the param is then ignored, so a
-   *  location it names is never fetched and there is nothing to approve. */
+   *  location it names is never fetched and there is nothing to refuse. */
   dirFromUrl?: true;
 }
 

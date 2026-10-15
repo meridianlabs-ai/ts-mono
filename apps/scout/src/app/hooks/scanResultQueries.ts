@@ -2,7 +2,7 @@ import { queryOptions, skipToken } from "@tanstack/react-query";
 import { ColumnTable } from "arquero";
 
 import { ScanResultData, ScanResultSummary } from "../types";
-import { withParams } from "../utils/arrowCells";
+import { rowsWhere } from "../utils/arrowCells";
 import {
   parseScanResultData,
   parseScanResultSummaries,
@@ -59,10 +59,7 @@ export const scanResultSummariesQuery = (
       : kSkipped,
     queryFn: columnTable
       ? (): Promise<ScanResultSummary[]> =>
-          logged(
-            "scan result summaries",
-            parseScanResultSummaries(columnTable.objects())
-          )
+          logged("scan result summaries", parseScanResultSummaries(columnTable))
       : skipToken,
     ...kDerivation,
   });
@@ -74,11 +71,10 @@ const filterScanResultRow = (
   if (columnTable.columnNames().length === 0) {
     return undefined;
   }
-  const filtered = withParams(columnTable, {
-    targetIdentifier: rowIdentifier,
-  }).filter(
-    (d: { identifier: string }, $: { targetIdentifier: string }) =>
-      d.identifier === $.targetIdentifier
+  const filtered = rowsWhere(
+    columnTable,
+    "identifier",
+    (identifier) => identifier === rowIdentifier
   );
   return filtered.numRows() === 0 ? undefined : filtered;
 };

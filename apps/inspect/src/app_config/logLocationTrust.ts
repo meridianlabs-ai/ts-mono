@@ -5,9 +5,10 @@ import { UrlLogSource } from "./urlLogSource";
 /**
  * A log location named by the page URL (`?log_dir=` / `?log_file=`) that the
  * browser itself would fetch from somewhere other than the page's own origin.
- * Receiving a link is not authority to contact an arbitrary host, so config
- * resolution waits on the user approving it (#615). Same-origin locations need
- * no approval: they reach nothing the page's own scripts couldn't already.
+ * Receiving a link is not authority to contact an arbitrary host (#615), and
+ * the viewer's CSP blocks the fetch anyway, so `LogLocationGate` refuses it.
+ * Same-origin locations are allowed: they reach nothing the page's own scripts
+ * couldn't already.
  * Embedded config and the VS Code host set the location; they never propose.
  */
 export interface LogLocationProposal {
@@ -56,7 +57,7 @@ const isUnderDir = (file: string, dir: string): boolean => {
  * browser fetches directly, a route can't widen the scope: the result must sit
  * inside that dir. Listing entries always do; a foreign location only arrives
  * through a crafted `#/logs/<url>` link, whose `?log_file=` form is the one
- * that gets the approval gate. Proxied backends keep the name as given: the
+ * that `LogLocationGate` refuses. Proxied backends keep the name as given: the
  * server or host applies its own policy to it.
  */
 export const scopeRouteLogFile = (

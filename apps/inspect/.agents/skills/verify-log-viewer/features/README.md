@@ -75,7 +75,7 @@ Start from what the user can see, not from a guessed component name:
 | Breadcrumbs, theme, loading bar, viewer options       | [Application chrome](./application-chrome.md)                                                                         |
 | Wrong URL, back behavior, wrong log/sample after nav  | [Routing and viewer modes](./routing-and-viewer-modes.md), then [Cross-surface journeys](./multi-surface-journeys.md) |
 | Cmd/Ctrl/middle-click doesn't open a new tab          | [Routing and viewer modes](./routing-and-viewer-modes.md) (`new-tab-links`)                                           |
-| Prompt to open a log location from a link             | [Routing and viewer modes](./routing-and-viewer-modes.md) (`log-location-gate`)                                       |
+| Log location from a link refused                      | [Routing and viewer modes](./routing-and-viewer-modes.md) (`log-location-gate`)                                       |
 | Log title, status, tags, metrics, download            | [Log header and editing](./log-header-and-editing.md), [Scores](./scores.md)                                          |
 | Summary, dataset, solver, scorer, metadata            | [Evaluation info](./evaluation-info.md)                                                                               |
 | Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                                                 |

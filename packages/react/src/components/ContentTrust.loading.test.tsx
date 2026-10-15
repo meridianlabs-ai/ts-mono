@@ -82,11 +82,7 @@ const renderEverything = (trust: ContentTrust) =>
             />
             <ANSIDisplay output={"\u001b[32mPASS\u001b[0m"} />
             <JSONPanel data={{ key: "value" }} />
-            <AsciinemaPlayer
-              inputUrl="blob:a"
-              outputUrl="blob:b"
-              timingUrl="blob:c"
-            />
+            <AsciinemaPlayer input="a" output="b" timing="c" />
           </ContentTrustProvider>
         </ComponentNavigationProvider>
       </ComponentIconProvider>

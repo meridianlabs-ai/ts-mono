@@ -58,12 +58,17 @@ beforeEach(() => {
   holdRequests = false;
   failSend = false;
   vi.stubGlobal("Worker", TestWorker);
+  vi.stubGlobal("location", new URL("http://localhost/"));
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.doUnmock("./decompression.worker?worker&url");
+});
 
 async function read() {
-  const { decompressZstd } = await import("./zstd-worker");
+  const { decompressZstd } = await import("./decompression-worker");
   // One output byte with a 1 MiB window selects the worker without a large fixture.
   return decompressZstd(
     new Uint8Array([0x28, 0xb5, 0x2f, 0xfd, 0, 80, 9, 0, 0, 65]),
@@ -107,4 +112,29 @@ test("rejects a failed request transfer without blocking the next read", async (
   failSend = false;
   expect(await read()).toEqual(new Uint8Array([65]));
   expect(workers).toHaveLength(1);
+});
+
+test("keeps a cross-origin worker script's Blob URL until the worker stops", async () => {
+  // As in a VS Code webview, where assets come from another origin and the
+  // worker starts from a Blob of the fetched script.
+  vi.doMock("./decompression.worker?worker&url", () => ({
+    default: "https://cdn.test/decompression.worker.js",
+  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response("// worker")))
+  );
+  vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:worker-script");
+  const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  holdRequests = true;
+
+  const pending = expect(read()).rejects.toThrow();
+  await vi.waitFor(() => expect(workers).toHaveLength(1));
+  expect(revoke).not.toHaveBeenCalled();
+
+  workers[0]?.dispatchEvent(
+    Object.assign(new Event("error"), { message: "Worker failed" })
+  );
+  await pending;
+  expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:worker-script");
 });

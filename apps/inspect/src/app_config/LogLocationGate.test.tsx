@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { AppConfigBootstrap } from "./appConfig";
@@ -42,7 +42,7 @@ it("renders the app directly when nothing was proposed", () => {
   expect(screen.queryByTestId("log-location-gate")).not.toBeInTheDocument();
 });
 
-it("holds the app behind an approval that names the foreign origin", () => {
+it("refuses a location on another origin instead of rendering the app", () => {
   bootstrap.current = browserDirectBootstrap({
     kind: "dir",
     location: "https://bucket.example/team/logs",
@@ -57,15 +57,13 @@ it("holds the app behind an approval that names the foreign origin", () => {
   expect(screen.queryByText("app")).not.toBeInTheDocument();
   expect(
     screen.getByRole("heading", {
-      name: "Open logs from https://bucket.example?",
+      name: "Can't open logs from https://bucket.example",
     })
   ).toBeInTheDocument();
   expect(
     screen.getByText("https://bucket.example/team/logs")
   ).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: "Open" }));
-
-  expect(screen.getByText("app")).toBeInTheDocument();
-  expect(screen.queryByTestId("log-location-gate")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Open" })
+  ).not.toBeInTheDocument();
 });
