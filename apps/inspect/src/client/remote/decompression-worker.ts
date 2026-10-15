@@ -27,8 +27,8 @@ type Method = "zstd" | "deflate";
 
 let worker: Worker | null = null;
 let workerInitPromise: Promise<Worker> | null = null;
-// Releases the worker script's Blob URL (VS Code), held while its worker runs.
-let releaseWorkerScript = (): void => {};
+// Each worker's script Blob URL (VS Code), held until that worker stops.
+const releaseWorkerScript = new WeakMap<Worker, () => void>();
 let nextRequestId = 0;
 const pendingRequests = new Map<
   number,
@@ -52,14 +52,14 @@ async function startWorker(): Promise<Worker> {
     launcher.release();
     throw error;
   }
-  releaseWorkerScript = launcher.release;
+  releaseWorkerScript.set(started, launcher.release);
   return started;
 }
 
 function stopWorker(target: Worker): void {
   target.terminate();
-  releaseWorkerScript();
-  releaseWorkerScript = () => {};
+  releaseWorkerScript.get(target)?.();
+  releaseWorkerScript.delete(target);
 }
 
 function initWorker(started: Worker): Promise<Worker> {
