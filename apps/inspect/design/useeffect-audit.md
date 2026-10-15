@@ -47,10 +47,6 @@ history for this file.
 - `app/shared/samples-grid/SamplesGrid.tsx`: `onDisplayedRowsChange(items)`
   pushes shaped rows up to `SamplesPanel` and into zustand. Fix: lift the
   query/filter/sort shaping to the owner.
-- `app/log-view/title-view/EditTagsDialog.tsx` and `EditMetadataDialog.tsx`:
-  identical `get_user_info()` fetch-in-effect with a manual cancelled flag. Fix:
-  a shared `useUserInfo()` React Query hook; derive the author as
-  `edited ?? userInfo?.name ?? ""`.
 - `log_data/log.ts` `useLogHeader`: fires the engine's `fetchLog` per mount
   alongside React Query, with no un-demand on unmount. Fix: fold demand into
   the query layer so React Query owns dedupe and lifecycle.

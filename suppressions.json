@@ -122,11 +122,6 @@
   },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "apps/inspect/src/app/log-view/title-view/EditTagsDialog.tsx": {
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
