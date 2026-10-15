@@ -10,6 +10,7 @@ import {
 import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
+import { useEventListener } from "../hooks/useEventListener";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
@@ -306,9 +307,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   }, [restoreCursorIfNeeded]);
 
   // Consolidated global keyboard handler
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
+  useEventListener(
+    document,
+    "keydown",
+    (e) => {
       // F3: Find next/previous
       if (e.key === "F3") {
         e.preventDefault();
@@ -356,13 +358,9 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       } else {
         restoreCursorIfNeeded();
       }
-    };
-
-    document.addEventListener("keydown", handleGlobalKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown, true);
-    };
-  }, [handleSearch, restoreCursor, restoreCursorIfNeeded]);
+    },
+    { capture: true }
+  );
 
   return (
     <FindBandUI

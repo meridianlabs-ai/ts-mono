@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEventListener } from "../hooks/useEventListener";
 
 import { isFindShortcut } from "./findShortcuts";
 
@@ -15,7 +15,7 @@ interface UseFindBandShortcutOptions {
 /**
  * Global Ctrl/Cmd+F shortcut companion to `FindBand`: opens the band
  * (blocking the browser's own find dialog) and optionally closes it on
- * Escape. Pass stable callbacks — they are effect dependencies.
+ * Escape.
  */
 export function useFindBandShortcut(
   onOpen: () => void,
@@ -23,11 +23,11 @@ export function useFindBandShortcut(
 ): void {
   const { onClose, isOpen = false, enabled = true } = options ?? {};
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!enabled) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // Capture phase so the shortcut wins before the browser's own find.
+  useEventListener(
+    enabled ? document : null,
+    "keydown",
+    (e) => {
       if (isFindShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
@@ -35,10 +35,7 @@ export function useFindBandShortcut(
       } else if (e.key === "Escape" && isOpen && onClose) {
         onClose();
       }
-    };
-
-    // Capture phase so the shortcut wins before the browser's own find.
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabled, onOpen, onClose, isOpen]);
+    },
+    { capture: true }
+  );
 }

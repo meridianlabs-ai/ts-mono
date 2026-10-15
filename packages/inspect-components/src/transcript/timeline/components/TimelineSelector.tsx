@@ -1,5 +1,7 @@
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useRef, useState } from "react";
+
+import { useEventListener } from "@tsmono/react/hooks";
 
 import type { Timeline } from "../core";
 
@@ -39,10 +41,10 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
     [onSelect]
   );
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
+  useEventListener(
+    isOpen ? window : null,
+    "keydown",
+    (e) => {
       if (e.key !== "Escape") return;
       // This Escape closes the menu and nothing else: stop it here (the
       // capture-phase registration below runs first) so an enclosing
@@ -54,10 +56,9 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
         containerRef.current?.contains(document.activeElement) ?? false;
       setIsOpen(false);
       if (refocus) triggerRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [isOpen]);
+    },
+    { capture: true }
+  );
 
   if (timelines.length <= 1) return null;
 

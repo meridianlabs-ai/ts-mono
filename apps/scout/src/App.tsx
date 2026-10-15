@@ -9,7 +9,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "@vscode/codicons/dist/codicon.css";
 
-import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
+import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import "prismjs/themes/prism.css";
@@ -26,6 +26,7 @@ import {
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
 
 import { useAppConfigAsync } from "./app/server/useAppConfig";
@@ -81,18 +82,13 @@ const useThemePreferenceSync = () => {
   // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
   // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
   // reads the freshly-written value) and pull the new preference into zustand.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SETTINGS_STORAGE_KEY) {
-        window.__APPLY_BROWSER_THEME__?.();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        useUserSettings.persist.rehydrate();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  useEventListener(window, "storage", (e) => {
+    if (e.key === SETTINGS_STORAGE_KEY) {
+      window.__APPLY_BROWSER_THEME__?.();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      useUserSettings.persist.rehydrate();
+    }
+  });
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {

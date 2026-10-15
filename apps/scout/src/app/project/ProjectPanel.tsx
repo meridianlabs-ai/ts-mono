@@ -7,7 +7,7 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useEventListener } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
 import { useApi } from "../../state/store";
@@ -112,28 +112,22 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Ctrl/Cmd+S keyboard shortcut to save
   // Always handle since project panel is the only active UI when visible
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        // Guard against double-save during pending mutation
-        if (!mutation.isPending) {
-          // Capture focused element ID for restoration after save
-          const el = document.activeElement;
-          if (el instanceof HTMLElement && el !== document.body && el.id) {
-            focusedFieldIdRef.current = el.id;
-          } else {
-            focusedFieldIdRef.current = null;
-          }
-          saveRef.current();
+  useEventListener(window, "keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      e.preventDefault();
+      // Guard against double-save during pending mutation
+      if (!mutation.isPending) {
+        // Capture focused element ID for restoration after save
+        const el = document.activeElement;
+        if (el instanceof HTMLElement && el !== document.body && el.id) {
+          focusedFieldIdRef.current = el.id;
+        } else {
+          focusedFieldIdRef.current = null;
         }
+        saveRef.current();
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mutation.isPending]);
+    }
+  });
 
   const [editedConfig, setEditedConfig] =
     useState<Partial<ProjectConfigInput> | null>(null);

@@ -1,7 +1,8 @@
 import clsx from "clsx";
-import { FC, useEffect, useState } from "react";
+import { FC, useState } from "react";
 
 import type { ModelEvent } from "@tsmono/inspect-common/types";
+import { useEventListener } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
 import { attemptDurationSec } from "./attemptDuration";
@@ -23,15 +24,9 @@ export const RetryChip: FC<RetryChipProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEventListener(open ? window : null, "keydown", (e) => {
+    if (e.key === "Escape") setOpen(false);
+  });
 
   if (attempts.length <= 1) return null;
 

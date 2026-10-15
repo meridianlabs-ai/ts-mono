@@ -71,6 +71,7 @@ import {
   useChromeNavOwnership,
   useCopyToClipboard,
   useElementHeight,
+  useEventListener,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
@@ -459,23 +460,20 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
   ]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isVscode() || !printLogPath || !printSampleId || !printEpoch) return;
-
-    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+  const printShortcutEnabled =
+    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
+  useEventListener(
+    printShortcutEnabled ? document : null,
+    "keydown",
+    (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
         e.preventDefault();
         e.stopPropagation();
         handlePrintClick();
       }
-    };
-
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [handlePrintClick, printLogPath, printSampleId, printEpoch]);
+    },
+    { capture: true }
+  );
 
   const toggleFilter = useCallback(() => {
     setShowing(!isShowing);

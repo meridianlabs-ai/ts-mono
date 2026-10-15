@@ -9,7 +9,7 @@ import "./App.css";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-import { FC, useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { FC, useCallback, useLayoutEffect, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import {
@@ -85,20 +85,15 @@ const ThemePreferenceSyncController: FC = () => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SETTINGS_STORAGE_KEY) {
-        // Re-apply CSS for this tab (the bootstrap reads the freshly-written
-        // value) and pull the new preference into the store.
-        window.__APPLY_BROWSER_THEME__?.();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        useUserSettings.persist.rehydrate();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  useEventListener(window, "storage", (e) => {
+    if (e.key === SETTINGS_STORAGE_KEY) {
+      // Re-apply CSS for this tab (the bootstrap reads the freshly-written
+      // value) and pull the new preference into the store.
+      window.__APPLY_BROWSER_THEME__?.();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      useUserSettings.persist.rehydrate();
+    }
+  });
 
   return null;
 };
