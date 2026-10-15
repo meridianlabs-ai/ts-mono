@@ -5,7 +5,7 @@ import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
-import { rowIndicesWhere, rowRecords } from "./arrowCells";
+import { partitionRowIndices, rowRecords } from "./arrowCells";
 
 interface Result {
   uuid?: string | null;
@@ -66,21 +66,16 @@ export async function expandResultsetRows(
   }
 
   // Split into resultset and non-resultset rows
-  const isResultset = (valueType: unknown) => valueType === "resultset";
-  const resultsetIndices = rowIndicesWhere(
-    columnTable,
-    "value_type",
-    isResultset
-  );
+  const { matching: resultsetIndices, rest: otherIndices } =
+    partitionRowIndices(
+      columnTable,
+      "value_type",
+      (valueType) => valueType === "resultset"
+    );
   if (resultsetIndices.length === 0) {
     // No result sets
     return columnTable;
   }
-  const otherIndices = rowIndicesWhere(
-    columnTable,
-    "value_type",
-    (valueType) => !isResultset(valueType)
-  );
 
   // Parse JSON value strings and expand into multiple rows
   const resultObjs = rowRecords(columnTable.reify(resultsetIndices));
@@ -183,35 +178,34 @@ export async function expandResultsetRows(
 }
 
 /**
- * The table `from([...records of table's rows at indices, ...rows])` builds,
- * without a record per table row: most rows of a large scan aren't
- * resultsets, and copying their columns is far cheaper than making records.
+ * The table's rows at `indices` followed by `rows`, without a record per
+ * table row: most rows of a large scan aren't resultsets, and copying their
+ * columns is far cheaper than making records. The columns are the table's
+ * plus any key only `rows` carry (e.g. `answer`), which those table rows
+ * leave undefined.
  */
 function appendRows(
   table: ColumnTable,
   indices: number[],
   rows: Record<string, unknown>[]
 ): ColumnTable {
-  // from() takes its columns from the first row
-  const first = rows[0];
-  const names =
-    indices.length > 0 || !first ? table.columnNames() : Object.keys(first);
+  const names = new Set(table.columnNames());
+  for (const row of rows) {
+    for (const name of Object.keys(row)) names.add(name);
+  }
   const columns: Record<string, unknown[]> = {};
   for (const name of names) {
     const source = table.column(name);
-    const cells = new Array<unknown>(indices.length + rows.length);
-    let next = 0;
-    if (source) {
-      for (const index of indices) {
-        cells[next++] = source.at(index);
-      }
+    const cells: unknown[] = [];
+    for (const index of indices) {
+      cells.push(source?.at(index));
     }
     for (const row of rows) {
-      cells[next++] = row[name];
+      cells.push(row[name]);
     }
     columns[name] = cells;
   }
-  return arqueroTable(columns, names);
+  return arqueroTable(columns, [...names]);
 }
 
 async function extractLabelValidation(

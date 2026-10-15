@@ -90,6 +90,29 @@ export const rowRecords = (table: ColumnTable): Record<string, unknown>[] => {
 };
 
 /**
+ * Data indices of the rows whose `column` cell satisfies `test`, and of the
+ * rest, each in table order, from one scan.
+ */
+export const partitionRowIndices = (
+  table: ColumnTable,
+  column: string,
+  test: (cell: unknown) => boolean
+): { matching: number[]; rest: number[] } => {
+  const cells = table.column(column);
+  if (!cells) {
+    throw new Error(`No column "${column}" to partition on`);
+  }
+  const matching: number[] = [];
+  const rest: number[] = [];
+  table.scan((row) => {
+    if (row !== undefined) {
+      (test(cells.at(row)) ? matching : rest).push(row);
+    }
+  }, true);
+  return { matching, rest };
+};
+
+/**
  * Data indices (what `reify` and `column().at` take) of the rows whose
  * `column` cell satisfies `keep`, in table order.
  */

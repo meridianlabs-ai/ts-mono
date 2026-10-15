@@ -37,4 +37,31 @@ describe("expandResultsetRows", () => {
       { identifier: "r-2", label: "beta", answer: null, explanation: "why" },
     ]);
   });
+
+  it("keeps result-only columns when plain rows come first", async () => {
+    const expanded = await expandResultsetRows(
+      table({
+        uuid: ["scan-0", "scan-1"],
+        value_type: ["number", "resultset"],
+        value: [
+          3,
+          JSON.stringify([
+            { uuid: "r-1", label: "alpha", value: true, answer: "yes" },
+          ]),
+        ],
+      })
+    );
+
+    expect(
+      rowRecords(expanded).map(({ identifier, label, answer, value }) => ({
+        identifier,
+        label,
+        answer,
+        value,
+      }))
+    ).toEqual([
+      { identifier: "scan-0", label: undefined, answer: undefined, value: 3 },
+      { identifier: "r-1", label: "alpha", answer: "yes", value: true },
+    ]);
+  });
 });
