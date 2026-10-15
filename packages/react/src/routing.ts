@@ -60,8 +60,8 @@ export const hashRouteUrl = (route: string): string => {
  * Opens an href in a new tab without `window.opener` or a referrer, then
  * refocuses this window.
  *
- * Only for paths with nothing to click (keyboard shortcuts); where there is,
- * render an `<a href>` so the browser handles cmd/ctrl/middle-click natively.
+ * Where there is a link to render, prefer an `<a href>` so the browser handles
+ * cmd/ctrl/middle-click natively.
  */
 export function openHrefInNewTab(href: string): void {
   window.open(href, "_blank", "noopener,noreferrer");
