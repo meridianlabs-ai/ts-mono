@@ -40,6 +40,13 @@ const buildWithPolicy = async (files, directives) => {
 const sha256 = (code) =>
   `'sha256-${createHash("sha256").update(code).digest("base64")}'`;
 
+// The directives every policy must set; tests spread their own over these.
+const required = {
+  "default-src": ["'none'"],
+  "script-src": ["'self'"],
+  "worker-src": ["'self'"],
+};
+
 const page = (body) =>
   `<!doctype html><html><head></head><body>${body}<script type="module" src="./main.js"></script></body></html>`;
 
@@ -56,10 +63,7 @@ describe("contentSecurityPolicy", () => {
         ),
         "main.js": "window.c = 3;",
       },
-      {
-        "default-src": ["'none'"],
-        "script-src": ["'self'", "'wasm-unsafe-eval'"],
-      }
+      { ...required, "script-src": ["'self'", "'wasm-unsafe-eval'"] }
     );
 
     expect(policy).toEqual({
@@ -72,6 +76,7 @@ describe("contentSecurityPolicy", () => {
           sha256("window.b = 2;"),
           "'wasm-unsafe-eval'",
         ],
+        "worker-src": ["'self'"],
       },
     });
   });
@@ -82,7 +87,7 @@ describe("contentSecurityPolicy", () => {
         "index.html": page("<script>\r\nwindow.a = 1;\r\n</script>"),
         "main.js": "",
       },
-      { "script-src": ["'self'"] }
+      required
     );
 
     expect(policy.directives["script-src"]).toEqual([
@@ -108,7 +113,7 @@ describe("contentSecurityPolicy", () => {
               'new Worker(new URL("./worker.js", import.meta.url), { type: "module" });',
             "worker.js": `self.f = ${code};`,
           },
-          { "script-src": ["'self'"] }
+          required
         )
       ).rejects.toThrow(/these scripts evaluate code: assets\/worker-.*\.js/);
       expect(existsSync(join(roots.at(-1) ?? "", "dist", "index.html"))).toBe(
@@ -131,7 +136,7 @@ describe("contentSecurityPolicy", () => {
             "index.html": page(""),
             "main.js": `const name = "f"; window.g = ${code};`,
           },
-          { "script-src": ["'self'"] }
+          required
         )
       ).resolves.toMatchObject({ version: 1 });
     }
@@ -141,7 +146,7 @@ describe("contentSecurityPolicy", () => {
     await expect(
       buildWithPolicy(
         { "index.html": page(""), "main.js": 'window.f = eval("1");' },
-        { "script-src": ["'self'", "'unsafe-eval'"] }
+        { ...required, "script-src": ["'self'", "'unsafe-eval'"] }
       )
     ).resolves.toMatchObject({ version: 1 });
   });
@@ -162,8 +167,19 @@ describe("contentSecurityPolicy", () => {
     await expect(
       buildWithPolicy(
         { "index.html": page(""), "main.js": "" },
-        { "script-src": ["'self'"], ...directives }
+        { ...required, ...directives }
       )
     ).rejects.toThrow(message);
   });
+
+  it.each(Object.keys(required))(
+    "rejects a policy that leaves out %s",
+    async (name) => {
+      const directives = { ...required };
+      delete directives[name];
+      await expect(
+        buildWithPolicy({ "index.html": page(""), "main.js": "" }, directives)
+      ).rejects.toThrow(`${name} must be set explicitly`);
+    }
+  );
 });

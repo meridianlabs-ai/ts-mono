@@ -170,9 +170,18 @@ const EXECUTABLE_TYPES = new Set([
 // The hosts that deliver the policy (inspect_ai's _view/_csp.py, the VS Code
 // extension's webview-csp.ts) reject these; fail the build instead of them.
 const HOST_OWNED_DIRECTIVES = new Set(["frame-ancestors"]);
+// Hosts translate these by name (the VS Code extension adds its nonce to
+// script-src and blob: to worker-src), so a policy that relied on a fallback
+// to default-src or script-src would build and pass e2e, then break there.
+const REQUIRED_DIRECTIVES = ["default-src", "script-src", "worker-src"];
 const TOKEN = /^[\x21-\x7e]+$/;
 
 const validateDirectives = (directives) => {
+  for (const name of REQUIRED_DIRECTIVES) {
+    if (!(name in directives)) {
+      throw new Error(`contentSecurityPolicy: ${name} must be set explicitly`);
+    }
+  }
   for (const [name, sources] of Object.entries(directives)) {
     if (HOST_OWNED_DIRECTIVES.has(name.toLowerCase())) {
       throw new Error(`contentSecurityPolicy: ${name} is set by each host`);
