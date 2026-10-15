@@ -225,37 +225,60 @@ const moduleName = (id, root) => {
     : relative(root, id).replace(/\\/g, "/");
 };
 
+const evalSiteCount = (code) =>
+  [...code.matchAll(new RegExp(EVALS_CODE.source, "g"))].length;
+
 /**
  * Throw if an emitted script contains code a policy without `'unsafe-eval'`
- * would block. Chunks are checked module by module, so an `evalAllowedIn`
- * entry (a path inside node_modules, e.g. "arquero/src/expression/compile.js")
- * exempts just that module. Worker scripts are emitted as assets and are
- * always checked whole: the page can't see a worker's violations.
+ * would block. Each emitted chunk is checked whole, as minified, banners and
+ * all. An `evalAllowedIn` entry (a path inside node_modules, e.g.
+ * "arquero/src/expression/compile.js") lets that module's own eval sites
+ * through: a chunk passes only if it has no more sites than its allowed
+ * modules account for, and no other module has any. Worker scripts are
+ * emitted as assets and never exempted: the page can't see a worker's
+ * violations. An entry whose module no longer evaluates code fails too, so
+ * the list can't outlive what it was for.
  */
 const rejectEval = (bundle, evalAllowedIn, root) => {
   const offenders = [];
+  const usedAllowances = new Set();
   for (const output of Object.values(bundle)) {
     if (!output.fileName.endsWith(".js")) continue;
+    const code =
+      output.type === "chunk" ? output.code : sourceText(output.source);
+    const sites = evalSiteCount(code);
     const modules =
       output.type === "chunk"
         ? Object.entries(output.modules).filter(([, m]) => m.code !== null)
         : [];
-    if (modules.length === 0) {
-      const code =
-        output.type === "chunk" ? output.code : sourceText(output.source);
-      if (EVALS_CODE.test(code)) offenders.push(output.fileName);
-      continue;
-    }
+    let allowedSites = 0;
+    const disallowed = [];
     for (const [id, module] of modules) {
+      const moduleSites = evalSiteCount(module.code);
+      if (moduleSites === 0) continue;
       const name = moduleName(id, root);
-      if (EVALS_CODE.test(module.code) && !evalAllowedIn.includes(name)) {
-        offenders.push(`${output.fileName} (${name})`);
+      if (evalAllowedIn.includes(name)) {
+        allowedSites += moduleSites;
+        usedAllowances.add(name);
+      } else {
+        disallowed.push(`${output.fileName} (${name})`);
       }
+    }
+    if (disallowed.length > 0) {
+      offenders.push(...disallowed);
+    } else if (sites > allowedSites) {
+      offenders.push(output.fileName);
     }
   }
   if (offenders.length > 0) {
     throw new Error(
       `contentSecurityPolicy: script-src has no 'unsafe-eval', but these scripts evaluate code: ${offenders.join(", ")}`
+    );
+  }
+  const unused = evalAllowedIn.filter((name) => !usedAllowances.has(name));
+  if (unused.length > 0) {
+    throw new Error(
+      `contentSecurityPolicy: evalAllowedIn lists modules that no longer evaluate code: ${unused.join(", ")}`
     );
   }
 };
