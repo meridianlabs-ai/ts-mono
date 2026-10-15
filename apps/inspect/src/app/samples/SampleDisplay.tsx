@@ -72,6 +72,7 @@ import {
   useCopyToClipboard,
   useElementHeight,
   useEventListener,
+  useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
@@ -267,12 +268,9 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearSampleTab();
-    };
-  }, [clearSampleTab]);
+  useUnmount(() => {
+    clearSampleTab();
+  });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;

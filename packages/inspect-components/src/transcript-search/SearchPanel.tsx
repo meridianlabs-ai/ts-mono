@@ -24,6 +24,7 @@ import {
   SegmentedControl,
   SidebarHeader,
 } from "@tsmono/react/components";
+import { useInterval } from "@tsmono/react/hooks";
 import { baseApplicationIcons } from "@tsmono/react/icons";
 import {
   ApiError,
@@ -614,13 +615,9 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   const [start] = useState(() => performance.now());
   const [elapsed, setElapsed] = useState(0);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsed(Math.floor((performance.now() - start) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [start]);
+  useInterval(() => {
+    setElapsed(Math.floor((performance.now() - start) / 1000));
+  }, 1000);
 
   const message =
     searchType === "grep"

@@ -94,11 +94,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/log-view/tabs/timeline/TimelineChart.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/tabs/timeline/timelineData.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 2
@@ -252,7 +247,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 5
+      "count": 4
     }
   },
   "apps/inspect/src/app/samples/SampleSummaryView.tsx": {
@@ -304,16 +299,12 @@
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/incompatible-library": {
       "count": 1,
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/inspect/src/app/shared/data-grid/findMatches.ts": {
@@ -565,7 +556,7 @@
       "undescribed": 2
     },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/inspect/src/state/logSlice.ts": {
@@ -816,17 +807,12 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/timeline/components/TimelineEventsView.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/transcript/TranscriptBody.tsx": {
     "react-hooks/refs": {
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/transcripts/columns.tsx": {
@@ -1094,7 +1080,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript-search/useSearchQueries.ts": {
