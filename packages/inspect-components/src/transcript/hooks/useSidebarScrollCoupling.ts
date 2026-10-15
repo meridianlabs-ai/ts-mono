@@ -42,7 +42,6 @@ export function useSidebarScrollCoupling(
   const { mainScrollRef, sidebars } = options;
 
   // Mirror the latest targets so wheel handlers read current sticky offsets.
-  // Declared before the effects below so the mirror updates first in a flush.
   const sidebarsRef = useLatestRef(sidebars);
 
   // Value-stable re-attachment signal: changes only when a sidebar's remount
