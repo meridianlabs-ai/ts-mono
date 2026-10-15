@@ -64,4 +64,28 @@ describe("expandResultsetRows", () => {
       { identifier: "r-1", label: "alpha", answer: "yes", value: true },
     ]);
   });
+
+  it("keeps result columns when the first resultset is empty", async () => {
+    const expanded = await expandResultsetRows(
+      table({
+        uuid: ["scan-1", "scan-2"],
+        value_type: ["resultset", "resultset"],
+        value: [
+          "[]",
+          JSON.stringify([{ uuid: "r-1", label: "alpha", answer: "yes" }]),
+        ],
+      })
+    );
+
+    expect(
+      rowRecords(expanded).map(({ identifier, label, answer }) => ({
+        identifier,
+        label,
+        answer,
+      }))
+    ).toEqual([
+      { identifier: "scan-1", label: undefined, answer: undefined },
+      { identifier: "r-1", label: "alpha", answer: "yes" },
+    ]);
+  });
 });

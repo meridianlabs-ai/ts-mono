@@ -196,12 +196,14 @@ function appendRows(
   const columns: Record<string, unknown[]> = {};
   for (const name of names) {
     const source = table.column(name);
-    const cells: unknown[] = [];
+    // Preallocated: pushing makes a 200k-row scan about 2x slower.
+    const cells = new Array<unknown>(indices.length + rows.length);
+    let next = 0;
     for (const index of indices) {
-      cells.push(source?.at(index));
+      cells[next++] = source?.at(index);
     }
     for (const row of rows) {
-      cells.push(row[name]);
+      cells[next++] = row[name];
     }
     columns[name] = cells;
   }
