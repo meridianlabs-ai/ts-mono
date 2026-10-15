@@ -6,32 +6,30 @@ import {
   testEvalScore,
   testEvalSpec,
   testEvalStats,
+  testModelUsage,
 } from "@tsmono/inspect-common/testing";
 
-import { testSampleSummary } from "../api/testClientApi";
+import { testLogHeader, testSampleSummary } from "../api/testClientApi";
 import { LogHeader, SampleSummary } from "../api/types";
 
 import { deriveLogFields, deriveSampleFields } from "./derive";
 
-const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader => ({
-  version: 1,
-  status: "success",
-  eval: testEvalSpec({
-    eval_id: "eval-1",
-    run_id: "run-1",
-    created: "2024-01-01T00:00:00Z",
-    task: "test-task",
-    task_id: "task-1",
-    model: "gpt-4",
-  }),
-  results: null,
-  stats: undefined,
-  error: null,
-  sampleCount: 0,
-  sampleErrorCount: 0,
-  sampleLimits: [],
-  ...overrides,
-});
+const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader =>
+  testLogHeader({
+    version: 1,
+    status: "success",
+    eval: testEvalSpec({
+      eval_id: "eval-1",
+      run_id: "run-1",
+      created: "2024-01-01T00:00:00Z",
+      task: "test-task",
+      task_id: "task-1",
+      model: "gpt-4",
+    }),
+    results: null,
+    error: null,
+    ...overrides,
+  });
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
   testSampleSummary({
@@ -49,16 +47,16 @@ describe("deriveLogFields", () => {
         started_at: "2024-01-01T00:00:00Z",
         completed_at: "2024-01-01T01:00:00Z",
         model_usage: {
-          "openai/gpt-4": {
+          "openai/gpt-4": testModelUsage({
             input_tokens: 10,
             output_tokens: 5,
             total_tokens: 15,
-          },
-          "anthropic/claude": {
+          }),
+          "anthropic/claude": testModelUsage({
             input_tokens: 20,
             output_tokens: 10,
             total_tokens: 30,
-          },
+          }),
         },
       }),
     });
@@ -139,12 +137,8 @@ describe("deriveLogFields", () => {
   });
 });
 
-const priced = (total_tokens: number, total_cost: number) => ({
-  input_tokens: total_tokens,
-  output_tokens: 0,
-  total_tokens,
-  total_cost,
-});
+const priced = (total_tokens: number, total_cost: number) =>
+  testModelUsage({ input_tokens: total_tokens, total_tokens, total_cost });
 
 describe("deriveSampleFields", () => {
   test("derives text, tokens, fallbacks, and scores", () => {
@@ -152,11 +146,11 @@ describe("deriveSampleFields", () => {
       input: "what is 2+2?",
       target: ["4", "four"],
       model_usage: {
-        "openai/gpt-4": {
+        "openai/gpt-4": testModelUsage({
           input_tokens: 10,
           output_tokens: 5,
           total_tokens: 15,
-        },
+        }),
       },
       model_fallbacks: [{ model: "a", fallback_model: "b", count: 2 }],
       scores: {
@@ -204,11 +198,11 @@ describe("deriveSampleFields", () => {
       makeSummary({
         model_usage: {
           "openai/gpt-4": priced(15, 0.5),
-          "mockllm/model": {
+          "mockllm/model": testModelUsage({
             input_tokens: 10,
             output_tokens: 5,
             total_tokens: 15,
-          },
+          }),
         },
       })
     );

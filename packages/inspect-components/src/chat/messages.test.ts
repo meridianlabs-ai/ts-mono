@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testSystemMessage,
+  testToolCall,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { resolveMessages } from "./messages";
@@ -9,33 +16,24 @@ import { resolveMessages } from "./messages";
 // =============================================================================
 
 const messagesWithTool: ChatMessage[] = [
-  {
-    role: "user",
-    content: "What is the weather?",
-    source: "input",
-  },
-  {
+  testUserMessage({ content: "What is the weather?" }),
+  testAssistantMessage({
     id: "asst-1",
-    role: "assistant",
     content: "Let me check.",
-    source: "generate",
     tool_calls: [
-      {
+      testToolCall({
         id: "call-1",
-        type: "function",
         function: "get_weather",
         arguments: { location: "NYC" },
-      },
+      }),
     ],
-  },
-  {
+  }),
+  testToolMessage({
     id: "tool-1",
-    role: "tool",
     content: "72F and sunny",
-    source: "generate",
     tool_call_id: "call-1",
     function: "get_weather",
-  },
+  }),
 ];
 
 // =============================================================================
@@ -72,8 +70,8 @@ describe("resolveMessages", () => {
 
   it("assigns stable ids to messages without ids", () => {
     const noIdMessages: ChatMessage[] = [
-      { role: "user", content: "Hello", source: "input" },
-      { role: "assistant", content: "Hi", source: "generate" },
+      testUserMessage({ content: "Hello" }),
+      testAssistantMessage({ content: "Hi" }),
     ];
 
     const resolved = resolveMessages(noIdMessages);
@@ -83,42 +81,26 @@ describe("resolveMessages", () => {
 
   it("handles multiple tool calls from one assistant message", () => {
     const multiToolMessages: ChatMessage[] = [
-      {
+      testAssistantMessage({
         id: "asst-multi",
-        role: "assistant",
         content: "Checking two things.",
-        source: "generate",
         tool_calls: [
-          {
-            id: "call-a",
-            type: "function",
-            function: "fn_a",
-            arguments: {},
-          },
-          {
-            id: "call-b",
-            type: "function",
-            function: "fn_b",
-            arguments: {},
-          },
+          testToolCall({ id: "call-a", function: "fn_a" }),
+          testToolCall({ id: "call-b", function: "fn_b" }),
         ],
-      },
-      {
+      }),
+      testToolMessage({
         id: "tool-a",
-        role: "tool",
         content: "result a",
-        source: "generate",
         tool_call_id: "call-a",
         function: "fn_a",
-      },
-      {
+      }),
+      testToolMessage({
         id: "tool-b",
-        role: "tool",
         content: "result b",
-        source: "generate",
         tool_call_id: "call-b",
         function: "fn_b",
-      },
+      }),
     ];
 
     const resolved = resolveMessages(multiToolMessages);
@@ -128,10 +110,10 @@ describe("resolveMessages", () => {
 
   it("collapses multiple system messages into one prepended entry", () => {
     const withSystem: ChatMessage[] = [
-      { role: "system", content: "You are helpful.", source: "input" },
-      { role: "system", content: "Be concise.", source: "input" },
-      { role: "user", content: "Hello", source: "input" },
-      { role: "assistant", content: "Hi", source: "generate" },
+      testSystemMessage({ content: "You are helpful." }),
+      testSystemMessage({ content: "Be concise." }),
+      testUserMessage({ content: "Hello" }),
+      testAssistantMessage({ content: "Hi" }),
     ];
 
     const resolved = resolveMessages(withSystem);

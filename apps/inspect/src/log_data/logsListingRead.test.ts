@@ -25,21 +25,23 @@ import {
   readLogsListingMatches,
   readLogsOverview,
 } from "./logsListingRead";
+import { testLogPreview } from "./testFixtures";
 
-const preview = (overrides: Partial<LogPreview>): LogPreview => ({
-  eval_id: "eval-1",
-  run_id: "run-1",
-  task: "test-task",
-  task_id: "task-1",
-  task_version: 1,
-  version: 1,
-  status: "success",
-  error: null,
-  model: "gpt-4",
-  started_at: "2024-01-01T00:00:00Z",
-  completed_at: "2024-01-01T01:00:00Z",
-  ...overrides,
-});
+const preview = (overrides: Partial<LogPreview>): LogPreview =>
+  testLogPreview({
+    eval_id: "eval-1",
+    run_id: "run-1",
+    task: "test-task",
+    task_id: "task-1",
+    task_version: 1,
+    version: 1,
+    status: "success",
+    error: null,
+    model: "gpt-4",
+    started_at: "2024-01-01T00:00:00Z",
+    completed_at: "2024-01-01T01:00:00Z",
+    ...overrides,
+  });
 
 const testLogRow = (name: string): Log => ({
   name,
