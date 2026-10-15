@@ -10,6 +10,9 @@ const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/;
 const MODULE_MOCK =
   /\bvi\.(?:mock|doMock|unmock|doUnmock|hoisted|resetModules|importMock)\(/;
 const NO_UNSAFE_EVAL_DIRECTIVE = /@no-unsafe-eval\b/;
+// The comments before a file's first statement, where the directive belongs:
+// a test that only mentions it in a string or a later comment isn't marked.
+const LEADING_COMMENTS = /^(?:\s*(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/))*/;
 
 // What a Content-Security-Policy without 'unsafe-eval' does in the browser:
 // eval and new Function throw EvalError.
@@ -24,7 +27,8 @@ const classify = (file, defaultEnvironment) => {
   const source = readFileSync(file, "utf8");
   const environment =
     ENVIRONMENT_DIRECTIVE.exec(source)?.[1] ?? defaultEnvironment;
-  if (NO_UNSAFE_EVAL_DIRECTIVE.test(source)) {
+  const header = LEADING_COMMENTS.exec(source)?.[0] ?? "";
+  if (NO_UNSAFE_EVAL_DIRECTIVE.test(header)) {
     // The DOM environments load modules by evaluating strings, so the flag
     // would fail the file before it runs a test.
     if (environment !== "node") {
