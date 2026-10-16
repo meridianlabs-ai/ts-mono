@@ -99,7 +99,7 @@ describe("SelectionContentTrustProvider", () => {
   });
 });
 
-describe("SelectionContentTrustProvider on a sample route", () => {
+describe("a sample route takes its log's trust", () => {
   it("is trusted when the sample's log is", async () => {
     renderAt(
       "/logs/trusted.eval/samples/sample/1/1",
