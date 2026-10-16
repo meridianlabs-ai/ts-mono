@@ -20,9 +20,8 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
 }) => {
   const { eventNodes, defaultCollapsedIds } = useEventNodes(events, false);
   // The preview renders inside the sample transcript's rail, and so inside
-  // its TranscriptHostProvider. Reset to the empty host so the preview rows
-  // stay inert (no copy-link or focus controls), as they were before the
-  // host existed.
+  // its TranscriptHostProvider; the empty host keeps the preview rows inert
+  // (no copy-link or focus controls).
   return (
     <TranscriptHostProvider host={kEmptyTranscriptHost}>
       <TranscriptViewNodes

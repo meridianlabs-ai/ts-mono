@@ -8,8 +8,9 @@
  *
  * Every field is optional and every consumer degrades when a field is absent
  * (no copy-link button, plain `<a>` outline links, no focus-mode control, no
- * chrome to collapse), so mounts without a host — previews, embedded cards,
- * scanner results — render without a provider.
+ * chrome to collapse), so a mount that needs none of it renders without a
+ * provider, and a mount nested inside another transcript's provider opts out
+ * with `kEmptyTranscriptHost`.
  */
 
 import { createContext, FC, ReactNode, useContext } from "react";

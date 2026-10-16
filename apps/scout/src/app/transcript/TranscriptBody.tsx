@@ -111,8 +111,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const { getFullMessageUrl } = useTranscriptNavigation();
-  // Deep-link URLs, router navigation and the page's chrome headroom for the
-  // Events tab's transcript, provided once around it.
   const transcriptHost = useScoutTranscriptHost({
     scrollRef,
     onHeadroomSetHidden,
