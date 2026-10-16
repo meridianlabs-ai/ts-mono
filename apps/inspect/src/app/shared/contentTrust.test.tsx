@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { FC, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -30,10 +30,14 @@ const logs: Record<string, LogDetails> = {
   }),
 };
 
+const requested: string[] = [];
+
 beforeEach(() => {
+  requested.length = 0;
   startTestApp({
     api: testClientAPI({
       get_log_details: (file) => {
+        requested.push(file);
         const details = logs[file];
         return details ? Promise.resolve(details) : new Promise(() => {});
       },
@@ -81,8 +85,9 @@ describe("SelectionContentTrustProvider", () => {
     expect(trust()).toBe("untrusted settled");
   });
 
-  it("is untrusted while the selected log's header loads", () => {
+  it("is untrusted while the selected log's header loads", async () => {
     renderAt("/logs/loading.eval", SelectionContentTrustProvider);
+    await waitFor(() => expect(requested).toContain("/logs/loading.eval"));
     expect(trust()).toBe("untrusted loading");
   });
 
@@ -119,11 +124,12 @@ describe("SelectedSampleContentTrustProvider", () => {
     expect(await settled("untrusted settled")).toBeInTheDocument();
   });
 
-  it("is untrusted while the selected sample's log header loads", () => {
+  it("is untrusted while the selected sample's log header loads", async () => {
     renderAt(
       "/logs/loading.eval/samples/sample/1/1",
       SelectedSampleContentTrustProvider
     );
+    await waitFor(() => expect(requested).toContain("/logs/loading.eval"));
     expect(trust()).toBe("untrusted loading");
   });
 });

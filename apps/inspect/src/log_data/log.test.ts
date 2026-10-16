@@ -185,9 +185,9 @@ describe("useLogHeader", () => {
     rerender();
     rerender();
     details.resolve(makeDetails(LOG_FILE));
-    // The landing takes far longer than any re-demand would to reach the
-    // engine, so counting after it sees them all.
     await waitFor(() => expect(result.current.data).toBeDefined());
+    // And after landing: a re-demand on any render would be another ensure.
+    rerender();
     expect(ensure).toHaveBeenCalledTimes(1);
     expect(ensure.mock.calls[0]?.[0]).toBe(LOG_FILE);
     expect(getLogDetails).toHaveBeenCalledTimes(1);

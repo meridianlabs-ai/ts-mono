@@ -185,6 +185,7 @@ describe("fetch engine activation lifecycle", () => {
       syncLogs,
       configFor,
       holdNextOpen,
+      open,
       start,
     } = await load();
     const releaseA = holdNextOpen();
@@ -194,7 +195,8 @@ describe("fetch engine activation lifecycle", () => {
     activateFetchEngine(configFor("dirB"));
     releaseA();
     await expect(syncLogs("dirB")).resolves.toEqual([]);
-    // Let dirA's released continuation fully settle before asserting.
+    // Wait out dirA's held open (the first), then its resumed start.
+    await open.mock.results[0]?.value;
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(start).toHaveBeenCalledTimes(1);
