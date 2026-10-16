@@ -1,7 +1,7 @@
 import type { ModelFallback } from "../types";
 
 /**
- * Total generate calls served via fallback across a sample's rollup.
+ * Total requests served via fallback across a sample's rollup.
  */
 export const totalModelFallbacks = (
   fallbacks?: ModelFallback[] | null
