@@ -1,11 +1,12 @@
 import clsx from "clsx";
-import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FC, KeyboardEvent, useMemo, useRef, useState } from "react";
 
 import { TagsEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
 import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
+import { useUserInfo } from "../../server/useUserInfo";
 
 import { ChangeSummary } from "./ChangeSummary";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
@@ -33,7 +34,10 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
 
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");
-  const [author, setAuthor] = useState("");
+  // Undefined until the user types, so the server identity fills the field.
+  const [authorEdit, setAuthorEdit] = useState<string | undefined>();
+  const userInfo = useUserInfo(showing);
+  const author = authorEdit ?? userInfo.data?.name ?? "";
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -47,37 +51,12 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     if (showing) {
       setTags(currentTags);
       setPending("");
-      setAuthor("");
+      setAuthorEdit(undefined);
       setReason("");
       setError(undefined);
       setSubmitting(false);
     }
   }
-
-  // On open, fetch the server-side identity (git user.name → OS login)
-  // so the user doesn't have to retype themselves for every edit. The
-  // fetch is best-effort — a missing endpoint or empty result simply
-  // leaves the field blank.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!showing) return;
-    let cancelled = false;
-    if (api.get_user_info) {
-      api
-        .get_user_info()
-        .then((info) => {
-          if (!cancelled && info.name) {
-            setAuthor((current) => current || info.name || "");
-          }
-        })
-        .catch(() => {
-          /* ignore — author stays blank, user can fill in manually */
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [showing, currentTags, api]);
 
   const initialSet = useMemo(() => new Set(currentTags), [currentTags]);
   const currentSet = useMemo(() => new Set(tags), [tags]);
@@ -267,7 +246,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
 
         <ProvenanceFields
           author={author}
-          setAuthor={setAuthor}
+          setAuthor={setAuthorEdit}
           reason={reason}
           setReason={setReason}
           disabled={submitting}

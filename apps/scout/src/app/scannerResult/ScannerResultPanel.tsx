@@ -14,11 +14,11 @@ import {
   ToolButton,
 } from "@tsmono/react/components";
 import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 
 import { ApplicationIcons } from "../../icons";
 import {
   getValidationParam,
-  openRouteInNewTab,
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";

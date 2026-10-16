@@ -25,10 +25,10 @@ import {
   ColumnFilterControl,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../../icons";
-import { openRouteInNewTab } from "../../../router/url";
 import type { FilterType } from "../../../state/store";
 import { columnAccessorKey } from "../columnSizing/types";
 import {

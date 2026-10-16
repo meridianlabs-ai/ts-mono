@@ -35,9 +35,9 @@ import {
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
+import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isRecord, isVscode } from "@tsmono/util";
 
-import { openHrefInNewTab } from "../openInNewTab";
 import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";

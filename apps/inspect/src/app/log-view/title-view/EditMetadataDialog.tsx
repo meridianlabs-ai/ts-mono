@@ -15,6 +15,7 @@ import { Modal } from "@tsmono/react/components";
 
 import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
+import { useUserInfo } from "../../server/useUserInfo";
 
 import { AutogrowText } from "./AutogrowText";
 import { ChangeSummary } from "./ChangeSummary";
@@ -184,7 +185,10 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [removed, setRemoved] = useState<string[]>([]);
   const [newKey, setNewKey] = useState("");
   const [newType, setNewType] = useState<NewType>("string");
-  const [author, setAuthor] = useState("");
+  // Undefined until the user types, so the server identity fills the field.
+  const [authorEdit, setAuthorEdit] = useState<string | undefined>();
+  const userInfo = useUserInfo(showing);
+  const author = authorEdit ?? userInfo.data?.name ?? "";
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -208,35 +212,12 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       setRemoved([]);
       setNewKey("");
       setNewType("string");
-      setAuthor("");
+      setAuthorEdit(undefined);
       setReason("");
       setSubmitting(false);
       setError(undefined);
     }
   }
-
-  // On open, prefill Author from the server's best-effort identity (git
-  // user.name → OS login). Same pattern as EditTagsDialog.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!showing) return;
-    let cancelled = false;
-    if (api.get_user_info) {
-      api
-        .get_user_info()
-        .then((info) => {
-          if (!cancelled && info.name) {
-            setAuthor((current) => current || info.name || "");
-          }
-        })
-        .catch(() => {
-          /* author stays blank — user can fill in manually */
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [showing, initialEntries, api]);
 
   const existingKeys = useMemo(
     () => new Set(entries.map((e) => e.key)),
@@ -513,7 +494,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
 
         <ProvenanceFields
           author={author}
-          setAuthor={setAuthor}
+          setAuthor={setAuthorEdit}
           reason={reason}
           setReason={setReason}
           disabled={submitting}
