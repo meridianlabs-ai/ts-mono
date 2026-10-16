@@ -54,7 +54,7 @@ describe("acquireDatabase", () => {
     expect(currentDatabase()).toBe(db);
   });
 
-  test("releasing during an open waits for it, so it never installs itself", async () => {
+  test("releasing during an open waits for it and leaves no handle installed", async () => {
     const { acquireDatabase, currentDatabase, releaseDatabase } = await load();
 
     const inFlight = acquireDatabase();
