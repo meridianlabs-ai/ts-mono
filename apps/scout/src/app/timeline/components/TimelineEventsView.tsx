@@ -1,4 +1,4 @@
-import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { FC, RefObject, useCallback, useMemo, useRef } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import {
@@ -13,7 +13,7 @@ import {
   type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty, useUnmount } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
@@ -211,12 +211,9 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   );
 
   // Clean up outline ID on unmount
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearTranscriptOutlineId();
-    };
-  }, [clearTranscriptOutlineId]);
+  useUnmount(() => {
+    clearTranscriptOutlineId();
+  });
 
   // ---------------------------------------------------------------------------
   // Outline navigation

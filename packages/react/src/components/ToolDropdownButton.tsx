@@ -4,12 +4,13 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { useEventListener } from "../hooks/useEventListener";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./ToolDropdownButton.module.css";
@@ -92,26 +93,20 @@ export const ToolDropdownButton = forwardRef<
     }, [isOpen, computePosition]);
 
     // Re-compute on resize/scroll so the menu stays anchored to the button.
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (!isOpen) return;
-      const handler = () => computePosition();
-      window.addEventListener("resize", handler);
-      window.addEventListener("scroll", handler, true);
-      return () => {
-        window.removeEventListener("resize", handler);
-        window.removeEventListener("scroll", handler, true);
-      };
-    }, [isOpen, computePosition]);
+    const repositionTarget = isOpen ? window : null;
+    useEventListener(repositionTarget, "resize", () => computePosition());
+    useEventListener(repositionTarget, "scroll", () => computePosition(), {
+      capture: true,
+    });
 
     // The menu is portaled, so "is focus inside the menu" has to be asked of
     // the menu node itself rather than a wrapper around the trigger.
     const menuRef = useRef<HTMLDivElement | null>(null);
 
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (!isOpen) return;
-      const handleKeyDown = (e: KeyboardEvent) => {
+    useEventListener(
+      isOpen ? document : null,
+      "keydown",
+      (e) => {
         if (e.key !== "Escape") return;
         // This Escape closes the menu and nothing else: stop it here (the
         // capture-phase registration below runs first) so an enclosing
@@ -124,10 +119,9 @@ export const ToolDropdownButton = forwardRef<
           menuRef.current?.contains(document.activeElement) ?? false;
         setIsOpen(false);
         if (refocus) buttonRef.current?.focus();
-      };
-      document.addEventListener("keydown", handleKeyDown, true);
-      return () => document.removeEventListener("keydown", handleKeyDown, true);
-    }, [isOpen]);
+      },
+      { capture: true }
+    );
 
     const handleItemClick = (fn: () => void) => {
       fn();

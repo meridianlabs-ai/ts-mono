@@ -1,3 +1,4 @@
+import type { NetworkFixture } from "@msw/playwright";
 import { from } from "arquero";
 import { http, HttpResponse } from "msw";
 
@@ -8,10 +9,9 @@ import type { Status } from "../src/types/api-types";
 import { expect, test } from "./fixtures/app";
 import { createStatus } from "./fixtures/test-data";
 
-test("scanner dataframe loads Arrow data, updates its footer, and opens the right result", async ({
-  page,
-  network,
-}) => {
+const SCAN_URL = `/#/scan/${encodeBase64Url("/home/test/project/.scans")}/scan_id=aBcDeFgHiJkLmNoPqRsTuV?scanner=regression`;
+
+function mockRegressionScan(network: NetworkFixture): void {
   const rows = from([
     {
       uuid: "result-a",
@@ -55,10 +55,14 @@ test("scanner dataframe loads Arrow data, updates its footer, and opens the righ
       HttpResponse.arrayBuffer(Uint8Array.from(rows.toArrowIPC()).buffer)
     )
   );
-  const dir = encodeBase64Url("/home/test/project/.scans");
-  await page.goto(
-    `/#/scan/${dir}/scan_id=aBcDeFgHiJkLmNoPqRsTuV?scanner=regression`
-  );
+}
+
+test("scanner dataframe loads Arrow data, updates its footer, and opens the right result", async ({
+  page,
+  network,
+}) => {
+  mockRegressionScan(network);
+  await page.goto(SCAN_URL);
   await page.getByRole("button", { name: /dataframe/ }).click();
   const grid = page.getByRole("grid", { name: "Scanner results" });
   await expect(
@@ -88,4 +92,22 @@ test("scanner dataframe loads Arrow data, updates its footer, and opens the righ
     .getByRole("gridcell", { name: "transcript-b", exact: true })
     .dblclick();
   await expect(page).toHaveURL(/\/result-b\?/);
+});
+
+test("Cmd/Ctrl+Enter in the scanner results list opens the result in a new tab", async ({
+  page,
+  network,
+}) => {
+  mockRegressionScan(network);
+  await page.goto(SCAN_URL);
+  await expect(page.getByText("first result")).toBeVisible();
+
+  const newTab = page.context().waitForEvent("page");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  const opened = await newTab;
+
+  expect(opened.url()).toMatch(
+    /#\/scan\/[^/]+\/scan_id=aBcDeFgHiJkLmNoPqRsTuV\/result-a/
+  );
+  await opened.close();
 });

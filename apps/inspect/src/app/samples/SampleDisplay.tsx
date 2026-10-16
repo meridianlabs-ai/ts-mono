@@ -71,8 +71,11 @@ import {
   useChromeNavOwnership,
   useCopyToClipboard,
   useElementHeight,
+  useEventListener,
+  useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
@@ -116,8 +119,6 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { SelectedSampleContentTrustProvider } from "../shared/contentTrust";
-import { openInNewTab } from "../shared/openInNewTab";
 import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
@@ -164,13 +165,7 @@ const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
 /**
  * Component to display a sample with relevant context and visibility control.
  */
-export const SampleDisplay: FC<SampleDisplayProps> = (props) => (
-  <SelectedSampleContentTrustProvider>
-    <SampleDisplayContent {...props} />
-  </SelectedSampleContentTrustProvider>
-);
-
-const SampleDisplayContent: FC<SampleDisplayProps> = ({
+export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
@@ -266,12 +261,9 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearSampleTab();
-    };
-  }, [clearSampleTab]);
+  useUnmount(() => {
+    clearSampleTab();
+  });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
@@ -444,7 +436,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
             )
           : undefined
       );
-      openInNewTab(printUrl);
+      openRouteInNewTab(printUrl);
     }
   }, [
     printLogPath,
@@ -459,23 +451,20 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
   ]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isVscode() || !printLogPath || !printSampleId || !printEpoch) return;
-
-    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+  const printShortcutEnabled =
+    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
+  useEventListener(
+    printShortcutEnabled ? document : null,
+    "keydown",
+    (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
         e.preventDefault();
         e.stopPropagation();
         handlePrintClick();
       }
-    };
-
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [handlePrintClick, printLogPath, printSampleId, printEpoch]);
+    },
+    { capture: true }
+  );
 
   const toggleFilter = useCallback(() => {
     setShowing(!isShowing);
@@ -528,7 +517,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
       sampleEpoch
     );
     if (event.metaKey || event.ctrlKey || event.shiftKey) {
-      openInNewTab(`#${url}`);
+      openRouteInNewTab(url);
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);

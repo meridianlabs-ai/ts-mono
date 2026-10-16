@@ -1,7 +1,6 @@
 # Viewer domain concerns & ownership
 
-The ownership map for the inspect viewer's startup/data layer. For historical startup context see the
-archived, partially-superseded [replication-startup-modes.md](../../../design/migration/archive/replication-startup-modes.md).
+The ownership map for the inspect viewer's startup/data layer.
 
 The map has three kinds of entries, and they are not interchangeable:
 
@@ -39,18 +38,17 @@ instance is bound to one dir at construction (the `ClientAPI` contract), so a
 dir change rebuilds the config — new instance, new dir, published together —
 rather than mutating either in place.
 
-**Surface** — `app_config/useAppConfig.ts` (`useAppConfig`, `AppConfigGate`,
-`useApi` passthrough), `app_config/LogLocationGate.tsx` (mounted above the
+**Surface** — `app_config/hooks.ts` (`useAppConfig`, `useAppConfigAsync`, and
+`getApi`, an asserting non-React accessor for the api), `app_config/AppConfigGate.tsx`, `app_config/LogLocationGate.tsx` (mounted above the
 config gate: refuses a link-named location on another origin, which the
 viewer's CSP would block anyway, #615), `resolveRouteLogFile` (route names are
 untrusted input; browser-direct backends keep them inside the resolved dir),
-`app_config/useLogDir.ts` (logDir accessors over the config cache entry; the
+`useLogDir` / `useAbsLogDir` in `app_config/hooks.ts` (logDir accessors over the config cache entry; the
 one post-resolution mutation is embedded VS Code live-nav via `setLogRoot`),
 and the sanctioned non-React escape hatches on
 `app_config/appConfig.ts` (`getAppConfig` asserting, `peekAppConfig` non-asserting).
-Priority order for reading config: `useAppConfig` (or a passthrough like
-`useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig` /
-`peekAppConfig`.
+Priority order for reading config: `useAppConfig` → `useAppConfigAsync` →
+`resolveAppConfig` → `getAppConfig` / `getApi` / `peekAppConfig`.
 
 **Interior** (sole consumer: config resolution):
 
@@ -232,7 +230,7 @@ and pre-resolution state. Nothing else is exempt.
 Arrows point at what a layer is allowed to know.
 
 ```
-Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
+Components / handlers ──→ hooks only (useAppConfig/useLogDir/useEvalSet/
        │                  useCurrentLogFile/useDatabaseStats/useStore)
        │                  zustand (UI-state leaf) lives here; knows nothing below
        ▼

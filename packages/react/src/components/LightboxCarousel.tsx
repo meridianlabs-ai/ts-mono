@@ -1,7 +1,7 @@
 import clsx from "clsx";
-import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
+import { FC, MouseEvent, ReactNode, useCallback } from "react";
 
-import { useProperty, useTimeout } from "../hooks";
+import { useEventListener, useProperty, useTimeout } from "../hooks";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
@@ -61,10 +61,10 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [setCurrentIndex, currentIndex, slides.length]);
 
   // Keyboard Navigation
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyUp = (e: KeyboardEvent) => {
+  useEventListener(
+    isOpen ? window : null,
+    "keyup",
+    (e) => {
       if (e.key === "Escape") {
         closeLightbox();
       } else if (e.key === "ArrowRight") {
@@ -74,10 +74,9 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       }
       e.preventDefault();
       e.stopPropagation();
-    };
-    window.addEventListener("keyup", handleKeyUp, true);
-    return () => window.removeEventListener("keyup", handleKeyUp, true);
-  }, [closeLightbox, isOpen, showNext, showPrev]);
+    },
+    { capture: true }
+  );
 
   const handleThumbClick = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {

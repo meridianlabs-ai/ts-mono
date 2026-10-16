@@ -4,8 +4,7 @@ import { Log, SampleDerived, SampleSummary } from "../api/types";
 import { DERIVE_VERSION } from "../utils/derive";
 
 // Logs Table — THE Log entity row: identity + attribute columns at
-// progressive depth + retrieval facts (see
-// design/migration/log-data-summaries-entity.md, phase 3). `id` preserves
+// progressive depth + retrieval facts. `id` preserves
 // insertion order for listings without mtimes.
 export interface LogRecord extends Omit<Log, "name"> {
   // Auto-incrementing primary key for insertion order

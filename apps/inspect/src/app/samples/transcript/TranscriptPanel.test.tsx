@@ -8,12 +8,13 @@
 // navigation (markers, outline links) must still use the bare hash route.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { MemoryRouter, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isHostedEnvironment } from "@tsmono/util";
 
-import type { StoreState } from "../../../state/store";
+import { testClientAPI } from "../../../client/api/testClientApi";
+import { startTestApp, stopTestApp, TestApp } from "../../../test/testApp";
 
 import { TranscriptPanel } from "./TranscriptPanel";
 
@@ -25,45 +26,16 @@ const kHostPage = `${window.location.origin}${window.location.pathname}${window.
 const kSampleRoute = "/logs/dir/file.eval/samples/sample/s1/1/transcript";
 const kEventRoute = `${kSampleRoute}?event=event-1`;
 
-vi.mock("../../../state/store", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../state/store")>();
-  const { testStoreState } = await import("../../../state/testStore");
-  const base = testStoreState();
-  const state: StoreState = {
-    ...base,
-    sample: {
-      ...base.sample,
-      eventFilter: { filteredTypes: [] },
-      timelineSelected: null,
-      activeTimelineIndex: 0,
-      collapsedEvents: null,
-      collapsedMode: null,
-      selectedOutlineId: undefined,
-    },
-    app: { ...base.app, propertyBags: {} },
-    log: { ...base.log, highlightedSample: undefined },
-  };
-  return {
-    ...actual,
-    useStore: (selector: (s: StoreState) => unknown) => selector(state),
-  };
-});
-
+// The hosted check reads `location.hostname`, which a jsdom test file can't
+// change between tests; stub it to cover both sides.
 vi.mock("@tsmono/util", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tsmono/util")>();
   return { ...actual, isHostedEnvironment: vi.fn(() => true) };
 });
 
-// TranscriptPanel calls `useLogDir()` (→ app config → react-query) only to
-// build a fallback log path; the sample route here already carries one, so the
-// value is unused. Stub it so rendering doesn't require a QueryClientProvider.
-vi.mock("../../../app_config", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../app_config")>();
-  return { ...actual, useLogDir: () => "dir" };
-});
-
-// Stub the layout with a probe that exercises the three link paths exactly
-// the way the real shared components do: `getEventUrl` feeds the copy button
+// Stub the layout with a probe (the real one is a virtualized list, which
+// renders no rows without layout in jsdom) that exercises the three link
+// paths exactly the way the real shared components do: `getEventUrl` feeds the copy button
 // verbatim (gated on `linkingEnabled`), the outline renders
 // `renderLink(getEventUrl(id), ...)` ungated, and markers call
 // `onMarkerNavigate(id)`.
@@ -107,7 +79,7 @@ const LocationProbe = () => {
 
 const renderPanel = () =>
   render(
-    <MemoryRouter initialEntries={[kSampleRoute]}>
+    <TestApp path={kSampleRoute}>
       <TranscriptPanel
         selectionKey="test-visit"
         id="test-transcript"
@@ -115,15 +87,22 @@ const renderPanel = () =>
         events={[]}
       />
       <LocationProbe />
-    </MemoryRouter>
+    </TestApp>
   );
 
 describe("TranscriptPanel linking", () => {
   beforeEach(() => {
     vi.mocked(isHostedEnvironment).mockReturnValue(true);
+    // The sample's log never loads: the links are built from the route.
+    startTestApp({
+      api: testClientAPI({ get_log_details: () => new Promise(() => {}) }),
+    });
   });
 
-  afterEach(() => cleanup());
+  afterEach(async () => {
+    cleanup();
+    await stopTestApp();
+  });
 
   it("hands the copy button an absolute URL including the host page prefix", () => {
     renderPanel();
@@ -153,8 +132,3 @@ describe("TranscriptPanel linking", () => {
     expect(screen.getByRole("link").getAttribute("href")).toBe(kEventRoute);
   });
 });
-
-vi.mock("../../routing/currentSelection", () => ({
-  useCurrentLogFile: () => undefined,
-  useCurrentSampleHandle: () => undefined,
-}));

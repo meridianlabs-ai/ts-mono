@@ -1,35 +1,26 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { ComponentProps, createRef, ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { ComponentProps, createRef } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
 import { testErrorEvent } from "@tsmono/inspect-common/testing";
+import { ResizeObserverStub } from "@tsmono/react/testing";
+
+import {
+  ComponentProviders,
+  startTestApp,
+  stopTestApp,
+} from "../../../test/testApp";
 
 import { RetryAttemptCard } from "./RetryAttemptCard";
 
-// TranscriptLayout pulls in the full transcript stack; stub it so this test
-// exercises only the card's own structure.
+// TranscriptLayout is a virtualized list, which renders no rows without
+// layout in jsdom; stub it with a marker so this test can see which view the
+// card shows.
 vi.mock("@tsmono/inspect-components/transcript", () => ({
   TranscriptLayout: () => <div data-testid="transcript-layout" />,
 }));
-
-vi.mock("@tsmono/react/components", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@tsmono/react/components")>();
-  return {
-    ...actual,
-    // ANSIDisplay needs an icon-provider context, and ExpandablePanel needs the
-    // component-state provider — neither is present in jsdom. Stub both so the
-    // card's own logic is what's under test.
-    ANSIDisplay: ({ output }: { output: string }) => (
-      <pre data-testid="ansi-display">{output}</pre>
-    ),
-    ExpandablePanel: ({ children }: { children: ReactNode }) => (
-      <div data-testid="expandable-panel">{children}</div>
-    ),
-  };
-});
 
 const baseRetry: EvalRetryError = {
   message: "Simulated failure for sample rec0Arme2jcXQZnAW",
@@ -48,20 +39,31 @@ function renderCard(
 ) {
   const scrollRef = createRef<HTMLDivElement>();
   return render(
-    <RetryAttemptCard
-      retry={baseRetry}
-      attemptNumber={1}
-      isOpen={true}
-      onToggleOpen={() => {}}
-      listId="test-list-0"
-      scrollRef={scrollRef}
-      {...props}
-    />
+    <ComponentProviders>
+      <RetryAttemptCard
+        retry={baseRetry}
+        attemptNumber={1}
+        isOpen={true}
+        onToggleOpen={() => {}}
+        listId="test-list-0"
+        scrollRef={scrollRef}
+        {...props}
+      />
+    </ComponentProviders>
   );
 }
 
 describe("RetryAttemptCard", () => {
-  afterEach(() => cleanup());
+  beforeEach(() => {
+    // jsdom has no ResizeObserver; the expandable traceback panel measures.
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    startTestApp();
+  });
+  afterEach(async () => {
+    cleanup();
+    await stopTestApp();
+    vi.unstubAllGlobals();
+  });
 
   it("renders the attempt number and derived error-type chip", () => {
     renderCard();
@@ -71,7 +73,7 @@ describe("RetryAttemptCard", () => {
 
   it("shows the traceback (and no toggle) when expanded with no events", () => {
     renderCard();
-    expect(screen.getByTestId("ansi-display")).toBeDefined();
+    expect(screen.getByText("RuntimeError: Simulated failure")).toBeDefined();
     expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
   });
 
@@ -83,12 +85,12 @@ describe("RetryAttemptCard", () => {
 
   it("defaults to the error view and switches to events on toggle", () => {
     renderCard({ retry: withEvents() });
-    expect(screen.getByTestId("ansi-display")).toBeDefined();
+    expect(screen.getByText("RuntimeError: Simulated failure")).toBeDefined();
     expect(screen.queryByTestId("transcript-layout")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
-    expect(screen.queryByTestId("ansi-display")).toBeNull();
+    expect(screen.queryByText("RuntimeError: Simulated failure")).toBeNull();
   });
 
   it("toggling the view does not collapse the card", () => {
@@ -108,7 +110,7 @@ describe("RetryAttemptCard", () => {
   it("hides the body and toggle when collapsed", () => {
     renderCard({ isOpen: false, retry: withEvents() });
     expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
-    expect(screen.queryByTestId("ansi-display")).toBeNull();
+    expect(screen.queryByText("RuntimeError: Simulated failure")).toBeNull();
     expect(screen.queryByTestId("transcript-layout")).toBeNull();
   });
 

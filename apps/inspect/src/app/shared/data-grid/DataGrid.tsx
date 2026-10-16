@@ -34,9 +34,10 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
+import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isRecord, isVscode } from "@tsmono/util";
 
-import { openHrefInNewTab } from "../openInNewTab";
 import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";
@@ -284,8 +285,7 @@ export interface DataGridProps<TRow extends RowData> {
  * click-to-activate.
  *
  * Sorting, filtering, keyboard navigation, column resizing (drag +
- * double-click auto-size), pinning, reordering, and find are wired up —
- * see design/migration/archive/loglistgrid-tanstack.md.
+ * double-click auto-size), pinning, reordering, and find are wired up.
  */
 export function DataGrid<TRow extends RowData>({
   data,
@@ -352,11 +352,9 @@ export function DataGrid<TRow extends RowData>({
   // without a click first (e.g. returning from a log to the restored
   // selection). Runs once — the log list remounts on scope change via
   // `key`, so a new scope re-focuses too.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     if (autoFocus) containerRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   const selectRow = useCallback(
     (rowId: string, row: TRow) => {
@@ -561,8 +559,7 @@ export function DataGrid<TRow extends RowData>({
   // first paint uses base sizes until the observer reports in — the AG grid
   // this replaced painted initial widths before fitting too.
   const [containerWidth, setContainerWidth] = useState(0);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
@@ -571,7 +568,7 @@ export function DataGrid<TRow extends RowData>({
     observer.observe(el);
     setContainerWidth(el.clientWidth);
     return () => observer.disconnect();
-  }, []);
+  });
   const resolvedSizing = useMemo(() => {
     const fitColumns = orderedVisibleDefs.flatMap((c) =>
       c.id === undefined

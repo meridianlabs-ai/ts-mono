@@ -53,4 +53,18 @@ describe("acquireDatabase", () => {
     expect(open).toHaveBeenCalledTimes(2);
     expect(currentDatabase()).toBe(db);
   });
+
+  test("releasing during an open waits for it and leaves no handle installed", async () => {
+    const { acquireDatabase, currentDatabase, releaseDatabase } = await load();
+
+    const inFlight = acquireDatabase();
+    await releaseDatabase();
+
+    expect(currentDatabase()).toBeNull();
+    // The next acquisition opens a fresh handle, not the released one.
+    const released = await inFlight;
+    const fresh = await acquireDatabase();
+    expect(fresh).not.toBe(released);
+    expect(currentDatabase()).toBe(fresh);
+  });
 });

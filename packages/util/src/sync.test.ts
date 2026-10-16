@@ -44,6 +44,35 @@ describe("throttle", () => {
     expect(fn).toHaveBeenCalledExactlyOnceWith(1);
   });
 
+  test("flush runs the pending trailing call now, once", () => {
+    const fn = vi.fn((n: number) => n);
+    const throttled = throttle(fn, 100, { leading: false });
+
+    throttled(1);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledExactlyOnceWith(1);
+
+    vi.advanceTimersByTime(100);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  test("flush cancels the pending timer, so a later call waits its own window", () => {
+    const fn = vi.fn((n: number) => n);
+    const throttled = throttle(fn, 100, { leading: false });
+
+    throttled(1);
+    throttled.flush();
+    vi.advanceTimersByTime(50);
+    throttled(2);
+    // The flushed call's timer would have fired here, at its old deadline.
+    vi.advanceTimersByTime(50);
+    expect(fn.mock.calls).toEqual([[1]]);
+
+    vi.advanceTimersByTime(50);
+    expect(fn.mock.calls).toEqual([[1], [2]]);
+  });
+
   test("a call after the window reopens invokes immediately", () => {
     const fn = vi.fn((n: number) => n);
     const throttled = throttle(fn, 100);

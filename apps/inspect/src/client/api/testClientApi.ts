@@ -5,7 +5,13 @@
  */
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-import type { ClientAPI, LogDetails, LogHeader, SampleSummary } from "./types";
+import type {
+  ClientAPI,
+  LogDetails,
+  LogHeader,
+  LogPreview,
+  SampleSummary,
+} from "./types";
 
 export const notImplemented = (name: string) => (): never => {
   throw new Error(`${name} not implemented in test`);
@@ -56,6 +62,18 @@ export const testLogDetails = (
   status: "success",
   eval: testEvalSpec(),
   sampleSummaries: [],
+  ...overrides,
+});
+
+export const testLogPreview = (
+  overrides: Partial<LogPreview> = {}
+): LogPreview => ({
+  eval_id: "eval_1",
+  run_id: "run_1",
+  task: "test_task",
+  task_id: "task_1",
+  task_version: 0,
+  model: "test-model",
   ...overrides,
 });
 

@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { useLatestRef } from "../hooks/useLatestRef";
+
 interface StickyScrollProps {
   children: ReactNode;
   scrollRef: RefObject<HTMLElement | null>;
@@ -64,11 +66,7 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
     const [preStickHeight, setPreStickHeight] = useState(0);
 
     // Stable ref for the callback to avoid re-running the effect on identity changes.
-    const onStickyChangeRef = useRef(onStickyChange);
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      onStickyChangeRef.current = onStickyChange;
-    }, [onStickyChange]);
+    const onStickyChangeRef = useLatestRef(onStickyChange);
 
     // Detect sticky state by comparing the element's position to the scroll
     // container on each scroll event. When the element is "stuck," its top
@@ -105,7 +103,7 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
         passive: true,
       });
       return () => scrollContainer.removeEventListener("scroll", checkSticky);
-    }, [scrollRef, offsetTop, preserveHeight]);
+    }, [scrollRef, offsetTop, preserveHeight, onStickyChangeRef]);
 
     // Track the content's natural height while sticky so that intentional
     // resizes (e.g. the user collapsing the swimlane) update the preserved

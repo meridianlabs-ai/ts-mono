@@ -1,32 +1,36 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-import { Log, LogDetails } from "../client/api/types";
+import { ClientAPI, Log, LogDetails } from "../client/api/types";
+import { DB_NAME } from "../client/database";
 import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
-import { useLogHeader } from "./log";
-import { clearFile, logKey, logsKey, writeDetails } from "./logsContent";
-import { testLogDetails } from "./testFixtures";
-
-const fetchLog = vi.hoisted(() => vi.fn());
-vi.mock("./replicationControl", () => ({ fetchLog }));
-
-const db = vi.hoisted(() => ({
-  available: false,
-  readLogRow: vi.fn(),
-}));
-vi.mock("./databaseInstance", () => ({
-  currentDatabase: () => (db.available ? { readLogRow: db.readLogRow } : null),
-}));
+import { acquireDatabase, releaseDatabase } from "./databaseInstance";
+import { fetchEngine } from "./fetchEngine";
+import { useLogFetchState, useLogHeader } from "./log";
+import {
+  clearFile,
+  logKey,
+  logsKey,
+  writeDetails,
+  writeListing,
+} from "./logsContent";
+import {
+  activateFetchEngine,
+  deactivateFetchEngine,
+} from "./replicationControl";
+import { testClientAPI, testLogDetails } from "./testFixtures";
 
 const LOG_DIR = "/logs";
-const LOG_FILE = "log.eval";
+const LOG_FILE = "/logs/log.eval";
 
 const makeDetails = (name: string): LogDetails =>
   testLogDetails({
@@ -48,35 +52,43 @@ const detailedRow = (name: string): Log => ({
   details_settled_seq: 0,
 });
 
-const erroredRow = (name: string, message: string): Log => ({
-  name,
-  depth: "listed",
-  preview_attempts: 0,
-  details_attempts: 1,
-  details_fetch_error: message,
-  details_settled_seq: 0,
-});
-
 const wrapper = ({ children }: { children: ReactNode }) =>
   createElement(QueryClientProvider, { client: queryClient }, children);
 
-// A promise that never settles — the engine fetch staying in flight.
-const pendingForever = () => new Promise<void>(() => {});
+/**
+ * Start the real engine for LOG_DIR with LOG_FILE in the synced listing, as
+ * listing sync and <FetchEngineController> leave it below the gate.
+ */
+const activate = async (api: ClientAPI) => {
+  await writeListing(await acquireDatabase(), LOG_DIR, [{ name: LOG_FILE }]);
+  activateFetchEngine(
+    startTestApp({ api, logDir: LOG_DIR, singleFileMode: false })
+  );
+};
 
-beforeEach(() => {
-  fetchLog.mockReset();
-  fetchLog.mockImplementation(pendingForever);
-  db.available = false;
-  db.readLogRow.mockReset();
-  db.readLogRow.mockResolvedValue(null);
-});
-
-afterEach(() => {
+/** Persist a detailed row for LOG_FILE, as a previous session would have. */
+const seedDetailedRow = async () => {
+  const db = await acquireDatabase();
+  await writeDetails(db, LOG_DIR, { [LOG_FILE]: makeDetails(LOG_FILE) });
   queryClient.clear();
+  return db;
+};
+
+afterEach(async () => {
+  cleanup();
+  deactivateFetchEngine();
+  await releaseDatabase();
+  await Dexie.delete(DB_NAME);
+  queryClient.clear();
+  vi.restoreAllMocks();
 });
 
 describe("useLogHeader", () => {
   it("reports loading while there is neither data nor a retrieval error", async () => {
+    // The engine's details fetch stays in flight.
+    const getLogDetails = vi.fn(() => new Promise<LogDetails>(() => {}));
+    await activate(testClientAPI({ get_log_details: getLogDetails }));
+
     const { result } = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
       {
@@ -84,7 +96,8 @@ describe("useLogHeader", () => {
       }
     );
 
-    await waitFor(() => expect(result.current.loading).toBe(true));
+    await waitFor(() => expect(getLogDetails).toHaveBeenCalled());
+    expect(result.current.loading).toBe(true);
     expect(result.current.data).toBeUndefined();
     expect(result.current.error).toBeUndefined();
   });
@@ -103,8 +116,11 @@ describe("useLogHeader", () => {
   });
 
   it("surfaces the row's retrieval error when it has no header", async () => {
-    db.available = true;
-    db.readLogRow.mockResolvedValue(erroredRow(LOG_FILE, "boom"));
+    await activate(
+      testClientAPI({
+        get_log_details: () => Promise.reject(new Error("boom")),
+      })
+    );
 
     const { result } = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
@@ -119,12 +135,15 @@ describe("useLogHeader", () => {
   });
 
   it("data wins over a stale retrieval error message", async () => {
-    const row = {
-      ...detailedRow(LOG_FILE),
-      details_fetch_error: "stale",
-    };
-    db.available = true;
-    db.readLogRow.mockResolvedValue(row);
+    const db = await seedDetailedRow();
+    await db.writeFetchStates({
+      [LOG_FILE]: {
+        preview_attempts: 0,
+        details_attempts: 1,
+        details_fetch_error: "stale",
+        details_settled_seq: 0,
+      },
+    });
 
     const { result } = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
@@ -133,12 +152,21 @@ describe("useLogHeader", () => {
       }
     );
 
-    await waitFor(() => expect(result.current.data).toBe(row.header));
+    await waitFor(() =>
+      expect(result.current.data).toEqual(detailedRow(LOG_FILE).header)
+    );
     expect(result.current.error).toBeUndefined();
     expect(result.current.loading).toBe(false);
   });
 
-  it("demands exactly one engine fetch per (dir, file) mount, passively by default", async () => {
+  it("demands exactly one engine fetch per (dir, file) mount", async () => {
+    // Hold the network read, so re-renders land while the fetch is in flight
+    // (a re-demand then would be a new engine request, not a cache hit).
+    const details = Promise.withResolvers<LogDetails>();
+    const getLogDetails = vi.fn((_file: string) => details.promise);
+    await activate(testClientAPI({ get_log_details: getLogDetails }));
+    const ensure = vi.spyOn(fetchEngine, "ensure");
+
     const { result, rerender } = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
       {
@@ -146,29 +174,64 @@ describe("useLogHeader", () => {
       }
     );
 
-    await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
-    expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, { passive: true });
-
+    await waitFor(() => expect(getLogDetails).toHaveBeenCalledTimes(1));
     rerender();
-    expect(fetchLog).toHaveBeenCalledTimes(1);
-    expect(result.current.loading).toBe(true);
+    rerender();
+    details.resolve(makeDetails(LOG_FILE));
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    // And after landing: a re-demand on any render would be another ensure.
+    rerender();
+    expect(ensure).toHaveBeenCalledTimes(1);
+    expect(ensure.mock.calls[0]?.[0]).toBe(LOG_FILE);
+    expect(getLogDetails).toHaveBeenCalledTimes(1);
   });
 
-  it("demands actively when opted in (the selection binding)", async () => {
-    renderHook(() => useLogHeader(LOG_DIR, LOG_FILE, { demand: "active" }), {
-      wrapper,
-    });
+  it("passive demand on a cached log neither refreshes it nor signals a load", async () => {
+    await seedDetailedRow();
+    const getLogDetails = vi.fn(() => Promise.resolve(makeDetails(LOG_FILE)));
+    await activate(testClientAPI({ get_log_details: getLogDetails }));
+    const ensure = vi.spyOn(fetchEngine, "ensure");
 
-    await waitFor(() => expect(fetchLog).toHaveBeenCalledTimes(1));
-    expect(fetchLog).toHaveBeenCalledWith(LOG_DIR, LOG_FILE, {
-      passive: false,
-    });
+    const { result } = renderHook(
+      () => ({
+        header: useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
+        fetchState: useLogFetchState(LOG_DIR, LOG_FILE),
+      }),
+      {
+        wrapper,
+      }
+    );
+
+    await waitFor(() => expect(result.current.header.data).toBeDefined());
+    // A cache hit settles the demand and issues any refresh in the same
+    // step, so once the demand has settled a refresh would have been made.
+    await waitFor(() => expect(ensure).toHaveBeenCalledTimes(1));
+    await ensure.mock.results[0]?.value;
+    expect(getLogDetails).not.toHaveBeenCalled();
+    expect(result.current.fetchState.data?.details_settled_seq).toBe(0);
+  });
+
+  it("active demand on a cached log refreshes it in the background (the selection binding)", async () => {
+    await seedDetailedRow();
+    const getLogDetails = vi.fn(() => Promise.resolve(makeDetails(LOG_FILE)));
+    await activate(testClientAPI({ get_log_details: getLogDetails }));
+
+    const { result } = renderHook(
+      () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "active" }),
+      {
+        wrapper,
+      }
+    );
+
+    await waitFor(() => expect(getLogDetails).toHaveBeenCalledTimes(1));
+    expect(result.current.data).toBeDefined();
   });
 
   it("re-seeds from the Dexie row on remount after eviction, without an engine settle", async () => {
-    const row = detailedRow(LOG_FILE);
-    db.available = true;
-    db.readLogRow.mockResolvedValue(row);
+    // No engine is active: the database is the only source of the header.
+    const db = await seedDetailedRow();
+    const readLogRow = vi.spyOn(db, "readLogRow");
+    const header = detailedRow(LOG_FILE).header;
 
     const first = renderHook(
       () => useLogHeader(LOG_DIR, LOG_FILE, { demand: "passive" }),
@@ -176,7 +239,7 @@ describe("useLogHeader", () => {
         wrapper,
       }
     );
-    await waitFor(() => expect(first.result.current.data).toBe(row.header));
+    await waitFor(() => expect(first.result.current.data).toEqual(header));
     first.unmount();
 
     // Simulate gc eviction of the idle entry.
@@ -188,8 +251,8 @@ describe("useLogHeader", () => {
         wrapper,
       }
     );
-    await waitFor(() => expect(second.result.current.data).toBe(row.header));
-    expect(db.readLogRow).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(second.result.current.data).toEqual(header));
+    expect(readLogRow).toHaveBeenCalledTimes(2);
     second.unmount();
   });
 

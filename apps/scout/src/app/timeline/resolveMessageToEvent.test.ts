@@ -55,7 +55,6 @@ function makeModelEvent(opts: {
   inputToolMessages?: Array<{
     id: string;
     tool_call_id: string;
-    role: "tool";
   }>;
 }): Event {
   const input = [
@@ -286,9 +285,7 @@ describe("resolveMessageToEvent", () => {
       });
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-bridge-result", tool_call_id: "tc123", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-bridge-result", tool_call_id: "tc123" }],
       });
       const root = makeRoot([agentSpan, makeTimelineEvent(model)]);
 
@@ -310,9 +307,7 @@ describe("resolveMessageToEvent", () => {
       });
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-result", tool_call_id: "tc456", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-result", tool_call_id: "tc456" }],
         inputIds: [],
       });
       const root = makeRoot([agentSpan, makeTimelineEvent(model)]);
@@ -435,7 +430,7 @@ describe("resolveMessageToEvent", () => {
       const model = makeModelEvent({
         uuid: "model-after",
         inputToolMessages: [
-          { id: "msg-tool-result", tool_call_id: "tc-bash-123", role: "tool" },
+          { id: "msg-tool-result", tool_call_id: "tc-bash-123" },
         ],
       });
       const root = makeRoot([
@@ -465,8 +460,8 @@ describe("resolveMessageToEvent", () => {
       const model = makeModelEvent({
         uuid: "model-after",
         inputToolMessages: [
-          { id: "msg-host-result", tool_call_id: "tc-host", role: "tool" },
-          { id: "msg-agent-result", tool_call_id: "tc-agent", role: "tool" },
+          { id: "msg-host-result", tool_call_id: "tc-host" },
+          { id: "msg-agent-result", tool_call_id: "tc-agent" },
         ],
       });
       const root = makeRoot([
@@ -500,9 +495,7 @@ describe("resolveMessageToEvent", () => {
 
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-result", tool_call_id: "tc456", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-result", tool_call_id: "tc456" }],
       });
       const root = makeRoot([
         agentSpan,
@@ -526,9 +519,7 @@ describe("resolveMessageToEvent", () => {
 
       const model1 = makeModelEvent({
         uuid: "model-1",
-        inputToolMessages: [
-          { id: "msg-bridge", tool_call_id: "tc-xyz", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-bridge", tool_call_id: "tc-xyz" }],
       });
       // A second model event also has the same message in its input
       const model2 = makeModelEvent({

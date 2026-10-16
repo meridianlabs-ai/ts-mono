@@ -12,9 +12,13 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
-import { testEvalSpec } from "@tsmono/inspect-common/testing";
+import { testEvalSpec, testScore } from "@tsmono/inspect-common/testing";
 
-import { testSampleSummary } from "../api/testClientApi";
+import {
+  testLogDetails,
+  testLogPreview,
+  testSampleSummary,
+} from "../api/testClientApi";
 import {
   LogDetails,
   LogFetchState,
@@ -28,7 +32,7 @@ import { OpenDatabase } from "./service";
 
 // Helper function to create test LogSummary
 function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
-  return {
+  return testLogPreview({
     eval_id: "eval-1",
     run_id: "run-1",
     task: "test-task",
@@ -41,12 +45,12 @@ function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
     started_at: "2024-01-01T00:00:00Z",
     completed_at: "2024-01-01T01:00:00Z",
     ...overrides,
-  };
+  });
 }
 
 // Helper function to create test LogInfo
 function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
-  return {
+  return testLogDetails({
     version: 1,
     status: "success",
     eval: testEvalSpec({
@@ -74,13 +78,10 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
       model: "gpt-4",
       model_base_url: null,
     }),
-    plan: undefined,
     results: null,
-    stats: undefined,
     error: null,
-    sampleSummaries: [],
     ...overrides,
-  };
+  });
 }
 
 // Helper function to create test SampleSummary
@@ -93,13 +94,12 @@ function createTestSampleSummary(
     input: "test input",
     target: "test target",
     scores: {
-      accuracy: {
+      accuracy: testScore({
         value: 0.9,
         answer: null,
         explanation: null,
         metadata: {},
-        history: [],
-      },
+      }),
     },
     ...overrides,
   });

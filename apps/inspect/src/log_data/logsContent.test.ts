@@ -14,6 +14,10 @@ import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
 import {
+  databaseLogsListingKey,
+  invalidateDatabaseLogsListings,
+} from "./databaseListings";
+import {
   clearFile,
   logKey,
   mergeFetchStates,
@@ -22,12 +26,6 @@ import {
   writeListing,
   writePreviews,
 } from "./logsContent";
-
-const invalidateListings = vi.hoisted(() => vi.fn());
-vi.mock("./databaseListings", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./databaseListings")>()),
-  invalidateDatabaseLogsListings: invalidateListings,
-}));
 
 describe("writeListing", () => {
   let db: OpenDatabase;
@@ -115,8 +113,15 @@ describe("db-less write invalidation", () => {
   // Listing queries in db-less sessions read from the react-query cache and
   // only refetch on invalidation — so every cache-updating write must fire
   // it, not just the persisted ones.
+  const listingKey = databaseLogsListingKey("/plain/logs", "accessors");
+  const listingInvalidated = () =>
+    queryClient.getQueryState(listingKey)?.isInvalidated;
+
   beforeEach(() => {
-    invalidateListings.mockClear();
+    // Fire a trailing invalidation armed by an earlier test's write now, so
+    // it can't stand in for the one under test.
+    invalidateDatabaseLogsListings.flush();
+    queryClient.setQueryData(listingKey, { items: [] });
   });
 
   afterEach(() => {
@@ -124,13 +129,15 @@ describe("db-less write invalidation", () => {
   });
 
   test("a db-less preview merge refreshes the listings", async () => {
+    expect(listingInvalidated()).toBe(false);
     await writePreviews(null, "/plain/logs", {});
-    expect(invalidateListings).toHaveBeenCalled();
+    await vi.waitFor(() => expect(listingInvalidated()).toBe(true));
   });
 
   test("a db-less file clear refreshes the listings", async () => {
+    expect(listingInvalidated()).toBe(false);
     await clearFile(null, "/plain/logs", "/plain/logs/a.eval");
-    expect(invalidateListings).toHaveBeenCalled();
+    await vi.waitFor(() => expect(listingInvalidated()).toBe(true));
   });
 });
 

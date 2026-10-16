@@ -4,9 +4,19 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
 
 ## Documentation
 
-Design docs live per-app; consult them when working in the relevant area:
+Design docs describe how things work today; consult them when working in the
+relevant area. Delete or update a plan once it ships, rather than leaving its
+checklist behind. Git history keeps the original.
 
 - [Viewer startup/data-layer domain ownership](apps/inspect/design/domain-ownership.md) (inspect)
+- [Route ownership and VS Code restoration](design/route-state-ownership.md) (both apps)
+- [Content rendering policy for untrusted model output](apps/inspect/design/content-rendering.md) (inspect)
+- [SamplesView descriptor](design/samples-view.md) (inspect samples list)
+- [VirtualList: scaled scrolling, live-follow, restoration](design/virtual-list.md) (packages/react)
+- [ZIP reader resource bounds](apps/inspect/design/zip-reader.md) (inspect)
+- [Scanner view glob matching](docs/scanner-view-globs.md) (scout)
+- [DB-backed listing queries](design/db-backed-listing-plan.md) (inspect; in-progress plan)
+- [Remaining effect debt](apps/inspect/design/useeffect-audit.md) (inspect)
 - [Frontend testing: integration tests + MSW](apps/scout/design/front-end-testing.md) (scout)
 - [React Query patterns: queryOptions, skipToken](apps/scout/design/react-query.md) (scout)
 
@@ -20,7 +30,8 @@ Design docs live per-app; consult them when working in the relevant area:
 - **Workspace deps**: `"workspace:*"` protocol
 - **`@tsmono/util`**: barrel export — import from the package, not individual files
 - **Tooling defaults are fully strict** — new packages get strictest rules;
-  legacy code (apps/scout, packages/util) relaxes via local overrides
+  only `packages/util` relaxes lint rules (local override), and
+  `apps/scout/tsconfig.json` still turns off `noImplicitAny`/`noImplicitThis`
 
 ## Before you push
 

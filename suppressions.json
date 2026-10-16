@@ -1,9 +1,4 @@
 {
-  "apps/inspect/src/app_config/resolveBackend.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app_config/resolveBackend.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -16,7 +11,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
@@ -34,11 +29,6 @@
     },
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "apps/inspect/src/app/log-list/listing/databaseListing.test.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
@@ -94,11 +84,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/log-view/tabs/timeline/TimelineChart.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/tabs/timeline/timelineData.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 2
@@ -121,11 +106,6 @@
     }
   },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "apps/inspect/src/app/log-view/title-view/EditTagsDialog.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -195,7 +175,7 @@
   },
   "apps/inspect/src/app/samples/InlineSampleDisplay.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/list/SampleList.tsx": {
@@ -252,7 +232,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 6
+      "count": 4
     }
   },
   "apps/inspect/src/app/samples/SampleSummaryView.tsx": {
@@ -304,16 +284,12 @@
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/incompatible-library": {
       "count": 1,
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/inspect/src/app/shared/data-grid/findMatches.ts": {
@@ -394,11 +370,6 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/client/api/vscode/api-vscode.e2e.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/client/database/service.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
@@ -411,12 +382,6 @@
     },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "apps/inspect/src/client/remote/remotePendingSampleData.test.ts": {
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/inspect/src/client/utils/normalize.ts": {
@@ -565,7 +530,7 @@
       "undescribed": 2
     },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/inspect/src/state/logSlice.ts": {
@@ -637,7 +602,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/components/AddFilterButton.tsx": {
@@ -714,16 +679,12 @@
     }
   },
   "apps/scout/src/app/project/components/FormFields.tsx": {
-    "react-hooks/exhaustive-deps": {
+    "react-hooks/set-state-in-effect": {
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/set-state-in-effect": {
-      "count": 2,
-      "undescribed": 2
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/project/hooks/useNestedConfig.ts": {
@@ -737,7 +698,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/scout/src/app/project/SettingsContent.tsx": {
@@ -768,7 +729,7 @@
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 6
+      "count": 5
     }
   },
   "apps/scout/src/app/scan/scanners/results/ScannerResultsSearch.tsx": {
@@ -787,11 +748,6 @@
       "count": 1,
       "undescribed": 1
     },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/scannerResult/result/ResultBody.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -825,20 +781,10 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/timeline/components/TimelineEventsView.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/transcript/TranscriptBody.tsx": {
     "react-hooks/refs": {
       "count": 1
     },
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "apps/scout/src/app/transcript/TranscriptPanel.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -908,7 +854,7 @@
   },
   "apps/scout/src/app/validation/components/ValidationSetSelector.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/scout/src/app/validation/ValidationPanel.tsx": {
@@ -1108,7 +1054,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript-search/useSearchQueries.ts": {
@@ -1132,11 +1078,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/event/RetryChip.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/transcript/event/StopReasonBadge.test.tsx": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
@@ -1152,7 +1093,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/GoToTurnBar.tsx": {
@@ -1160,7 +1101,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/hooks/useDeepLinkResolution.ts": {
@@ -1190,7 +1131,7 @@
   },
   "packages/inspect-components/src/transcript/hooks/useSidebarScrollCoupling.ts": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/hooks/useStickyStuck.ts": {
@@ -1211,9 +1152,6 @@
   "packages/inspect-components/src/transcript/hooks/useTranscriptKeyboardNavigation.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/outline/TranscriptOutline.tsx": {
@@ -1228,15 +1166,10 @@
   },
   "packages/inspect-components/src/transcript/search/useTranscriptSearchSource.ts": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
-    }
-  },
-  "packages/inspect-components/src/transcript/state/StateEventView.tsx": {
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/timeline/components/TimelineSelector.tsx": {
+  "packages/inspect-components/src/transcript/state/StateEventView.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1268,7 +1201,7 @@
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/TranscriptVirtualListComponent.tsx": {
@@ -1303,12 +1236,8 @@
     "jsx-a11y/no-autofocus": {
       "count": 1
     },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/react/src/components/CopyButton.tsx": {
@@ -1347,11 +1276,6 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "packages/react/src/components/LightboxCarousel.tsx": {
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
@@ -1380,9 +1304,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/react/src/components/markdownRendering.ts": {
@@ -1396,11 +1317,6 @@
   },
   "packages/react/src/components/markdownTruncate.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
-    }
-  },
-  "packages/react/src/components/MenuActionButton.tsx": {
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
@@ -1449,15 +1365,10 @@
   },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/react/src/components/ToolDropdownButton.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 3
-    }
-  },
-  "packages/react/src/components/useFindBandShortcut.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }

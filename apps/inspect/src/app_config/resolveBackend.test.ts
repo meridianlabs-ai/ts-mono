@@ -1,21 +1,16 @@
 // @vitest-environment jsdom
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getVscodeApi } from "@tsmono/util";
-
-import staticHttpApi, {
-  staticLogRoot,
-} from "../client/api/static-http/api-static-http";
 import { testClientAPI } from "../client/api/testClientApi";
 import {
-  fetchViewServerLogDir,
-  fetchViewServerLogRoot,
-  viewServerApi,
-} from "../client/api/view-server/api-view-server";
-import {
-  apiVscode,
-  createVscodeProxyFetch,
-} from "../client/api/vscode/api-vscode";
+  connectFakeExtension,
+  installVscodeHost,
+  okJson,
+  uninstallVscodeHost,
+  type ProxyRequest,
+} from "../client/api/vscode/testExtensionHost";
+import { setupMswServer } from "../test/mswServer";
 
 import { AppConfigBootstrap, loadResolvedAppConfig } from "./appConfig";
 import {
@@ -29,43 +24,47 @@ import { UrlLogSource } from "./urlLogSource";
 // startup signals (vscode host, embedded #log_dir_context, ?inspect_server=true)
 // plus the invocation-time UrlLogSource. A bootstrap is two stages — dir
 // discovery (resolveLogRoot / resolveConfiguredDir) and per-dir construction
-// (createApi) — so the tests assert WHICH backend each stage reaches and with
-// WHAT args. Backend factories and the clientApi wrapper are mocked to
-// distinguishable sentinels.
+// (createApi) — so the tests assert WHERE each stage's requests go: the
+// browser's fetch (MSW) for the view server and static deployments, or the
+// VS Code host's http_request proxy (a fake extension host).
 
-vi.mock("../client/api/view-server/api-view-server", () => ({
-  viewServerApi: vi.fn(() => ({ __backend: "view-server" })),
-  fetchViewServerLogRoot: vi.fn(() =>
-    Promise.resolve({ logs: [], log_dir: "/probed" })
-  ),
-  fetchViewServerLogDir: vi.fn(() => Promise.resolve("/configured")),
-}));
-vi.mock("../client/api/static-http/api-static-http", () => ({
-  default: vi.fn(() => ({ __backend: "static-http" })),
-  staticLogRoot: vi.fn((log_dir: string) => ({ logs: [], log_dir })),
-}));
-vi.mock("../client/api/vscode/api-vscode", () => ({
-  apiVscode: vi.fn(() => ({ __backend: "vscode" })),
-  createVscodeProxyFetch: vi.fn(() => ({ __transport: "proxy-fetch" })),
-}));
-// clientApi is the identity-ish wrapper here: it returns the backend it was
-// handed so createApi's return value IS the chosen sentinel.
-vi.mock("../client/api/client-api", () => ({
-  clientApi: vi.fn((backend: unknown) => backend),
-}));
-vi.mock("@tsmono/util", async (orig) => ({
-  ...(await orig<typeof import("@tsmono/util")>()),
-  getVscodeApi: vi.fn(),
-}));
+const server = setupMswServer();
 
-const mockGetVscodeApi = vi.mocked(getVscodeApi);
-const mockStaticHttpApi = vi.mocked(staticHttpApi);
-const mockStaticLogRoot = vi.mocked(staticLogRoot);
-const mockViewServerApi = vi.mocked(viewServerApi);
-const mockFetchLogRoot = vi.mocked(fetchViewServerLogRoot);
-const mockFetchLogDir = vi.mocked(fetchViewServerLogDir);
-const mockApiVscode = vi.mocked(apiVscode);
-const mockCreateProxyFetch = vi.mocked(createVscodeProxyFetch);
+/** Every request that reached the network, as path + query. */
+let network: string[] = [];
+
+/**
+ * Answer every request: a view-server root probe, its configured dir, an
+ * empty listing (view-server or static manifest).
+ */
+const serveAll = () =>
+  server.use(
+    http.all("*", ({ request }) => {
+      const url = new URL(request.url);
+      network.push(url.pathname + url.search);
+      switch (url.pathname) {
+        case "/api/logs":
+          return HttpResponse.json({ logs: [], log_dir: "/probed" });
+        case "/api/log-dir":
+          return HttpResponse.json({ log_dir: "/configured" });
+        case "/api/log-files":
+          return HttpResponse.json({ files: [], response_type: "full" });
+        default:
+          // A static deployment's listing.json manifest.
+          return HttpResponse.json({});
+      }
+    })
+  );
+
+// The VS Code extension host, answering the viewer's http_request proxy. One
+// host for the file: the viewer memoizes `acquireVsCodeApi()`'s result.
+const hostRequests: ProxyRequest[] = [];
+const { vscode: vscodeHost } = connectFakeExtension((req) => {
+  hostRequests.push(req);
+  return req.path.startsWith("/api/logs")
+    ? okJson({ logs: [], log_dir: "file:///host/logs" })
+    : okJson({ files: [], response_type: "full" });
+});
 
 const setSearch = (search: string) => {
   window.history.replaceState({}, "", `/${search}`);
@@ -82,11 +81,6 @@ const addJsonScript = (id: string, json: unknown) => {
 const addLogDirContext = (json: object) =>
   addJsonScript("log_dir_context", json);
 
-// The extension host advertises transport capabilities via an injected
-// script block; the http_request proxy is what the viewer requires.
-const addHostCapabilities = (capabilities: string[]) =>
-  addJsonScript("inspect-host-capabilities", capabilities);
-
 const dirSource = (logDir: string): UrlLogSource => ({ kind: "dir", logDir });
 const fileSource = (logFile: string): UrlLogSource => ({
   kind: "file",
@@ -98,25 +92,11 @@ afterEach(() => {
   resetApiFactory();
   setSearch("");
   document.getElementById("log_dir_context")?.remove();
-  document.getElementById("inspect-host-capabilities")?.remove();
   document.getElementById("logview-state")?.remove();
-  mockGetVscodeApi.mockReset();
-  mockStaticHttpApi.mockClear();
-  mockStaticLogRoot.mockClear();
-  mockViewServerApi.mockClear();
-  mockFetchLogRoot.mockClear();
-  mockFetchLogDir.mockClear();
-  mockApiVscode.mockClear();
-  mockCreateProxyFetch.mockClear();
-});
-
-// The resolver only checks that a host object exists and reads its
-// capabilities from the mocked module, so these three no-ops are the whole
-// surface it touches.
-const testVscodeApi = (): NonNullable<ReturnType<typeof getVscodeApi>> => ({
-  postMessage: () => {},
-  getState: () => null,
-  setState: () => {},
+  uninstallVscodeHost();
+  hostRequests.length = 0;
+  network = [];
+  vi.restoreAllMocks();
 });
 
 describe("resolveBackend transport", () => {
@@ -132,28 +112,27 @@ describe("resolveBackend transport", () => {
 
 describe("resolveBackend selection", () => {
   it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
-    const vscode = testVscodeApi();
-    mockGetVscodeApi.mockReturnValue(vscode);
-    addHostCapabilities(["http_request"]);
+    installVscodeHost(vscodeHost, ["http_request"]);
+    serveAll();
+    const listeners = vi.spyOn(window, "addEventListener");
 
-    const backend = resolveBackend(noneSource);
+    const backend = resolveBackend(dirSource("/url/logs"));
 
+    await expect(backend.resolveLogRoot()).resolves.toMatchObject({
+      log_dir: "file:///host/logs",
+    });
+    await backend.createApi("file:///logs").get_logs(0, 0);
+
+    // Both stages ride the host's proxy, never the browser's fetch.
+    expect(hostRequests.map((req) => req.path)).toEqual([
+      "/api/logs",
+      `/api/log-files?log_dir=${encodeURIComponent("file:///logs")}`,
+    ]);
+    expect(network).toEqual([]);
     // One transport, built once, shared by the probe and every instance.
-    expect(mockCreateProxyFetch).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the mock's recorded return is `any`; the assertion below only needs it to be the same value that was handed out
-    const proxyFetch = mockCreateProxyFetch.mock.results[0]
-      ?.value as ReturnType<typeof createVscodeProxyFetch>;
-
-    await backend.resolveLogRoot();
-    expect(mockFetchLogRoot).toHaveBeenCalledWith({ customFetch: proxyFetch });
-
-    const api = backend.createApi("file:///logs");
-    expect(api).toEqual({ __backend: "vscode" });
-    expect(mockApiVscode).toHaveBeenCalledWith(
-      vscode,
-      "file:///logs",
-      proxyFetch
-    );
+    expect(
+      listeners.mock.calls.filter(([type]) => type === "message")
+    ).toHaveLength(1);
     expect(backend.capabilities).toEqual({
       downloadLogs: false,
       streamSamples: true,
@@ -161,7 +140,7 @@ describe("resolveBackend selection", () => {
   });
 
   it("vscode host WITHOUT http_request capability → unsupported (update-extension error)", async () => {
-    mockGetVscodeApi.mockReturnValue(testVscodeApi());
+    installVscodeHost(vscodeHost);
     // No #inspect-host-capabilities marker — a legacy named-RPC-only host.
 
     const backend = resolveBackend(noneSource);
@@ -172,75 +151,77 @@ describe("resolveBackend selection", () => {
     expect(() => backend.createApi("/logs")).toThrow(
       /update the Inspect AI extension/i
     );
-    expect(mockApiVscode).not.toHaveBeenCalled();
+    expect(hostRequests).toEqual([]);
   });
 
   it("#log_dir_context with log_dir → static-http backend with that dir", async () => {
     addLogDirContext({ log_dir: "/embedded/logs" });
+    serveAll();
     const backend = resolveBackend(noneSource);
 
-    await backend.resolveLogRoot();
-    expect(mockStaticLogRoot).toHaveBeenCalledWith("/embedded/logs", undefined);
+    await expect(backend.resolveLogRoot()).resolves.toMatchObject({
+      log_dir: "http://localhost:3000/embedded/logs",
+    });
+    await backend.createApi("/embedded/logs").get_logs(0, 0);
 
-    const api = backend.createApi("/embedded/logs");
-    expect(api).toEqual({ __backend: "static-http" });
-    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
+    expect(network).toEqual(["/embedded/logs/listing.json"]);
   });
 
-  it("#log_dir_context with trust_content → passes it in the static app config", () => {
+  it("#log_dir_context with trust_content → passes it in the static app config", async () => {
     addLogDirContext({ log_dir: "/embedded/logs", trust_content: false });
     const backend = resolveBackend(noneSource);
 
-    backend.createApi("/embedded/logs");
-    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", {
+    await expect(
+      backend.createApi("/embedded/logs").get_app_config()
+    ).resolves.toEqual({
       inspect_version: "unknown",
       scout_version: null,
       trust_content: false,
     });
   });
 
-  it("#log_dir_context with log_file → static-http single-file with derived dir", () => {
+  it("#log_dir_context with log_file → static-http single-file with derived dir", async () => {
     addLogDirContext({ log_file: "/embedded/logs/task.eval" });
+    serveAll();
     const backend = resolveBackend(noneSource);
 
-    const api = backend.createApi("/embedded/logs");
-    expect(api).toEqual({ __backend: "static-http" });
     // Construction dir comes from the caller (the resolved config); the api
     // needs nothing else — single-file fetching passes file paths per call.
-    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
+    await backend.createApi("/embedded/logs").get_logs(0, 0);
+
+    expect(network).toEqual(["/embedded/logs/listing.json"]);
   });
 
   it("?inspect_server=true with dir source → view-server backend probing that dir", async () => {
     setSearch("?inspect_server=true");
+    serveAll();
     const backend = resolveBackend(dirSource("/logs"));
 
     await backend.resolveLogRoot();
-    expect(mockFetchLogRoot).toHaveBeenCalledWith({}, "/logs");
+    await backend.createApi("file:///abs/logs").get_logs(0, 0);
 
-    const api = backend.createApi("file:///abs/logs");
-    expect(api).toEqual({ __backend: "view-server" });
-    expect(mockViewServerApi).toHaveBeenCalledWith({
-      logDir: "file:///abs/logs",
-    });
-    expect(mockStaticHttpApi).not.toHaveBeenCalled();
+    expect(network).toEqual([
+      `/api/logs?log_dir=${encodeURIComponent("/logs")}`,
+      `/api/log-files?log_dir=${encodeURIComponent("file:///abs/logs")}`,
+    ]);
   });
 
   it("dir source, no other signal → static-http backend", async () => {
+    serveAll();
     const backend = resolveBackend(dirSource("/logs"));
 
-    await backend.resolveLogRoot();
-    expect(mockStaticLogRoot).toHaveBeenCalledWith("/logs", undefined);
+    // Static discovery is the configured dir itself: no request.
+    await expect(backend.resolveLogRoot()).resolves.toMatchObject({
+      log_dir: "http://localhost:3000/logs",
+    });
+    expect(network).toEqual([]);
 
-    const api = backend.createApi("http://localhost:3000/logs");
-    expect(api).toEqual({ __backend: "static-http" });
-    expect(mockStaticHttpApi).toHaveBeenCalledWith(
-      "http://localhost:3000/logs",
-      undefined
-    );
-    expect(mockViewServerApi).not.toHaveBeenCalled();
+    await backend.createApi("http://localhost:3000/logs").get_logs(0, 0);
+    expect(network).toEqual(["/logs/listing.json"]);
   });
 
   it("file source, no other signal → static-http single-file (no dir-mode root)", async () => {
+    serveAll();
     const backend = resolveBackend(fileSource("foo.eval"));
 
     // No dir was configured, so dir-mode discovery has nothing to enumerate
@@ -249,30 +230,25 @@ describe("resolveBackend selection", () => {
       /unable to determine log paths/i
     );
 
-    const api = backend.createApi("http://localhost:3000");
-    expect(api).toEqual({ __backend: "static-http" });
-    expect(mockStaticHttpApi).toHaveBeenCalledWith(
-      "http://localhost:3000",
-      undefined
-    );
-    expect(mockViewServerApi).not.toHaveBeenCalled();
+    await backend.createApi("http://localhost:3000").get_logs(0, 0);
+    expect(network).toEqual(["/listing.json"]);
   });
 
   it("no source, no signal → view-server backend (server-configured dir)", async () => {
+    serveAll();
     const backend = resolveBackend(noneSource);
 
-    await backend.resolveLogRoot();
-    expect(mockFetchLogRoot).toHaveBeenCalledWith({}, undefined);
-
-    await backend.resolveConfiguredDir?.();
-    expect(mockFetchLogDir).toHaveBeenCalled();
-
-    const api = backend.createApi("file:///probed");
-    expect(api).toEqual({ __backend: "view-server" });
-    expect(mockViewServerApi).toHaveBeenCalledWith({
-      logDir: "file:///probed",
+    await expect(backend.resolveLogRoot()).resolves.toMatchObject({
+      log_dir: "/probed",
     });
-    expect(mockStaticHttpApi).not.toHaveBeenCalled();
+    await expect(backend.resolveConfiguredDir?.()).resolves.toBe("/configured");
+    await backend.createApi("file:///probed").get_logs(0, 0);
+
+    expect(network).toEqual([
+      "/api/logs",
+      "/api/log-dir",
+      `/api/log-files?log_dir=${encodeURIComponent("file:///probed")}`,
+    ]);
     expect(backend.capabilities).toEqual({
       downloadLogs: true,
       streamSamples: true,
@@ -284,8 +260,7 @@ describe("embedder api factory (setApiFactory)", () => {
   const factoryApi = testClientAPI();
 
   it("wins over every ambient signal (vscode host present)", async () => {
-    mockGetVscodeApi.mockReturnValue(testVscodeApi());
-    addHostCapabilities(["http_request"]);
+    installVscodeHost(vscodeHost, ["http_request"]);
     const dirs: string[] = [];
     setApiFactory((logDir) => {
       dirs.push(logDir);
@@ -302,7 +277,7 @@ describe("embedder api factory (setApiFactory)", () => {
     // A dir change (setLogRoot) re-calls createApi on the same bootstrap.
     backend.createApi("file:///other");
     expect(dirs).toEqual(["file:///hawk/logs", "file:///other"]);
-    expect(mockApiVscode).not.toHaveBeenCalled();
+    expect(hostRequests).toEqual([]);
     expect(backend.capabilities).toEqual({
       downloadLogs: false,
       streamSamples: false,
@@ -360,7 +335,7 @@ describe("embedder api factory (setApiFactory)", () => {
 // dir comes from #logview-state, so discovery never touches the backend).
 describe("legacy vscode host error reaches config resolution", () => {
   const legacyHostBootstrap = (singleFileMode: boolean): AppConfigBootstrap => {
-    mockGetVscodeApi.mockReturnValue(testVscodeApi());
+    installVscodeHost(vscodeHost);
     return {
       backend: resolveBackend(noneSource),
       singleFileMode,

@@ -1,6 +1,9 @@
-import { RefObject, useEffect, useRef } from "react";
+import { RefObject, useRef } from "react";
 
-import { useListKeyboardNavigation } from "@tsmono/react/hooks";
+import {
+  useEventListener,
+  useListKeyboardNavigation,
+} from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { isEditableTarget } from "@tsmono/util";
 
@@ -55,9 +58,10 @@ export function useTranscriptKeyboardNavigation({
 
   // Timestamp of the last lone `g`, for recognizing the `gg` two-stroke.
   const lastGTimeRef = useRef(0);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+  useEventListener(
+    window,
+    "keydown",
+    (event) => {
       if (disabled) return;
       // Several transcripts can be mounted at once (e.g. a reference-preview
       // popover over the main view). Only the visible one may claim these
@@ -139,21 +143,7 @@ export function useTranscriptKeyboardNavigation({
           lastGTimeRef.current = now;
         }
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, { capture: true });
-    };
-  }, [
-    onNext,
-    onPrev,
-    onPrevAgent,
-    onNextAgent,
-    onFocusCurrentTurn,
-    onFirst,
-    onLast,
-    disabled,
-    scrollRef,
-  ]);
+    },
+    { capture: true }
+  );
 }

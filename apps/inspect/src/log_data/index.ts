@@ -1,5 +1,5 @@
 // Public surface of the log-data acquisition subsystem (see
-// design/migration/domain-ownership.md): data hooks plus the single
+// apps/inspect/design/domain-ownership.md): data hooks plus the single
 // imperative entry-point object. Everything not exported here is
 // subsystem-private; external modules must import from this barrel.
 //
@@ -153,3 +153,6 @@ export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { FetchEngineController } from "./FetchEngineController";
 export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";
+// Test teardown only: tests reuse one module instance across cases, so they
+// release the shared database handle between them. The app never does.
+export { releaseDatabase } from "./databaseInstance";

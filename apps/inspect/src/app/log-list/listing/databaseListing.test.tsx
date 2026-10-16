@@ -1,19 +1,23 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Column } from "@tsmono/inspect-common/query";
 import type { Condition } from "@tsmono/inspect-common/query";
 
-import type { DatabaseListingPlan } from "../../../client/database/listing";
+import type { LogPreview } from "../../../client/api/types";
+import { OpenDatabase } from "../../../client/database";
 import type { LogListingRow } from "../../../log_data";
+import { atRoute, startTestApp, stopTestApp } from "../../../test/testApp";
 
 import {
   useDatabaseLogsListingQuery,
   useLogsListingMatches,
 } from "./useLogsListingQuery";
+
+// The hooks read the real listing seam over the local database
+// (fake-indexeddb), which a previous session left holding two previewed
+// logs: b.eval (claude) and a.eval (gpt-4).
 
 interface Row {
   name: string;
@@ -21,54 +25,38 @@ interface Row {
   [k: string]: unknown;
 }
 
-type ReadListing = <TRow>(
-  logDir: string,
-  prefix: string,
-  toRow: (log: LogListingRow) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>
-) => Promise<{
-  items: TRow[];
-  total_count: number;
-  next_cursor: null;
-}>;
-
-const holder = vi.hoisted(() => ({
-  records: [] as LogListingRow[],
-  read: vi.fn(),
-  readMatches: vi.fn(),
-}));
-
-vi.mock("../../../log_data", () => ({
-  databaseLogsListingKeyRoot: ["log_data", "dexie-listing", "logs"],
-  databaseLogsListingKey: (...parts: unknown[]) => [
-    "log_data",
-    "dexie-listing",
-    "logs",
-    ...parts.map((part) => part ?? null),
-  ],
-  listingKeyUniverse: (queryKey: readonly unknown[]) => queryKey[3],
-  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- test seam: readLogsListing is generic in its row type, which vi.fn() can't express, so the double's calls come back as any */
-  readLogsListing: (
-    ...args: Parameters<ReadListing>
-  ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
-  readLogsListingMatches: (...args: unknown[]): Promise<string[]> =>
-    holder.readMatches(...args) as Promise<string[]>,
-  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
-}));
-
-const testRow = (name: string, model: string): LogListingRow => ({
-  name,
+const preview = (model: string): LogPreview => ({
+  eval_id: `eval-${model}`,
+  run_id: `run-${model}`,
+  task: "task",
+  task_id: `task-${model}`,
+  task_version: 1,
+  version: 2,
+  status: "success",
+  error: null,
   model,
-  depth: "previewed",
-  preview_attempts: 0,
-  details_attempts: 0,
-  details_settled_seq: 0,
+  started_at: "2026-01-01T00:00:00Z",
+  completed_at: "2026-01-01T01:00:00Z",
 });
 
-const records: LogListingRow[] = [
-  testRow("/logs/b.eval", "claude"),
-  testRow("/logs/a.eval", "gpt-4"),
-];
+beforeEach(async () => {
+  const db = await OpenDatabase.open();
+  await db.writeLogPreviews({
+    "/logs/b.eval": preview("claude"),
+    "/logs/a.eval": preview("gpt-4"),
+  });
+  db.close();
+  // Directory mode: the fetch engine opens the database the hooks read.
+  startTestApp({ logDir: "/logs", singleFileMode: false });
+});
+
+afterEach(async () => {
+  cleanup();
+  await stopTestApp();
+  vi.unstubAllGlobals();
+});
+
+const wrapper = atRoute();
 
 const getValue = (row: Row, column: string): unknown => row[column];
 const toRow = (log: LogListingRow): Row | undefined =>
@@ -81,10 +69,11 @@ const listingParams = (overrides?: {
   orderBy?: { column: string; direction: "ASC" | "DESC" }[];
   universe?: string | undefined;
   accessorsKey?: string;
+  getValue?: (row: Row, column: string) => unknown;
 }) => ({
   filter: overrides?.filter,
   orderBy: overrides?.orderBy,
-  getValue,
+  getValue: overrides?.getValue ?? getValue,
   getComparator: () => undefined,
   accessorsKey: overrides?.accessorsKey ?? "",
   listing: {
@@ -96,42 +85,9 @@ const listingParams = (overrides?: {
   },
 });
 
+const names = (rows: Row[] | undefined) => rows?.map((row) => row.name);
+
 describe("useDatabaseLogsListingQuery", () => {
-  let queryClient: QueryClient;
-
-  beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    holder.records = records;
-    holder.read.mockReset();
-    // The seam double: run the plan over the fake records like
-    // readLogsListing runs it over the scanned rows.
-    holder.read.mockImplementation(
-      (
-        _logDir: string,
-        _prefix: string,
-        rowFor: (log: LogListingRow) => Row | undefined,
-        plan: DatabaseListingPlan<Row>
-      ) => {
-        const rows = holder.records
-          .map((record) => rowFor(record))
-          .filter((row): row is Row => row !== undefined)
-          .filter(plan.matches);
-        if (plan.compare) rows.sort(plan.compare);
-        return Promise.resolve({
-          items: rows,
-          total_count: rows.length,
-          next_cursor: null,
-        });
-      }
-    );
-  });
-
-  const wrapper = ({ children }: PropsWithChildren) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-
   test("shapes and queries source records through the listing seam", async () => {
     const { result } = renderHook(
       () =>
@@ -146,9 +102,7 @@ describe("useDatabaseLogsListingQuery", () => {
 
     expect(result.current.loading).toBe(true);
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-      ])
+      expect(names(result.current.data?.items)).toEqual(["/logs/a.eval"])
     );
     expect(result.current.loading).toBe(false);
   });
@@ -159,9 +113,9 @@ describe("useDatabaseLogsListingQuery", () => {
       { wrapper }
     );
 
-    // Source (listing) order is preserved when no sort is active.
+    // Source (database scan) order is preserved when no sort is active.
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
+      expect(names(result.current.data?.items)).toEqual([
         "/logs/b.eval",
         "/logs/a.eval",
       ])
@@ -170,17 +124,20 @@ describe("useDatabaseLogsListingQuery", () => {
 
   test("stays disabled (pending) while the universe is hydrating", async () => {
     const { result } = renderHook(
-      () =>
-        useDatabaseLogsListingQuery<Row>(
+      () => ({
+        hydrating: useDatabaseLogsListingQuery<Row>(
           listingParams({ universe: undefined })
         ),
+        // A hydrated sibling, so there is a listing the hydrating query
+        // could have served.
+        hydrated: useDatabaseLogsListingQuery<Row>(listingParams()),
+      }),
       { wrapper }
     );
 
-    await Promise.resolve();
-    expect(holder.read).not.toHaveBeenCalled();
-    expect(result.current.loading).toBe(true);
-    expect(result.current.data).toBeUndefined();
+    await waitFor(() => expect(result.current.hydrated.data).toBeDefined());
+    expect(result.current.hydrating.loading).toBe(true);
+    expect(result.current.hydrating.data).toBeUndefined();
   });
 
   test("keeps the previous result across re-filters within one universe", async () => {
@@ -194,49 +151,70 @@ describe("useDatabaseLogsListingQuery", () => {
       }
     );
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-      ])
+      expect(names(result.current.data?.items)).toEqual(["/logs/a.eval"])
     );
 
     // Re-filter: the prior page keeps showing (no pending flash) until the
     // new read lands.
     rerender(listingParams({ filter: new Column("model").eq("claude") }));
     expect(result.current.loading).toBe(false);
-    expect(result.current.data?.items.map((row) => row.name)).toEqual([
-      "/logs/a.eval",
-    ]);
+    expect(names(result.current.data?.items)).toEqual(["/logs/a.eval"]);
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
-        "/logs/b.eval",
-      ])
+      expect(names(result.current.data?.items)).toEqual(["/logs/b.eval"])
     );
   });
 
   test("re-queries when the accessor schema lands, keeping the rows as placeholder", async () => {
+    // Before the scorer schema lands, the accessor can't read the filtered
+    // column; once it lands (a new accessorsKey), the same filter matches.
+    const filter = new Column("score").eq(1);
+    const withoutSchema = (_row: Row, _column: string): unknown => undefined;
+    const withSchema = (row: Row, column: string): unknown =>
+      column === "score" ? (row.model === "claude" ? 1 : 0) : row[column];
     const { result, rerender } = renderHook(
       (props) => useDatabaseLogsListingQuery<Row>(props),
       {
         wrapper,
-        initialProps: listingParams({ accessorsKey: "" }),
+        initialProps: listingParams({
+          filter,
+          getValue: withoutSchema,
+          accessorsKey: "",
+        }),
       }
     );
-    await waitFor(() => expect(result.current.data).toBeDefined());
-    expect(holder.read).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(result.current.data?.items).toEqual([]));
 
-    // The scorer schema arriving changes what the plan computes without any
-    // other query input changing — same universe, so the previous rows keep
+    // The schema arriving changes what the plan computes without any other
+    // query input changing — same universe, so the previous rows keep
     // showing while the re-evaluated read is in flight.
-    rerender(listingParams({ accessorsKey: "grader/accuracy:number" }));
+    rerender(
+      listingParams({
+        filter,
+        getValue: withSchema,
+        accessorsKey: "grader/accuracy:number",
+      })
+    );
     expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeDefined();
-    await waitFor(() => expect(holder.read).toHaveBeenCalledTimes(2));
+    expect(result.current.data?.items).toEqual([]);
+    await waitFor(() =>
+      expect(names(result.current.data?.items)).toEqual(["/logs/b.eval"])
+    );
   });
 
   test("surfaces a failed read as an error, not an empty listing", async () => {
-    holder.read.mockRejectedValue(new Error("scan failed"));
+    // The plan runs inside the read; an accessor that throws fails it.
+    // Settle on the first failure rather than after the app's retries.
+    vi.stubGlobal("__TEST_DISABLE_RETRY", true);
     const { result } = renderHook(
-      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      () =>
+        useDatabaseLogsListingQuery<Row>(
+          listingParams({
+            filter: new Column("model").eq("gpt-4"),
+            getValue: () => {
+              throw new Error("scan failed");
+            },
+          })
+        ),
       { wrapper }
     );
 
@@ -266,47 +244,6 @@ describe("useDatabaseLogsListingQuery", () => {
 });
 
 describe("useLogsListingMatches", () => {
-  let queryClient: QueryClient;
-
-  beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    holder.records = records;
-    holder.readMatches.mockReset();
-    // The seam double: lowercase-contains over the shaped records, like
-    // readLogsListingMatches over the scanned rows.
-    holder.readMatches.mockImplementation(
-      (
-        _logDir: string,
-        _prefix: string,
-        rowFor: (log: LogListingRow) => Row | undefined,
-        plan: DatabaseListingPlan<Row>,
-        find: {
-          term: string;
-          getRowId: (row: Row) => string;
-          rowText: (row: Row) => string;
-        }
-      ) => {
-        const rows = holder.records
-          .map((record) => rowFor(record))
-          .filter((row): row is Row => row !== undefined)
-          .filter(plan.matches);
-        return Promise.resolve(
-          rows
-            .filter((row) =>
-              find.rowText(row).includes(find.term.toLowerCase())
-            )
-            .map(find.getRowId)
-        );
-      }
-    );
-  });
-
-  const wrapper = ({ children }: PropsWithChildren) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-
   const matchesParams = (overrides?: {
     term?: string;
     enabled?: boolean;
@@ -319,7 +256,6 @@ describe("useLogsListingMatches", () => {
     rowText: (row: Row) => `${row.name}\n${row.model}`.toLowerCase(),
     searchKey: ["name", "model"],
   });
-
   test("reports ids as settled only after the debounced term's result lands", async () => {
     const { result, rerender } = renderHook(
       (props) => useLogsListingMatches<Row>(props),

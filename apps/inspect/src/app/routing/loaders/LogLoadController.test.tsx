@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 import { data, loading } from "@tsmono/util";
 
+import { testLogDetails } from "../../../client/api/testClientApi";
 import { LogDetails } from "../../../client/api/types";
 
 import { LogLoadController } from "./LogLoadController";
@@ -13,6 +14,10 @@ import { LogLoadController } from "./LogLoadController";
 // identity — a running log's details cache entry also receives poll-tick
 // merges, which must not re-run the settle effect. Mock the log_data hooks so
 // the two signals (data identity, settled seq) can be driven independently.
+// Mocks kept on purpose: over the real data layer, a details merge resets the
+// cached details_settled_seq to 0 (logsContent mergePatches copies the logs
+// collection row, which the engine's seq bump never updates), refiring this
+// controller — the poll-merge case below fails until that bug is fixed.
 const useLogHeader = vi.hoisted(() => vi.fn());
 const resolveLogKey = vi.hoisted(() => vi.fn());
 const useLogFetchState = vi.hoisted(() => vi.fn());
@@ -37,17 +42,16 @@ vi.mock("../../../state/store", () => ({
     }),
 }));
 
-const makeDetails = (n: number): LogDetails => ({
-  version: 2,
-  status: "started",
-  eval: testEvalSpec({
-    eval_id: `e${n}`,
-    run_id: `r${n}`,
-    task: "t",
-    model: "m",
-  }),
-  sampleSummaries: [],
-});
+const makeDetails = (n: number): LogDetails =>
+  testLogDetails({
+    status: "started",
+    eval: testEvalSpec({
+      eval_id: `e${n}`,
+      run_id: `r${n}`,
+      task: "t",
+      model: "m",
+    }),
+  });
 
 beforeEach(() => {
   clearSelectedScores.mockReset();

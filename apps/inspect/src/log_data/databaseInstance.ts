@@ -32,3 +32,16 @@ export async function acquireDatabase(): Promise<OpenDatabase> {
  * open one; their reads miss and writes stay cache-only).
  */
 export const currentDatabase = (): OpenDatabase | null => current;
+
+/**
+ * Close and forget the shared handle, so the next `acquireDatabase` opens a
+ * fresh one. Waits for an open in flight, so that open can't install itself
+ * after the release. Test teardown only: the app holds the handle for the
+ * life of the page.
+ */
+export const releaseDatabase = async (): Promise<void> => {
+  const db = current ?? (await opening?.catch(() => null));
+  db?.close();
+  current = null;
+  opening = null;
+};
