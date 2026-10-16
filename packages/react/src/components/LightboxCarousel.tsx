@@ -115,6 +115,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={styles.lightboxButtonClose}
               onClick={closeLightbox}
+              aria-label="Close"
             >
               <Icon name="close" />
             </button>
@@ -124,6 +125,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={clsx(styles.lightboxPreviewButton, styles.prev)}
               onClick={showPrev}
+              aria-label="Previous"
             >
               <Icon name="previous" />
             </button>
@@ -135,6 +137,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={clsx(styles.lightboxPreviewButton, styles.next)}
               onClick={showNext}
+              aria-label="Next"
             >
               <Icon name="next" />
             </button>

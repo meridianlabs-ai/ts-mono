@@ -69,7 +69,6 @@ export const iconClasses = {
   history: "bi bi-clock-history",
   info: "bi bi-info-circle",
   input: "bi bi-terminal",
-  inspect: "ii inspect-icon-16",
   inspectFile: "ii inspect-icon-file",
   interrupt: "bi bi-slash-circle",
   lightbulb: "bi bi-lightbulb",
@@ -95,8 +94,6 @@ export const iconClasses = {
   matchCase: "codicon codicon-case-sensitive",
   matchRegex: "codicon codicon-regex",
   matchWholeWord: "codicon codicon-whole-word",
-  menu: "bi bi-list",
-  metadata: "bi bi-table",
   metrics: "bi bi-clipboard-data",
   model: "bi bi-grid-3x3-gap",
   move: "bi bi-box-arrow-right",
@@ -139,11 +136,8 @@ export const iconClasses = {
   solverUseTools: "bi bi-tools",
   sortDown: "bi bi-sort-down",
   sortUp: "bi bi-sort-up",
-  step: "bi bi-fast-forward-btn",
-  subtask: "bi bi-subtract",
   success: "bi bi-check-circle-fill",
   successSubtle: "bi bi-check-circle",
-  table: "bi bi-table",
   terminal: "bi bi-terminal",
   themeDark: "bi bi-moon-stars-fill",
   themeLight: "bi bi-sun-fill",
@@ -155,7 +149,6 @@ export const iconClasses = {
   trash: "bi bi-trash",
   treeClosed: "bi bi-caret-right-fill",
   treeOpen: "bi bi-caret-down-fill",
-  usage: "bi bi-stopwatch",
   validation: "bi bi-patch-check",
   warning: "bi bi-exclamation-triangle",
   window: "bi bi-window",
@@ -175,8 +168,10 @@ const kLogLevelIcons: Record<string, IconName> = {
 };
 
 /** Icon for a logger level; `undefined` for a level we don't recognise. */
-export const logLevelIcon = (level: string): IconName | undefined =>
-  kLogLevelIcons[level.toLowerCase()];
+export const logLevelIcon = (level: string): IconName | undefined => {
+  const key = level.toLowerCase();
+  return Object.hasOwn(kLogLevelIcons, key) ? kLogLevelIcons[key] : undefined;
+};
 
 export const iconForMimeType = (mimeType: string): IconName => {
   if (mimeType === "application/pdf") {

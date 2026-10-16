@@ -1448,12 +1448,6 @@ pre[class*="language-"] {
 }
 /* END PrismJS */
 
-/* Note: SVG-icon mask rules (.ii::before, .inspect-icon-* etc.) are kept in
-   each app's local App.css because the `mask: url("../img/…")` references
-   are resolved relative to the CSS file, and the SVG assets live inside
-   each app's `src/img/` directory. Sharing those rules from this package
-   would require co-locating the assets here, which is out of scope. */
-
 /* Use this very carefully, find relies upon checking the
 document selection to determine if it should skip a find match
 so disabling selection can break that functionality */

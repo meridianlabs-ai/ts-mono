@@ -412,6 +412,12 @@ describe("ToolEventView approvals", () => {
       "1gatekeeperescalatePackage installs need a person."
     );
     expect(container.textContent).toContain("2humanapprove");
+    expect(
+      screen.getByText("escalate").querySelector("i.bi.bi-box-arrow-up")
+    ).not.toBeNull();
+    expect(
+      screen.getByText("approve").querySelector("i.bi.bi-shield-check")
+    ).not.toBeNull();
   });
 
   it("renders chain explanations as markdown", async () => {

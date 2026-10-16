@@ -4,7 +4,7 @@ import { FC, Fragment } from "react";
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
 import { useCollapsedState } from "@tsmono/react/hooks";
-import { IconName } from "@tsmono/react/icons";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
@@ -163,10 +163,7 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
                   {node.event.approver}
                 </span>
                 <span className={clsx(styles.chainDecision, step.text)}>
-                  <i
-                    className={decisionIcon(node.event.decision)}
-                    aria-hidden="true"
-                  />
+                  <Icon name={decisionIcon(node.event.decision)} />
                   {node.event.decision}
                 </span>
                 {explanation ? (
