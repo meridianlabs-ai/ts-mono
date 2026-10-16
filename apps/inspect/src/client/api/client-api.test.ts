@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  testAssistantMessage,
   testEvalLog,
   testEvalSample,
   testEvalSpec,
@@ -10,7 +11,11 @@ import { openRemoteLogFile, RemoteLogFile } from "../remote/remoteLogFile";
 import { DirectFetchError } from "../remote/remotePendingSampleData";
 
 import { clientApi } from "./client-api";
-import { notImplemented, testLogDetails } from "./testClientApi";
+import {
+  notImplemented,
+  testLogDetails,
+  testLogPreview,
+} from "./testClientApi";
 import {
   EditLogResult,
   LogContents,
@@ -77,7 +82,7 @@ describe("concurrent JSON log reads", () => {
         testEvalSample({
           id: 1,
           epoch: 1,
-          messages: [{ role: "assistant", content: task }],
+          messages: [testAssistantMessage({ content: task })],
         }),
       ],
     });
@@ -592,14 +597,12 @@ describe("clientApi.get_log_summaries_settled", () => {
   // /log-headers request must not fail every other file in that batch — see
   // the TODO in client-api.ts for the server-side fix this works around.
 
-  const previewFor = (id: string): LogPreview => ({
-    eval_id: id,
-    run_id: `run-${id}`,
-    task: "test_task",
-    task_id: `task-${id}`,
-    task_version: 0,
-    model: "test-model",
-  });
+  const previewFor = (id: string): LogPreview =>
+    testLogPreview({
+      eval_id: id,
+      run_id: `run-${id}`,
+      task_id: `task-${id}`,
+    });
 
   test("wraps the batched endpoint's results as ok when it returns the full set", async () => {
     const previews = [previewFor("a"), previewFor("b")];

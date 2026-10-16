@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { expectEvent } from "../testing";
+import {
+  expectEvent,
+  testAssistantMessage,
+  testModelCall,
+  testModelEvent,
+  testModelOutput,
+  testStepEvent,
+  testUserMessage,
+} from "../testing";
 import type {
   ChatMessage,
-  ChatMessageAssistant,
-  ChatMessageUser,
   Event,
   EventsData,
+  ModelCall,
   ModelEvent,
 } from "../types";
 
@@ -14,133 +21,29 @@ import { expandEvents } from "./expandEvents";
 
 // -- Helpers for building test fixtures --
 
-const makeUserMsg = (content: string): ChatMessageUser => ({
-  role: "user",
-  content,
-  id: null,
-  metadata: null,
-  source: null,
-  tool_call_id: null,
-});
-
-const makeAssistantMsg = (content: string): ChatMessageAssistant => ({
-  role: "assistant",
-  content,
-  id: null,
-  metadata: null,
-  model: null,
-  source: null,
-  tool_calls: null,
-});
-
-const EMPTY_CONFIG: ModelEvent["config"] = {
-  attempt_timeout: null,
-  batch: null,
-  best_of: null,
-  cache: null,
-  cache_prompt: null,
-  effort: null,
-  extra_body: null,
-  extra_headers: null,
-  frequency_penalty: null,
-  internal_tools: null,
-  logit_bias: null,
-  logprobs: null,
-  max_connections: null,
-  max_retries: null,
-  max_tokens: null,
-  max_tool_output: null,
-  modalities: null,
-  num_choices: null,
-  parallel_tool_calls: null,
-  presence_penalty: null,
-  reasoning_effort: null,
-  reasoning_history: null,
-  reasoning_summary: null,
-  reasoning_tokens: null,
-  response_schema: null,
-  seed: null,
-  stop_seqs: null,
-  system_message: null,
-  temperature: null,
-  timeout: null,
-  top_k: null,
-  top_logprobs: null,
-  top_p: null,
-  verbosity: null,
-};
-
-const EMPTY_OUTPUT: ModelEvent["output"] = {
-  choices: [],
-  completion: "",
-  model: "test-model",
-  error: null,
-  metadata: null,
-  time: null,
-  usage: null,
-};
-
 /** Minimal ModelEvent with condensed input_refs (no inline input). */
 const makeCondensedModelEvent = (
   inputRefs: [number, number][] | null,
-  callOverrides?: Partial<ModelEvent["call"]>
-): ModelEvent => ({
-  event: "model",
-  model: "test-model",
-  input: [],
-  input_refs: inputRefs,
-  output: EMPTY_OUTPUT,
-  config: EMPTY_CONFIG,
-  call: callOverrides
-    ? {
-        request: {},
-        response: null,
-        call_refs: null,
-        call_key: null,
-        time: null,
-        error: null,
-        ...callOverrides,
-      }
-    : null,
-  cache: null,
-  completed: null,
-  error: null,
-  metadata: null,
-  pending: null,
-  retries: null,
-  role: null,
-  span_id: null,
-  timestamp: "2024-01-01T00:00:00Z",
-  tool_choice: "auto",
-  tools: [],
-  traceback: null,
-  traceback_ansi: null,
-  uuid: null,
-  working_start: 0,
-  working_time: null,
-});
+  callOverrides?: Partial<ModelCall>
+): ModelEvent =>
+  testModelEvent({
+    model: "test-model",
+    input: [],
+    input_refs: inputRefs,
+    output: testModelOutput({ model: "test-model" }),
+    call: callOverrides ? testModelCall(callOverrides) : null,
+  });
 
-const makeStepEvent = (): Event => ({
-  event: "step",
-  action: "begin",
-  type: null,
-  name: "test-step",
-  timestamp: "2024-01-01T00:00:00Z",
-  metadata: null,
-  pending: null,
-  span_id: null,
-  uuid: null,
-  working_start: 0,
-});
+const makeStepEvent = (): Event => testStepEvent({ name: "test-step" });
 
 const pool: ChatMessage[] = [
-  makeUserMsg("msg-0"),
-  makeUserMsg("msg-1"),
-  makeAssistantMsg("msg-2"),
-  makeUserMsg("msg-3"),
-  makeAssistantMsg("msg-4"),
-  makeUserMsg("msg-5"),
-  makeAssistantMsg("msg-6"),
+  testUserMessage({ content: "msg-0" }),
+  testUserMessage({ content: "msg-1" }),
+  testAssistantMessage({ content: "msg-2" }),
+  testUserMessage({ content: "msg-3" }),
+  testAssistantMessage({ content: "msg-4" }),
+  testUserMessage({ content: "msg-5" }),
+  testAssistantMessage({ content: "msg-6" }),
 ];
 
 const callPool: EventsData["calls"] = [

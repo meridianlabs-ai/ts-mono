@@ -1,5 +1,11 @@
-import type { ScanResultData } from "../app/types";
-import type { ActiveScanInfo, AppConfig, Status } from "../types/api-types";
+import type { ScanResultData, ScanResultSummary } from "../app/types";
+import type {
+  ActiveScanInfo,
+  AppConfig,
+  Status,
+  Transcript,
+  TranscriptInfo,
+} from "../types/api-types";
 
 export function createActiveScanInfo(
   overrides: Partial<ActiveScanInfo> & { scan_id: string }
@@ -29,9 +35,9 @@ export function createActiveScanInfo(
   };
 }
 
-export function createScanResultData(
-  overrides: Partial<ScanResultData> = {}
-): ScanResultData {
+export function createScanResultSummary(
+  overrides: Partial<ScanResultSummary> = {}
+): ScanResultSummary {
   return {
     identifier: "result-1",
     inputType: "events",
@@ -43,6 +49,15 @@ export function createScanResultData(
     valueType: "null",
     transcriptSourceId: "source-1",
     transcriptMetadata: {},
+    ...overrides,
+  };
+}
+
+export function createScanResultData(
+  overrides: Partial<ScanResultData> = {}
+): ScanResultData {
+  return {
+    ...createScanResultSummary(),
     inputIds: [],
     metadata: {},
     scanId: "scan-1",
@@ -84,6 +99,29 @@ export function createStatus(overrides: Partial<Status> = {}): Status {
       timestamp: "2024-01-01T00:00:00Z",
     },
     summary: { complete: false, scanners: {} },
+    ...overrides,
+  };
+}
+
+export function createTranscriptInfo(
+  overrides: Partial<TranscriptInfo> = {}
+): TranscriptInfo {
+  return {
+    transcript_id: "transcript-1",
+    metadata: {},
+    ...overrides,
+  };
+}
+
+export function createTranscript(
+  overrides: Partial<Transcript> = {}
+): Transcript {
+  return {
+    transcript_id: "transcript-1",
+    metadata: {},
+    messages: [],
+    events: [],
+    timelines: [],
     ...overrides,
   };
 }

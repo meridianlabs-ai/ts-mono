@@ -72,8 +72,10 @@ import {
   useCopyToClipboard,
   useElementHeight,
   useEventListener,
+  useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
@@ -118,7 +120,6 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 import { SelectedSampleContentTrustProvider } from "../shared/contentTrust";
-import { openInNewTab } from "../shared/openInNewTab";
 import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
@@ -267,12 +268,9 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearSampleTab();
-    };
-  }, [clearSampleTab]);
+  useUnmount(() => {
+    clearSampleTab();
+  });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
@@ -445,7 +443,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
             )
           : undefined
       );
-      openInNewTab(printUrl);
+      openRouteInNewTab(printUrl);
     }
   }, [
     printLogPath,
@@ -526,7 +524,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
       sampleEpoch
     );
     if (event.metaKey || event.ctrlKey || event.shiftKey) {
-      openInNewTab(`#${url}`);
+      openRouteInNewTab(url);
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);

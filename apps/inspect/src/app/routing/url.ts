@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useLocation } from "react-router";
 
+import { hashRouteUrl } from "@tsmono/react/routing";
 import { directoryRelativeUrl, encodePathParts } from "@tsmono/util";
 
 import {
@@ -468,9 +469,7 @@ export const logsUrlRaw = (
   }
 };
 
-export const toFullUrl = (path: string) => {
-  return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
-};
+export const toFullUrl = (path: string) => hashRouteUrl(path);
 
 export const toFullUrlMaybe = (route: string | undefined) =>
   route ? toFullUrl(route) : undefined;

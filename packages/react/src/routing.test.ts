@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createWebviewStorage } from "@tsmono/util";
 
-import { createRestorableHashRouter } from "./routing";
+import {
+  createRestorableHashRouter,
+  openHrefInNewTab,
+  openRouteInNewTab,
+} from "./routing";
 
 const routers: ReturnType<typeof createRestorableHashRouter>[] = [];
 const routes = [{ path: "*", element: null }];
@@ -114,5 +118,62 @@ describe("webview route restoration", () => {
     first.dispose();
     window.history.replaceState(null, "", "/");
     expect(open({ key }).state.location.pathname).toBe("/");
+  });
+});
+
+describe("openRouteInNewTab", () => {
+  const initial = window.location.href;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, "", initial);
+  });
+
+  it.each(["/logs/example.eval", "#/logs/example.eval"])(
+    "opens %s as a hash route without granting opener access",
+    (route) => {
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      const focus = vi.spyOn(window, "focus").mockImplementation(() => {});
+
+      openRouteInNewTab(route);
+
+      expect(open).toHaveBeenCalledWith(
+        `${window.location.origin}${window.location.pathname}#/logs/example.eval`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      expect(focus).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("keeps the host page's path and query (e.g. ?mode=scans)", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/viewer?mode=scans&log_dir=s3%3A%2F%2Fb"
+    );
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openRouteInNewTab("/scan/abc/def");
+
+    expect(open).toHaveBeenCalledWith(
+      `${window.location.origin}/viewer?mode=scans&log_dir=s3%3A%2F%2Fb#/scan/abc/def`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  });
+
+  it("opens a full href unchanged", () => {
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openHrefInNewTab("https://example.com/viewer#/logs/a.eval");
+
+    expect(open).toHaveBeenCalledWith(
+      "https://example.com/viewer#/logs/a.eval",
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 });
