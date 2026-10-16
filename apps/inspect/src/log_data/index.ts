@@ -67,8 +67,8 @@
 //                 against the known one, re-acquire what changed.
 //                 Subscriber-driven: mounting useLogsSync is what keeps a
 //                 dir fresh; its `scope` keys a panel's subscription so
-//                 navigating re-syncs. ListingStatus (busy, error) is its
-//                 one progress signal.
+//                 navigating re-syncs. ListingStatus (busy, error,
+//                 refreshError) is its one progress signal.
 // - invalidate    Force a fresh read so mounted subscribers pick it up.
 //                 Fire-and-forget: consequences are observed through the
 //                 hooks, never awaited. Both imperative freshness verbs are
@@ -151,7 +151,7 @@ export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { FetchEngineController } from "./FetchEngineController";
-export { useDatabaseStats } from "./useFetchEngineStatus";
+export { useDatabaseStats, useLastSyncedAt } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";
 // Test teardown only: tests reuse one module instance across cases, so they
 // release the shared database handle between them. The app never does.
