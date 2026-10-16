@@ -198,18 +198,23 @@ export function VirtualList<T>({
     [externalScrollEl, scrollParent]
   );
 
-  const { virtualizer, scale, toContentScroll, toSpacerScroll } =
-    useScaledVirtualizer({
-      count: data.length,
-      estimateSize: () => estimatedItemHeight,
-      getScrollElement,
-      overscan,
-      useFlushSync,
-      // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
-      // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
-      scrollPaddingStart: scrollPaddingStart ?? 0,
-      scrollMargin,
-    });
+  const {
+    virtualizer,
+    scale,
+    toContentScroll,
+    toSpacerScroll,
+    syncScrollOffset,
+  } = useScaledVirtualizer({
+    count: data.length,
+    estimateSize: () => estimatedItemHeight,
+    getScrollElement,
+    overscan,
+    useFlushSync,
+    // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
+    // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
+    scrollPaddingStart: scrollPaddingStart ?? 0,
+    scrollMargin,
+  });
 
   const { getRestoreSnapshot, recordSnapshot } = useVirtualListState(
     persistenceKey,
@@ -693,6 +698,8 @@ export function VirtualList<T>({
         // guard (a snapshot may rehydrate later), but flag the reset so
         // re-fires don't keep forcing 0 against a deep-link scroll.
         el.scrollTop = 0;
+        // TanStack still holds the previous view's offset from the shared container.
+        syncScrollOffset();
         hasResetTopRef.current = true;
         release();
       } else {
@@ -725,6 +732,7 @@ export function VirtualList<T>({
     virtualizer,
     scrollMargin,
     resetScrollOnMount,
+    syncScrollOffset,
   ]);
 
   const buildSnapshot = useCallback(
