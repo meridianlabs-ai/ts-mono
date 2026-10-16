@@ -15,7 +15,7 @@ import { Modal } from "@tsmono/react/components";
 
 import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useUserInfoName } from "../../server/useUserInfoName";
+import { useUserInfo } from "../../server/useUserInfo";
 
 import { AutogrowText } from "./AutogrowText";
 import { ChangeSummary } from "./ChangeSummary";
@@ -187,8 +187,8 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [newType, setNewType] = useState<NewType>("string");
   // Undefined until the user types, so the server identity fills the field.
   const [authorEdit, setAuthorEdit] = useState<string | undefined>();
-  const userName = useUserInfoName(showing);
-  const author = authorEdit ?? userName ?? "";
+  const userInfo = useUserInfo(showing);
+  const author = authorEdit ?? userInfo.data?.name ?? "";
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
