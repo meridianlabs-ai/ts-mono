@@ -108,29 +108,30 @@ export class OpenDatabase {
     const db = this.db;
     const now = new Date().toISOString();
 
-    const existingRecords = await db.logs
-      .where("file_path")
-      .anyOf(handles.map((handle) => handle.name))
-      .toArray();
-    const existingByPath = new Map(
-      existingRecords.map((record) => [record.file_path, record])
-    );
+    log.debug(`Upserting ${handles.length} log rows (identity tier)`);
+    await db.transaction("rw", db.logs, async () => {
+      const existingRecords = await db.logs
+        .where("file_path")
+        .anyOf(handles.map((handle) => handle.name))
+        .toArray();
+      const existingByPath = new Map(
+        existingRecords.map((record) => [record.file_path, record])
+      );
 
-    const records = handles.map<LogRecord>((handle) => {
-      const existing = existingByPath.get(handle.name);
-      return existing
-        ? {
-            ...existing,
-            task: handle.task,
-            task_id: handle.task_id,
-            mtime: handle.mtime,
-            cached_at: now,
-          }
-        : toLogRecord(newRow(handle), undefined, now);
+      const records = handles.map<LogRecord>((handle) => {
+        const existing = existingByPath.get(handle.name);
+        return existing
+          ? {
+              ...existing,
+              task: handle.task,
+              task_id: handle.task_id,
+              mtime: handle.mtime,
+              cached_at: now,
+            }
+          : toLogRecord(newRow(handle), undefined, now);
+      });
+      await db.logs.bulkPut(records);
     });
-
-    log.debug(`Upserting ${records.length} log rows (identity tier)`);
-    await db.logs.bulkPut(records);
   }
 
   async readLogs(scope: LogScope): Promise<Log[] | null> {
@@ -187,32 +188,36 @@ export class OpenDatabase {
   }
 
   /** Merge a set of per-file row patches, creating listed-depth rows for
-   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers. */
+   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers.
+   *  The read and put share a transaction so a concurrent write to the same
+   *  rows can't land in between and be overwritten by the stale read. */
   private async mergeRows(
     patches: Record<string, Partial<Log>>
   ): Promise<void> {
     const db = this.db;
     const now = new Date().toISOString();
     const files = Object.keys(patches);
-    const existing = await db.logs.where("file_path").anyOf(files).toArray();
-    const byPath = new Map(
-      existing.map((record) => [record.file_path, record])
-    );
-    const records = files.map<LogRecord>((file) => {
-      const patch = patches[file] ?? {};
-      const current = byPath.get(file);
-      const base =
-        current ?? toLogRecord(newRow({ name: file }), undefined, now);
-      return {
-        ...base,
-        ...patch,
-        depth: maxDepth(base.depth, patch.depth ?? base.depth),
-        file_path: file,
-        id: current?.id,
-        cached_at: now,
-      };
+    await db.transaction("rw", db.logs, async () => {
+      const existing = await db.logs.where("file_path").anyOf(files).toArray();
+      const byPath = new Map(
+        existing.map((record) => [record.file_path, record])
+      );
+      const records = files.map<LogRecord>((file) => {
+        const patch = patches[file] ?? {};
+        const current = byPath.get(file);
+        const base =
+          current ?? toLogRecord(newRow({ name: file }), undefined, now);
+        return {
+          ...base,
+          ...patch,
+          depth: maxDepth(base.depth, patch.depth ?? base.depth),
+          file_path: file,
+          id: current?.id,
+          cached_at: now,
+        };
+      });
+      await db.logs.bulkPut(records);
     });
-    await db.logs.bulkPut(records);
   }
 
   // === PREVIEWED TIER ===
