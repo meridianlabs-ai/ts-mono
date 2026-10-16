@@ -32,7 +32,6 @@ import {
 } from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
-import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 
@@ -47,13 +46,7 @@ import styles from "./SamplePrintView.module.css";
  * events (ids as the transcript assigns them: the uuid, or the position-based
  * fallback for logs without uuids).
  */
-export const SamplePrintView: FC = () => (
-  <SelectedSampleContentTrustProvider>
-    <SamplePrintViewContent />
-  </SelectedSampleContentTrustProvider>
-);
-
-const SamplePrintViewContent: FC = () => {
+export const SamplePrintView: FC = () => {
   const { sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;

@@ -119,7 +119,6 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { SelectedSampleContentTrustProvider } from "../shared/contentTrust";
 import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
@@ -166,13 +165,7 @@ const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
 /**
  * Component to display a sample with relevant context and visibility control.
  */
-export const SampleDisplay: FC<SampleDisplayProps> = (props) => (
-  <SelectedSampleContentTrustProvider>
-    <SampleDisplayContent {...props} />
-  </SelectedSampleContentTrustProvider>
-);
-
-const SampleDisplayContent: FC<SampleDisplayProps> = ({
+export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,

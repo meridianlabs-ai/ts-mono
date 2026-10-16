@@ -13,10 +13,7 @@ import { useLogHeader } from "../../log_data";
 import { startTestApp, stopTestApp, TestApp } from "../../test/testApp";
 import { useCurrentLogFile } from "../routing/currentSelection";
 
-import {
-  SelectedSampleContentTrustProvider,
-  SelectionContentTrustProvider,
-} from "./contentTrust";
+import { SelectionContentTrustProvider } from "./contentTrust";
 
 // Logs served by the api: trusted.eval has no viewer setting,
 // untrusted.eval sets trust_content=false, and loading.eval's details
@@ -102,11 +99,11 @@ describe("SelectionContentTrustProvider", () => {
   });
 });
 
-describe("SelectedSampleContentTrustProvider", () => {
+describe("SelectionContentTrustProvider on a sample route", () => {
   it("is trusted when the sample's log is", async () => {
     renderAt(
       "/logs/trusted.eval/samples/sample/1/1",
-      SelectedSampleContentTrustProvider
+      SelectionContentTrustProvider
     );
     expect(await settled("trusted settled")).toBeInTheDocument();
   });
@@ -114,20 +111,15 @@ describe("SelectedSampleContentTrustProvider", () => {
   it("is untrusted when the sample's log is untrusted", async () => {
     renderAt(
       "/logs/untrusted.eval/samples/sample/1/1",
-      SelectedSampleContentTrustProvider
+      SelectionContentTrustProvider
     );
     expect(await settled("untrusted settled")).toBeInTheDocument();
   });
 
-  it("falls back to the selected log without a sample selection", async () => {
-    renderAt("/logs/untrusted.eval", SelectedSampleContentTrustProvider);
-    expect(await settled("untrusted settled")).toBeInTheDocument();
-  });
-
-  it("is untrusted while the selected sample's log header loads", async () => {
+  it("is untrusted while the sample's log header loads", async () => {
     renderAt(
       "/logs/loading.eval/samples/sample/1/1",
-      SelectedSampleContentTrustProvider
+      SelectionContentTrustProvider
     );
     await waitFor(() => expect(requested).toContain("/logs/loading.eval"));
     expect(trust()).toBe("untrusted loading");
