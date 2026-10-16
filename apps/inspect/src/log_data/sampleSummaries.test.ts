@@ -160,7 +160,7 @@ describe("useSampleSummaries during a running eval", () => {
     cleanup();
     deactivateFetchEngine();
     fetchEngine.stop();
-    releaseDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
     queryClient.clear();
     vi.clearAllMocks();

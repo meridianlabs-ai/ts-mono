@@ -54,16 +54,17 @@ describe("acquireDatabase", () => {
     expect(currentDatabase()).toBe(db);
   });
 
-  test("an open in flight when the handle is released never installs itself", async () => {
+  test("releasing during an open waits for it, so it never installs itself", async () => {
     const { acquireDatabase, currentDatabase, releaseDatabase } = await load();
 
-    const abandoned = acquireDatabase();
-    releaseDatabase();
+    const inFlight = acquireDatabase();
+    await releaseDatabase();
 
-    await expect(abandoned).rejects.toThrow(/released while opening/);
     expect(currentDatabase()).toBeNull();
-    // The next acquisition opens a fresh handle.
-    const db = await acquireDatabase();
-    expect(currentDatabase()).toBe(db);
+    // The next acquisition opens a fresh handle, not the released one.
+    const released = await inFlight;
+    const fresh = await acquireDatabase();
+    expect(fresh).not.toBe(released);
+    expect(currentDatabase()).toBe(fresh);
   });
 });

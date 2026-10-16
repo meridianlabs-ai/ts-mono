@@ -84,7 +84,7 @@ const seedDetailedRow = async () => {
 afterEach(async () => {
   cleanup();
   deactivateFetchEngine();
-  releaseDatabase();
+  await releaseDatabase();
   await Dexie.delete(DB_NAME);
   queryClient.clear();
   vi.restoreAllMocks();

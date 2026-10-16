@@ -50,7 +50,7 @@ afterEach(async () => {
   cleanup();
   vi.useRealTimers();
   deactivateFetchEngine();
-  releaseDatabase();
+  await releaseDatabase();
   await Dexie.delete(DB_NAME);
   queryClient.clear();
 });

@@ -60,7 +60,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  releaseDatabase();
+  await releaseDatabase();
   // The database name is a constant — cross-test isolation comes from
   // deleting it outright.
   await Dexie.delete(DB_NAME);
@@ -213,7 +213,7 @@ describe("useSamplesListing", () => {
     // Boot race: the samples listing mounts while the database open is still
     // in flight, so the read sees no open handle and settles empty
     // (staleTime: Infinity — it will never refetch on its own).
-    releaseDatabase();
+    await releaseDatabase();
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
       { wrapper }
@@ -232,7 +232,7 @@ describe("useSamplesListing", () => {
   });
 
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {
-    releaseDatabase();
+    await releaseDatabase();
 
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { file: FILE_A } }),

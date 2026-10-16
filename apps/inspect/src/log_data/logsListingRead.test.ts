@@ -63,7 +63,7 @@ describe("readLogsListing", () => {
   });
 
   afterEach(async () => {
-    releaseDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
   });
 
@@ -152,7 +152,7 @@ describe("readLogsListing", () => {
       testLogRow("/cache/logs/a.json"),
       testLogRow("/cache/logs-other/b.json"),
     ]);
-    releaseDatabase();
+    await releaseDatabase();
 
     const result = await readLogsListing(
       "/cache/logs",
@@ -195,7 +195,7 @@ describe("readLogsOverview", () => {
   });
 
   afterEach(async () => {
-    releaseDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
   });
 
@@ -287,7 +287,7 @@ describe("readLogsListingMatches", () => {
   });
 
   afterEach(async () => {
-    releaseDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
   });
 

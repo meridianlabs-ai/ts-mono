@@ -14,8 +14,7 @@ import { APP_CONFIG_KEY, initAppConfig, type AppConfig } from "../app_config";
 import { CurrentSelectionProvider } from "../app/routing/currentSelection";
 import { testClientAPI } from "../client/api/testClientApi";
 import { DB_NAME } from "../client/database";
-import { FetchEngineController } from "../log_data";
-import { releaseDatabase } from "../log_data/databaseInstance";
+import { FetchEngineController, releaseDatabase } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient";
 import { initializeStore } from "../state/store";
@@ -53,7 +52,7 @@ export const startTestApp = (overrides: Partial<AppConfig> = {}): AppConfig => {
  *  that stops the fetch engine. */
 export const stopTestApp = async (): Promise<void> => {
   queryClient.clear();
-  releaseDatabase();
+  await releaseDatabase();
   await Dexie.delete(DB_NAME);
 };
 

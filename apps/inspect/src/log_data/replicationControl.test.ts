@@ -61,7 +61,7 @@ const load = async () => {
 
   teardown = async () => {
     control.deactivateFetchEngine();
-    releaseDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
   };
 
