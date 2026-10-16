@@ -11,6 +11,7 @@ import {
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
+import type { RowSelection } from "@tsmono/inspect-components/selection";
 import {
   clearDeepLinkParams,
   dynamicDefaultExcludeEvents,
@@ -21,7 +22,6 @@ import {
   type SelectOptions,
   type TranscriptCollapseState,
   type TranscriptLayoutRightRailProps,
-  type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import {
@@ -88,8 +88,9 @@ interface TranscriptPanelProps {
 
   /** Always-visible right rail + optional panel (Search / Scans). */
   rightRail?: TranscriptLayoutRightRailProps;
-  /** Owner key of the evidence selection (the host's current sample-tab visit). */
-  selectionKey: string;
+  /** Evidence selection (the toolbar in SampleDisplay drives it); present
+   *  only while selection mode is on. */
+  selection?: RowSelection;
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
@@ -120,7 +121,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     eventNodeContext,
     rightRail,
     defaultExcludeEvents: defaultExcludeEventsProp,
-    selectionKey,
+    selection,
   } = props;
 
   // ---------------------------------------------------------------------------
@@ -237,32 +238,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     onSetTranscriptCollapsed,
     onSetOutlineCollapsed,
   ]);
-
-  // ---------------------------------------------------------------------------
-  // Evidence selection (from store; the toolbar in SampleDisplay drives it)
-  // ---------------------------------------------------------------------------
-
-  const eventSelection = useStore((state) => state.sample.eventSelection);
-  const setEventSelection = useStore(
-    (state) => state.sampleActions.setEventSelection
-  );
-  // Bails out of React Compiler (checked with SWC); identity feeds row context.
-  const selection = useMemo<TranscriptSelection | undefined>(
-    () =>
-      eventSelection.active && eventSelection.key === selectionKey
-        ? {
-            selectedIds: new Set(eventSelection.selectedIds),
-            lastToggledId: eventSelection.lastToggledId,
-            onChange: (next) =>
-              setEventSelection(
-                selectionKey,
-                [...next.selectedIds],
-                next.lastToggledId
-              ),
-          }
-        : undefined,
-    [eventSelection, selectionKey, setEventSelection]
-  );
 
   // Bulk collapse mode: "collapsed" | "expanded" | null
   // Map to the layout's bulkCollapse?: "collapse" | "expand" prop

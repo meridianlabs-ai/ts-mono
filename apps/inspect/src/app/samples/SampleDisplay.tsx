@@ -27,15 +27,10 @@ import {
   hasEventTimestamps,
   SampleActivityPanel,
 } from "@tsmono/inspect-components/sample-activity";
+import { SelectTool } from "@tsmono/inspect-components/selection";
 import {
-  buildSelectableEventIndex,
   dynamicDefaultExcludeEvents,
-  eventsToMarkdown,
   eventsToStr,
-  resolveSelectedEvents,
-  resolveSelectedIds,
-  selectionMenuChrome,
-  TranscriptSelectTool,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
 import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
@@ -95,6 +90,7 @@ import {
 } from "../../constants";
 import {
   kDefaultMessageRowOptions,
+  messagesFromEvents,
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
@@ -104,7 +100,6 @@ import {
   useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { eventSelectionKey } from "../../state/sampleSlice";
 import { useStore } from "../../state/store";
 import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
@@ -119,7 +114,6 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
-import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
@@ -136,6 +130,10 @@ import { SearchPanelSlot } from "./transcript/search/SearchPanelSlot";
 import { useInspectSearchReferenceLabels } from "./transcript/search/useInspectSearchReferenceLabels";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
+import {
+  useEvidenceSelection,
+  type EvidenceFormat,
+} from "./useEvidenceSelection";
 
 interface SampleDisplayProps {
   id: string;
@@ -149,19 +147,6 @@ type ActivityRailItemId = "search" | "scans";
 // stable empty rows while the messages read is pending, so the list's
 // props don't churn per render
 const kNoMessageRows: MessageRow[] = [];
-const kNoEventSelection: EventSelectionState = {
-  key: null,
-  active: false,
-  selectedIds: [],
-  lastToggledId: null,
-};
-
-// Selected ids that no longer resolve (e.g. a failed retry attempt the live
-// stream folded away) still reach the print page, which reports them as not
-// found instead of printing the whole sample.
-const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
-  ids.length > 0 ? ids : [...stored];
-
 /**
  * Component to display a sample with relevant context and visibility control.
  */
@@ -383,42 +368,22 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const printSampleId = urlSampleId ?? sampleHandle?.id.toString();
   const printEpoch = urlEpoch ?? sampleHandle?.epoch.toString();
 
-  // Evidence selection: with events selected, Copy/Download/Print act on them.
-  const isTranscriptTab = effectiveSelectedTab === kSampleTranscriptTabId;
-  // The selection belongs to one visit of one sample tab: leaving the tab or
-  // the sample (even briefly) is a new visit, so the Select latch reads as off.
-  const selectionKey = useVisitId(
-    eventSelectionKey(visitHandle, effectiveSelectedTab)
-  );
-  const storedSelection = useStore((state) => state.sample.eventSelection);
-  const eventSelection =
-    isTranscriptTab && storedSelection.key === selectionKey
-      ? storedSelection
-      : kNoEventSelection;
-  const setEventSelectionActive = useStore(
-    (state) => state.sampleActions.setEventSelectionActive
-  );
-  const clearEventSelection = useStore(
-    (state) => state.sampleActions.clearEventSelection
-  );
-  const resetEventSelection = useStore(
-    (state) => state.sampleActions.resetEventSelection
-  );
-  const selectedIdSet = useMemo(
-    () => new Set(eventSelection.selectedIds),
-    [eventSelection.selectedIds]
-  );
-  // Ids → events needs a full tree build, so it happens at export/print time,
-  // never per render; the toolbar counts the stored ids.
-  const selectionCount = eventSelection.active ? selectedIdSet.size : 0;
-  const resolveIndex = () => buildSelectableEventIndex(sampleEvents, running);
-  const hasSelection = isTranscriptTab && selectionCount > 0;
-  // Chunked samples window their events, so there is no full event list to
-  // select from or export.
-  const canSelectEvents =
-    isTranscriptTab && !isChunked && sampleEvents.length > 0;
+  // Evidence selection: with rows selected, Copy/Download/Print act on them.
+  const evidence = useEvidenceSelection({
+    handle: visitHandle,
+    tab: effectiveSelectedTab,
+    selectable:
+      !isChunked &&
+      (effectiveSelectedTab === kSampleTranscriptTabId
+        ? sampleEvents.length > 0
+        : (sampleMessages.rows.data?.length ?? 0) > 0),
+    events: sampleEvents,
+    running,
+    messages: () => sample?.messages ?? messagesFromEvents(runningSampleData),
+  });
+  const selected = evidence.selected;
 
-  const handlePrintClick = useCallback(() => {
+  const handlePrintClick = () => {
     if (printLogPath && printSampleId && printEpoch) {
       const printUrl = printSampleUrl(
         printLogPath,
@@ -426,29 +391,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         printEpoch,
         effectiveSelectedTab,
         prefix,
-        hasSelection
-          ? withStoredFallback(
-              resolveSelectedIds(
-                buildSelectableEventIndex(sampleEvents, running),
-                selectedIdSet
-              ),
-              selectedIdSet
-            )
-          : undefined
+        selected ? { item: selected.item, ids: selected.printIds() } : undefined
       );
       openRouteInNewTab(printUrl);
     }
-  }, [
-    printLogPath,
-    printSampleId,
-    printEpoch,
-    effectiveSelectedTab,
-    prefix,
-    hasSelection,
-    selectedIdSet,
-    sampleEvents,
-    running,
-  ]);
+  };
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
   const printShortcutEnabled =
@@ -536,17 +483,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   };
   // An export whose ids resolve to nothing is refused rather than copying or
   // downloading an empty document under a success icon.
-  const exportSelected = (action: (events: Events) => void) => {
-    const events = resolveSelectedEvents(resolveIndex(), selectedIdSet);
-    if (events.length === 0) {
-      console.warn("Selected events are no longer in this sample.");
-      return;
-    }
-    action(events);
+  const copySelected = (format: EvidenceFormat) => {
+    const content = selected?.render(format);
+    if (content !== undefined) copyText(content);
   };
-  const selectionMenu = hasSelection
-    ? selectionMenuChrome(selectionCount, clearEventSelection)
-    : undefined;
+  const downloadSelected = (
+    format: EvidenceFormat,
+    sampleId: string | number
+  ) => {
+    const content = selected?.render(format);
+    if (selected && content !== undefined) {
+      const ext =
+        format === "markdown" ? "md" : format === "text" ? "txt" : "json";
+      downloadFile(`${sampleId}-${selected.item}s.${ext}`, content);
+    }
+  };
 
   // Right-docked sidebar — search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
@@ -683,18 +634,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (canSelectEvents) {
-    tools.push(
-      <TranscriptSelectTool
-        key="sample-select-events"
-        active={eventSelection.active}
-        count={selectionCount}
-        onToggle={() =>
-          setEventSelectionActive(selectionKey, !eventSelection.active)
-        }
-        onClear={resetEventSelection}
-      />
-    );
+  if (evidence.tool) {
+    tools.push(<SelectTool key="sample-select" {...evidence.tool} />);
   }
 
   tools.push(
@@ -704,15 +645,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       icon={icon}
       subtle
       dropdownClassName="text-size-smallest"
-      heading={selectionMenu?.heading}
-      footer={selectionMenu?.footer}
+      heading={selected?.menu.heading}
+      footer={selected?.menu.footer}
       items={
-        hasSelection
+        selected
           ? {
-              Markdown: () =>
-                exportSelected((events) => copyText(eventsToMarkdown(events))),
-              Text: () =>
-                exportSelected((events) => copyText(eventsToStr(events))),
+              Markdown: () => copySelected("markdown"),
+              Text: () => copySelected("text"),
             }
           : {
               UUID: () => {
@@ -755,29 +694,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon="download"
         subtle
         dropdownClassName="text-size-smallest"
-        heading={selectionMenu?.heading}
-        footer={selectionMenu?.footer}
+        heading={selected?.menu.heading}
+        footer={selected?.menu.footer}
         items={
-          hasSelection
+          selected
             ? {
-                Markdown: () =>
-                  exportSelected((events) =>
-                    downloadFile(
-                      `${sampleId}-events.md`,
-                      eventsToMarkdown(events)
-                    )
-                  ),
-                Text: () =>
-                  exportSelected((events) =>
-                    downloadFile(`${sampleId}-events.txt`, eventsToStr(events))
-                  ),
-                JSON: () =>
-                  exportSelected((events) =>
-                    downloadFile(
-                      `${sampleId}-events.json`,
-                      JSON.stringify(events, null, 2)
-                    )
-                  ),
+                Markdown: () => downloadSelected("markdown", sampleId),
+                Text: () => downloadSelected("text", sampleId),
+                JSON: () => downloadSelected("json", sampleId),
               }
             : {
                 "Sample JSON": () => {
@@ -825,10 +749,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     tools.push(
       <ToolButton
         key="sample-print-tool"
-        label={hasSelection ? `Print · ${selectionCount}` : "Print"}
+        label={selected ? `Print · ${selected.count}` : "Print"}
         title={
-          hasSelection
-            ? `Print ${selectionCount} selected ${selectionCount === 1 ? "event" : "events"}`
+          selected
+            ? `Print ${selected.count} selected ${selected.item}${selected.count === 1 ? "" : "s"}`
             : undefined
         }
         icon="copy"
@@ -1089,7 +1013,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     rightRail={hasRail ? transcriptRail : undefined}
-                    selectionKey={selectionKey}
+                    selection={evidence.listSelection}
                   />
                 </div>
               )}
@@ -1144,6 +1068,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     backfilling={backfilling || sampleMessages.rows.loading}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     className={styles.fullWidth}
+                    selection={evidence.listSelection}
                   />
                 )}
               </RailSidebarHost>

@@ -21,12 +21,12 @@ import { useProperty } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
 
 import { MessageLabel } from "../../chat/MessageLabel";
+import {
+  RowSelectCheckbox,
+  useSelectableRow,
+} from "../../selection/RowSelectCheckbox";
 import { EventLabelContext } from "../EventLabelContext";
 import { useStickyStuck } from "../hooks/useStickyStuck";
-import {
-  EventSelectCheckbox,
-  useEventRowSelection,
-} from "../selection/EventSelectCheckbox";
 import type { EventPanelCallbacks } from "../types";
 
 import { EventNavs } from "./EventNavs";
@@ -102,7 +102,7 @@ export const EventPanel: FC<EventPanelProps> = ({
     onTabSelected,
   } = eventCallbacks ?? {};
   const eventLabel = useContext(EventLabelContext);
-  const rowSelection = useEventRowSelection(eventNodeId);
+  const rowSelection = useSelectableRow(eventNodeId);
   const selected = rowSelection?.selected === true;
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
@@ -278,7 +278,9 @@ export const EventPanel: FC<EventPanelProps> = ({
         onMouseEnter={() => setMouseOver(true)}
         onMouseLeave={() => setMouseOver(false)}
       >
-        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
+        {rowSelection ? (
+          <RowSelectCheckbox selection={rowSelection} item="event" />
+        ) : null}
         {isCollapsible && !useBottomDongle ? (
           <button
             type="button"

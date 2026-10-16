@@ -2,18 +2,21 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { testInfoEvent } from "@tsmono/inspect-common/testing";
-
-import { useTranscriptSelection } from "./useTranscriptSelection";
+import { useRowSelection } from "./useRowSelection";
 
 afterEach(cleanup);
 
-const events = [testInfoEvent({ uuid: "a" }), testInfoEvent({ uuid: "b" })];
+const rows = new Map([
+  ["a", "row a"],
+  ["b", "row b"],
+]);
+const resolve = (ids: ReadonlySet<string>) =>
+  [...rows].filter(([id]) => ids.has(id)).map(([, row]) => row);
 
-describe("useTranscriptSelection", () => {
+describe("useRowSelection", () => {
   it("resets the mode and the selection when the key changes", () => {
     const { result, rerender } = renderHook(
-      ({ key }: { key: string }) => useTranscriptSelection(key, events),
+      ({ key }: { key: string }) => useRowSelection(key, resolve),
       { initialProps: { key: "t1:events@v1" } }
     );
     act(() => result.current.toggleActive());
@@ -36,7 +39,7 @@ describe("useTranscriptSelection", () => {
   });
 
   it("clear keeps the mode; clearAndExit leaves it", () => {
-    const { result } = renderHook(() => useTranscriptSelection("k", events));
+    const { result } = renderHook(() => useRowSelection("k", resolve));
     act(() => result.current.toggleActive());
     act(() =>
       result.current.selection?.onChange({
@@ -53,8 +56,8 @@ describe("useTranscriptSelection", () => {
     expect(result.current.active).toBe(false);
   });
 
-  it("resolves the selected events on demand", () => {
-    const { result } = renderHook(() => useTranscriptSelection("k", events));
+  it("resolves the selected rows on demand", () => {
+    const { result } = renderHook(() => useRowSelection("k", resolve));
     act(() => result.current.toggleActive());
     act(() =>
       result.current.selection?.onChange({
@@ -62,6 +65,6 @@ describe("useTranscriptSelection", () => {
         lastToggledId: "b",
       })
     );
-    expect(result.current.resolveSelected()).toEqual([events[1]]);
+    expect(result.current.resolveSelected()).toEqual(["row b"]);
   });
 });

@@ -4,9 +4,9 @@ import { FC, ReactNode } from "react";
 import { Icon, IconName } from "@tsmono/react/icons";
 
 import {
-  EventSelectCheckbox,
-  useEventRowSelection,
-} from "../selection/EventSelectCheckbox";
+  RowSelectCheckbox,
+  useSelectableRow,
+} from "../../selection/RowSelectCheckbox";
 
 import styles from "./EventRow.module.css";
 
@@ -33,7 +33,7 @@ export const EventRow: FC<EventRowProps> = ({
   children,
   below,
 }) => {
-  const rowSelection = useEventRowSelection(eventNodeId);
+  const rowSelection = useSelectableRow(eventNodeId);
   const contentEl = title ? (
     <>
       <div
@@ -44,7 +44,9 @@ export const EventRow: FC<EventRowProps> = ({
           className
         )}
       >
-        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
+        {rowSelection ? (
+          <RowSelectCheckbox selection={rowSelection} item="event" />
+        ) : null}
         <Icon name={icon} className={iconClassName} />
         <div className={clsx("text-style-label")}>{title}</div>
         <div>{children}</div>
