@@ -8,13 +8,14 @@ export function sleep(ms: number): Promise<void> {
 /**
  * Creates a throttled version of a function that only invokes the original function
  * at most once per every `wait` milliseconds. The throttled function will run as much
- * as it can, without ever going more than once per `wait` duration.
+ * as it can, without ever going more than once per `wait` duration. `flush()` runs a
+ * pending trailing call now instead of waiting for the timer.
  */
 export function throttle<A extends unknown[], R>(
   func: (...args: A) => R,
   wait: number,
   options: { leading?: boolean; trailing?: boolean } = {}
-): (...args: A) => R {
+): ((...args: A) => R) & { flush: () => void } {
   let args: A | null;
   let result: R;
   let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -65,7 +66,14 @@ export function throttle<A extends unknown[], R>(
     return result;
   };
 
-  return throttled;
+  const flush = (): void => {
+    if (timeout) {
+      clearTimeout(timeout);
+      later();
+    }
+  };
+
+  return Object.assign(throttled, { flush });
 }
 
 /**

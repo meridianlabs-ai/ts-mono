@@ -13,7 +13,10 @@ import { OpenDatabase } from "../client/database/service";
 import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
-import { databaseLogsListingKey } from "./databaseListings";
+import {
+  databaseLogsListingKey,
+  invalidateDatabaseLogsListings,
+} from "./databaseListings";
 import {
   clearFile,
   logKey,
@@ -114,11 +117,10 @@ describe("db-less write invalidation", () => {
   const listingInvalidated = () =>
     queryClient.getQueryState(listingKey)?.isInvalidated;
 
-  beforeEach(async () => {
-    // Let a trailing invalidation armed by an earlier test's write fire
-    // first (the throttle window is 100ms, and timers fire in expiry order),
-    // so it can't stand in for the one under test.
-    await new Promise((resolve) => setTimeout(resolve, 150));
+  beforeEach(() => {
+    // Fire a trailing invalidation armed by an earlier test's write now, so
+    // it can't stand in for the one under test.
+    invalidateDatabaseLogsListings.flush();
     queryClient.setQueryData(listingKey, { items: [] });
   });
 

@@ -44,6 +44,19 @@ describe("throttle", () => {
     expect(fn).toHaveBeenCalledExactlyOnceWith(1);
   });
 
+  test("flush runs the pending trailing call now, once", () => {
+    const fn = vi.fn((n: number) => n);
+    const throttled = throttle(fn, 100, { leading: false });
+
+    throttled(1);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledExactlyOnceWith(1);
+
+    vi.advanceTimersByTime(100);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
   test("a call after the window reopens invokes immediately", () => {
     const fn = vi.fn((n: number) => n);
     const throttled = throttle(fn, 100);

@@ -40,7 +40,7 @@ export const listingKeyUniverse = (queryKey: readonly unknown[]): unknown =>
  * back-to-back for a whole sync, and a trailing-only debounce would postpone
  * the invalidation for the entire burst instead of updating incrementally.
  */
-export const invalidateDatabaseLogsListings: () => void = throttle(
+export const invalidateDatabaseLogsListings = throttle(
   () => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     queryClient.invalidateQueries({
