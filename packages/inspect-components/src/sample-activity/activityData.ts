@@ -829,10 +829,25 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
    *  context). */
   const currentConversationBySpan = new Map<string, Conversation>();
   const spanKey = (spanId: string | null | undefined): string => spanId ?? "";
+  /** A ToolEvent is logged in its own tool span (inside a handoff span for
+   *  hand-offs), while the model call that issued it keys the caller's
+   *  span. Step out once only: walking further could cross into another
+   *  conversation. */
+  const callerConversation = (
+    spanId: string | null | undefined
+  ): Conversation | undefined => {
+    const span = spanId ? spans.get(spanId) : undefined;
+    if (span?.type !== "tool") return undefined;
+    const parent = span.parentId ? spans.get(span.parentId) : undefined;
+    const callerId =
+      parent?.type === "handoff" ? parent.parentId : span.parentId;
+    return currentConversationBySpan.get(spanKey(callerId));
+  };
   const conversationForEvent = (
     spanId: string | null | undefined
   ): Conversation =>
     currentConversationBySpan.get(spanKey(spanId)) ??
+    callerConversation(spanId) ??
     conversationForSpan(spanId);
 
   const rowFor = (conversation: Conversation): AgentRow => {

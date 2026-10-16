@@ -1418,6 +1418,176 @@ describe("conversations (review round 1)", () => {
   });
 });
 
+describe("conversations (tool events in their own tool span)", () => {
+  // Newer logs record each ToolEvent with the id of its own `tool` span;
+  // older logs record it with the caller's span id.
+  const span = (
+    id: string,
+    type: string,
+    parentId: string | undefined,
+    startSec: number
+  ): Event =>
+    testSpanBeginEvent({
+      id,
+      name: id,
+      type,
+      parent_id: parentId,
+      timestamp: iso(startSec),
+      working_start: startSec,
+    });
+  const tool = (
+    uuid: string,
+    spanId: string | undefined,
+    startSec: number,
+    endSec: number
+  ): Event =>
+    testToolEvent({
+      uuid,
+      span_id: spanId,
+      timestamp: iso(startSec),
+      completed: iso(endSec),
+      working_start: startSec,
+      working_time: endSec - startSec,
+    });
+  const rowsOf = (events: Event[]): Record<string, string[]> =>
+    Object.fromEntries(
+      deriveActivityData({ events }).agentRows.map((row) => [
+        row.id,
+        row.spans.map((s) => s.uuid ?? ""),
+      ])
+    );
+
+  it.each([
+    ["under a scorer span", "grading"],
+    ["with no enclosing span", undefined],
+  ])("keeps a role model's tools on the role row %s", (_, scorerSpan) => {
+    const events: Event[] = [
+      ...(scorerSpan ? [span(scorerSpan, "scorer", undefined, 0)] : []),
+      modelCall({
+        start: 0,
+        duration: 10,
+        workingStart: 0,
+        role: "grader",
+        spanId: scorerSpan,
+        uuid: "g1",
+      }),
+      span("t1", "tool", scorerSpan, 10),
+      tool("g1-tool", "t1", 10, 20),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.agentRows.map((row) => row.id)).toEqual(["role:grader"]);
+    expect(data.turns).toHaveLength(1);
+    expect(data.turns[0]?.tools.map((t) => t.uuid)).toEqual(["g1-tool"]);
+  });
+
+  it.each([
+    ["old", "grading", "ask"],
+    ["new", "ask", "inner"],
+  ])(
+    "keeps a model-calling tool's inner calls apart from its caller (%s logs)",
+    (_, outerToolSpanId, innerToolSpanId) => {
+      // A grader calls `ask`, whose body calls a model that calls a tool.
+      const events: Event[] = [
+        span("grading", "scorer", undefined, 0),
+        modelCall({
+          start: 0,
+          duration: 10,
+          workingStart: 0,
+          role: "grader",
+          spanId: "grading",
+          uuid: "g1",
+        }),
+        span("ask", "tool", "grading", 10),
+        tool("ask-tool", outerToolSpanId, 10, 40),
+        modelCall({
+          start: 11,
+          duration: 10,
+          workingStart: 11,
+          spanId: "ask",
+          uuid: "inner-model",
+        }),
+        span("inner", "tool", "ask", 21),
+        tool("inner-tool", innerToolSpanId, 21, 30),
+      ];
+      expect(rowsOf(events)).toEqual({
+        "role:grader": ["g1", "ask-tool"],
+        "scorer:grading": ["inner-model", "inner-tool"],
+      });
+    }
+  );
+
+  it.each([
+    ["old", "react", "analyst"],
+    ["new", "transfer", "reverse"],
+  ])(
+    "keeps a hand-off on the parent and the sub-agent's tools on its row (%s logs)",
+    (_, transferSpanId, analystToolSpanId) => {
+      const events: Event[] = [
+        span("react", "agent", undefined, 0),
+        modelCall({
+          start: 0,
+          duration: 10,
+          workingStart: 0,
+          spanId: "react",
+          uuid: "m-react",
+        }),
+        span("handoff", "handoff", "react", 10),
+        span("transfer", "tool", "handoff", 10),
+        tool("t-transfer", transferSpanId, 10, 40),
+        span("analyst", "agent", "transfer", 11),
+        modelCall({
+          start: 11,
+          duration: 10,
+          workingStart: 11,
+          spanId: "analyst",
+          uuid: "m-analyst",
+        }),
+        span("reverse", "tool", "analyst", 21),
+        tool("t-analyst", analystToolSpanId, 21, 30),
+      ];
+      const data = deriveActivityData({ events });
+      expect(rowsOf(events)).toEqual({
+        react: ["m-react", "t-transfer"],
+        analyst: ["m-analyst", "t-analyst"],
+      });
+      const transfer = data.agentRows[0]?.spans.find(
+        (s) => s.uuid === "t-transfer"
+      );
+      expect(transfer?.handoffTo).toBe("analyst");
+    }
+  );
+
+  it("keeps a role model's tool on its row when the tool runs a nested agent", () => {
+    const events: Event[] = [
+      span("grading", "scorer", undefined, 0),
+      modelCall({
+        start: 0,
+        duration: 10,
+        workingStart: 0,
+        role: "grader",
+        spanId: "grading",
+        uuid: "g1",
+      }),
+      span("t-sub", "tool", "grading", 10),
+      tool("sub-tool", "t-sub", 10, 40),
+      span("sub", "agent", "t-sub", 11),
+      modelCall({
+        start: 11,
+        duration: 10,
+        workingStart: 11,
+        spanId: "sub",
+        uuid: "m-sub",
+      }),
+      span("t-sub-inner", "tool", "sub", 21),
+      tool("sub-inner-tool", "t-sub-inner", 21, 30),
+    ];
+    expect(rowsOf(events)).toEqual({
+      "role:grader": ["g1", "sub-tool"],
+      sub: ["m-sub", "sub-inner-tool"],
+    });
+  });
+});
+
 describe("turns (handoff 8b)", () => {
   it("groups each model call with the tool calls it issued, interleaving rows", () => {
     const events: Event[] = [
