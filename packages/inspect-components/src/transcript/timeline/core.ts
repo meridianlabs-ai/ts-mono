@@ -1473,10 +1473,29 @@ function getSystemPrompt(span: TimelineSpan): string | null {
 }
 
 /**
+ * Check whether span is a tool span shown as an agent: a tool whose body
+ * calls a model directly becomes an agent span named after the tool, which
+ * opens with its own ToolEvent (recorded with the tool span's id). For the
+ * caller it is a tool call. An explicit agent span opens with its own work
+ * instead, even when older logs give its tool calls the agent span's id.
+ */
+function isToolSpawnedAgent(span: TimelineSpan): boolean {
+  const first = span.content[0];
+  return (
+    span.spanType === "agent" &&
+    first?.type === "event" &&
+    first.event.event === "tool" &&
+    first.event.span_id === span.id &&
+    first.event.function.toLowerCase() === span.name
+  );
+}
+
+/**
  * Check if span has a single turn or single tool-calling turn.
  *
  * A single turn is 1 ModelEvent with no ToolEvents.
  * A single tool-calling turn is 2 ModelEvents with a ToolEvent between them.
+ * A tool span shown as a tool-spawned agent counts as the ToolEvent it holds.
  */
 function isSingleTurn(span: TimelineSpan): boolean {
   // Collect direct events (not child spans) with their types
@@ -1488,6 +1507,8 @@ function isSingleTurn(span: TimelineSpan): boolean {
       } else if (item.event.event === "tool") {
         directEvents.push("tool");
       }
+    } else if (isToolSpawnedAgent(item)) {
+      directEvents.push("tool");
     }
   }
 
