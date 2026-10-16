@@ -17,17 +17,13 @@ import { startTestApp, stopTestApp } from "../test/testApp";
 import { AppContent } from "./App";
 import { getAppRouter } from "./routing/AppRouter";
 
-// The host-message bridge, over the real router, config and data layer.
-// The app runs in directory mode on /logs with an empty listing; its
-// listing sync is the observable for a `backgroundUpdate`.
+// The empty listing's sync is what a host `backgroundUpdate` visibly re-runs.
 
 const getLogs = vi.fn(() =>
   Promise.resolve({ files: [], response_type: "full" as const })
 );
 
-// The VS Code host. It advertises the http_request proxy (so a re-pointed
-// config builds a working api) but never answers it: nothing here reads
-// from the re-pointed dir.
+// Never answers the http_request proxy: nothing here reads the re-pointed dir.
 const vscodeHost = {
   postMessage: () => {},
   getState: () => undefined,

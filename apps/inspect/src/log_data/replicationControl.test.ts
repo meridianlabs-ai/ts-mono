@@ -8,13 +8,7 @@ import { DB_NAME } from "../client/database";
 
 import { testClientAPI, testLogDetails } from "./testFixtures";
 
-// The activation lifecycle under test is module state (the current
-// activation, waiters, pending sync), so every test loads a fresh module
-// graph via `load()`. Everything below it is real: the fetch engine, the
-// IndexedDB open (fake-indexeddb), the listing sync over a fake api. The
-// database open and the engine start are spied through to the real code:
-// the open to hold or fail it, the start to see what the engine was wired
-// with.
+// Activation state is module-level, so each test loads a fresh module graph.
 
 let teardown: (() => Promise<void>) | undefined;
 
@@ -24,7 +18,7 @@ const load = async () => {
   const { fetchEngine } = await import("./fetchEngine");
   const { OpenDatabase } = await import("../client/database");
   const { releaseDatabase } = await import("./databaseInstance");
-  const { initAppConfig } = await import("../app_config");
+  const { startTestApp } = await import("../test/testApp");
 
   const realOpen = OpenDatabase.open.bind(OpenDatabase);
   const open = vi.spyOn(OpenDatabase, "open");
@@ -34,18 +28,15 @@ const load = async () => {
   );
   const getLogDetails = vi.fn(() => Promise.resolve(testLogDetails()));
 
+  // syncLogs reads the resolved config's mode, as below the gate.
   const configFor = (logDir: string): AppConfig =>
-    // syncLogs reads the resolved config's mode, as below the gate.
-    initAppConfig({
+    startTestApp({
       logDir,
       api: testClientAPI({
         get_logs: getLogs,
         get_log_details: getLogDetails,
       }),
       singleFileMode: false,
-      loader: "replicator",
-      inspect_version: "test",
-      scout_version: null,
     });
 
   /** Hold the next database open until the returned release is called. */
