@@ -1474,18 +1474,19 @@ function getSystemPrompt(span: TimelineSpan): string | null {
 
 /**
  * Check whether span is a tool span shown as an agent: a tool whose body
- * calls a model directly becomes an agent span holding its own ToolEvent
- * (recorded with the tool span's id). For the caller it is a tool call.
+ * calls a model directly becomes an agent span named after the tool, which
+ * opens with its own ToolEvent (recorded with the tool span's id). For the
+ * caller it is a tool call. An explicit agent span opens with its own work
+ * instead, even when older logs give its tool calls the agent span's id.
  */
 function isToolSpawnedAgent(span: TimelineSpan): boolean {
+  const first = span.content[0];
   return (
     span.spanType === "agent" &&
-    span.content.some(
-      (item) =>
-        item.type === "event" &&
-        item.event.event === "tool" &&
-        item.event.span_id === span.id
-    )
+    first?.type === "event" &&
+    first.event.event === "tool" &&
+    first.event.span_id === span.id &&
+    first.event.function.toLowerCase() === span.name
   );
 }
 
