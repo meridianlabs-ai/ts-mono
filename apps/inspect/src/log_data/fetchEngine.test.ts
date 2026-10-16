@@ -2042,7 +2042,12 @@ describe("FetchEngine records details that fetch but fail ingestion", () => {
 });
 
 describe("FetchEngine backfill over the real database", () => {
+  const engine = new FetchEngine({ statsDelayMs: 0 });
+  let dbHandle: OpenDatabase | undefined;
+
   afterEach(async () => {
+    engine.stop();
+    dbHandle?.close();
     queryClient.clear();
     await Dexie.delete(DB_NAME);
   });
@@ -2054,8 +2059,8 @@ describe("FetchEngine backfill over the real database", () => {
     );
     const names = listing.map((h) => h.name);
     const db = await OpenDatabase.open();
+    dbHandle = db;
     const fake = createFakeApi();
-    const engine = new FetchEngine({ statsDelayMs: 0 });
     await engine.start({
       api: fake.api,
       database: db,
@@ -2089,8 +2094,5 @@ describe("FetchEngine backfill over the real database", () => {
     });
     await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(false));
     expect(fake.detailCalls).toHaveLength(60);
-
-    engine.stop();
-    db.close();
   });
 });
