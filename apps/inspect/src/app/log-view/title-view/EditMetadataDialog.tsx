@@ -10,19 +10,12 @@ import {
   useState,
 } from "react";
 
-import { MetadataEdit } from "@tsmono/inspect-common/types";
-import { Modal } from "@tsmono/react/components";
-
-import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useUserInfo } from "../../server/useUserInfo";
 
 import { AutogrowText } from "./AutogrowText";
-import { ChangeSummary } from "./ChangeSummary";
+import { EditAnnotationsDialog } from "./EditAnnotationsDialog";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
-import { formatEditError } from "./editErrors";
 import styles from "./EditMetadataDialog.module.css";
-import { ProvenanceFields } from "./ProvenanceFields";
 
 type NewType = "string" | "number" | "boolean" | "object" | "array" | "null";
 
@@ -73,9 +66,9 @@ const toEditableString = (v: unknown): string => {
 
 /**
  * Thrown by {@link serializeEntry} when a non-string entry's text
- * isn't well-formed JSON. The dialog's save handler catches this and
- * surfaces a per-key error message so the user knows which row needs
- * to be fixed.
+ * isn't well-formed JSON. Its message is shown in the dialog, naming
+ * the row to fix. Common cause: JS-style object shorthand (`{a: 1}`)
+ * instead of JSON (`{"a": 1}`).
  */
 export class MetadataParseError extends Error {
   constructor(
@@ -83,7 +76,10 @@ export class MetadataParseError extends Error {
     public readonly text: string,
     public readonly cause: unknown
   ) {
-    super(`Invalid JSON for "${key}"`);
+    super(
+      `Invalid JSON for "${key}". Use JSON syntax — quote keys and ` +
+        `strings, e.g. {"a": 1} or "yes".`
+    );
     this.name = "MetadataParseError";
   }
 }
@@ -132,9 +128,6 @@ export const serializeEntry = (entry: MetaEntry): unknown => {
   }
 };
 
-// Module-level so the dialog stays compilable: React Compiler can't lower
-// loops inside try/catch, and serializeEntry must run under the catch that
-// classifies MetadataParseError.
 const buildMetadataSet = (entries: MetaEntry[]): Record<string, unknown> => {
   const metadata_set: Record<string, unknown> = {};
   for (const entry of entries) {
@@ -167,8 +160,6 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = getApi();
-
   const initialEntries = useMemo<MetaEntry[]>(
     () =>
       Object.entries(currentMetadata).map(([key, value]) => ({
@@ -185,22 +176,14 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [removed, setRemoved] = useState<string[]>([]);
   const [newKey, setNewKey] = useState("");
   const [newType, setNewType] = useState<NewType>("string");
-  // Undefined until the user types, so the server identity fills the field.
-  const [authorEdit, setAuthorEdit] = useState<string | undefined>();
-  const userInfo = useUserInfo(showing);
-  const author = authorEdit ?? userInfo.data?.name ?? "";
-  const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>();
   // Captures the most recently added key so an effect can scroll the
   // new row into view and focus its value textarea once it's in the
   // DOM. A ref (not state): it never needs to trigger a render — the
   // entries update from addKey re-runs the focus effect below.
   const pendingFocusKeyRef = useRef<string | null>(null);
 
-  // Reset local state whenever the dialog opens (or the underlying log
-  // changes its metadata out from under us). Render-adjust rather than
-  // an effect so the reset is scheduled before anything paints.
+  // Reset whenever the dialog opens (or the log's metadata changes under
+  // us). Render-adjust rather than an effect so the reset lands before paint.
   const [prevReset, setPrevReset] = useState({ showing, initialEntries });
   if (
     prevReset.showing !== showing ||
@@ -212,10 +195,6 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       setRemoved([]);
       setNewKey("");
       setNewType("string");
-      setAuthorEdit(undefined);
-      setReason("");
-      setSubmitting(false);
-      setError(undefined);
     }
   }
 
@@ -226,8 +205,6 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
 
   const adding = entries.filter((e) => e.isNew).map((e) => e.key);
   const editing = entries.filter((e) => e.dirty && !e.isNew).map((e) => e.key);
-  const hasChanges =
-    adding.length > 0 || editing.length > 0 || removed.length > 0;
 
   const updateValue = useCallback((key: string, text: string) => {
     setEntries((prev) =>
@@ -306,100 +283,25 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
     }
   };
 
-  const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
-
-  // Re-entry guard (see EditTagsDialog for rationale).
-  const inFlightRef = useRef(false);
-
-  const handleSave = (): void => {
-    // Hoisted to a const so the narrowing survives into the chain callbacks.
-    const editLog = api.edit_log;
-    if (!canSave || inFlightRef.current || !editLog) return;
-    inFlightRef.current = true;
-    // Don't clear `error` here — see EditTagsDialog for the no-flash
-    // rationale. Delayed "Saving…" indicator likewise.
-    const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    const changedEntries = entries.filter((e) => e.isNew || e.dirty);
-    const provenance = {
-      author: author.trim(),
-      reason: reason.trim() || undefined,
-      metadata: {},
-      timestamp: new Date().toISOString(),
-    };
-    // buildMetadataSet runs inside the chain so a MetadataParseError from
-    // serializeEntry rejects into the catch below before any network call.
-    Promise.resolve()
-      .then(() => {
-        const metadata_set = buildMetadataSet(changedEntries);
-        const edit: MetadataEdit = {
-          type: "metadata",
-          metadata_set,
-          metadata_remove: removed,
-        };
-        return editLog(logFile, {
-          edits: [edit],
-          provenance,
-        });
-      })
-      .then(() => {
-        setShowing(false);
-        if (onSaved) {
-          onSaved();
-        }
-      })
-      .catch((err: unknown) => {
-        if (err instanceof MetadataParseError) {
-          // Show a per-key message. Common cause: JS-style object shorthand
-          // (`{a: 1}`) instead of JSON (`{"a": 1}`) for keys whose chosen
-          // type isn't `string`.
-          setError(
-            `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
-              `and strings, e.g. {"a": 1} or "yes".`
-          );
-        } else {
-          setError(formatEditError(err));
-        }
-      })
-      .finally(() => {
-        window.clearTimeout(indicatorTimer);
-        setSubmitting(false);
-        inFlightRef.current = false;
-      });
-  };
-
   return (
-    <Modal
+    <EditAnnotationsDialog
       id="edit-metadata-dialog"
-      show={showing}
-      onHide={() => setShowing(false)}
       title="Edit metadata"
       width="820px"
-      footer={
-        <div className={sharedStyles.footer}>
-          <ChangeSummary adding={adding} editing={editing} removing={removed} />
-          <div className={sharedStyles.footerActions}>
-            <button
-              type="button"
-              className={clsx("btn", "btn-secondary", "text-size-smaller")}
-              onClick={() => setShowing(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={handleSave}
-              disabled={!canSave}
-            >
-              {submitting ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </div>
-      }
+      showing={showing}
+      setShowing={setShowing}
+      logFile={logFile}
+      onSaved={onSaved}
+      changes={{ adding, editing, removing: removed }}
+      buildEdit={() => ({
+        type: "metadata",
+        metadata_set: buildMetadataSet(
+          entries.filter((e) => e.isNew || e.dirty)
+        ),
+        metadata_remove: removed,
+      })}
     >
-      <div className={sharedStyles.body}>
+      {(submitting) => (
         <div className={sharedStyles.section}>
           <div className={sharedStyles.labelRow}>
             {/* Names the whole entry table, so it can't be a <label> — those
@@ -489,24 +391,8 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             </button>
           </div>
         </div>
-
-        <hr className={sharedStyles.divider} />
-
-        <ProvenanceFields
-          author={author}
-          setAuthor={setAuthorEdit}
-          reason={reason}
-          setReason={setReason}
-          disabled={submitting}
-        />
-
-        {error && (
-          <div className={clsx("text-size-smaller", sharedStyles.error)}>
-            {error}
-          </div>
-        )}
-      </div>
-    </Modal>
+      )}
+    </EditAnnotationsDialog>
   );
 };
 

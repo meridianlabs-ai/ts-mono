@@ -1,18 +1,11 @@
 import clsx from "clsx";
-import { FC, KeyboardEvent, useMemo, useRef, useState } from "react";
+import { FC, KeyboardEvent, useMemo, useState } from "react";
 
-import { TagsEdit } from "@tsmono/inspect-common/types";
-import { Modal } from "@tsmono/react/components";
-
-import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
-import { useUserInfo } from "../../server/useUserInfo";
 
-import { ChangeSummary } from "./ChangeSummary";
+import { EditAnnotationsDialog } from "./EditAnnotationsDialog";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
-import { formatEditError } from "./editErrors";
 import styles from "./EditTagsDialog.module.css";
-import { ProvenanceFields } from "./ProvenanceFields";
 import { TagChip } from "./TagChip";
 
 interface EditTagsDialogProps {
@@ -30,31 +23,17 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = getApi();
-
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");
-  // Undefined until the user types, so the server identity fills the field.
-  const [authorEdit, setAuthorEdit] = useState<string | undefined>();
-  const userInfo = useUserInfo(showing);
-  const author = authorEdit ?? userInfo.data?.name ?? "";
-  const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>();
 
-  // Reset local state whenever the dialog opens (or the underlying log
-  // changes its tags out from under us). Render-adjust rather than an
-  // effect so the reset is scheduled before anything paints.
+  // Reset whenever the dialog opens (or the log's tags change under us).
+  // Render-adjust rather than an effect so the reset lands before paint.
   const [prevReset, setPrevReset] = useState({ showing, currentTags });
   if (prevReset.showing !== showing || prevReset.currentTags !== currentTags) {
     setPrevReset({ showing, currentTags });
     if (showing) {
       setTags(currentTags);
       setPending("");
-      setAuthorEdit(undefined);
-      setReason("");
-      setError(undefined);
-      setSubmitting(false);
     }
   }
 
@@ -69,7 +48,6 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     () => currentTags.filter((t) => !currentSet.has(t)),
     [currentTags, currentSet]
   );
-  const hasChanges = tagsAdd.length > 0 || tagsRemove.length > 0;
 
   const addPendingTag = () => {
     const next = pending.trim();
@@ -96,93 +74,23 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     setTags((prev) => prev.filter((t) => t !== tag));
   };
 
-  const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
-
-  // Re-entry guard: prevents a second save from starting if the user
-  // clicks twice before the first finishes. Kept in a ref (not state)
-  // so we can read/write it synchronously without scheduling a render.
-  const inFlightRef = useRef(false);
-
-  const handleSave = (): void => {
-    if (!canSave || inFlightRef.current || !api.edit_log) return;
-    inFlightRef.current = true;
-    // NOTE: we intentionally do NOT call `setError(undefined)` here.
-    // Clearing then re-setting the same error on a quick failure made
-    // the error region disappear and re-appear in two adjacent renders
-    // — a visible flash. Leaving the previous error in place means:
-    //   - Same error reproduced → setError(sameString) is a no-op
-    //     (React compares with Object.is), no re-render, no flash.
-    //   - Different error → one clean transition to the new text.
-    //   - Save succeeds → dialog closes, and the reopen-effect resets
-    //     state for the next session, so stale errors never persist.
-    // Delay the "Saving…" indicator so requests that fail almost
-    // immediately (server unreachable → fetch rejects with a TypeError
-    // before any network IO) don't flash the indicator on and off.
-    // For slower saves the indicator still appears.
-    const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    const provenance = {
-      author: author.trim(),
-      reason: reason.trim() || undefined,
-      metadata: {},
-      timestamp: new Date().toISOString(),
-    };
-    const edit: TagsEdit = {
-      type: "tags",
-      tags_add: tagsAdd,
-      tags_remove: tagsRemove,
-    };
-    api
-      .edit_log(logFile, {
-        edits: [edit],
-        provenance,
-      })
-      .then(() => {
-        setShowing(false);
-        if (onSaved) {
-          onSaved();
-        }
-      })
-      .catch((err: unknown) => setError(formatEditError(err)))
-      .finally(() => {
-        window.clearTimeout(indicatorTimer);
-        setSubmitting(false);
-        inFlightRef.current = false;
-      });
-  };
-
   return (
-    <Modal
+    <EditAnnotationsDialog
       id="edit-tags-dialog"
-      show={showing}
-      onHide={() => setShowing(false)}
       title="Edit tags"
       width="580px"
-      footer={
-        <div className={sharedStyles.footer}>
-          <ChangeSummary adding={tagsAdd} removing={tagsRemove} />
-          <div className={sharedStyles.footerActions}>
-            <button
-              type="button"
-              className={clsx("btn", "btn-secondary", "text-size-smaller")}
-              onClick={() => setShowing(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={handleSave}
-              disabled={!canSave}
-            >
-              {submitting ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </div>
-      }
+      showing={showing}
+      setShowing={setShowing}
+      logFile={logFile}
+      onSaved={onSaved}
+      changes={{ adding: tagsAdd, removing: tagsRemove }}
+      buildEdit={() => ({
+        type: "tags",
+        tags_add: tagsAdd,
+        tags_remove: tagsRemove,
+      })}
     >
-      <div className={sharedStyles.body}>
+      {(submitting) => (
         <div className={sharedStyles.section}>
           {/* Names the chip box, so it can't be a <label> — those may only
               point at a single form control. */}
@@ -241,23 +149,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             </button>
           </div>
         </div>
-
-        <hr className={sharedStyles.divider} />
-
-        <ProvenanceFields
-          author={author}
-          setAuthor={setAuthorEdit}
-          reason={reason}
-          setReason={setReason}
-          disabled={submitting}
-        />
-
-        {error && (
-          <div className={clsx("text-size-smaller", sharedStyles.error)}>
-            {error}
-          </div>
-        )}
-      </div>
-    </Modal>
+      )}
+    </EditAnnotationsDialog>
   );
 };
