@@ -12,12 +12,7 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { FC, useCallback, useLayoutEffect, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
-import {
-  ComponentIconProvider,
-  ComponentIcons,
-} from "@tsmono/react/components";
 import { navigateAndForget, useEventListener } from "@tsmono/react/hooks";
-import { ComponentStateProvider } from "@tsmono/react/state";
 import { getVscodeApi } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
@@ -31,7 +26,6 @@ import {
 import { HostMessage } from "../client/api/types.ts";
 import { webviewStorage } from "../client/storage";
 import { FetchEngineController, imperativeLogData } from "../log_data";
-import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { storeImplementation } from "../state/store.ts";
 import {
@@ -39,31 +33,12 @@ import {
   useUserSettings,
 } from "../state/userSettings.ts";
 
-import { ApplicationIcons } from "./appearance/icons.ts";
+import { AppProviders } from "./AppProviders.tsx";
 import { getAppRouter } from "./routing/AppRouter.tsx";
 import {
   createHostCommandFilter,
   hostDestinationRoute,
 } from "./routing/hostNavigation";
-
-const componentIcons: ComponentIcons = {
-  arrowDown: ApplicationIcons.arrows.down,
-  arrowUp: ApplicationIcons.arrows.up,
-  chevronDown: ApplicationIcons.chevron.down,
-  chevronUp: ApplicationIcons.collapse.up,
-  clearText: ApplicationIcons["clear-text"],
-  close: ApplicationIcons.close,
-  code: ApplicationIcons.code,
-  confirm: ApplicationIcons.confirm,
-  copy: ApplicationIcons.copy,
-  error: ApplicationIcons.error,
-  menu: ApplicationIcons.threeDots,
-  next: ApplicationIcons.next,
-  noSamples: ApplicationIcons.noSamples,
-  play: ApplicationIcons.play,
-  previous: ApplicationIcons.previous,
-  toggleRight: ApplicationIcons["toggle-right"],
-};
 
 /**
  * Keep the applied theme in lockstep with the persisted preference. The inline
@@ -146,11 +121,9 @@ export const AppContent: FC = () => {
     <>
       <ThemePreferenceSyncController />
       <FetchEngineController />
-      <ComponentIconProvider icons={componentIcons}>
-        <ComponentStateProvider hooks={inspectStateHooks}>
-          <RouterProvider router={router} />
-        </ComponentStateProvider>
-      </ComponentIconProvider>
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>
     </>
   );
 };

@@ -3,19 +3,14 @@ import Dexie from "dexie";
 import { FC, ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 
-import {
-  ComponentIconProvider,
-  ExtendedFindProvider,
-} from "@tsmono/react/components";
-import { ComponentStateProvider } from "@tsmono/react/state";
-import { testIcons } from "@tsmono/react/testing";
+import { ExtendedFindProvider } from "@tsmono/react/components";
 
 import { APP_CONFIG_KEY, initAppConfig, type AppConfig } from "../app_config";
+import { AppProviders } from "../app/AppProviders";
 import { CurrentSelectionProvider } from "../app/routing/currentSelection";
 import { testClientAPI } from "../client/api/testClientApi";
 import { DB_NAME } from "../client/database";
 import { FetchEngineController, releaseDatabase } from "../log_data";
-import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient";
 import { initializeStore } from "../state/store";
 
@@ -67,13 +62,15 @@ export const TestApp: FC<{ path?: string; children: ReactNode }> = ({
 }) => (
   <QueryClientProvider client={queryClient}>
     <FetchEngineController />
-    {path === undefined ? (
-      children
-    ) : (
-      <MemoryRouter initialEntries={[path]}>
-        <CurrentSelectionProvider>{children}</CurrentSelectionProvider>
-      </MemoryRouter>
-    )}
+    <AppProviders>
+      {path === undefined ? (
+        children
+      ) : (
+        <MemoryRouter initialEntries={[path]}>
+          <CurrentSelectionProvider>{children}</CurrentSelectionProvider>
+        </MemoryRouter>
+      )}
+    </AppProviders>
   </QueryClientProvider>
 );
 
@@ -86,16 +83,14 @@ export const atRoute = (path?: string): FC<{ children: ReactNode }> => {
 };
 
 /**
- * The component-level context views render under in the app: icons and
- * component state backed by the store (from `AppContent`; needs
- * `startTestApp`), and transcript search (from `LogViewLayout`).
+ * The app's component context (`AppProviders`; needs `startTestApp`) plus
+ * transcript search, which the app provides in `LogViewLayout`, for views
+ * rendered without `TestApp`.
  */
 export const ComponentProviders: FC<{ children: ReactNode }> = ({
   children,
 }) => (
-  <ComponentIconProvider icons={testIcons}>
-    <ComponentStateProvider hooks={inspectStateHooks}>
-      <ExtendedFindProvider>{children}</ExtendedFindProvider>
-    </ComponentStateProvider>
-  </ComponentIconProvider>
+  <AppProviders>
+    <ExtendedFindProvider>{children}</ExtendedFindProvider>
+  </AppProviders>
 );
