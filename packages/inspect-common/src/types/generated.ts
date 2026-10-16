@@ -640,12 +640,20 @@ export interface components {
          *         tools: web_browser*, bash, pyhton
          *         choices: [approve, reject]
          *
+         *       - name: human
+         *         tools: computer
+         *         arguments: {action: key}
+         *
          *       - name: auto
          *         tools: *
          *         decision: approve
          *     ```
          */
         ApproverPolicyConfig: {
+            /** Arguments */
+            arguments?: {
+                [key: string]: string;
+            } | null;
             /** Name */
             name: string;
             /** Params */
@@ -3132,11 +3140,19 @@ export interface components {
          *       - name: mypackage/output_monitor
          *         tools: bash, python
          *
+         *       - name: mypackage/click_monitor
+         *         tools: computer
+         *         arguments: {action: "*_click"}
+         *
          *       - name: human
          *         tools: "*"
          *     ```
          */
         ReviewerPolicyConfig: {
+            /** Arguments */
+            arguments?: {
+                [key: string]: string;
+            } | null;
             /** Name */
             name: string;
             /** Params */
