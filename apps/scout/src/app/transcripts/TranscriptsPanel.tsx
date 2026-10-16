@@ -104,6 +104,7 @@ export const TranscriptsPanel: FC = () => {
           <TranscriptsGrid
             transcripts={transcripts}
             transcriptsDir={resolvedTranscriptsDir}
+            projectFiltered={!!filter}
             loading={isFetching && transcripts.length === 0}
             onScrollNearEnd={handleScrollNearEnd}
             hasMore={hasNextPage}

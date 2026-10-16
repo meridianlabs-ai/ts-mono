@@ -1,9 +1,10 @@
 import { http, HttpResponse } from "msw";
 
-import type { TranscriptsResponse } from "../src/types/api-types";
+import type { AppConfig, TranscriptsResponse } from "../src/types/api-types";
 
 import { expect, test } from "./fixtures/app";
 import {
+  createAppConfig,
   createTranscriptInfo,
   createTranscriptsResponse,
 } from "./fixtures/test-data";
@@ -54,8 +55,25 @@ test("transcripts page shows an empty grid when no transcripts exist", async ({
   // The only body row is the grid's empty-state message.
   const bodyRows = page.locator("tbody").getByRole("row");
   await expect(bodyRows).toHaveCount(1);
-  await expect(bodyRows).toHaveText(/^No /);
+  await expect(bodyRows).toHaveText("No transcripts in this directory.");
   await expect(page.locator("#transcripts-footer")).toContainText("0 items");
+});
+
+test("transcripts page says when no transcripts directory is configured", async ({
+  page,
+  network,
+}) => {
+  network.use(
+    http.get("*/api/v2/app-config", () =>
+      HttpResponse.json<AppConfig>(createAppConfig({ transcripts: null }))
+    )
+  );
+
+  await page.goto("/#/transcripts");
+
+  await expect(page.locator("tbody").getByRole("row")).toHaveText(
+    "No transcripts directory configured."
+  );
 });
 
 test("transcripts page shows error panel on API failure", async ({

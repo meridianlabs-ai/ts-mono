@@ -27,6 +27,8 @@ function scanItemKey(index: number, item?: ScanRow): string {
 interface ScansGridProps {
   scans: ApiScanRow[];
   resultsDir: string | undefined;
+  /** The directory the listing comes from: the user's choice or the config's */
+  scansDir: string | undefined;
   className?: string | string[];
   loading?: boolean;
   /** Called when scroll position nears end */
@@ -44,6 +46,7 @@ interface ScansGridProps {
 export const ScansGrid: FC<ScansGridProps> = ({
   scans,
   resultsDir,
+  scansDir,
   className,
   loading,
   onScrollNearEnd,
@@ -175,8 +178,9 @@ export const ScansGrid: FC<ScansGridProps> = ({
       onResetColumnSize={resetColumnSize}
       className={className}
       loading={loading}
-      emptyMessage="No matching scans"
-      noConfigMessage="No scans directory configured."
+      emptyMessage="No scans in this directory."
+      noMatchMessage="No matching scans"
+      noConfigMessage={scansDir ? undefined : "No scans directory configured."}
     />
   );
 };
