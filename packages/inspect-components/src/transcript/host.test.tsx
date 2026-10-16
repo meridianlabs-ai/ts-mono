@@ -3,9 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testModelEvent } from "@tsmono/inspect-common/testing";
-import { ComponentIconProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeReactiveStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeReactiveStateHooks } from "@tsmono/react/testing";
 
 import { EventPanel } from "./event/EventPanel";
 import {
@@ -21,7 +20,7 @@ afterEach(cleanup);
 
 const StateWrapper = ({ children }: { children: React.ReactNode }) => (
   <ComponentStateProvider hooks={makeReactiveStateHooks()}>
-    <ComponentIconProvider icons={testIcons}>{children}</ComponentIconProvider>
+    {children}
   </ComponentStateProvider>
 );
 
@@ -142,9 +141,9 @@ describe("OutlineRow reads the host", () => {
           urls: { getEventUrl: (id) => `https://x.test/#/e/${id}` },
           outline: {
             renderLink: (url, children) => (
-              <a href={url} data-testid="custom-link">
+              <span data-testid="custom-link" data-url={url}>
                 {children}
-              </a>
+              </span>
             ),
           },
         }}
@@ -152,7 +151,7 @@ describe("OutlineRow reads the host", () => {
         <OutlineRow node={n} />
       </TranscriptHostProvider>
     );
-    expect(screen.getByTestId("custom-link").getAttribute("href")).toBe(
+    expect(screen.getByTestId("custom-link").getAttribute("data-url")).toBe(
       `https://x.test/#/e/${n.id}`
     );
   });

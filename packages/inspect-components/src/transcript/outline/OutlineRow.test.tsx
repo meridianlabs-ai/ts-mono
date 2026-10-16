@@ -7,6 +7,7 @@ import {
   testSpanBeginEvent,
 } from "@tsmono/inspect-common/testing";
 
+import { TranscriptHostProvider } from "../host";
 import { eventNode } from "../testHelpers";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
@@ -151,13 +152,16 @@ describe("OutlineRow event link", () => {
     const onNavigateToEvent = vi.fn<(id: string) => void>();
     const node = eventNode(testModelEvent());
     render(
-      <OutlineRow
-        node={node}
-        onSelect={onSelect}
-        onNavigateToEvent={onNavigateToEvent}
-        getCollapsed={() => false}
-        getEventUrl={(id) => `#/logs/a.eval?event=${id}`}
-      />
+      <TranscriptHostProvider
+        host={{ urls: { getEventUrl: (id) => `#/logs/a.eval?event=${id}` } }}
+      >
+        <OutlineRow
+          node={node}
+          onSelect={onSelect}
+          onNavigateToEvent={onNavigateToEvent}
+          getCollapsed={() => false}
+        />
+      </TranscriptHostProvider>
     );
     return {
       link: screen.getByRole("link"),
