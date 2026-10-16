@@ -20,7 +20,7 @@ interface EditAnnotationsDialogProps {
   logFile: string;
   onSaved?: () => void;
   changes: ComponentProps<typeof ChangeSummary>;
-  // May throw; the error's message is shown in the dialog.
+  // May throw; the error is shown via formatEditError.
   buildEdit: () => TagsEdit | MetadataEdit;
   children: (submitting: boolean) => ReactNode;
 }
