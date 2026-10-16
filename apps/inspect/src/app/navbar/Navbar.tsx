@@ -91,12 +91,17 @@ export const Navbar: FC<NavbarProps> = ({
       data-unsearchable={true}
     >
       <div className={clsx(styles.left)}>
-        <Link to={backUrl} className={clsx(styles.toolbarButton)}>
+        <Link
+          to={backUrl}
+          className={clsx(styles.toolbarButton)}
+          aria-label="Back"
+        >
           <Icon name="navBack" />
         </Link>
         <Link
           to={homeUrlOverride ?? fnNavigationUrl("", logDir)}
           className={clsx(styles.toolbarButton)}
+          aria-label="Home"
         >
           <Icon name="navHome" />
         </Link>

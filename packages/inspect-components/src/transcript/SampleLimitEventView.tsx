@@ -1,17 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import type {
-  EvalSampleLimit,
-  SampleLimitEvent,
-} from "@tsmono/inspect-common/types";
+import type { SampleLimitEvent } from "@tsmono/inspect-common/types";
 import { IconName } from "@tsmono/react/icons";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventNode } from "./types";
 
-type EvalSampleLimitType = EvalSampleLimit["type"];
+type SampleLimitType = SampleLimitEvent["type"];
 interface SampleLimitEventViewProps {
   eventNode: EventNode<SampleLimitEvent>;
   className?: string;
@@ -21,7 +18,7 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
   eventNode,
   className,
 }) => {
-  const resolve_title = (type: EvalSampleLimitType) => {
+  const resolve_title = (type: SampleLimitType): string => {
     switch (type) {
       case "custom":
         return "Custom Limit Exceeded";
@@ -42,7 +39,7 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
     }
   };
 
-  const resolve_icon = (type: EvalSampleLimitType): IconName | undefined => {
+  const resolve_icon = (type: SampleLimitType): IconName => {
     switch (type) {
       case "custom":
         return "limitCustom";

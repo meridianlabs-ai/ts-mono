@@ -1,64 +1,68 @@
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { IconName } from "@tsmono/react/icons";
-import { isRecord } from "@tsmono/util";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 export const kToolTodoContentType = "agent/todo-list";
 
 /* Per-tool header icons for the tool block grammar. Keyed by the tool names
    Inspect and the common CLI agents emit. */
-const kToolIcons: Record<string, IconName> = {
-  // shells
-  bash: "terminal",
-  Bash: "terminal",
-  bash_session: "terminal",
-  shell: "terminal",
-  shell_command: "terminal",
-  exec_command: "terminal",
-  // code
-  python: "codeSquare",
-  code_execution: "codeSquare",
-  exec: "codeSquare",
-  // web
-  web_search: "search",
-  WebSearch: "search",
-  web_fetch: "globe",
-  WebFetch: "globe",
-  web_browser: "window",
-  // editing / files
-  text_editor: "edit",
-  str_replace_editor: "edit",
-  str_replace_based_edit_tool: "edit",
-  Edit: "edit",
-  Write: "edit",
-  NotebookEdit: "edit",
-  Read: "fileText",
-  Glob: "search",
-  Grep: "search",
-  // sub-agents
-  task: "people",
-  Task: "people",
-  agent: "people",
-  Agent: "people",
-  spawn_agent: "people",
-  send_input: "people",
-  wait_agent: "people",
-  resume_agent: "people",
-  close_agent: "people",
-  agent_status: "people",
-  agent_wait: "people",
-  agent_cancel: "people",
-  agent_list: "people",
-  // planning
-  TodoWrite: "listCheck",
-  todo_write: "listCheck",
-  update_plan: "listCheck",
-  think: "lightbulb",
-  // misc
-  computer: "computer",
-  tool_search: "search",
-  mcp_list_tools: "plug",
-  mcp_call: "plug",
-};
+const kToolIcons = nullProtoRecord(
+  new Map<string, IconName>(
+    Object.entries({
+      // shells
+      bash: "terminal",
+      Bash: "terminal",
+      bash_session: "terminal",
+      shell: "terminal",
+      shell_command: "terminal",
+      exec_command: "terminal",
+      // code
+      python: "codeSquare",
+      code_execution: "codeSquare",
+      exec: "codeSquare",
+      // web
+      web_search: "search",
+      WebSearch: "search",
+      web_fetch: "globe",
+      WebFetch: "globe",
+      web_browser: "window",
+      // editing / files
+      text_editor: "edit",
+      str_replace_editor: "edit",
+      str_replace_based_edit_tool: "edit",
+      Edit: "edit",
+      Write: "edit",
+      NotebookEdit: "edit",
+      Read: "fileText",
+      Glob: "search",
+      Grep: "search",
+      // sub-agents
+      task: "people",
+      Task: "people",
+      agent: "people",
+      Agent: "people",
+      spawn_agent: "people",
+      send_input: "people",
+      wait_agent: "people",
+      resume_agent: "people",
+      close_agent: "people",
+      agent_status: "people",
+      agent_wait: "people",
+      agent_cancel: "people",
+      agent_list: "people",
+      // planning
+      TodoWrite: "listCheck",
+      todo_write: "listCheck",
+      update_plan: "listCheck",
+      think: "lightbulb",
+      // misc
+      computer: "computer",
+      tool_search: "search",
+      mcp_list_tools: "plug",
+      mcp_call: "plug",
+    } satisfies Record<string, IconName>)
+  )
+);
 
 /**
  * Header icon for a tool call. Unknown client tools get the general tool

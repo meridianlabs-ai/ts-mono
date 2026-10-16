@@ -88,6 +88,9 @@ importers:
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.3.0)(@vscode/codicons@0.0.45)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@vscode/codicons':
+        specifier: ^0.0.45
+        version: 0.0.45
       bootstrap:
         specifier: ^5.3.8
         version: 5.3.8(@popperjs/core@2.11.8)
@@ -275,6 +278,9 @@ importers:
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.3.0)(@vscode/codicons@0.0.45)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@vscode/codicons':
+        specifier: ^0.0.45
+        version: 0.0.45
       arquero:
         specifier: ^8.0.3
         version: 8.0.3

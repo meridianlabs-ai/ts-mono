@@ -2,6 +2,8 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "@vscode/codicons/dist/codicon.css";
 import "./icons.css";
 
+import { nullProtoRecord } from "@tsmono/util";
+
 /**
  * Every icon the apps and shared packages render, keyed by meaning. Values
  * are Bootstrap Icons classes, except the search toggles (Codicons, to match
@@ -114,7 +116,6 @@ export const iconClasses = {
   previous: "bi bi-chevron-left",
   refresh: "bi bi-arrow-clockwise",
   refuse: "bi bi-ban",
-  rename: "bi bi-pencil-square",
   retry: "bi bi-arrow-repeat",
   running: "bi bi-stars",
   sample: "bi bi-database",
@@ -122,7 +123,6 @@ export const iconClasses = {
   sandbox: "bi bi-box-seam",
   scanner: "bi bi-radar",
   scorer: "bi bi-calculator",
-  scoringSidebar: "bi bi-radar",
   search: "bi bi-search",
   selectionChecked: "bi bi-check-lg",
   selectionClear: "bi bi-x-lg",
@@ -157,21 +157,21 @@ export const iconClasses = {
 
 export type IconName = keyof typeof iconClasses;
 
-const kLogLevelIcons: Record<string, IconName> = {
-  notset: "logNotset",
-  debug: "logDebug",
-  http: "logHttp",
-  info: "logInfo",
-  warning: "logWarning",
-  error: "logError",
-  critical: "logCritical",
-};
+const kLogLevelIcons = nullProtoRecord(
+  new Map<string, IconName>([
+    ["notset", "logNotset"],
+    ["debug", "logDebug"],
+    ["http", "logHttp"],
+    ["info", "logInfo"],
+    ["warning", "logWarning"],
+    ["error", "logError"],
+    ["critical", "logCritical"],
+  ])
+);
 
 /** Icon for a logger level; `undefined` for a level we don't recognise. */
-export const logLevelIcon = (level: string): IconName | undefined => {
-  const key = level.toLowerCase();
-  return Object.hasOwn(kLogLevelIcons, key) ? kLogLevelIcons[key] : undefined;
-};
+export const logLevelIcon = (level: string): IconName | undefined =>
+  kLogLevelIcons[level.toLowerCase()];
 
 export const iconForMimeType = (mimeType: string): IconName => {
   if (mimeType === "application/pdf") {

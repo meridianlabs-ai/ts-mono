@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 import { FC, useCallback } from "react";
 
-import { Icon, IconName } from "@tsmono/react/icons";
+import { Icon, logLevelIcon } from "@tsmono/react/icons";
 
 import { useMessageVisibility } from "../state/hooks";
 
@@ -18,12 +18,6 @@ const typeStyles: Record<MessageBandProps["type"], string> = {
   info: styles.info,
   warning: styles.warning,
   error: styles.error,
-};
-
-const typeIcons: Record<MessageBandProps["type"], IconName> = {
-  info: "logInfo",
-  warning: "logWarning",
-  error: "logError",
 };
 
 export const MessageBand: FC<MessageBandProps> = ({
@@ -45,7 +39,7 @@ export const MessageBand: FC<MessageBandProps> = ({
         !visible && styles.hidden
       )}
     >
-      <Icon name={typeIcons[type]} />
+      <Icon name={logLevelIcon(type) ?? "info"} />
       {message}
       <button
         type="button"

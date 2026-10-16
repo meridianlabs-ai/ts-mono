@@ -278,7 +278,7 @@ export const ValidationPanel: FC = () => {
               title="Rename validation set"
               disabled={renameSetMutation.isPending}
             >
-              <Icon name="rename" />
+              <Icon name="edit" />
             </button>
             <button
               type="button"

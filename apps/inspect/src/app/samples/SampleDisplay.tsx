@@ -930,7 +930,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       items.push({
         id: "scans",
         label: "Scans",
-        icon: "scoringSidebar",
+        icon: "scanner",
       });
     }
     return items;

@@ -30,7 +30,7 @@ export const ScansSidebarPanel: FC<ScansSidebarPanelProps> = ({
 }) => {
   return (
     <div className={styles.container}>
-      <SidebarHeader icon="scoringSidebar" title="Scans" onClose={onClose} />
+      <SidebarHeader icon="scanner" title="Scans" onClose={onClose} />
       <div className={styles.body}>
         <SampleScansSidebar
           scores={scores}

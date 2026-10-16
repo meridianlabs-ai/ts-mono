@@ -102,6 +102,7 @@
     "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.14.13",
     "@vscode-elements/react-elements": "^2.4.0",
+    "@vscode/codicons": "^0.0.45",
     "bootstrap": "^5.3.8",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
