@@ -261,8 +261,9 @@ const retrievalFacts = (row: Log): LogFetchState => ({
  * listing's identity: keyed writes land in the cache before their
  * transaction commits, so the read-back can predate a details or preview
  * write the cache already has. Retrieval facts still come from the
- * read-back, because the collection's copy of them lags (see
- * `mergeFetchStates`).
+ * read-back: the collection's copy of them lags further (see
+ * `mergeFetchStates`), though the read-back can also predate an in-flight
+ * `writeFetchStates`.
  */
 export const writeListing = async (
   db: OpenDatabase | null | undefined,
