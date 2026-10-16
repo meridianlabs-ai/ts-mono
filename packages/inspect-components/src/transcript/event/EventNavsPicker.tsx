@@ -40,6 +40,7 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
     top: number;
     right: number;
     minWidth: number;
+    portalRoot: Node;
   } | null>(null);
 
   const computePosition = useCallback(() => {
@@ -49,6 +50,7 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
       top: rect.bottom,
       right: window.innerWidth - rect.right,
       minWidth: rect.width,
+      portalRoot: buttonRef.current?.getRootNode() ?? document,
     });
   }, []);
 
@@ -140,7 +142,9 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
               })}
             </div>
           </>,
-          document.body
+          position.portalRoot instanceof ShadowRoot
+            ? position.portalRoot
+            : document.body
         )}
     </>
   );
