@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Dedicated e2e ports — 5173/5174 are the two apps' dev servers and 5176 is
-// scout's e2e server; reuseExistingServer would silently test the wrong app.
+// Dedicated e2e ports — 5173/5174 are the two apps' dev servers and 5176/5178
+// scout's e2e servers; reuseExistingServer would silently test the wrong app.
 // Most tests use a production build, which loads about twice as fast.
 const previewURL = "http://localhost:5175";
 // Tests tagged @dev-server inspect individual source modules, which only the
