@@ -1,7 +1,8 @@
 /**
  * Shared layout for transcript views: timeline swimlanes, transcript outline,
  * and the virtualized event list. Apps provide events, selection state
- * adapters, and store-backed collapse callbacks.
+ * adapters, and store-backed collapse callbacks as props, and their URL /
+ * navigation / chrome behavior through the `TranscriptHost` context.
  */
 
 import clsx from "clsx";
@@ -37,6 +38,7 @@ import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { useSwimlaneHeader } from "./hooks/useSwimlaneHeader";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
+import { useTranscriptHost } from "./host";
 import {
   OutlineSidebar,
   type TranscriptLayoutOutlineProps,
@@ -108,9 +110,6 @@ export interface TranscriptLayoutTimelineProps {
   /** Swimlane visibility. "auto" (the default) shows them when the timeline
    *  has agent structure. */
   showSwimlanes?: boolean | "auto";
-  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
-  /** Called on swimlane header click to scroll the view to the top. */
-  onScrollToTop?: () => void;
 }
 
 /** Deep-link target resolved on mount (consumed by useDeepLinkResolution). */
@@ -123,16 +122,6 @@ export interface TranscriptLayoutDeepLinkProps {
   /** Explicit `follow=1` URL param: arm live-tail at mount even though the
    *  event/message deep link also makes this a nav-owned mount. */
   follow?: boolean;
-}
-
-/** Adapter for the host's headroom (collapsing chrome above the transcript). */
-export interface TranscriptLayoutHeadroomProps {
-  hidden?: boolean;
-  /** Force the headroom into the given hidden state. Used by sources (e.g.
-   *  search) that drive scroll-direction-sensitive UI when their motion
-   *  doesn't match what the scroll-direction tracker would infer. */
-  onSetHidden?: (hidden: boolean) => void;
-  onResetAnchor?: (debounce?: boolean) => void;
 }
 
 /** Empty-state display when no events match the current filter. */
@@ -170,28 +159,17 @@ export interface TranscriptLayoutProps {
   timeline?: TranscriptLayoutTimelineProps;
   /** Deep-link target resolved on mount. */
   deepLink?: TranscriptLayoutDeepLinkProps;
-  /** Host headroom adapter. */
-  headroom?: TranscriptLayoutHeadroomProps;
+  /** Whether the host's chrome headroom is currently collapsed. Live state,
+   *  so it stays a prop: the host object in context is meant to be stable,
+   *  and a value that flips on every scroll-direction change would re-render
+   *  every event panel through it. The headroom's setters live on the host. */
+  headroomHidden?: boolean;
   /** Empty-state display. Omit for the default text. */
   empty?: TranscriptLayoutEmptyProps;
 
   // --- Event list ---
   listId: string;
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
-  getEventUrl?: (eventId: string) => string | undefined;
-  linkingEnabled?: boolean;
-  /** Builds the focus-mode entry href for the header's focus control
-   *  (plain click enters in-window; modified clicks open a new tab). Omit to
-   *  hide that control. */
-  getEventFocusUrl?: (
-    eventId: string,
-    selectedTab?: string
-  ) => string | undefined;
-  /** Navigate to a focus URL in the current window. */
-  onOpenEventFocus?: (focusRoute: string) => void;
-  /** Reflect an explicit turn navigation (j/k, chevrons, editable number) in
-   *  the URL (`?event=`, replace) — like an outline click. Not called on scroll. */
-  onNavigatedToEvent?: (eventId: string) => void;
   /** Disable transcript keyboard nav (j/k/h/l/gg/G) while find-in-page owns the
    *  keyboard, so its keys reach the find box instead of navigating turns. */
   keyboardNavDisabled?: boolean;
@@ -246,15 +224,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   embedded = false,
   timeline,
   deepLink,
-  headroom,
+  headroomHidden,
   empty,
   listId,
   eventsListRef,
-  getEventUrl,
-  linkingEnabled,
-  getEventFocusUrl,
-  onOpenEventFocus,
-  onNavigatedToEvent,
   keyboardNavDisabled,
   selection,
   bulkCollapse,
@@ -274,8 +247,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     markerConfig: markerConfigOverride,
     agentConfig: agentConfigOverride,
     showSwimlanes: showSwimlanesOption = "auto",
-    onMarkerNavigate,
-    onScrollToTop,
   } = timeline ?? {};
   const {
     eventId: initialEventId,
@@ -283,14 +254,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     follow: initialFollowRequested,
   } = deepLink ?? {};
   const {
-    hidden: headroomHidden,
-    onSetHidden: onHeadroomSetHidden,
-    onResetAnchor: onHeadroomResetAnchor,
-  } = headroom ?? {};
-  const {
     text: emptyText = "No events match the current filter",
     busy: emptyBusy,
   } = empty ?? {};
+  // The host is read the same way: its groups may be fresh literals, its
+  // callbacks are the app's stable hook results.
+  const { navigation, headroom } = useTranscriptHost();
+  const { onNavigatedToEvent, onMarkerNavigate, onScrollToTop } =
+    navigation ?? {};
+  const { setHidden: onHeadroomSetHidden, resetAnchor: onHeadroomResetAnchor } =
+    headroom ?? {};
   // ---------------------------------------------------------------------------
   // Timeline pipeline + event nodes
   // ---------------------------------------------------------------------------
@@ -724,7 +697,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   }
                   offsetTop={effectiveOffsetTop}
                   collapseState={collapseState}
-                  getEventUrl={getEventUrl}
                 />
               )}
               {hasMatchingEvents ? (
@@ -744,16 +716,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   className={styles.eventsList}
                   scrollRef={scrollRef}
                   renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
-                  getEventUrl={getEventUrl}
-                  linkingEnabled={linkingEnabled}
-                  getEventFocusUrl={getEventFocusUrl}
-                  onOpenEventFocus={onOpenEventFocus}
                   collapsedTranscript={collapseState?.transcript}
                   onCollapseTranscript={onCollapseTranscript}
                   onExpandNodes={onExpandNodes}
                   eventNodeContext={mergedEventNodeContext}
-                  onProgrammaticScroll={onHeadroomResetAnchor}
-                  onHeadroomSetHidden={onHeadroomSetHidden}
                   // Wired only with real lanes so h/l aren't swallowed for a
                   // no-op on single-lane transcripts.
                   onPrevAgent={
@@ -762,7 +728,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   onNextAgent={
                     navLanes.lanes.length > 1 ? onLaneNext : undefined
                   }
-                  onNavigatedToEvent={onNavigatedToEvent}
                   keyboardNavDisabled={keyboardNavDisabled}
                   selection={selection}
                 />
