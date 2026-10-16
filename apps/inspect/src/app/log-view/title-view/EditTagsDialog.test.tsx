@@ -1,61 +1,35 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
-import { testIcons } from "@tsmono/react/testing";
+import { testEvalLog } from "@tsmono/inspect-common/testing";
+import { ApiError } from "@tsmono/util";
 
-import { APP_CONFIG_KEY, AppConfig, initAppConfig } from "../../../app_config";
-import { testClientAPI } from "../../../client/api/testClientApi";
-import { ClientAPI } from "../../../client/api/types";
+import { ClientAPI, EditLogResult } from "../../../client/api/types";
 
 import { EditTagsDialog } from "./EditTagsDialog";
+import { renderEditDialog } from "./renderEditDialog";
 
-const configWith = (overrides: Partial<ClientAPI>): AppConfig => ({
-  api: testClientAPI(overrides),
-  singleFileMode: false,
-  loader: "replicator",
-  inspect_version: "1.0.0",
-  scout_version: null,
-  logDir: "/logs",
-  absLogDir: "/abs/logs",
-});
-
-const renderDialog = (overrides: Partial<ClientAPI>) => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  const config = configWith(overrides);
-  initAppConfig(config);
-  client.setQueryData(APP_CONFIG_KEY, config);
-  const dialog = (showing: boolean) => (
-    <QueryClientProvider client={client}>
-      <ComponentIconProvider icons={testIcons}>
-        <EditTagsDialog
-          showing={showing}
-          setShowing={() => {}}
-          currentTags={["a"]}
-          logFile="/logs/x.eval"
-        />
-      </ComponentIconProvider>
-    </QueryClientProvider>
-  );
-  const view = render(dialog(true));
-  return {
-    client,
-    reopen: () => {
-      view.rerender(dialog(false));
-      view.rerender(dialog(true));
-    },
-  };
+const renderDialog = (api: Partial<ClientAPI>) => {
+  const setShowing = vi.fn();
+  const onSaved = vi.fn();
+  const view = renderEditDialog(api, (showing) => (
+    <EditTagsDialog
+      showing={showing}
+      setShowing={setShowing}
+      currentTags={["a"]}
+      logFile="/logs/x.eval"
+      onSaved={onSaved}
+    />
+  ));
+  return { ...view, setShowing, onSaved };
 };
 
 const authorField = () => screen.getByLabelText<HTMLInputElement>(/Author/);
@@ -122,5 +96,111 @@ describe("EditTagsDialog author prefill", () => {
 
     await settled(client);
     expect(authorField().value).toBe("");
+  });
+});
+
+describe("EditTagsDialog save", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-02T03:04:05Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const saveButton = () => screen.getByRole("button", { name: "Save" });
+
+  const editTags = () => {
+    const input = screen.getByPlaceholderText("Add a tag and press Enter");
+    fireEvent.change(input, { target: { value: "b" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Remove a" }));
+    fireEvent.change(authorField(), { target: { value: "Ada" } });
+  };
+
+  const pendingSave = () => {
+    let resolve: (result: EditLogResult) => void = () => {};
+    const result = new Promise<EditLogResult>((r) => {
+      resolve = r;
+    });
+    const edit_log = vi.fn(() => result);
+    return { edit_log, resolve: () => resolve({ log: testEvalLog() }) };
+  };
+
+  it("enables Save only once there is a change and an author", () => {
+    renderDialog({ edit_log: () => Promise.resolve({ log: testEvalLog() }) });
+    expect(saveButton()).toBeDisabled();
+
+    editTags();
+    expect(saveButton()).toBeEnabled();
+
+    fireEvent.change(authorField(), { target: { value: " " } });
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("saves the tag changes with provenance, then closes and calls onSaved", async () => {
+    const edit_log = vi.fn(() => Promise.resolve({ log: testEvalLog() }));
+    const { setShowing, onSaved } = renderDialog({ edit_log });
+
+    editTags();
+    fireEvent.change(screen.getByLabelText("Reason"), {
+      target: { value: " cleanup " },
+    });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(setShowing).toHaveBeenCalledWith(false);
+    expect(edit_log).toHaveBeenCalledWith("/logs/x.eval", {
+      edits: [{ type: "tags", tags_add: ["b"], tags_remove: ["a"] }],
+      provenance: {
+        author: "Ada",
+        reason: "cleanup",
+        metadata: {},
+        timestamp: "2026-01-02T03:04:05.000Z",
+      },
+    });
+  });
+
+  it("saves once when Save is clicked twice", async () => {
+    const { edit_log, resolve } = pendingSave();
+    const { onSaved } = renderDialog({ edit_log });
+
+    editTags();
+    fireEvent.click(saveButton());
+    fireEvent.click(saveButton());
+    resolve();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(edit_log).toHaveBeenCalledOnce();
+  });
+
+  it("shows Saving… while a slow save is in flight", async () => {
+    const { edit_log, resolve } = pendingSave();
+    const { onSaved } = renderDialog({ edit_log });
+
+    editTags();
+    fireEvent.click(saveButton());
+
+    expect(
+      await screen.findByRole("button", { name: "Saving…" })
+    ).toBeDisabled();
+    resolve();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  });
+
+  it("shows the error and stays open when the save fails", async () => {
+    const { setShowing, onSaved } = renderDialog({
+      edit_log: () => Promise.reject(new ApiError(412, "ETag mismatch")),
+    });
+
+    editTags();
+    fireEvent.click(saveButton());
+
+    expect(
+      await screen.findByText(/modified by someone else/)
+    ).toBeInTheDocument();
+    expect(setShowing).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(saveButton()).toBeEnabled();
   });
 });

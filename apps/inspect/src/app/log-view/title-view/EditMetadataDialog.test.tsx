@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Regression: the metadata editor was applying `JSON.parse` to every
  * value on save regardless of the type the user picked when adding the
@@ -7,13 +8,21 @@
  * when it's true; the helper below is the load-bearing piece.
  */
 
-import { describe, expect, test } from "vitest";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+import { testEvalLog } from "@tsmono/inspect-common/testing";
+import { ResizeObserverStub } from "@tsmono/react/testing";
+
+import { ClientAPI, EditLogResult } from "../../../client/api/types";
 
 import {
+  EditMetadataDialog,
   MetadataParseError,
   MetaEntry,
   serializeEntry,
 } from "./EditMetadataDialog";
+import { renderEditDialog } from "./renderEditDialog";
 
 describe("serializeEntry", () => {
   test("string-typed row keeps its text verbatim (does not parse `43` as number)", () => {
@@ -222,5 +231,114 @@ describe("serializeEntry", () => {
         dirty: true,
       })
     ).toBe("true");
+  });
+});
+
+describe("EditMetadataDialog save", () => {
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-02T03:04:05Z"));
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const renderDialog = (api: Partial<ClientAPI>) => {
+    const setShowing = vi.fn();
+    const onSaved = vi.fn();
+    renderEditDialog(api, (showing) => (
+      <EditMetadataDialog
+        showing={showing}
+        setShowing={setShowing}
+        currentMetadata={{ a: "x", b: 1 }}
+        logFile="/logs/x.eval"
+        onSaved={onSaved}
+      />
+    ));
+    return { setShowing, onSaved };
+  };
+
+  const saveButton = () => screen.getByRole("button", { name: "Save" });
+  const setAuthor = () =>
+    fireEvent.change(screen.getByLabelText(/Author/), {
+      target: { value: "Ada" },
+    });
+
+  const editMetadata = () => {
+    fireEvent.change(screen.getByDisplayValue("x"), { target: { value: "y" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove b" }));
+    setAuthor();
+  };
+
+  test("saves the metadata changes with provenance, then closes and calls onSaved", async () => {
+    const edit_log = vi.fn(() => Promise.resolve({ log: testEvalLog() }));
+    const { setShowing, onSaved } = renderDialog({ edit_log });
+
+    editMetadata();
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(setShowing).toHaveBeenCalledWith(false);
+    expect(edit_log).toHaveBeenCalledWith("/logs/x.eval", {
+      edits: [
+        { type: "metadata", metadata_set: { a: "y" }, metadata_remove: ["b"] },
+      ],
+      provenance: {
+        author: "Ada",
+        reason: undefined,
+        metadata: {},
+        timestamp: "2026-01-02T03:04:05.000Z",
+      },
+    });
+  });
+
+  test("saves once when Save is clicked twice", async () => {
+    let resolve: (result: EditLogResult) => void = () => {};
+    const result = new Promise<EditLogResult>((r) => {
+      resolve = r;
+    });
+    const edit_log = vi.fn(() => result);
+    const { onSaved } = renderDialog({ edit_log });
+
+    editMetadata();
+    fireEvent.click(saveButton());
+    fireEvent.click(saveButton());
+    resolve({ log: testEvalLog() });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(edit_log).toHaveBeenCalledOnce();
+  });
+
+  test("shows the error and stays open when the save fails", async () => {
+    const { setShowing, onSaved } = renderDialog({
+      edit_log: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    editMetadata();
+    fireEvent.click(saveButton());
+
+    expect(await screen.findByText(/view server unreachable/)).toBeVisible();
+    expect(setShowing).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  test("names the key with invalid JSON and does not send the edit", async () => {
+    const edit_log = vi.fn(() => Promise.resolve({ log: testEvalLog() }));
+    const { setShowing } = renderDialog({ edit_log });
+
+    fireEvent.change(screen.getByDisplayValue("1"), {
+      target: { value: "{a: 1}" },
+    });
+    setAuthor();
+    fireEvent.click(saveButton());
+
+    expect(
+      await screen.findByText(/Invalid JSON for "b"\. Use JSON syntax/)
+    ).toBeVisible();
+    expect(edit_log).not.toHaveBeenCalled();
+    expect(setShowing).not.toHaveBeenCalled();
   });
 });
