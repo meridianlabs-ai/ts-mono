@@ -7,10 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse } from "@tsmono/inspect-common/types";
 
-import { initAppConfig } from "../app_config";
 import { ClientAPI } from "../client/api/types";
 import { DB_NAME } from "../client/database";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
 import { releaseDatabase } from "./databaseInstance";
 import {
@@ -30,16 +30,8 @@ const apiWith = (events: string[]): ClientAPI =>
     client_events: vi.fn().mockResolvedValue(events),
   });
 
-/** Resolve the app config for LOG_DIR, as <AppConfigGate> does. */
 const resolveConfig = (api: ClientAPI, singleFileMode: boolean) =>
-  initAppConfig({
-    api,
-    singleFileMode,
-    loader: singleFileMode ? "direct" : "replicator",
-    inspect_version: "test",
-    scout_version: null,
-    logDir: LOG_DIR,
-  });
+  startTestApp({ api, logDir: LOG_DIR, singleFileMode });
 
 const listing = (names: string[]): LogFilesResponse => ({
   files: names.map((name) => ({ name, mtime: 1 })),

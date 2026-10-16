@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-import { initAppConfig } from "../app_config";
 import {
   LogDetails,
   PendingSampleResponse,
@@ -15,6 +14,7 @@ import {
 } from "../client/api/types";
 import { DB_NAME } from "../client/database";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
 import { acquireDatabase, releaseDatabase } from "./databaseInstance";
 import { fetchEngine } from "./fetchEngine";
@@ -145,14 +145,7 @@ describe("useSampleSummaries during a running eval", () => {
     // config, then start the engine from it (acquisition paths only await
     // readiness).
     activateFetchEngine(
-      initAppConfig({
-        api,
-        singleFileMode: false,
-        loader: "replicator",
-        inspect_version: "test",
-        scout_version: null,
-        logDir: LOG_DIR,
-      })
+      startTestApp({ api, logDir: LOG_DIR, singleFileMode: false })
     );
   });
 

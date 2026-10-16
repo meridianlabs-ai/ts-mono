@@ -7,11 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-import { initAppConfig } from "../app_config";
 import { ClientAPI, Log, LogDetails } from "../client/api/types";
 import { DB_NAME } from "../client/database";
 import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
 import { acquireDatabase, releaseDatabase } from "./databaseInstance";
 import { fetchEngine } from "./fetchEngine";
@@ -62,14 +62,7 @@ const wrapper = ({ children }: { children: ReactNode }) =>
 const activate = async (api: ClientAPI) => {
   await writeListing(await acquireDatabase(), LOG_DIR, [{ name: LOG_FILE }]);
   activateFetchEngine(
-    initAppConfig({
-      api,
-      singleFileMode: false,
-      loader: "replicator",
-      inspect_version: "test",
-      scout_version: null,
-      logDir: LOG_DIR,
-    })
+    startTestApp({ api, logDir: LOG_DIR, singleFileMode: false })
   );
 };
 
