@@ -8,7 +8,6 @@ import { LogHeader } from "../../../client/api/types";
 import { DownloadPanel } from "../../../components/DownloadPanel";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
-import { ApplicationIcons } from "../../appearance/icons";
 import { useCurrentLogFile } from "../../routing/currentSelection";
 
 import styles from "./JsonTab.module.css";
@@ -55,7 +54,7 @@ export const CopyJsonButton: FC<{ json: string }> = ({ json }) => {
   return (
     <ToolButton
       label={copied ? "Copied!" : "Copy JSON"}
-      icon={copied ? ApplicationIcons.confirm : ApplicationIcons.copy}
+      icon={copied ? "confirm" : "copy"}
       subtle
       disabled={copied}
       onClick={() => copy(json)}

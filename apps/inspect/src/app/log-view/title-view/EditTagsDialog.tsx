@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, KeyboardEvent, useMemo, useState } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
+import { Icon } from "@tsmono/react/icons";
 
 import { EditAnnotationsDialog } from "./EditAnnotationsDialog";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
@@ -145,7 +145,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
               onClick={addPendingTag}
               disabled={submitting || !pending.trim()}
             >
-              <i className={ApplicationIcons.changes.add} /> Add
+              <Icon name="changeAdd" /> Add
             </button>
           </div>
         </div>

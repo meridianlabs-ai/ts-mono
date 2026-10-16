@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useContext } from "react";
 
-import { TranscriptIcons } from "../icons";
+import { Icon } from "@tsmono/react/icons";
 
 import {
   EventRowIdContext,
@@ -53,7 +53,7 @@ export const EventSelectCheckbox: FC<{ selection: EventRowSelection }> = ({
         onToggle(id, e.shiftKey);
       }}
     >
-      {selected ? <i className={TranscriptIcons.selection.checked} /> : null}
+      {selected ? <Icon name="selectionChecked" /> : null}
     </button>
   );
 };

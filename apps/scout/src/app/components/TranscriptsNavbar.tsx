@@ -2,7 +2,6 @@ import { FC, useContext, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 
 import { AppModeContext } from "../../App";
-import { ApplicationIcons } from "../../icons";
 import { transcriptsRoute } from "../../router/url";
 import { useStore } from "../../state/store";
 
@@ -51,7 +50,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
     if (resolvedBackUrl) {
       buttons.push({
         title: "Back",
-        icon: ApplicationIcons.navbar.back,
+        icon: "navBack",
         route: resolvedBackUrl,
         enabled: !!transcriptId,
       });
@@ -60,7 +59,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
     if (!singleFileMode) {
       buttons.push({
         title: "Home",
-        icon: ApplicationIcons.navbar.home,
+        icon: "navHome",
         route: transcriptsRoute(),
         enabled: !!transcriptId,
       });
@@ -87,11 +86,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
           path={transcriptsDir}
           secondaryText={filterText}
           label="Transcripts"
-          icon={
-            transcriptsDirSource === "cli"
-              ? ApplicationIcons.terminal
-              : undefined
-          }
+          icon={transcriptsDirSource === "cli" ? "terminal" : undefined}
           title={
             transcriptsDirSource === "cli"
               ? "Using transcripts directory from command line."

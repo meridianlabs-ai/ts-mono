@@ -36,7 +36,6 @@ import { isHostedEnvironment } from "@tsmono/util";
 import { Events } from "../../../@types/extraInspect";
 import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
-import { ApplicationIcons } from "../../appearance/icons";
 import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   makeLogsPath,
@@ -495,7 +494,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
         toggleTitle: outlineCollapsed
           ? "Show transcript outline"
           : "Hide transcript outline",

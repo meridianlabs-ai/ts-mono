@@ -6,6 +6,7 @@ import {
   type ConfigChangeInfo,
 } from "@tsmono/inspect-common/utils";
 import { InAppLink, PopOver } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./ConfigChangedChip.module.css";
 
@@ -43,7 +44,7 @@ export const TimelineLink: FC<TimelineLinkProps> = ({
     onNavigate={onClick}
     className={clsx(styles.timelineLink, className)}
   >
-    <i className="bi bi-graph-up" aria-hidden="true" />
+    <Icon name="graph" />
     View on activity
   </InAppLink>
 );

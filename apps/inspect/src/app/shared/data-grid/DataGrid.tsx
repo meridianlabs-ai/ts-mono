@@ -35,6 +35,7 @@ import {
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isRecord, isVscode } from "@tsmono/util";
 
@@ -134,12 +135,9 @@ function SortIndicator({
       {sortOrder !== undefined && (
         <span className={styles.sortOrder}>{sortOrder}</span>
       )}
-      <i
-        className={clsx(
-          sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
-          styles.sortIcon
-        )}
-        aria-hidden="true"
+      <Icon
+        name={sorted === "asc" ? "arrowUp" : "arrowDown"}
+        className={styles.sortIcon}
       />
     </span>
   );

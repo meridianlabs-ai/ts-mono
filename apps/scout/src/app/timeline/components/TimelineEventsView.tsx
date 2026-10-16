@@ -15,7 +15,6 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import { useProperty, useUnmount } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import type { ServerTimeline } from "../../../types/api-types";
 import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
@@ -287,7 +286,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
         onNavigateToEvent: handleOutlineNavigate,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,

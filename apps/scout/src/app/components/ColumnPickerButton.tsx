@@ -3,8 +3,6 @@ import { FC, ReactNode, useRef, useState } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../icons";
-
 import styles from "./ColumnPickerButton.module.css";
 
 export interface ColumnPickerRenderProps {
@@ -36,7 +34,7 @@ export const ColumnPickerButton: FC<ColumnPickerButtonProps> = ({
     <>
       <ToolButton
         ref={buttonRef}
-        icon={ApplicationIcons.checkbox.checked}
+        icon="checkboxChecked"
         label="Choose columns"
         title="Choose columns"
         latched={isOpen}

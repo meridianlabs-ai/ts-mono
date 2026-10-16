@@ -15,6 +15,7 @@ import {
   StickyScrollProvider,
 } from "@tsmono/react/components";
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { isEditableTarget } from "@tsmono/util";
 
 import styles from "./FocusTurnView.module.css";
@@ -23,13 +24,6 @@ import type { FocusTurnNavigation } from "./hooks/useFocusTurnNavigation";
 import selectorStyles from "./timeline/components/TimelineSelector.module.css";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import type { EventPanelCallbacks } from "./types";
-
-const kChevronUp = "bi bi-chevron-up";
-const kChevronDown = "bi bi-chevron-down";
-const kChevronRight = "bi bi-chevron-right";
-// Pairs with EventPanel's kFocusIcon (arrows-angle-expand/contract): expand
-// enters focus mode, contract exits.
-const kExitFocusIcon = "bi bi-arrows-angle-contract";
 
 interface FocusTurnViewProps {
   nav: FocusTurnNavigation;
@@ -184,7 +178,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             return (
               <Fragment key={i}>
                 {i > 0 && (
-                  <i className={clsx(kChevronRight, styles.crumbSeparator)} />
+                  <Icon name="chevronRight" className={styles.crumbSeparator} />
                 )}
                 {isPicker ? (
                   <button
@@ -198,7 +192,10 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
                     onClick={() => setLaneMenuOpen((open) => !open)}
                   >
                     {crumb.label}
-                    <i className={clsx(kChevronDown, selectorStyles.chevron)} />
+                    <Icon
+                      name="chevronDown"
+                      className={selectorStyles.chevron}
+                    />
                   </button>
                 ) : isLast ? (
                   <span className={styles.laneName}>{crumb.label}</span>
@@ -233,7 +230,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             disabled={!canStepNext}
             onClick={onNext}
           >
-            <i className={kChevronDown} />
+            <Icon name="chevronDown" />
           </button>
           <button
             type="button"
@@ -243,7 +240,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             disabled={!canStepPrev}
             onClick={onPrev}
           >
-            <i className={kChevronUp} />
+            <Icon name="chevronUp" />
           </button>
           {handleExit && (
             <>
@@ -255,7 +252,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
                 title="Exit focus mode (Esc or f)"
                 aria-label="Exit focus mode"
               >
-                <i className={kExitFocusIcon} />
+                <Icon name="focusExit" />
               </InAppLink>
             </>
           )}

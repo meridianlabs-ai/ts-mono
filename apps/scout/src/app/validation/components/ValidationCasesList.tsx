@@ -2,8 +2,8 @@ import { VscodeButton, VscodeCheckbox } from "@vscode-elements/react-elements";
 import { CSSProperties, FC, useCallback, useMemo, useState } from "react";
 
 import { Modal } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { useTranscriptsByIds } from "../../server/useTranscriptsByIds";
@@ -264,7 +264,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Assign Split"
                 >
-                  <i className={ApplicationIcons.fork} />
+                  <Icon name="fork" />
                   <span className={styles.buttonText}>Assign Split</span>
                 </VscodeButton>
                 <VscodeButton
@@ -273,7 +273,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Copy"
                 >
-                  <i className={ApplicationIcons.copy} />
+                  <Icon name="copy" />
                   <span className={styles.buttonText}>Copy</span>
                 </VscodeButton>
                 <VscodeButton
@@ -282,7 +282,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Move"
                 >
-                  <i className={ApplicationIcons.move} />
+                  <Icon name="move" />
                   <span className={styles.buttonText}>Move</span>
                 </VscodeButton>
                 <VscodeButton
@@ -291,7 +291,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Delete"
                 >
-                  <i className={ApplicationIcons.trash} />
+                  <Icon name="trash" />
                   <span className={styles.buttonText}>Delete</span>
                 </VscodeButton>
               </span>

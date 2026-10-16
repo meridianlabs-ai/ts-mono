@@ -17,6 +17,7 @@ import { EditorView, minimalSetup } from "codemirror";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useMountEffect } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { debounce } from "@tsmono/util";
 
 import { SampleSummary } from "../../../../client/api/types";
@@ -292,10 +293,12 @@ export const SampleFilter: FC = () => {
         className={clsx(filterError && "filter-pending", styles.input)}
       />
       <span
-        className={clsx("bi", "bi-question-circle", styles.help)}
+        className={styles.help}
         data-tooltip={FILTER_TOOLTIP}
         data-tooltip-position="bottom-left"
-      />
+      >
+        <Icon name="help" />
+      </span>
     </div>
   );
 };

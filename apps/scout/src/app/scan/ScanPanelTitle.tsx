@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { CopyButton } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import { formatDateTime, prettyDirUri, toRelativePath } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import { useApi } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { DownloadScanButton } from "../components/DownloadScanButton";
@@ -90,7 +90,7 @@ const StatusDisplay: FC<{ status?: Status }> = ({ status }) => {
 
     return (
       <div>
-        <i className={ApplicationIcons.error} /> {errorStr}
+        <Icon name="error" /> {errorStr}
       </div>
     );
   }
@@ -99,14 +99,14 @@ const StatusDisplay: FC<{ status?: Status }> = ({ status }) => {
     status === undefined ? "" : status.complete ? "Complete" : "Incomplete";
   const statusIcon =
     status === undefined
-      ? ApplicationIcons.running
+      ? "running"
       : status.complete
-        ? ApplicationIcons.successSubtle
-        : ApplicationIcons.pendingTaskSubtle;
+        ? "successSubtle"
+        : "pendingTaskSubtle";
 
   return (
     <div>
-      <i className={statusIcon} /> {statusStr}
+      <Icon name={statusIcon} /> {statusStr}
     </div>
   );
 };

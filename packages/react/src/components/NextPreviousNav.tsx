@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { useArrowStepper } from "../hooks/useArrowStepper";
-import { baseApplicationIcons } from "../icons";
+import { Icon, IconName } from "../icons";
 
 import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./NextPreviousNav.module.css";
@@ -66,7 +66,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
   return (
     <div className={styles.container}>
       <Chevron
-        icon={baseApplicationIcons.previous}
+        icon="previous"
         action={onPrevious}
         enabled={hasPrevious}
         href={previousHref}
@@ -76,7 +76,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
       />
       {children && <div className={styles.center}>{children}</div>}
       <Chevron
-        icon={baseApplicationIcons.next}
+        icon="next"
         action={onNext}
         enabled={hasNext}
         href={nextHref}
@@ -89,7 +89,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
 };
 
 interface ChevronProps {
-  icon: string;
+  icon: IconName;
   action: (() => void) | undefined;
   enabled: boolean;
   href: string | undefined;
@@ -132,7 +132,7 @@ const Chevron: FC<ChevronProps> = ({
         className={clsx(styles.nav, !live && styles.disabled)}
         title={title}
       >
-        <i className={icon} />
+        <Icon name={icon} />
       </a>
     );
   }
@@ -154,7 +154,7 @@ const Chevron: FC<ChevronProps> = ({
       className={clsx(styles.nav, !enabled && styles.disabled)}
       title={title}
     >
-      <i className={icon} />
+      <Icon name={icon} />
     </div>
   );
 };

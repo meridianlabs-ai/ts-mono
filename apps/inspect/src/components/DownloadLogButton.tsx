@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import { getApi } from "../app_config";
-import { ApplicationIcons } from "../app/appearance/icons";
 
 import styles from "./DownloadLogButton.module.css";
 
@@ -41,29 +42,25 @@ export const DownloadLogButton = ({
       });
   };
 
-  const getIcon = (): string => {
+  const getIcon = (): IconName => {
     switch (downloadState) {
       case "downloading":
-        return ApplicationIcons.loading;
+        return "loading";
       case "success":
-        return ApplicationIcons.confirm;
+        return "confirm";
       case "error":
-        return ApplicationIcons.error;
+        return "error";
       default:
-        return ApplicationIcons.downloadLog;
+        return "download";
     }
   };
 
-  const getIconClass = (): string => {
-    const icon = getIcon();
-    if (downloadState === "success") {
-      return `${icon} primary`;
-    }
-    if (downloadState === "error") {
-      return `${icon} text-danger`;
-    }
-    return icon;
-  };
+  const iconClassName =
+    downloadState === "success"
+      ? "primary"
+      : downloadState === "error"
+        ? "text-danger"
+        : undefined;
 
   return (
     <button
@@ -77,7 +74,7 @@ export const DownloadLogButton = ({
       aria-label={ariaLabel}
       disabled={downloadState !== "idle"}
     >
-      <i className={getIconClass()} aria-hidden="true" />
+      <Icon name={getIcon()} className={iconClassName} />
     </button>
   );
 };

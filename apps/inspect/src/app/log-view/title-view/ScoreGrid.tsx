@@ -14,6 +14,7 @@ import {
 import clsx from "clsx";
 import { FC, ReactElement, useMemo, useState } from "react";
 
+import { Icon } from "@tsmono/react/icons";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import { groupMetricRuns, isGroupRun } from "../../../scoring/scores";
@@ -306,13 +307,9 @@ const LeafHeader = ({
   // Sortable headers reserve the arrow's slot even when unsorted: the full
   // view's columns are content-sized, so an arrow popping in would widen one.
   const arrow = canSort && (
-    <i
-      className={clsx(
-        sorted === "asc" ? "bi bi-arrow-up" : "bi bi-arrow-down",
-        styles.sortIcon,
-        !sorted && styles.sortIconIdle
-      )}
-      aria-hidden="true"
+    <Icon
+      name={sorted === "asc" ? "arrowUp" : "arrowDown"}
+      className={clsx(styles.sortIcon, !sorted && styles.sortIconIdle)}
     />
   );
   return (

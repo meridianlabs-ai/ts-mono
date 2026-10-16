@@ -1,12 +1,14 @@
 import clsx from "clsx";
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
 
+import { Icon, IconName } from "../icons";
+
 import styles from "./ToolButton.module.css";
 
 interface ToolButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label?: string | ReactNode;
   classes?: string;
-  icon?: string;
+  icon?: IconName;
   latched?: boolean;
   subtle?: boolean;
 }
@@ -31,7 +33,10 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(
         {...rest}
       >
         {icon && (
-          <i className={clsx(icon, label ? styles.marginRight : undefined)} />
+          <Icon
+            name={icon}
+            className={label ? styles.marginRight : undefined}
+          />
         )}
         {label}
       </button>

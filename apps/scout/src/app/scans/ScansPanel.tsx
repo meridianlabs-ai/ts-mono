@@ -8,7 +8,6 @@ import {
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { ScanRow } from "../../types/api-types";
 import { Footer } from "../components/Footer";
@@ -88,9 +87,7 @@ export const ScansPanel: FC = () => {
           error={{ message: error.message }}
         />
       )}
-      {!data && !error && (
-        <NoContentsPanel icon={ApplicationIcons.running} text="Loading..." />
-      )}
+      {!data && !error && <NoContentsPanel icon="running" text="Loading..." />}
       {data && !error && (
         <div className={styles.gridContainer}>
           <ScansFilterBar

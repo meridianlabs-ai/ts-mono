@@ -18,8 +18,6 @@ import {
   type LlmSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
-import { ComponentIconProvider } from "@tsmono/react/components";
-import { testIcons } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../api/api-scout-server";
@@ -96,16 +94,14 @@ const renderSearchPanel = ({
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={testIcons}>
-            <MemoryRouter initialEntries={[route]}>
-              <Routes>
-                <Route
-                  path="/transcripts/:transcriptsDir/:transcriptId"
-                  element={children}
-                />
-              </Routes>
-            </MemoryRouter>
-          </ComponentIconProvider>
+          <MemoryRouter initialEntries={[route]}>
+            <Routes>
+              <Route
+                path="/transcripts/:transcriptsDir/:transcriptId"
+                element={children}
+              />
+            </Routes>
+          </MemoryRouter>
         </StoreProvider>
       </ApiProvider>
     </QueryClientProvider>

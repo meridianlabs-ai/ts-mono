@@ -4,10 +4,10 @@ import { FC, Fragment } from "react";
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
 import { useCollapsedState } from "@tsmono/react/hooks";
+import { IconName } from "@tsmono/react/icons";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
-import { TranscriptIcons } from "./icons";
 import {
   checkClasses,
   CheckInset,
@@ -86,20 +86,20 @@ const decisionLabel = (decision: string): string => {
   }
 };
 
-const decisionIcon = (decision: string): string => {
+const decisionIcon = (decision: string): IconName => {
   switch (decision) {
     case "approve":
-      return TranscriptIcons.approvals.approve;
+      return "approvalApprove";
     case "reject":
-      return TranscriptIcons.approvals.reject;
+      return "approvalReject";
     case "terminate":
-      return TranscriptIcons.approvals.terminate;
+      return "approvalTerminate";
     case "escalate":
-      return TranscriptIcons.approvals.escalate;
+      return "approvalEscalate";
     case "modify":
-      return TranscriptIcons.approvals.modify;
+      return "approvalModify";
     default:
-      return TranscriptIcons.approve;
+      return "approve";
   }
 };
 

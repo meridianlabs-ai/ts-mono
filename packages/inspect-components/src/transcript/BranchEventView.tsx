@@ -7,7 +7,6 @@ import { formatDateTime } from "@tsmono/util";
 import styles from "./BranchEventView.module.css";
 import { EventPanel } from "./event/EventPanel";
 import { formatTitle } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface BranchEventViewProps {
@@ -31,7 +30,7 @@ export const BranchEventView: FC<BranchEventViewProps> = ({
       title={formatTitle("Branch", undefined, event.working_start)}
       className={className}
       subTitle={formatDateTime(new Date(event.timestamp))}
-      icon={TranscriptIcons.info}
+      icon="info"
     >
       <MetaDataGrid entries={data} className={styles.panel} />
     </EventPanel>

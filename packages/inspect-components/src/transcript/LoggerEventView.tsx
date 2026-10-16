@@ -3,10 +3,10 @@ import { FC } from "react";
 
 import type { LoggerEvent } from "@tsmono/inspect-common/types";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { logLevelIcon } from "@tsmono/react/icons";
 import { parseJsonRecord } from "@tsmono/util";
 
 import { EventRow } from "./event/EventRow";
-import { TranscriptIcons } from "./icons";
 import styles from "./LoggerEventView.module.css";
 import { EventNode } from "./types";
 
@@ -26,10 +26,7 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
       eventNodeId={eventNode.id}
       className={className}
       title={event.message.level}
-      icon={
-        TranscriptIcons.logging[event.message.level.toLowerCase()] ||
-        TranscriptIcons.info
-      }
+      icon={logLevelIcon(event.message.level) ?? "info"}
     >
       <div className={clsx("text-size-base", styles.grid)}>
         <div className={clsx("text-size-smaller")}>

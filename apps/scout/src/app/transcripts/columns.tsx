@@ -1,5 +1,6 @@
 import clsx from "clsx";
 
+import { Icon } from "@tsmono/react/icons";
 import {
   formatNumber,
   formatPrettyDecimal,
@@ -9,7 +10,6 @@ import {
   valueAsString,
 } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
@@ -238,14 +238,10 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
         return "-";
       }
 
-      const icon = value
-        ? ApplicationIcons.checkbox.checked
-        : ApplicationIcons.checkbox.unchecked;
-
       return (
-        <i
+        <Icon
+          name={value ? "checkboxChecked" : "checkboxUnchecked"}
           className={clsx(
-            icon,
             "text-secondary",
             value ? styles.success : styles.unsuccess
           )}

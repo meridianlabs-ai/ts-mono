@@ -8,7 +8,6 @@ import {
 } from "@tsmono/inspect-common/testing";
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
-  ComponentIconProvider,
   ComponentNavigationProvider,
   ContentTrustProvider,
 } from "@tsmono/react/components";
@@ -16,7 +15,6 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeReactiveStateHooks,
   ResizeObserverStub,
-  testIcons,
 } from "@tsmono/react/testing";
 
 import { ModelEventView } from "./ModelEventView";
@@ -25,16 +23,14 @@ import { EventNode } from "./types";
 const renderInfoTab = (event: ModelEvent) => {
   const result = render(
     <ComponentStateProvider hooks={makeReactiveStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <ContentTrustProvider value="trusted">
-            <ModelEventView
-              eventNode={new EventNode<ModelEvent>("model-1", event, 0)}
-              showToolCalls={true}
-            />
-          </ContentTrustProvider>
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <ContentTrustProvider value="trusted">
+          <ModelEventView
+            eventNode={new EventNode<ModelEvent>("model-1", event, 0)}
+            showToolCalls={true}
+          />
+        </ContentTrustProvider>
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
   fireEvent.click(screen.getByRole("tab", { name: "Info" }));

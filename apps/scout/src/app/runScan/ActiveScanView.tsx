@@ -7,7 +7,6 @@ import {
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../icons";
 import {
   ActiveScanInfo,
   ScannerSummary,
@@ -288,16 +287,10 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
         />
       )}
       {!scanId && !error && (
-        <NoContentsPanel
-          icon={ApplicationIcons.running}
-          text="No scan started"
-        />
+        <NoContentsPanel icon="running" text="No scan started" />
       )}
       {scanId && !scanInfo && !error && !loading && (
-        <NoContentsPanel
-          icon={ApplicationIcons.running}
-          text="Scan not found"
-        />
+        <NoContentsPanel icon="running" text="Scan not found" />
       )}
       {scanInfo && <ActiveScanCard info={scanInfo} />}
     </div>

@@ -1,7 +1,8 @@
 import { clsx } from "clsx";
 import { FC, useCallback } from "react";
 
-import { ApplicationIcons } from "../app/appearance/icons";
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import { useMessageVisibility } from "../state/hooks";
 
 import styles from "./MessageBand.module.css";
@@ -17,6 +18,12 @@ const typeStyles: Record<MessageBandProps["type"], string> = {
   info: styles.info,
   warning: styles.warning,
   error: styles.error,
+};
+
+const typeIcons: Record<MessageBandProps["type"], IconName> = {
+  info: "logInfo",
+  warning: "logWarning",
+  error: "logError",
 };
 
 export const MessageBand: FC<MessageBandProps> = ({
@@ -38,7 +45,7 @@ export const MessageBand: FC<MessageBandProps> = ({
         !visible && styles.hidden
       )}
     >
-      <i className={ApplicationIcons.logging[type]} />
+      <Icon name={typeIcons[type]} />
       {message}
       <button
         type="button"
@@ -46,7 +53,7 @@ export const MessageBand: FC<MessageBandProps> = ({
         title="Close"
         onClick={handleClick}
       >
-        <i className={ApplicationIcons.close}></i>
+        <Icon name="close" />
       </button>
     </div>
   );

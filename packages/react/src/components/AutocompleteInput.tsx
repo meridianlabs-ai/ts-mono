@@ -12,9 +12,9 @@ import {
 import { createPortal } from "react-dom";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { Icon } from "../icons";
 
 import styles from "./AutocompleteInput.module.css";
-import { useComponentIcons } from "./ComponentIconContext";
 
 export interface AutocompleteInputProps {
   id: string;
@@ -58,7 +58,6 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   allowBrowse = false,
   required = false,
 }) => {
-  const icons = useComponentIcons();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   // Start with no selection (-1) so Enter submits the typed value, not a suggestion
@@ -334,11 +333,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           aria-expanded={isOpen && isBrowseMode}
           aria-controls={showDropdown ? `${id}-listbox` : undefined}
         >
-          <i
-            className={
-              isOpen && isBrowseMode ? icons.chevronUp : icons.chevronDown
-            }
-          />
+          <Icon name={isOpen && isBrowseMode ? "chevronUp" : "chevronDown"} />
         </button>
       )}
 

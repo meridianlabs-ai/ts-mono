@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import type { Timeline } from "../core";
 
@@ -77,10 +78,7 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
         aria-expanded={isOpen}
       >
         {active.name}
-        <i
-          className={clsx("bi-chevron-down", styles.chevron)}
-          aria-hidden="true"
-        />
+        <Icon name="chevronDown" className={styles.chevron} />
       </button>
       {isOpen && (
         <>

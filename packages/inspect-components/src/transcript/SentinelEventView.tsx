@@ -5,10 +5,10 @@ import type { SentinelEvent, ToolCall } from "@tsmono/inspect-common/types";
 import { resolveToolInput } from "@tsmono/inspect-components/chat";
 import { MarkdownDivWithReferences } from "@tsmono/react/components";
 import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import { citeReferences, type MakeCiteUrl } from "./citeReferences";
 import { EventRow } from "./event/EventRow";
-import { TranscriptIcons } from "./icons";
 import { ModelEventView } from "./ModelEventView";
 import styles from "./SentinelEventView.module.css";
 import {
@@ -182,26 +182,18 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
         {row.guides ? (
           <span className={styles.guides}>{row.guides}</span>
         ) : null}
-        <i
-          className={clsx(
-            event.kind === "observation"
-              ? "bi bi-activity"
-              : "bi bi-signpost-split",
-            styles.kindIcon
-          )}
-          aria-hidden="true"
+        <Icon
+          name={event.kind === "observation" ? "activity" : "signpost"}
+          className={styles.kindIcon}
         />
         <b>{event.path || "(top)"}</b>{" "}
         <span className={styles.name}>{event.factory}</span>
       </span>
       <span className={styles.result}>
         <CheckResult row={row} />
-        <i
-          className={clsx(
-            open ? "bi bi-chevron-down" : "bi bi-chevron-right",
-            styles.rowChevron
-          )}
-          aria-hidden="true"
+        <Icon
+          name={open ? "chevronDown" : "chevronRight"}
+          className={styles.rowChevron}
         />
       </span>
     </button>
@@ -211,9 +203,11 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
 const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   const event = row.node.event;
   const flag = event.audit ? (
-    <i
-      className={clsx("bi bi-flag-fill", styles.flag)}
+    <Icon
+      name="flag"
+      className={styles.flag}
       role="img"
+      aria-hidden={false}
       aria-label="flagged"
     />
   ) : null;
@@ -405,12 +399,9 @@ const ModelCallsNote: FC<ModelCallsNoteProps> = ({
         aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
       >
-        <i
-          className={clsx(
-            collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down",
-            styles.chevron
-          )}
-          aria-hidden="true"
+        <Icon
+          name={collapsed ? "chevronRight" : "chevronDown"}
+          className={styles.chevron}
         />
         {`${modelCalls.length} monitor model call${modelCalls.length === 1 ? "" : "s"}`}
       </button>
@@ -448,7 +439,7 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
   <EventRow
     eventNodeId={eventNodeId}
     title="Sentinel"
-    icon={TranscriptIcons.sentinel}
+    icon="sentinel"
     className={className}
     below={<SentinelInset step={step} region="output" context={context} />}
   >
@@ -487,7 +478,7 @@ const stageLabels: Record<SentinelEvent["stage"], string> = {
 };
 
 interface VerdictLook {
-  icon: string;
+  icon: IconName;
   word: string;
   tone: CheckTone;
   iconClass?: string;
@@ -496,7 +487,7 @@ interface VerdictLook {
 }
 
 const rejectLook = {
-  icon: "bi bi-binoculars-fill",
+  icon: "sentinelFill",
   tone: "reject",
   iconClass: checkClasses.rejectIcon,
   textClass: checkClasses.rejectText,
@@ -505,32 +496,32 @@ const rejectLook = {
 
 const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
   proceed: {
-    icon: TranscriptIcons.sentinel,
+    icon: "sentinel",
     word: "Proceeded",
     tone: "neutral",
   },
   observe: {
-    icon: TranscriptIcons.sentinel,
+    icon: "sentinel",
     word: "Observed",
     tone: "neutral",
   },
   bypassed: {
-    icon: TranscriptIcons.sentinel,
+    icon: "sentinel",
     word: "Bypassed",
     tone: "neutral",
   },
   cancelled: {
-    icon: TranscriptIcons.sentinel,
+    icon: "sentinel",
     word: "Cancelled",
     tone: "neutral",
   },
   superseded: {
-    icon: TranscriptIcons.sentinel,
+    icon: "sentinel",
     word: "Superseded",
     tone: "neutral",
   },
   error: {
-    icon: "bi bi-exclamation-triangle",
+    icon: "warning",
     word: "Failed",
     tone: "neutral",
     textClass: styles.failed,
@@ -538,14 +529,14 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
   reject: { ...rejectLook, word: "Rejected" },
   terminate: { ...rejectLook, word: "Terminated" },
   modify: {
-    icon: "bi bi-binoculars-fill",
+    icon: "sentinelFill",
     word: "Modified",
     tone: "modify",
     iconClass: checkClasses.modifyIcon,
     textClass: checkClasses.modifyText,
   },
   escalate: {
-    icon: TranscriptIcons.approvals.escalate,
+    icon: "approvalEscalate",
     word: "Escalated",
     tone: "modify",
     iconClass: checkClasses.modifyIcon,
@@ -555,7 +546,7 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
 
 /** An escalate the runner returned had no handler above it, so the call proceeded. */
 const unhandledEscalateLook: VerdictLook = {
-  icon: TranscriptIcons.approvals.escalate,
+  icon: "approvalEscalate",
   word: "Escalated (no handler; proceeded)",
   tone: "neutral",
 };

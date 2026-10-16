@@ -1,11 +1,10 @@
+import { IconName } from "@tsmono/react/icons";
+
 import { buildEventNodes } from "../hooks/useEventNodes";
-import { TranscriptIcons } from "../icons";
 import { flatTree } from "../transform/flatten";
 import { eventFallbackIds } from "../transform/treeify";
 import { isStructuralEvent } from "../transform/utils";
 import { eventTypeValues, type EventNode, type EventType } from "../types";
-
-const kClearIcon = TranscriptIcons.selection.clear;
 
 /**
  * Evidence selection for transcript export: the event rows a reviewer has
@@ -136,7 +135,17 @@ export const resolveSelectedIds = (
 ): string[] => [...index.keys()].filter((id) => selectedIds.has(id));
 
 /** Heading and footer for a Copy/Download menu acting on a selection. */
-export const selectionMenuChrome = (count: number, onClear: () => void) => ({
+export const selectionMenuChrome = (
+  count: number,
+  onClear: () => void
+): {
+  heading: string;
+  footer: { label: string; icon: IconName; onClick: () => void };
+} => ({
   heading: `Selected events (${count})`,
-  footer: { label: "Clear selection", icon: kClearIcon, onClick: onClear },
+  footer: {
+    label: "Clear selection",
+    icon: "selectionClear",
+    onClick: onClear,
+  },
 });

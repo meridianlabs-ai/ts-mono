@@ -5,10 +5,10 @@ import type {
   EvalSampleLimit,
   SampleLimitEvent,
 } from "@tsmono/inspect-common/types";
+import { IconName } from "@tsmono/react/icons";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 type EvalSampleLimitType = EvalSampleLimit["type"];
@@ -42,24 +42,24 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
     }
   };
 
-  const resolve_icon = (type: EvalSampleLimitType) => {
+  const resolve_icon = (type: EvalSampleLimitType): IconName | undefined => {
     switch (type) {
       case "custom":
-        return TranscriptIcons.limits.custom;
+        return "limitCustom";
       case "time":
-        return TranscriptIcons.limits.time;
+        return "limitTime";
       case "message":
-        return TranscriptIcons.limits.messages;
+        return "limitMessages";
       case "token":
-        return TranscriptIcons.limits.tokens;
+        return "limitTokens";
       case "turn":
-        return TranscriptIcons.limits.turns;
+        return "limitTurns";
       case "operator":
-        return TranscriptIcons.limits.operator;
+        return "limitOperator";
       case "working":
-        return TranscriptIcons.limits.execution;
+        return "limitExecution";
       case "cost":
-        return TranscriptIcons.limits.cost;
+        return "limitCost";
     }
   };
 

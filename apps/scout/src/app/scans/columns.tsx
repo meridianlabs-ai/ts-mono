@@ -1,8 +1,6 @@
-import clsx from "clsx";
-
+import { Icon, IconName } from "@tsmono/react/icons";
 import { formatNumber, isRecord, printObject } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
 import { BaseColumnMeta, ExtendedColumnDef } from "../components/columnTypes";
@@ -105,18 +103,18 @@ export const COLUMN_HEADER_TITLES: Record<ScanColumnKey, string> = {
 
 // Helper to get status display (icon and color) for a scan
 function getStatusDisplay(scan: ScanRow): {
-  icon: string;
+  icon: IconName;
   colorClass: string | undefined;
 } {
   switch (scan.status) {
     case "complete":
-      return { icon: ApplicationIcons.success, colorClass: styles.green };
+      return { icon: "success", colorClass: styles.green };
     case "error":
-      return { icon: ApplicationIcons.error, colorClass: styles.red };
+      return { icon: "error", colorClass: styles.red };
     case "active":
     case "incomplete":
     default:
-      return { icon: ApplicationIcons.pendingTask, colorClass: styles.yellow };
+      return { icon: "pendingTask", colorClass: styles.yellow };
   }
 }
 
@@ -179,14 +177,13 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       if (scan.active_completion_pct != null) {
         return (
           <span className={styles.blue}>
-            <i className={ApplicationIcons["play-circle"]}></i>{" "}
-            {scan.active_completion_pct}%
+            <Icon name="playCircle" /> {scan.active_completion_pct}%
           </span>
         );
       }
 
       const { icon, colorClass } = getStatusDisplay(scan);
-      return <i className={clsx(icon, colorClass)}></i>;
+      return <Icon name={icon} className={colorClass} />;
     },
     textValue: () => null,
   },

@@ -1,8 +1,6 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../appearance/icons";
-
 import { DetailStep } from "./DetailStep";
 import styles from "./ScorerDetailView.module.css";
 
@@ -24,7 +22,7 @@ export const ScorerDetailView: FC<ScorerDetailViewProps> = ({
 
   return (
     <DetailStep
-      icon={ApplicationIcons.scorer}
+      icon="scorer"
       name={name}
       params={params}
       className={clsx(styles.item, "text-size-base")}

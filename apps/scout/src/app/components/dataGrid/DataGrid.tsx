@@ -25,10 +25,10 @@ import {
   ColumnFilterControl,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
+import { Icon } from "@tsmono/react/icons";
 import { openRouteInNewTab } from "@tsmono/react/routing";
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
-import { ApplicationIcons } from "../../../icons";
 import type { FilterType } from "../../../state/store";
 import { columnAccessorKey } from "../columnSizing/types";
 import {
@@ -671,20 +671,10 @@ export function DataGrid<
                       </span>
                       {{
                         asc: (
-                          <i
-                            className={clsx(
-                              ApplicationIcons.arrows.up,
-                              styles.sortIcon
-                            )}
-                          />
+                          <Icon name="arrowUp" className={styles.sortIcon} />
                         ),
                         desc: (
-                          <i
-                            className={clsx(
-                              ApplicationIcons.arrows.down,
-                              styles.sortIcon
-                            )}
-                          />
+                          <Icon name="arrowDown" className={styles.sortIcon} />
                         ),
                       }[header.column.getIsSorted() || "none"] ?? null}
                     </button>

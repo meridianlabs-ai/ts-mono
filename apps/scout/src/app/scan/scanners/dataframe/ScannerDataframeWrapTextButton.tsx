@@ -2,7 +2,6 @@ import { FC, useCallback } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 
 export const ScannerDataframeWrapTextButton: FC = () => {
@@ -15,7 +14,7 @@ export const ScannerDataframeWrapTextButton: FC = () => {
 
   return (
     <ToolButton
-      icon={ApplicationIcons.wrap}
+      icon="wrap"
       label="Wrap Text"
       onClick={toggleWrapText}
       latched={wrapText}

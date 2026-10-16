@@ -11,7 +11,6 @@ import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { formatTiming } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import styles from "./SandboxEventView.module.css";
 import { EventNode } from "./types";
 
@@ -30,7 +29,7 @@ export const SandboxEventView: FC<SandboxEventViewProps> = ({
       eventNodeId={eventNode.id}
       className={className}
       title={`Sandbox: ${event.action}`}
-      icon={TranscriptIcons.sandbox}
+      icon="sandbox"
       subTitle={
         event.timestamp
           ? formatTiming(event.timestamp, event.working_start)

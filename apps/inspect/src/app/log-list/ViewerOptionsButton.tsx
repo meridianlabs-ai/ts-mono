@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { forwardRef, useCallback } from "react";
 
-import { ApplicationIcons } from "../appearance/icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./ViewerOptionsButton.module.css";
 
@@ -27,10 +27,7 @@ export const ViewerOptionsButton = forwardRef<
         onClick={toggleShowing}
         title={"Viewer information and options"}
       >
-        <i
-          ref={ref}
-          className={clsx(ApplicationIcons.info, styles.viewerOptions)}
-        />
+        <Icon name="info" className={styles.viewerOptions} />
       </button>
     </div>
   );

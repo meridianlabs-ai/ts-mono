@@ -4,6 +4,7 @@ import { FC, MouseEvent as ReactMouseEvent, RefObject, useState } from "react";
 import type { Event } from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 import { ActivityChart } from "./ActivityChart";
@@ -104,7 +105,7 @@ const BandChip: FC<BandChipProps> = ({ label, on, onToggle }) => (
     className={clsx(styles.bandChip, on && styles.bandChipOn)}
     onClick={onToggle}
   >
-    {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
+    {on ? <Icon name="confirm" /> : null}
     {label}
   </button>
 );

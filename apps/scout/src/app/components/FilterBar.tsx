@@ -13,9 +13,9 @@ import {
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
+import { IconName } from "@tsmono/react/icons";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../icons";
 import type { ColumnFilter } from "../../state/store";
 
 import { AddFilterButton, type AddFilterPopoverState } from "./AddFilterButton";
@@ -218,7 +218,7 @@ export const FilterBar: FC<FilterBarProps> = ({
 const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
   itemValues,
 }) => {
-  const [icon, setIcon] = useState<string>(ApplicationIcons.copy);
+  const [icon, setIcon] = useState<IconName>("copy");
 
   const items: Record<string, () => void> = {};
   for (const desc of kCopyCodeDescriptors) {
@@ -230,9 +230,9 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
 
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigator.clipboard.writeText(text);
-      setIcon(ApplicationIcons.confirm);
+      setIcon("confirm");
       setTimeout(() => {
-        setIcon(ApplicationIcons.copy);
+        setIcon("copy");
       }, 1250);
     };
   }

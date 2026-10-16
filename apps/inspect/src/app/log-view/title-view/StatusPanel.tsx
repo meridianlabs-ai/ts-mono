@@ -1,7 +1,6 @@
-import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./StatusPanel.module.css";
 
@@ -11,18 +10,14 @@ interface StatusProps {
 
 export const CancelledPanel: FC<StatusProps> = ({ sampleCount }) => {
   return (
-    <StatusPanel
-      icon={ApplicationIcons.logging["info"]}
-      status="Cancelled"
-      sampleCount={sampleCount}
-    />
+    <StatusPanel icon="logInfo" status="Cancelled" sampleCount={sampleCount} />
   );
 };
 
 export const ErroredPanel: FC<StatusProps> = ({ sampleCount }) => {
   return (
     <StatusPanel
-      icon={ApplicationIcons.logging["error"]}
+      icon="logError"
       status="Task Failed"
       sampleCount={sampleCount}
     />
@@ -31,16 +26,12 @@ export const ErroredPanel: FC<StatusProps> = ({ sampleCount }) => {
 
 export const RunningPanel: FC<StatusProps> = ({ sampleCount }) => {
   return (
-    <StatusPanel
-      icon={ApplicationIcons.running}
-      status="Running"
-      sampleCount={sampleCount}
-    />
+    <StatusPanel icon="running" status="Running" sampleCount={sampleCount} />
   );
 };
 
 export interface StatusPanelProps {
-  icon: string | undefined;
+  icon: IconName;
   status: string;
   sampleCount: number;
 }
@@ -52,7 +43,7 @@ export const StatusPanel: FC<StatusPanelProps> = ({
 }) => {
   return (
     <div className={styles.statusPanel}>
-      <i className={clsx(icon, styles.statusIcon)} style={{}} />
+      <Icon name={icon} className={styles.statusIcon} />
       <div>
         <div>{status}</div>
         <div>

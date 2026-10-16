@@ -88,15 +88,9 @@ importers:
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.3.0)(@vscode/codicons@0.0.45)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@vscode/codicons':
-        specifier: ^0.0.45
-        version: 0.0.45
       bootstrap:
         specifier: ^5.3.8
         version: 5.3.8(@popperjs/core@2.11.8)
-      bootstrap-icons:
-        specifier: ^1.13.1
-        version: 1.13.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -281,18 +275,12 @@ importers:
       '@vscode-elements/react-elements':
         specifier: ^2.4.0
         version: 2.4.0(@types/react@19.3.0)(@vscode/codicons@0.0.45)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@vscode/codicons':
-        specifier: ^0.0.45
-        version: 0.0.45
       arquero:
         specifier: ^8.0.3
         version: 8.0.3
       bootstrap:
         specifier: ^5.3.8
         version: 5.3.8(@popperjs/core@2.11.8)
-      bootstrap-icons:
-        specifier: ^1.13.1
-        version: 1.13.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -587,12 +575,18 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../util
+      '@vscode/codicons':
+        specifier: ^0.0.45
+        version: 0.0.45
       ansi-output:
         specifier: ^0.0.9
         version: 0.0.9
       asciinema-player:
         specifier: ^3.17.0
         version: 3.17.0
+      bootstrap-icons:
+        specifier: ^1.13.1
+        version: 1.13.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1

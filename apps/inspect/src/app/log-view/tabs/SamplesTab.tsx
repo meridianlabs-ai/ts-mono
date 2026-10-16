@@ -47,7 +47,6 @@ import {
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
-import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
 import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
@@ -154,7 +153,7 @@ export const useSamplesTabConfig = (
                   <ToolButton
                     key="refresh"
                     label="Refresh"
-                    icon={ApplicationIcons.refresh}
+                    icon="refresh"
                     subtle
                     onClick={refreshLog}
                   />
@@ -164,7 +163,7 @@ export const useSamplesTabConfig = (
                     key="choose-columns"
                     ref={setColumnButtonEl}
                     label="Columns"
-                    icon={ApplicationIcons.columns}
+                    icon="columns"
                     dropdown
                     subtle
                     onClick={handleToggleColumnSelector}

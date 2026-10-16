@@ -2,8 +2,8 @@ import clsx from "clsx";
 import { FC, MouseEvent, ReactNode, useCallback } from "react";
 
 import { useEventListener, useProperty, useTimeout } from "../hooks";
+import { Icon } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
 
 interface Slide {
@@ -20,8 +20,6 @@ interface LightboxCarouselProps {
  * LightboxCarousel component provides a carousel with lightbox functionality.
  */
 export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
-  const icons = useComponentIcons();
-
   const [isOpen, setIsOpen] = useProperty(id, "isOpen", {
     defaultValue: false,
   });
@@ -99,10 +97,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
             >
               <div>{slide.label}</div>
               <div>
-                <i
-                  className={clsx(icons.play, styles.carouselPlayIcon)}
-                  aria-hidden="true"
-                />
+                <Icon name="play" className={styles.carouselPlayIcon} />
               </div>
             </button>
           );
@@ -121,7 +116,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={styles.lightboxButtonClose}
               onClick={closeLightbox}
             >
-              <i className={icons.close}></i>
+              <Icon name="close" />
             </button>
           </div>
           {slides.length > 1 ? (
@@ -130,7 +125,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={clsx(styles.lightboxPreviewButton, styles.prev)}
               onClick={showPrev}
             >
-              <i className={icons.previous}></i>
+              <Icon name="previous" />
             </button>
           ) : (
             ""
@@ -141,7 +136,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               className={clsx(styles.lightboxPreviewButton, styles.next)}
               onClick={showNext}
             >
-              <i className={icons.next} />
+              <Icon name="next" />
             </button>
           ) : (
             ""

@@ -25,7 +25,7 @@ import {
   SidebarHeader,
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
-import { baseApplicationIcons } from "@tsmono/react/icons";
+import { Icon, IconName } from "@tsmono/react/icons";
 import {
   ApiError,
   autosizeTextarea,
@@ -372,10 +372,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   return (
     <div className={styles.container}>
       <SidebarHeader
-        icon={baseApplicationIcons.search}
+        icon="search"
         title={`Search: ${scope}`}
         onClose={onClose}
-        closeIcon={baseApplicationIcons.close}
       />
       <div className={styles.body}>
         <form
@@ -411,10 +410,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 aria-label="Recent searches"
                 aria-expanded={isRecentOpen}
               >
-                <i
-                  className={baseApplicationIcons.history}
-                  aria-hidden="true"
-                />
+                <Icon name="history" />
               </button>
               <button
                 type="button"
@@ -423,7 +419,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 title="New search"
                 aria-label="New search"
               >
-                <i className={baseApplicationIcons.add} aria-hidden="true" />
+                <Icon name="add" />
               </button>
             </div>
           </div>
@@ -448,19 +444,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               {searchType === "grep" ? (
                 <div className={styles.modeControls}>
                   <ModeToggle
-                    icon="case-sensitive"
+                    icon="matchCase"
                     title="Ignore Case"
                     active={grepOptions.ignoreCase}
                     onClick={() => toggleGrepOption("ignoreCase")}
                   />
                   <ModeToggle
-                    icon="regex"
+                    icon="matchRegex"
                     title="Regex"
                     active={grepOptions.regex}
                     onClick={() => toggleGrepOption("regex")}
                   />
                   <ModeToggle
-                    icon="whole-word"
+                    icon="matchWholeWord"
                     title="Whole Word"
                     active={grepOptions.wordBoundary}
                     onClick={() => toggleGrepOption("wordBoundary")}
@@ -539,7 +535,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 
 const ModeToggle: FC<{
   active: boolean;
-  icon: string;
+  icon: IconName;
   title: string;
   onClick: () => void;
 }> = ({ active, icon, title, onClick }) => (
@@ -550,7 +546,7 @@ const ModeToggle: FC<{
     aria-pressed={active}
     title={title}
   >
-    <i className={`codicon codicon-${icon}`} />
+    <Icon name={icon} />
   </button>
 );
 
@@ -628,8 +624,7 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   return (
     <div className={styles.emptyState}>
       <p className={styles.searchingText}>
-        <i className={baseApplicationIcons.search} aria-hidden="true" />{" "}
-        {message}
+        <Icon name="search" /> {message}
         <span className={styles.searchingElapsed}> · {elapsed}s</span>
       </p>
     </div>

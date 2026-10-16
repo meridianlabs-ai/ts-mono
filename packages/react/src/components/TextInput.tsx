@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FocusEvent, forwardRef } from "react";
 
-import { useComponentIcons } from "./ComponentIconContext";
+import { Icon, IconName } from "../icons";
+
 import styles from "./TextInput.module.css";
 
 /**
@@ -17,15 +18,13 @@ export interface TextInputProps {
   value?: string;
   onChange?: (event: TextInputChange) => void;
   onFocus?: (event: FocusEvent<HTMLInputElement>) => void;
-  icon?: string;
+  icon?: IconName;
   placeholder?: string;
   className?: string | string[];
 }
 
 export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
   ({ value, onChange, onFocus, icon, placeholder, className }, ref) => {
-    const icons = useComponentIcons();
-
     return (
       <div
         className={clsx(
@@ -34,7 +33,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           icon ? styles.withIcon : ""
         )}
       >
-        {icon && <i className={clsx(icon, styles.icon)} aria-hidden="true" />}
+        {icon && <Icon name={icon} className={styles.icon} />}
         <input
           type="text"
           value={value}
@@ -46,11 +45,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
         />
         <button
           type="button"
-          className={clsx(
-            styles.clearText,
-            value === "" ? styles.hidden : "",
-            icons.clearText
-          )}
+          className={clsx(styles.clearText, value === "" ? styles.hidden : "")}
           onClick={() => {
             if (onChange && value !== "") {
               onChange({ target: { value: "" } });
@@ -58,7 +53,9 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           }}
           disabled={value === ""}
           aria-label="Clear"
-        />
+        >
+          <Icon name="clearText" />
+        </button>
       </div>
     );
   }

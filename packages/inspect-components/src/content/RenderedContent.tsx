@@ -10,8 +10,8 @@ import {
   JSONPanel,
   MarkdownReference,
   RequireMedia,
-  useHasAllContentPermissions,
 } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import {
   formatNumber,
   isJson,
@@ -19,10 +19,8 @@ import {
   isRenderableImageSource,
 } from "@tsmono/util";
 
-import { useContentRenderers } from "./ContentRenderersContext";
 import { ExternalLink } from "./ExternalLink";
 import { isHtmlEscape } from "./htmlEscape";
-import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
@@ -77,11 +75,6 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   renderOptions = { renderString: "markdown" },
   renderObject,
 }): JSX.Element => {
-  const icons = useContentIcons();
-  const externalRenderers = useContentRenderers();
-  // Externally registered renderers can emit any rich content.
-  const customContent = useHasAllContentPermissions();
-
   // Explicitly specify return type
   if (entry.value === null) {
     return (
@@ -92,11 +85,7 @@ export const RenderedContent: FC<RenderedContentProps> = ({
       </span>
     );
   }
-  const renderers = contentRenderers(
-    icons,
-    renderObject,
-    customContent ? externalRenderers?.renderers : undefined
-  );
+  const renderers = contentRenderers(renderObject);
   const renderer = Object.keys(renderers)
     .map((key) => {
       return renderers[key];
@@ -137,24 +126,13 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   );
 };
 
-interface ContentIconsForRenderers {
-  model: string;
-  search: string;
-}
-
 /**
  * Object containing different content renderers.
  * Each renderer is responsible for rendering a specific type of content.
  */
 const contentRenderers: (
-  icons: ContentIconsForRenderers,
-  renderObject?: (object: any) => ReactNode,
-  externalRenderers?: Record<string, ContentRenderer>
-) => Record<string, ContentRenderer> = (
-  icons,
-  renderObject,
-  externalRenderers
-) => {
+  renderObject?: (object: any) => ReactNode
+) => Record<string, ContentRenderer> = (renderObject) => {
   const contentRenderers: Record<string, ContentRenderer> = {
     AnsiString: {
       bucket: Buckets.first,
@@ -197,7 +175,7 @@ const contentRenderers: (
         return {
           rendered: (
             <Fragment>
-              <i className={icons.model} /> {value._model}
+              <Icon name="model" /> {value._model}
             </Fragment>
           ),
         };
@@ -298,8 +276,6 @@ const contentRenderers: (
         return { rendered: arrayRendered };
       },
     },
-    // Merge in any external renderers (e.g. ChatMessage, MessageContent from apps)
-    ...externalRenderers,
     web_search: {
       bucket: Buckets.intermediate,
       canRender: (entry) =>
@@ -312,8 +288,7 @@ const contentRenderers: (
         const results: ReactNode[] = [];
         results.push(
           <div key="query" className={styles.query}>
-            <i className={icons.search}></i>{" "}
-            <ContentText text={value.query ?? ""} />
+            <Icon name="search" /> <ContentText text={value.query ?? ""} />
           </div>
         );
         value.results.forEach((result, index) => {

@@ -2,9 +2,8 @@ import clsx from "clsx";
 import { FC, Ref } from "react";
 
 import { ContentText } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import { isRecord } from "@tsmono/util";
-
-import { useContentIcons } from "../../../content/IconsContext";
 
 import styles from "./TodoWriteInput.module.css";
 
@@ -46,20 +45,19 @@ export const TodoWriteInput: FC<{
   contents: unknown;
   parentRef: Ref<HTMLDivElement>;
 }> = ({ contents, parentRef }) => {
-  const icons = useContentIcons();
   const todoItems = toToolTodos(contents);
   return (
     <div ref={parentRef} className={clsx(styles.todoList)}>
       {todoItems.map((todo) => {
         return (
           <>
-            <i
-              className={clsx(
+            <Icon
+              name={
                 todo.status === "completed"
-                  ? icons.checkbox.checked
-                  : icons.checkbox.unchecked,
-                "text-size-smallest"
-              )}
+                  ? "checkboxChecked"
+                  : "checkboxUnchecked"
+              }
+              className="text-size-smallest"
             />
             <span
               className={clsx(

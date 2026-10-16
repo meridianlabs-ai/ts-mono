@@ -3,11 +3,10 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
-import { makeStateHooks, testIcons } from "../test";
+import { makeStateHooks } from "../test";
 
 import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
-import { ComponentIconProvider } from "./ComponentIconContext";
 import { ComponentNavigationProvider } from "./ComponentNavigationContext";
 import { ContentTrustProvider, type ContentTrust } from "./ContentTrustContext";
 import { JSONPanel } from "./JsonPanel";
@@ -68,24 +67,20 @@ const MARKDOWN = [
 const renderEverything = (trust: ContentTrust) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <ContentTrustProvider value={trust}>
-            <MarkdownDiv markdown={MARKDOWN} />
-            <MarkdownDiv markdown={MARKDOWN} truncateAt={10} />
-            <MarkdownDiv markdown={"Math $x^2$"} />
-            <MarkdownDivWithReferences
-              markdown="See [M1]."
-              references={[
-                { id: "m1", cite: "[M1]", citeUrl: "#/logs/a.eval" },
-              ]}
-            />
-            <ANSIDisplay output={"\u001b[32mPASS\u001b[0m"} />
-            <JSONPanel data={{ key: "value" }} />
-            <AsciinemaPlayer input="a" output="b" timing="c" />
-          </ContentTrustProvider>
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <ContentTrustProvider value={trust}>
+          <MarkdownDiv markdown={MARKDOWN} />
+          <MarkdownDiv markdown={MARKDOWN} truncateAt={10} />
+          <MarkdownDiv markdown={"Math $x^2$"} />
+          <MarkdownDivWithReferences
+            markdown="See [M1]."
+            references={[{ id: "m1", cite: "[M1]", citeUrl: "#/logs/a.eval" }]}
+          />
+          <ANSIDisplay output={"\u001b[32mPASS\u001b[0m"} />
+          <JSONPanel data={{ key: "value" }} />
+          <AsciinemaPlayer input="a" output="b" timing="c" />
+        </ContentTrustProvider>
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

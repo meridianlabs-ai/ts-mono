@@ -3,6 +3,7 @@ import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
 import { Link } from "react-router";
 
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import {
   basename,
   dirname,
@@ -11,7 +12,6 @@ import {
 } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { ApplicationIcons } from "../appearance/icons";
 
 import styles from "./Navbar.module.css";
 
@@ -92,13 +92,13 @@ export const Navbar: FC<NavbarProps> = ({
     >
       <div className={clsx(styles.left)}>
         <Link to={backUrl} className={clsx(styles.toolbarButton)}>
-          <i className={clsx(ApplicationIcons.navbar.back)} />
+          <Icon name="navBack" />
         </Link>
         <Link
           to={homeUrlOverride ?? fnNavigationUrl("", logDir)}
           className={clsx(styles.toolbarButton)}
         >
-          <i className={clsx(ApplicationIcons.navbar.home)} />
+          <Icon name="navHome" />
         </Link>
         {breadcrumbsEnabled !== false && (
           <div className={clsx(styles.pathContainer)} ref={pathContainerRef}>

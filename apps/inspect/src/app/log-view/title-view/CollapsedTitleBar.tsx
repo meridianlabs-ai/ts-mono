@@ -3,6 +3,7 @@ import { FC, useState } from "react";
 
 import { EvalResults, EvalSpec } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
+import { Icon, IconName } from "@tsmono/react/icons";
 import { formatPrettyDecimal } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
@@ -17,7 +18,6 @@ import {
 import { groupScorers } from "../../../scoring/scores";
 import { useEffectiveEvalConfig } from "../../../state/hooks";
 import { formatModelTitle } from "../../../utils/evalModel";
-import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./CollapsedTitleBar.module.css";
 import { displayScorersFromRunningMetrics } from "./ResultsPanel";
@@ -166,7 +166,7 @@ const StatusBadge: FC<StatusBadgeProps> = ({ status, sampleCount }) => {
   const count = sampleCount ?? 0;
   return (
     <div className={styles.statusBadge}>
-      <i className={clsx(display.icon, styles.statusIcon)} />
+      <Icon name={display.icon} className={styles.statusIcon} />
       <span className="text-style-label">{display.label}</span>
       {count > 0 ? (
         <span className={styles.statusCount}>
@@ -179,14 +179,14 @@ const StatusBadge: FC<StatusBadgeProps> = ({ status, sampleCount }) => {
 
 const statusDisplay = (
   status?: EvalLogStatus
-): { icon: string | undefined; label: string } | undefined => {
+): { icon: IconName; label: string } | undefined => {
   switch (status) {
     case "started":
-      return { icon: ApplicationIcons.running, label: "Running" };
+      return { icon: "running", label: "Running" };
     case "cancelled":
-      return { icon: ApplicationIcons.logging.info, label: "Cancelled" };
+      return { icon: "logInfo", label: "Cancelled" };
     case "error":
-      return { icon: ApplicationIcons.logging.error, label: "Task Failed" };
+      return { icon: "logError", label: "Task Failed" };
     default:
       return undefined;
   }

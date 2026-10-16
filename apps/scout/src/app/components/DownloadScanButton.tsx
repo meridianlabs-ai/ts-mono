@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./DownloadScanButton.module.css";
 
@@ -37,12 +37,12 @@ export const DownloadScanButton = ({
 
   const icon =
     state === "downloading"
-      ? ApplicationIcons.refresh
+      ? "refresh"
       : state === "success"
-        ? `${ApplicationIcons.confirm} primary`
+        ? "confirm"
         : state === "error"
-          ? ApplicationIcons.error
-          : ApplicationIcons.download;
+          ? "error"
+          : "download";
 
   return (
     <button
@@ -61,7 +61,10 @@ export const DownloadScanButton = ({
       disabled={state !== "idle"}
       title="Download Scan Results"
     >
-      <i className={icon} aria-hidden="true" />
+      <Icon
+        name={icon}
+        className={state === "success" ? "primary" : undefined}
+      />
     </button>
   );
 };
