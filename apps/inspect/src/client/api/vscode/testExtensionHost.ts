@@ -99,3 +99,26 @@ export const okJson = (body: unknown): ProxyResponse => ({
   body: JSON.stringify(body),
   bodyEncoding: "utf8",
 });
+
+/**
+ * Make `vscode` the page's VS Code host, advertising `capabilities` the way
+ * the extension injects them. Undo with `uninstallVscodeHost`.
+ */
+export const installVscodeHost = (
+  vscode: VSCodeApi,
+  capabilities?: string[]
+): void => {
+  window.acquireVsCodeApi = () => vscode;
+  if (capabilities) {
+    const el = document.createElement("script");
+    el.id = "inspect-host-capabilities";
+    el.type = "application/json";
+    el.textContent = JSON.stringify(capabilities);
+    document.body.appendChild(el);
+  }
+};
+
+export const uninstallVscodeHost = (): void => {
+  delete window.acquireVsCodeApi;
+  document.getElementById("inspect-host-capabilities")?.remove();
+};

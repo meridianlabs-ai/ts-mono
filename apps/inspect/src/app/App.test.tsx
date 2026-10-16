@@ -3,8 +3,14 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ResizeObserverStub } from "@tsmono/react/testing";
+
 import { getAppConfig } from "../app_config";
 import { testClientAPI } from "../client/api/testClientApi";
+import {
+  installVscodeHost,
+  uninstallVscodeHost,
+} from "../client/api/vscode/testExtensionHost";
 import { queryClient } from "../state/queryClient";
 import { startTestApp, stopTestApp } from "../test/testApp";
 
@@ -26,14 +32,6 @@ const vscodeHost = {
   postMessage: () => {},
   getState: () => undefined,
   setState: () => {},
-};
-const installVscodeHost = () => {
-  window.acquireVsCodeApi = () => vscodeHost;
-  const capabilities = document.createElement("script");
-  capabilities.id = "inspect-host-capabilities";
-  capabilities.type = "application/json";
-  capabilities.textContent = JSON.stringify(["http_request"]);
-  document.body.appendChild(capabilities);
 };
 
 const location = () => getAppRouter().state.location;
@@ -78,14 +76,7 @@ beforeEach(async () => {
       removeListener: () => {},
     })
   );
-  vi.stubGlobal(
-    "ResizeObserver",
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-  );
+  vi.stubGlobal("ResizeObserver", ResizeObserverStub);
   startTestApp({
     logDir: "file:///logs",
     singleFileMode: false,
@@ -105,8 +96,7 @@ beforeEach(async () => {
 afterEach(async () => {
   cleanup();
   await stopTestApp();
-  delete window.acquireVsCodeApi;
-  document.getElementById("inspect-host-capabilities")?.remove();
+  uninstallVscodeHost();
   getLogs.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -114,7 +104,7 @@ afterEach(async () => {
 
 describe("in VS Code", () => {
   beforeEach(() => {
-    installVscodeHost();
+    installVscodeHost(vscodeHost, ["http_request"]);
   });
 
   it("backgroundUpdate refreshes the listing and leaves the selected log alone", async () => {

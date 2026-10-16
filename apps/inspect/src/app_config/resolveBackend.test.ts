@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { testClientAPI } from "../client/api/testClientApi";
 import {
   connectFakeExtension,
+  installVscodeHost,
   okJson,
+  uninstallVscodeHost,
   type ProxyRequest,
 } from "../client/api/vscode/testExtensionHost";
 import { setupMswServer } from "../test/mswServer";
@@ -63,9 +65,6 @@ const { vscode: vscodeHost } = connectFakeExtension((req) => {
     ? okJson({ logs: [], log_dir: "file:///host/logs" })
     : okJson({ files: [], response_type: "full" });
 });
-const installVscodeHost = () => {
-  window.acquireVsCodeApi = () => vscodeHost;
-};
 
 const setSearch = (search: string) => {
   window.history.replaceState({}, "", `/${search}`);
@@ -82,11 +81,6 @@ const addJsonScript = (id: string, json: unknown) => {
 const addLogDirContext = (json: object) =>
   addJsonScript("log_dir_context", json);
 
-// The extension host advertises transport capabilities via an injected
-// script block; the http_request proxy is what the viewer requires.
-const addHostCapabilities = (capabilities: string[]) =>
-  addJsonScript("inspect-host-capabilities", capabilities);
-
 const dirSource = (logDir: string): UrlLogSource => ({ kind: "dir", logDir });
 const fileSource = (logFile: string): UrlLogSource => ({
   kind: "file",
@@ -98,9 +92,8 @@ afterEach(() => {
   resetApiFactory();
   setSearch("");
   document.getElementById("log_dir_context")?.remove();
-  document.getElementById("inspect-host-capabilities")?.remove();
   document.getElementById("logview-state")?.remove();
-  delete window.acquireVsCodeApi;
+  uninstallVscodeHost();
   hostRequests.length = 0;
   network = [];
   vi.restoreAllMocks();
@@ -119,8 +112,7 @@ describe("resolveBackend transport", () => {
 
 describe("resolveBackend selection", () => {
   it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
-    installVscodeHost();
-    addHostCapabilities(["http_request"]);
+    installVscodeHost(vscodeHost, ["http_request"]);
     serveAll();
     const listeners = vi.spyOn(window, "addEventListener");
 
@@ -148,7 +140,7 @@ describe("resolveBackend selection", () => {
   });
 
   it("vscode host WITHOUT http_request capability → unsupported (update-extension error)", async () => {
-    installVscodeHost();
+    installVscodeHost(vscodeHost);
     // No #inspect-host-capabilities marker — a legacy named-RPC-only host.
 
     const backend = resolveBackend(noneSource);
@@ -268,8 +260,7 @@ describe("embedder api factory (setApiFactory)", () => {
   const factoryApi = testClientAPI();
 
   it("wins over every ambient signal (vscode host present)", async () => {
-    installVscodeHost();
-    addHostCapabilities(["http_request"]);
+    installVscodeHost(vscodeHost, ["http_request"]);
     const dirs: string[] = [];
     setApiFactory((logDir) => {
       dirs.push(logDir);
@@ -344,7 +335,7 @@ describe("embedder api factory (setApiFactory)", () => {
 // dir comes from #logview-state, so discovery never touches the backend).
 describe("legacy vscode host error reaches config resolution", () => {
   const legacyHostBootstrap = (singleFileMode: boolean): AppConfigBootstrap => {
-    installVscodeHost();
+    installVscodeHost(vscodeHost);
     return {
       backend: resolveBackend(noneSource),
       singleFileMode,
