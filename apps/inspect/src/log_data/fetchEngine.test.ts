@@ -2076,9 +2076,9 @@ describe("FetchEngine backfill over the real database", () => {
     });
     await vi.waitFor(async () => {
       const rows = await db.readLogRows(names);
-      expect(
-        names.filter((name) => rows[name]?.header === undefined)
-      ).toEqual([]);
+      expect(names.filter((name) => rows[name]?.header === undefined)).toEqual(
+        []
+      );
     });
 
     await engine.applyListing({
