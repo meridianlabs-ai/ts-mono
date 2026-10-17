@@ -97,6 +97,41 @@ export const scanQuery = (
     staleTime: 10000,
   });
 
+// Polls a little over a minute, so a status written just after the scan left
+// the active list still arrives, without polling an abandoned scan forever.
+const kFinishedScanPolls = 15;
+
+// For a scan that is no longer in the active list. It may have finished before
+// the list showed it, or just before its summary was written, so poll until
+// the status reports complete. Keyed apart from scanQuery so neither reuses
+// the other's cached, possibly incomplete, status.
+export const finishedScanQuery = (
+  api: ScoutApiV2,
+  params: ScanParams | typeof skipToken
+) =>
+  queryOptions({
+    queryKey:
+      params === skipToken
+        ? kSkipped
+        : ([
+            "scan",
+            params.scansDir,
+            params.scanPath,
+            "finished",
+            topicTag("scans"),
+          ] as const),
+    queryFn:
+      params === skipToken
+        ? skipToken
+        : () => api.getScan(params.scansDir, params.scanPath),
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.complete ||
+      query.state.dataUpdateCount >= kFinishedScanPolls
+        ? false
+        : 5000,
+  });
+
 export type ScanDataframeParams = {
   scansDir: string;
   scanPath: string;
