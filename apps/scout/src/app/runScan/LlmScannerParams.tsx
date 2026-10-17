@@ -9,7 +9,7 @@ import { FC } from "react";
 
 import { eventChecked, eventValue } from "../utils/formEvents";
 
-import styles from "./LlmScannerParams.module.css";
+import styles from "./ScannerParams.module.css";
 
 const getInputValue = eventValue;
 const getSelectValue = eventValue;
