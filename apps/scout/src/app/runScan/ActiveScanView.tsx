@@ -1,3 +1,4 @@
+import { skipToken } from "@tanstack/react-query";
 import { FC, useState } from "react";
 
 import {
@@ -6,15 +7,20 @@ import {
   NoContentsPanel,
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
+import { basename, toRelativePath } from "@tsmono/util";
 
+import { scanRoute } from "../../router/url";
 import {
   ActiveScanInfo,
   ScannerSummary,
+  Status,
   ValidationResults,
 } from "../../types/api-types";
 import { useActiveScan } from "../server/useActiveScan";
+import { useFinishedScan } from "../server/useFinishedScan";
 
 import styles from "./ActiveScanView.module.css";
+import { ScanCompleteNotice } from "./ScanCompleteNotice";
 
 const formatMemory = (bytes: number): string => {
   const gb = bytes / (1024 * 1024 * 1024);
@@ -270,26 +276,68 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   );
 };
 
+const startedScanPath = (location: string, scansDir: string): string => {
+  const relative = toRelativePath(location, scansDir);
+  return relative === location ? basename(location) : relative;
+};
+
 interface Props {
-  scanId: string | undefined;
+  /** The scan this page started; key the view by its id to reset per scan. */
+  scan: Status | undefined;
+  scansDir: string;
+  onDismiss: () => void;
 }
 
-export const ActiveScanView: FC<Props> = ({ scanId }) => {
-  const { loading, error, data: scanInfo } = useActiveScan(scanId);
+export const ActiveScanView: FC<Props> = ({ scan, scansDir, onDismiss }) => {
+  const { loading, error, data: scanInfo } = useActiveScan(scan?.spec.scan_id);
+
+  // Until the scan has been listed once, its absence may only mean the
+  // active-scans poll hasn't picked it up yet.
+  const [seenActive, setSeenActive] = useState(false);
+  if (scanInfo && !seenActive) setSeenActive(true);
+
+  // Started scans are written straight into the scans directory, and the
+  // server may report the location relative to its own working directory.
+  const scanPath = scan ? startedScanPath(scan.location, scansDir) : undefined;
+  const notActive = !!scan && !loading && !error && !scanInfo;
+
+  // Latched so the notice persists even if a later active-scans poll fails.
+  const [ended, setEnded] = useState(false);
+  const { error: statusError, data: finalStatus } = useFinishedScan(
+    (notActive || ended) && scanPath ? { scansDir, scanPath } : skipToken
+  );
+  if (!ended && finalStatus && (finalStatus.complete || seenActive)) {
+    setEnded(true);
+  }
 
   return (
     <div className={styles.scansList}>
-      <LoadingBar loading={!!scanId && !!loading} />
+      <LoadingBar
+        loading={!!scan && (!!loading || (seenActive && notActive && !ended))}
+      />
       {error && (
         <ErrorPanel
           title="Error Loading Active Scan"
           error={{ message: error.message }}
         />
       )}
-      {!scanId && !error && (
+      {statusError && (
+        <ErrorPanel
+          title="Error Loading Scan Results"
+          error={{ message: statusError.message }}
+        />
+      )}
+      {!scan && !error && (
         <NoContentsPanel icon="running" text="No scan started" />
       )}
-      {scanId && !scanInfo && !error && !loading && (
+      {ended && finalStatus && scanPath && (
+        <ScanCompleteNotice
+          status={finalStatus}
+          resultsHref={scanRoute(scansDir, scanPath)}
+          onDismiss={onDismiss}
+        />
+      )}
+      {notActive && !seenActive && !ended && !statusError && (
         <NoContentsPanel icon="running" text="Scan not found" />
       )}
       {scanInfo && <ActiveScanCard info={scanInfo} />}
