@@ -48,12 +48,19 @@ export interface WireValidationResults extends Omit<
 
 export interface WireScannerSummary extends Omit<
   ScannerSummary,
-  "errors" | "results" | "scans" | "tokens" | "model_usage" | "validation"
+  | "errors"
+  | "results"
+  | "scans"
+  | "tokens"
+  | "unscored"
+  | "model_usage"
+  | "validation"
 > {
   errors?: number;
   results?: number;
   scans?: number;
   tokens?: number;
+  unscored?: number;
   model_usage?: unknown;
   validation?: WireValidationResults | null;
 }
@@ -158,6 +165,7 @@ const normalizeScannerSummary = (raw: WireScannerSummary): ScannerSummary => ({
   results: raw.results ?? 0,
   scans: raw.scans ?? 0,
   tokens: raw.tokens ?? 0,
+  unscored: raw.unscored ?? 0,
   model_usage: normalizeModelUsageMap(raw.model_usage),
   validation: raw.validation
     ? normalizeValidationResults(raw.validation)
