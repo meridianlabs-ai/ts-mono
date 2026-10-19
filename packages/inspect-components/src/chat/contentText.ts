@@ -15,11 +15,13 @@ export const reasoningText = (
 
 /**
  * The text strings a message's content shows, one per part, for find and the
- * transcript's text exports. Media become `<image />`-style placeholders so
- * their base64 payloads never enter search or exports.
+ * transcript's text exports. Media never contribute their base64 payloads:
+ * exports get an `<image />`-style placeholder, and with `placeholders: false`
+ * (the Messages tab's Find, which can only land on visible text) nothing.
  */
 export const contentTexts = (
-  content: string | readonly Content[]
+  content: string | readonly Content[],
+  { placeholders = true }: { placeholders?: boolean } = {}
 ): string[] => {
   if (typeof content === "string") return [content];
   const texts: string[] = [];
@@ -48,7 +50,7 @@ export const contentTexts = (
       case "video":
       case "data":
       case "document":
-        texts.push(`<${item.type} />`);
+        if (placeholders) texts.push(`<${item.type} />`);
         break;
     }
   }

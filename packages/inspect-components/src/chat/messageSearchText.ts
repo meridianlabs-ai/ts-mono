@@ -8,7 +8,9 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
   const texts: string[] = [];
 
   // Extract text from main message content
-  texts.push(...contentTexts(resolved.message.content));
+  texts.push(
+    ...contentTexts(resolved.message.content, { placeholders: false })
+  );
 
   // Extract tool call info from assistant messages
   if (
@@ -30,7 +32,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
     if (toolMsg.function) {
       texts.push(toolMsg.function);
     }
-    texts.push(...contentTexts(toolMsg.content));
+    texts.push(...contentTexts(toolMsg.content, { placeholders: false }));
     if (toolMsg.error?.message) {
       texts.push(toolMsg.error.message);
     }

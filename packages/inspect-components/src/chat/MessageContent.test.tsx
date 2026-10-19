@@ -309,13 +309,13 @@ describe("MessageContent reasoning title", () => {
     ],
   ])("titles %j as %s and shows %s", async (overrides, title, text) => {
     const { container } = renderMessage([block(overrides)]);
+    const reasoning = container.querySelector(
+      '[data-content-kind="reasoning"]'
+    );
     await waitFor(() => {
-      expect(container.textContent).toContain(text);
+      expect(reasoning?.textContent).toContain(text);
     });
-    expect(container.textContent).toContain(title);
-    if (title === "Reasoning") {
-      expect(container.textContent).not.toContain("Reasoning (Summary)");
-    }
+    expect(reasoning?.firstElementChild?.textContent).toBe(title);
     expect(container.textContent).not.toContain("OPAQUE");
   });
 });

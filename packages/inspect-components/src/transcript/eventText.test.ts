@@ -266,6 +266,9 @@ describe("eventsToStr — tool_use content", () => {
     expect(out).toContain("search");
     expect(out).toContain("Found 3 hits");
     expect(out).toContain("rate-limited");
+    // Arguments are already JSON text; they export as written, not re-escaped.
+    expect(out).toContain('{"q":"hi"}');
+    expect(out).not.toContain('\\"q\\"');
   });
 });
 

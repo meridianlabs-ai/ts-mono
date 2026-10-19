@@ -30,11 +30,29 @@ describe("messageSearchText", () => {
 
   // The match counter compares the query as typed, so arguments must stay the
   // JSON string they already are, not be stringified again into \"escapes\".
-  it("keeps tool arguments as written so a quoted query matches", () => {
+  it("keeps tool arguments as the JSON string they already are", () => {
     const texts = messageSearchText({
       message: testAssistantMessage({ content: [serverToolUse] }),
       toolMessages: [],
     });
     expect(texts).toContain('{"query":"capital of france"}');
+  });
+
+  // Find can only land on visible text, and media render none.
+  it("adds nothing for media content", () => {
+    const texts = messageSearchText({
+      message: testAssistantMessage({
+        content: [
+          { type: "text", text: "a picture" },
+          {
+            type: "image",
+            image: "data:image/png;base64,AAAA",
+            detail: "auto",
+          },
+        ],
+      }),
+      toolMessages: [],
+    });
+    expect(texts).toEqual(["a picture"]);
   });
 });

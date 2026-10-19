@@ -2,6 +2,7 @@ import { isRecord } from "@tsmono/util";
 
 import type { EvalSample } from "../types";
 
+import { normalizeMessagesContent } from "./content";
 import { normalizeEvents, normalizeModelOutput } from "./events";
 import { normalizeSampleScores } from "./scores";
 import {
@@ -42,14 +43,18 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  sample["input"] = normalizeSampleInput(sample["input"]);
+  sample["input"] = normalizeSampleInput(
+    normalizeMessagesContent(sample["input"])
+  );
   if (
     typeof sample["target"] !== "string" &&
     !Array.isArray(sample["target"])
   ) {
     sample["target"] = "";
   }
-  if (!Array.isArray(sample["messages"])) sample["messages"] = [];
+  sample["messages"] = Array.isArray(sample["messages"])
+    ? normalizeMessagesContent(sample["messages"])
+    : [];
   sample["output"] = normalizeModelOutput(sample["output"]);
   sample["scores"] = normalizeSampleScores(sample["scores"]);
   for (const field of ["metadata", "store", "attachments"]) {

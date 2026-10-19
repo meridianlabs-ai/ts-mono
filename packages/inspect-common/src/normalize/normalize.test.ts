@@ -6,7 +6,7 @@ import {
   testEvalScore,
   testUserMessage,
 } from "../testing";
-import type { ModelEvent } from "../types";
+import type { ChatMessage, ModelEvent } from "../types";
 import { inputString } from "../utils";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
@@ -22,6 +22,9 @@ import {
   normalizeTimelines,
   type WireTimeline,
 } from "./index";
+
+const inputMessages = (input: string | ChatMessage[]): ChatMessage[] =>
+  typeof input === "string" ? [] : input;
 
 describe("normalizeEvalSample on a real Nov-2024 log", () => {
   const sample = normalizeEvalSample(legacySample);
@@ -146,6 +149,80 @@ describe("legacy shape migrations", () => {
       score: null,
     });
     expect(sample.scores).toEqual({});
+  });
+
+  // inspect_ai 0.3.123–0.3.125 wrote tool-use arguments and results as JSON
+  // values; they read as their JSON text everywhere content can appear.
+  it("stores legacy tool-use arguments and results as JSON text", () => {
+    const legacyToolUse = () => ({
+      type: "tool_use",
+      tool_type: "web_search",
+      id: "srvtoolu_1",
+      name: "web_search",
+      arguments: { query: "q" },
+      result: [
+        { type: "web_search_result", title: "T", url: "https://x.test" },
+      ],
+    });
+    const assistant = () => ({ role: "assistant", content: [legacyToolUse()] });
+    const output = () => ({
+      model: "m",
+      choices: [{ message: assistant(), stop_reason: "stop" }],
+    });
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [assistant()],
+      target: "a",
+      messages: [assistant()],
+      output: output(),
+      events: [
+        { event: "model", model: "m", input: [assistant()], output: output() },
+      ],
+    });
+    const event = expectEvent(sample.events[0], "model");
+    const toolUses = [
+      sample.messages[0],
+      inputMessages(sample.input)[0],
+      sample.output.choices[0]?.message,
+      event.input[0],
+      event.output.choices[0]?.message,
+    ].map((message) => {
+      const content = message?.content;
+      const item = Array.isArray(content) ? content[0] : undefined;
+      return item?.type === "tool_use" ? item : undefined;
+    });
+    for (const toolUse of toolUses) {
+      expect(toolUse?.arguments).toBe('{"query":"q"}');
+      expect(toolUse?.result).toBe(
+        '[{"type":"web_search_result","title":"T","url":"https://x.test"}]'
+      );
+    }
+  });
+
+  it("leaves current tool-use content untouched", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            tool_type: "web_search",
+            id: "srvtoolu_1",
+            name: "web_search",
+            arguments: '{"query":"q"}',
+            result: "[]",
+          },
+        ],
+      },
+    ];
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      messages,
+    });
+    expect(sample.messages).toBe(messages);
   });
 
   it("migrates a sandbox tuple to a spec object", () => {
