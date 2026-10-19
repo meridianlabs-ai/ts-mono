@@ -77,7 +77,8 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
-    (name) => (getOwn(summary.scanners, name)?.validation?.entries.length ?? 0) > 0
+    (name) =>
+      (getOwn(summary.scanners, name)?.validation?.entries.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
     (name) => getOwn(summary.scanners, name)?.metrics !== null
