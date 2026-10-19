@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 // A plain-object status, as React Query's structural sharing hands back.
-it("renders a summary scanner named constructor that the spec lacks", () => {
+it("does not throw for a summary scanner named constructor that the spec lacks", () => {
   const Wrapper = createTestWrapper();
   const status = createStatus({
     summary: {
