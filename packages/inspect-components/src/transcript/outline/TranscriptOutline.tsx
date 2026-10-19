@@ -61,16 +61,12 @@ interface TranscriptOutlineProps {
   scrollTrackOffset?: number;
 
   // --- Callback props replacing store hooks ---
-  /** URL generator for deep linking to events. */
-  getEventUrl?: (eventId: string) => string | undefined;
   /** Collapse state and callbacks for the outline scope. */
   collapse?: OutlineCollapseState;
   /** Currently selected outline node ID. */
   selectedOutlineId?: string | null;
   /** Set the selected outline node ID. */
   setSelectedOutlineId?: (id: string) => void;
-  /** Optional custom link renderer for deep linking (replaces react-router Link). */
-  renderLink?: (url: string, children: React.ReactNode) => React.ReactNode;
 }
 
 /** The outline list's DOM id and VirtualList persistence-key prefix (the full
@@ -115,11 +111,9 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   onHasNodesChange,
   onNavigateToEvent,
   scrollTrackOffset,
-  getEventUrl,
   collapse,
   selectedOutlineId,
   setSelectedOutlineId,
-  renderLink,
 }) => {
   const id = kTranscriptOutlineListKey;
 
@@ -192,12 +186,10 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
             selected={
               selectedOutlineId ? resolvedSelectedId === node.id : index === 0
             }
-            getEventUrl={getEventUrl}
             onSelect={onOutlineSelect}
             onNavigateToEvent={onNavigateToEvent}
             getCollapsed={getCollapsed}
             setCollapsed={setCollapsed}
-            renderLink={renderLink}
           />
         );
       }
@@ -208,12 +200,10 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       backfilling,
       selectedOutlineId,
       resolvedSelectedId,
-      getEventUrl,
       onOutlineSelect,
       onNavigateToEvent,
       getCollapsed,
       setCollapsed,
-      renderLink,
     ]
   );
 

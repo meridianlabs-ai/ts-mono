@@ -23,6 +23,7 @@ import { Icon, IconName } from "@tsmono/react/icons";
 import { MessageLabel } from "../../chat/MessageLabel";
 import { EventLabelContext } from "../EventLabelContext";
 import { useStickyStuck } from "../hooks/useStickyStuck";
+import { useTranscriptHost } from "../host";
 import {
   EventSelectCheckbox,
   useEventRowSelection,
@@ -58,7 +59,7 @@ interface EventPanelProps {
   turnNav?: { turnNumber: number; totalTurns: number; isAnchor?: boolean };
   /** Inline content rendered between the title and the trailing nav/turn label (e.g. retry chip on retried model events). */
   headerExtra?: ReactNode;
-  /** Collapse state and deep-link callbacks from the app store. */
+  /** Collapse state and turn-navigation callbacks from the owning list. */
   eventCallbacks?: EventPanelCallbacks;
 }
 
@@ -89,18 +90,21 @@ export const EventPanel: FC<EventPanelProps> = ({
   const {
     onCollapse,
     getCollapsed,
-    getEventUrl,
-    linkingEnabled,
     getEventFocusUrl,
     onFocusTabChange,
     onPrevTurn,
     onNextTurn,
     onTurnLabelClick,
-    onOpenEventFocus,
     getSelectedTab,
     onSelectTab,
     onTabSelected,
   } = eventCallbacks ?? {};
+  const { urls, navigation } = useTranscriptHost();
+  const getEventUrl = urls?.getEventUrl;
+  const linkingEnabled = urls?.linkingEnabled;
+  // Plain left-click enters focus in-window from the SAME href the anchor
+  // renders; the anchor keeps the href so modified clicks open a new tab.
+  const onOpenEventFocus = navigation?.onOpenEventFocus;
   const eventLabel = useContext(EventLabelContext);
   const rowSelection = useEventRowSelection(eventNodeId);
   const selected = rowSelection?.selected === true;
