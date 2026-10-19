@@ -3,7 +3,7 @@ import {
   inputString,
   totalModelFallbacks,
 } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import { arrayToString, nullProtoRecord } from "@tsmono/util";
 
 import {
   LogDerived,
@@ -85,15 +85,28 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   // each get their own entry. Reducer is omitted: `reducer=null` (default,
   // silently mean) and `reducer="mean"` (explicit) land in the same slot
   // since the underlying computation is identical.
-  let scores: Record<string, Record<string, number>> | undefined;
-  if (header.results?.scores) {
-    for (const evalScore of header.results.scores) {
-      for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-        scores ??= {};
-        (scores[evalScore.name] ??= {})[metricName] = metric.value;
+  const byScorer = new Map<string, Map<string, number>>();
+  for (const evalScore of header.results?.scores ?? []) {
+    for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+      let metrics = byScorer.get(evalScore.name);
+      if (!metrics) {
+        metrics = new Map();
+        byScorer.set(evalScore.name, metrics);
       }
+      metrics.set(metricName, metric.value);
     }
   }
+  const scores =
+    byScorer.size > 0
+      ? nullProtoRecord(
+          new Map(
+            Array.from(byScorer, ([name, metrics]) => [
+              name,
+              nullProtoRecord(metrics),
+            ])
+          )
+        )
+      : undefined;
 
   return {
     total_tokens,
@@ -146,13 +159,16 @@ export const totalSampleCost = (
 };
 
 export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
-  let scores: Record<string, unknown> | undefined;
-  if (summary.scores) {
-    scores = {};
-    for (const [scoreName, score] of Object.entries(summary.scores)) {
-      scores[scoreName] = score.value;
-    }
-  }
+  const scores = summary.scores
+    ? nullProtoRecord(
+        new Map(
+          Object.entries(summary.scores).map(([name, score]) => [
+            name,
+            score.value,
+          ])
+        )
+      )
+    : undefined;
 
   return {
     tokens: totalSampleTokens(summary.model_usage),
