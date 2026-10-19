@@ -14,7 +14,7 @@ interface AppFixtures {
   /** Off for a test that triggers CSP violations on purpose; it then asserts
    *  `cspViolations` itself. */
   allowCspViolations: boolean;
-  /** Every CSP violation the page has logged so far. */
+  /** Every CSP violation a page in the test has reported so far. */
   cspViolations: string[];
 }
 
@@ -47,7 +47,9 @@ export const test = base.extend<AppFixtures>({
     async ({ context, allowCspViolations }, use) => {
       const violations: string[] = [];
       // The violation event, not console text: a blocked eval throws an
-      // EvalError and logs nothing, so only the event reports it.
+      // EvalError and logs nothing, so only the event reports it. A worker's
+      // violations fire in the worker, not here; the build's eval check
+      // covers eval there.
       await context.exposeBinding(
         "__reportCspViolation",
         (_source, violation: string) => {

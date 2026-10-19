@@ -336,10 +336,12 @@ export const policyString = (directives) =>
  * client and React preamble are inline and differ per session.
  *
  * @param {Record<string, string[]>} directives the policy, in order
- * @param {{ evalAllowedIn?: string[] }} [options] `evalAllowedIn`: modules,
- *   as paths inside node_modules, that the eval check skips. Only for code
- *   the app can be shown never to run (its e2e under the policy, and
- *   `@no-unsafe-eval` unit tests, cover what it does run).
+ * @param {{ evalAllowedIn?: string[] }} [options] `evalAllowedIn`: modules
+ *   (paths inside node_modules, or relative to the app root) whose own eval
+ *   sites the check allows; eval elsewhere in their chunk still fails, and so
+ *   does an entry with no eval left. Only for code the app can be shown never
+ *   to run (its e2e under the policy, and `@no-unsafe-eval` unit tests, cover
+ *   what it does run).
  * @returns {import("vite").Plugin}
  */
 export function contentSecurityPolicy(directives, { evalAllowedIn = [] } = {}) {

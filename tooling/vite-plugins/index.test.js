@@ -250,7 +250,7 @@ describe("contentSecurityPolicy", () => {
       ).rejects.toThrow(/no longer evaluate code: codegen\/gone\.js/);
     });
 
-    it("names a nested dependency by its own package path", async () => {
+    it("matches a nested dependency by its own package path", async () => {
       await expect(
         buildWithPolicy(
           {
