@@ -150,6 +150,23 @@ describe("normalizeStatus", () => {
   });
 });
 
+describe("normalizeStatus scanner names", () => {
+  // Scanner names come from the scan artefact. One named after an
+  // Object.prototype member must stay an ordinary entry, and a name the spec
+  // lacks must read as absent.
+  it("keeps prototype-named scanners as ordinary entries", () => {
+    const status = normalizeStatus({
+      ...legacyStatus,
+      summary: { scanners: { ["__proto__"]: {}, constructor: {} } },
+    });
+    expect(Object.keys(status.summary.scanners)).toEqual([
+      "__proto__",
+      "constructor",
+    ]);
+    expect(status.spec.scanners["constructor"]).toBeUndefined();
+  });
+});
+
 describe("normalizeActiveScans", () => {
   it("fills a missing items map and each scan's summary", () => {
     expect(normalizeActiveScans({})).toEqual({ items: {} });
