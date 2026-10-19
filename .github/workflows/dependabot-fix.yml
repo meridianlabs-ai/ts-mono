@@ -128,7 +128,7 @@ jobs:
       # `vulnerability_alerts` permission in the App API.)
       - name: Mint the App token
         id: mint
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           # `app-id` takes the App ID or the Client ID; the action has no client-id input.
           app-id: ${{ secrets.MARVIN_APP_CLIENT_ID }}
@@ -338,7 +338,7 @@ jobs:
       # own App token: `gh` here can read (advisories, PR list/view) and
       # nothing else. --add-dir lets the agent read the alert list and write
       # the PR text in its landing directory.
-      - uses: anthropics/claude-code-action@6fed3ca145920b639991cb756090506e1bcaf515 # v1.0.245
+      - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         id: claude
         with:
           anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
@@ -703,7 +703,7 @@ jobs:
       # Both come from meridian-marvin[bot], so CI runs on the PR.
       - name: Mint the App token
         id: mint
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           # `app-id` takes the App ID or the Client ID; the action has no client-id input.
           app-id: ${{ secrets.MARVIN_APP_CLIENT_ID }}
