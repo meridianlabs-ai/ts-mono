@@ -427,7 +427,11 @@ export const SamplesPanel: FC = () => {
 
   return (
     <div className={clsx(styles.panel)}>
-      <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
+      <ApplicationNavbar
+        currentPath={samplesPath}
+        fnNavigationUrl={samplesUrl}
+        viewerOptionsError={listing.refreshError}
+      >
         {hasFilter && (
           <NavbarButton
             key="reset-filters"

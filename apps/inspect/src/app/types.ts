@@ -147,7 +147,7 @@ export interface EventFilter {
 /** Evidence selection, owned by one sample tab (`key`): reading it under any
  *  other sample or tab yields no mode and no selection, so switching either
  *  resets the Select latch without an effect. */
-export interface EventSelectionState {
+export interface EvidenceSelectionState {
   key: string | null;
   active: boolean;
   selectedIds: string[];
@@ -164,7 +164,7 @@ export interface SampleState {
 
   selectedOutlineId?: string;
 
-  eventSelection: EventSelectionState;
+  evidenceSelection: EvidenceSelectionState;
 
   // Timeline swimlane state
   timelineSelected: string | null;

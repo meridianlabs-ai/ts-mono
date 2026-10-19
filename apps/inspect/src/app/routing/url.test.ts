@@ -495,9 +495,21 @@ describe("sample IDs with slashes", () => {
       1,
       "transcript",
       "/logs",
-      ["ev/1", "ev-2"]
+      { item: "event", ids: ["ev/1", "ev-2"] }
     );
     expect(url).toContain("?view=transcript&events=ev%2F1&events=ev-2");
+  });
+
+  test("printSampleUrl appends one messages param per selected message", () => {
+    const url = printSampleUrl(
+      "path/to/file.eval",
+      "s1",
+      1,
+      "messages",
+      "/logs",
+      { item: "message", ids: ["msg-1", "m/2"] }
+    );
+    expect(url).toContain("?view=messages&messages=msg-1&messages=m%2F2");
   });
 
   test("printSampleUrl omits the events param without a selection", () => {

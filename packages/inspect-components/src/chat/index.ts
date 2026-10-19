@@ -29,6 +29,10 @@ export {
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
+export { messagesToMarkdown } from "./messagesToMarkdown";
+
+export { buildSelectableMessageIndex } from "./selection/messageSelection";
+
 export { messageSearchText } from "./messageSearchText";
 
 // Tool utilities

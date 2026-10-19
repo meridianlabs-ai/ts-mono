@@ -1,6 +1,8 @@
 import type { Content } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
+import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
+
 import { eventTitle } from "./event/utils";
 import { formatModifiedCall, formatSuspicion } from "./transform/toolSentinels";
 import type { EventType } from "./types";
@@ -523,12 +525,6 @@ const kProseFields: ReadonlySet<string> = new Set([
   "title",
 ]);
 
-const quoted = (value: string): string =>
-  value
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-
 const kCodeLikeFields: ReadonlySet<string> = new Set([
   "arguments",
   "cmd",
@@ -538,30 +534,8 @@ const kCodeLikeFields: ReadonlySet<string> = new Set([
   "path",
 ]);
 
-const longestBacktickRun = (value: string): number => {
-  let longest = 0;
-  for (const run of value.matchAll(/`+/g)) {
-    longest = Math.max(longest, run[0].length);
-  }
-  return longest;
-};
-
-// Delimiter longer than any backtick run inside; a space pads a value that
-// starts or ends with a backtick (CommonMark strips one space each side).
-const inlineCode = (value: string): string => {
-  const ticks = "`".repeat(longestBacktickRun(value) + 1);
-  const pad = value.startsWith("`") || value.endsWith("`") ? " " : "";
-  return `${ticks}${pad}${value}${pad}${ticks}`;
-};
-
 const looksLikeJson = (value: string): boolean =>
   /^\s*[[{]/.test(value) && /[\]}]\s*$/.test(value);
-
-// The fence must be longer than any backtick run inside the value.
-const fenced = (value: string): string => {
-  const fence = "`".repeat(Math.max(2, longestBacktickRun(value)) + 1);
-  return `${fence}\n${value}\n${fence}`;
-};
 
 /**
  * Extracts text strings from message content.

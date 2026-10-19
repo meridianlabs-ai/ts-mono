@@ -1,6 +1,12 @@
 import { delay, http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
+import {
+  gridCell,
+  LOG_FILES,
+  setupLogListHandlers,
+  waitForGrid,
+} from "./fixtures/log-list-scenario";
 
 test.describe("Server error state", () => {
   test("shows ErrorPanel when /api/log-files returns 500", async ({
@@ -118,5 +124,50 @@ test.describe("Server error state", () => {
 
     // And the LoadingBar must have stopped (child div gone)
     await expect(loadingBarChild).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("keeps the grid and flags viewer options when a re-sync fails", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await waitForGrid(page);
+
+    // Every poll tick now asks for a re-sync, and the re-sync fails.
+    network.use(
+      http.get("*/api/events*", () => HttpResponse.json(["refresh-evals"])),
+      http.get("*/api/log-files*", () =>
+        HttpResponse.json({ error: "Refresh failed" }, { status: 500 })
+      )
+    );
+
+    const options = page.getByRole("button", {
+      name: "Viewer information and options",
+    });
+    await expect(options).toHaveAccessibleDescription(
+      /Listing refresh failed: .*Refresh failed/,
+      { timeout: 15_000 }
+    );
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+    await expect(page.locator("[data-testid='error-panel']")).toHaveCount(0);
+
+    await options.click();
+    await expect(
+      page.getByText(/Couldn't refresh\. Showing results from \d{1,2}:\d{2}/)
+    ).toBeVisible();
+    await expect(page.getByText("Refresh failed")).toBeVisible();
+
+    // The next successful re-sync clears the flag and keeps the rows.
+    network.use(
+      http.get("*/api/log-files*", () =>
+        HttpResponse.json({ files: LOG_FILES, response_type: "full" })
+      )
+    );
+    await expect(options).not.toHaveAccessibleDescription(
+      /Listing refresh failed/,
+      { timeout: 15_000 }
+    );
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
   });
 });

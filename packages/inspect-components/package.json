@@ -14,6 +14,7 @@
     "./config": "./src/config/index.ts",
     "./content": "./src/content/index.ts",
     "./sample-activity": "./src/sample-activity/index.ts",
+    "./selection": "./src/selection/index.ts",
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",

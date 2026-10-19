@@ -18,6 +18,11 @@ import { getOwn } from "@tsmono/util";
 
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
+import type { ListRowSelection } from "../selection/rowSelection";
+import {
+  RowToggleContext,
+  SelectableRow,
+} from "../selection/RowSelectionContext";
 
 import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
@@ -25,15 +30,7 @@ import {
   computeHasToolEventsAtDepth,
   computeToolEventIdsAtLevel,
 } from "./hasToolEventsAtDepth";
-import {
-  EventRowIdContext,
-  EventRowSelectedContext,
-  TranscriptRowToggleContext,
-} from "./selection/EventRowSelectionContext";
-import {
-  isSelectableEvent,
-  type TranscriptRowSelectionProps,
-} from "./selection/transcriptSelection";
+import { isSelectableEvent } from "./selection/transcriptSelection";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { computeVisualActionContext } from "./transcriptVisualActions";
@@ -72,7 +69,7 @@ interface TranscriptVirtualListComponentProps {
   eventNodeContext?: Partial<EventNodeContext>;
   /** Evidence selection, present while selection mode is on: each non-structural
    *  row gets a header checkbox. */
-  selection?: TranscriptRowSelectionProps;
+  selection?: ListRowSelection;
   /** External ref filled with the virtual list's visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
@@ -229,23 +226,21 @@ export const TranscriptVirtualListComponent: FC<
         selection.selectedIds.has(item.id);
       const renderedNode = (
         <EventLabelContext.Provider value={getOwn(eventLabels, item.id)}>
-          <EventRowIdContext.Provider value={selectableRowId}>
-            <EventRowSelectedContext.Provider value={rowSelected}>
-              <RenderedEventNode
-                node={item}
-                next={next}
-                className={clsx(
-                  attachedParentClass,
-                  attachedChildClass,
-                  depthRootClass
-                )}
-                context={context}
-                onAutoCollapse={onAutoCollapse}
-                renderAgentCard={renderAgentCard}
-                eventCallbacks={eventCallbacks}
-              />
-            </EventRowSelectedContext.Provider>
-          </EventRowIdContext.Provider>
+          <SelectableRow id={selectableRowId} selected={rowSelected}>
+            <RenderedEventNode
+              node={item}
+              next={next}
+              className={clsx(
+                attachedParentClass,
+                attachedChildClass,
+                depthRootClass
+              )}
+              context={context}
+              onAutoCollapse={onAutoCollapse}
+              renderAgentCard={renderAgentCard}
+              eventCallbacks={eventCallbacks}
+            />
+          </SelectableRow>
         </EventLabelContext.Provider>
       );
 
@@ -332,9 +327,9 @@ export const TranscriptVirtualListComponent: FC<
   );
 
   return (
-    <TranscriptRowToggleContext.Provider value={selection?.onToggle}>
+    <RowToggleContext.Provider value={selection?.onToggle}>
       {list}
-    </TranscriptRowToggleContext.Provider>
+    </RowToggleContext.Provider>
   );
 };
 

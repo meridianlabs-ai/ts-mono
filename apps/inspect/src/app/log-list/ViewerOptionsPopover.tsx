@@ -2,10 +2,15 @@ import clsx from "clsx";
 import { FC, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
-import { imperativeLogData, useDatabaseStats } from "../../log_data";
+import {
+  imperativeLogData,
+  useDatabaseStats,
+  useLastSyncedAt,
+} from "../../log_data";
 
 import styles from "./ViewerOptionsPopover.module.css";
 
@@ -13,16 +18,26 @@ export interface ViewerOptionsPopoverProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
   positionEl: HTMLElement | null;
+  error?: Error;
 }
 
 export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
   showing,
   positionEl,
   setShowing,
+  error,
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
   const dbStats = useDatabaseStats();
+  const lastSyncedAt = useLastSyncedAt();
+  const lastSyncedTime =
+    lastSyncedAt === undefined
+      ? undefined
+      : new Date(lastSyncedAt).toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        });
   const appConfig = useAppConfig();
 
   const logDir = useLogDir();
@@ -55,6 +70,29 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       showArrow={false}
     >
       <div className={clsx(styles.container, "text-size-smaller")}>
+        {error && (
+          <>
+            <div
+              className={clsx(
+                "text-style-label",
+                "text-style-secondary",
+                styles.fullWidth
+              )}
+            >
+              Background Sync
+            </div>
+            <div className={styles.fullWidth}>
+              <Icon name="error" className={styles.syncErrorIcon} />
+              Couldn&apos;t refresh.
+              {lastSyncedTime && ` Showing results from ${lastSyncedTime}.`}
+            </div>
+            <div className={clsx(styles.fullWidth, styles.syncErrorDetail)}>
+              {error.message}
+            </div>
+            <div className={clsx(styles.spacer)}></div>
+          </>
+        )}
+
         <div
           className={clsx(
             "text-style-label",

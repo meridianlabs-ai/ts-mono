@@ -295,6 +295,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         fnNavigationUrl={mode === "tasks" ? tasksUrl : logsUrl}
         currentPath={mode === "tasks" ? undefined : logPath}
         loading={navbarLoading}
+        viewerOptionsError={sync.refreshError}
       >
         {hasFilter && (
           <NavbarButton
