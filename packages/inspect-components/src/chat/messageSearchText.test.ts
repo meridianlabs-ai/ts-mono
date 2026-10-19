@@ -38,7 +38,8 @@ describe("messageSearchText", () => {
     expect(texts).toContain('{"query":"capital of france"}');
   });
 
-  // Find can only land on visible text, and media render none.
+  // The chat view never shows the `<image />` placeholder, so Find can't land
+  // on it.
   it("adds nothing for media content", () => {
     const texts = messageSearchText({
       message: testAssistantMessage({

@@ -1,5 +1,6 @@
 import {
   isWireTimeline,
+  normalizeChatMessages,
   normalizeEvents,
   normalizeModelUsageMap,
   normalizeTimelines,
@@ -213,7 +214,7 @@ export const normalizeTranscript = (
 ): Transcript => ({
   ...raw,
   metadata: raw.metadata ?? {},
-  messages: raw.messages ?? [],
+  messages: normalizeChatMessages(raw.messages),
   timelines: normalizeTimelines(wireTimelines(raw.timelines)),
   events: expandEvents(normalizeEvents(raw.events), eventsData),
 });

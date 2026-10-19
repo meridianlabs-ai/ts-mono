@@ -4,17 +4,20 @@ import { isRecord } from "@tsmono/util";
 // inspect_ai 0.3.123–0.3.125 and are strings since 0.3.126. Current
 // inspect_ai refuses the old shape; the viewer keeps the content and stores
 // each value's JSON text, so readers can treat both as the declared strings.
+const jsonText = (value: unknown): string =>
+  typeof value === "string"
+    ? value
+    : value == null
+      ? ""
+      : JSON.stringify(value);
+
 const normalizeToolUse = (item: unknown): unknown => {
   if (!isRecord(item) || item["type"] !== "tool_use") return item;
-  let fixed: Record<string, unknown> | undefined;
-  for (const field of ["arguments", "result"]) {
-    const value = item[field];
-    if (typeof value !== "string") {
-      fixed ??= { ...item };
-      fixed[field] = value == null ? "" : JSON.stringify(value);
-    }
-  }
-  return fixed ?? item;
+  const args = jsonText(item["arguments"]);
+  const result = jsonText(item["result"]);
+  return args === item["arguments"] && result === item["result"]
+    ? item
+    : { ...item, arguments: args, result };
 };
 
 /** A raw chat message with its content items normalized (see above).

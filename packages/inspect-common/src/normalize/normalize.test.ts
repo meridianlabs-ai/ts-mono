@@ -12,6 +12,7 @@ import { inputString } from "../utils";
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
 import {
+  normalizeChatMessages,
   normalizeConfigUpdates,
   normalizeEvalPlan,
   normalizeEvalResults,
@@ -201,28 +202,74 @@ describe("legacy shape migrations", () => {
   });
 
   it("leaves current tool-use content untouched", () => {
-    const messages = [
-      {
-        role: "assistant",
-        content: [
-          {
-            type: "tool_use",
-            tool_type: "web_search",
-            id: "srvtoolu_1",
-            name: "web_search",
-            arguments: '{"query":"q"}',
-            result: "[]",
-          },
-        ],
-      },
-    ];
+    const assistant = () => ({
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: '{"query":"q"}',
+          result: "[]",
+        },
+      ],
+    });
+    const messages = [assistant()];
+    const input = [assistant()];
+    const choice = { message: assistant(), stop_reason: "stop" };
+    const eventInput = [assistant()];
+    const eventChoice = { message: assistant(), stop_reason: "stop" };
     const sample = normalizeEvalSample({
       id: 1,
       epoch: 1,
-      input: "q",
+      input,
+      target: "a",
       messages,
+      output: { model: "m", choices: [choice], completion: "" },
+      events: [
+        {
+          event: "model",
+          model: "m",
+          input: eventInput,
+          output: { model: "m", choices: [eventChoice], completion: "" },
+        },
+      ],
     });
+    const event = expectEvent(sample.events[0], "model");
     expect(sample.messages).toBe(messages);
+    expect(sample.input).toBe(input);
+    expect(sample.output.choices[0]).toBe(choice);
+    expect(event.input).toBe(eventInput);
+    expect(event.output.choices[0]).toBe(eventChoice);
+  });
+
+  it("normalizes a raw message list from a source that skips the sample", () => {
+    const legacy = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: { query: "q" },
+          result: [],
+        },
+      ],
+    };
+    const [message, ...rest] = normalizeChatMessages([legacy, { content: 7 }]);
+    const item = Array.isArray(message?.content)
+      ? message.content[0]
+      : undefined;
+    expect(item?.type === "tool_use" ? item.arguments : undefined).toBe(
+      '{"query":"q"}'
+    );
+    // Entries without chat-message content are dropped, as pydantic would.
+    expect(rest).toEqual([]);
+    expect(normalizeChatMessages(undefined)).toEqual([]);
+    const clean = [{ role: "user", content: "hi" }];
+    expect(normalizeChatMessages(clean)).toBe(clean);
   });
 
   it("migrates a sandbox tuple to a spec object", () => {

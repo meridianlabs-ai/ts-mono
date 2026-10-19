@@ -16,8 +16,9 @@ export const reasoningText = (
 /**
  * The text strings a message's content shows, one per part, for find and the
  * transcript's text exports. Media never contribute their base64 payloads:
- * exports get an `<image />`-style placeholder, and with `placeholders: false`
- * (the Messages tab's Find, which can only land on visible text) nothing.
+ * exports get an `<image />`-style placeholder. The chat view never shows
+ * that placeholder, so the Messages tab's Find passes `placeholders: false`
+ * rather than report matches it can't land on.
  */
 export const contentTexts = (
   content: string | readonly Content[],

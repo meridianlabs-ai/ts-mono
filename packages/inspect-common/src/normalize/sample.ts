@@ -43,8 +43,8 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  sample["input"] = normalizeSampleInput(
-    normalizeMessagesContent(sample["input"])
+  sample["input"] = normalizeMessagesContent(
+    normalizeSampleInput(sample["input"])
   );
   if (
     typeof sample["target"] !== "string" &&
