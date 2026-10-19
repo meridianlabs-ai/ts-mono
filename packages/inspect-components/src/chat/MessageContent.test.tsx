@@ -280,3 +280,42 @@ describe("MessageContent JSON-looking blocks", () => {
     expect(container.querySelector("code.language-json")).toBeNull();
   });
 });
+
+describe("MessageContent reasoning title", () => {
+  const block = (overrides: Partial<ContentReasoning>): ContentReasoning => ({
+    type: "reasoning",
+    reasoning: "",
+    redacted: false,
+    ...overrides,
+  });
+
+  it.each([
+    [{ reasoning: "chain" }, "Reasoning", "chain"],
+    [{ reasoning: "", summary: "short" }, "Reasoning (Summary)", "short"],
+    [
+      { reasoning: "", summary: null },
+      "Reasoning",
+      "Reasoning text not provided.",
+    ],
+    [
+      { reasoning: "OPAQUE", summary: "short", redacted: true },
+      "Reasoning (Summary)",
+      "short",
+    ],
+    [
+      { reasoning: "OPAQUE", summary: null, redacted: true },
+      "Reasoning",
+      "Reasoning encrypted by model provider.",
+    ],
+  ])("titles %j as %s and shows %s", async (overrides, title, text) => {
+    const { container } = renderMessage([block(overrides)]);
+    await waitFor(() => {
+      expect(container.textContent).toContain(text);
+    });
+    expect(container.textContent).toContain(title);
+    if (title === "Reasoning") {
+      expect(container.textContent).not.toContain("Reasoning (Summary)");
+    }
+    expect(container.textContent).not.toContain("OPAQUE");
+  });
+});
