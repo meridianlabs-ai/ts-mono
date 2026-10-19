@@ -5,8 +5,6 @@ import { createScanResultSummary } from "../../test/objectFactories";
 import { toMarkdownRefs } from "./refs";
 
 describe("toMarkdownRefs", () => {
-  // Reference ids come from the scan result. One named after an
-  // Object.prototype member has no preview unless the input defines it.
   it.each(["constructor", "valueOf", "__proto__"])(
     "gives a %s reference no preview",
     (id) => {

@@ -72,8 +72,6 @@ describe("ToolEventView", () => {
     vi.unstubAllGlobals();
   });
 
-  // Tool call ids come from the log. With a label map present, an id named
-  // after an Object.prototype member must read as unlabelled.
   it.each(["constructor", "toString", "__proto__"])(
     "renders an unlabelled tool call whose id is %s",
     (id) => {

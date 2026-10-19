@@ -212,9 +212,6 @@ describe("deriveSampleFields", () => {
   });
 });
 
-// Scorer, metric and sample score names come straight from the log. A name
-// that is an Object.prototype member must stay an ordinary entry, never a
-// write onto Object.prototype or the Object constructor.
 describe("prototype safety", () => {
   const prototypeKeys = new Set(Object.getOwnPropertyNames(Object.prototype));
   const objectStatics = new Set(Object.getOwnPropertyNames(Object));

@@ -22,8 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// React Query's structural sharing hands back plain objects, so a scanner the
-// spec lacks must read absent even when its name is an Object.prototype member.
+// A plain-object status, as React Query's structural sharing hands back.
 it("renders a summary scanner named constructor that the spec lacks", () => {
   const Wrapper = createTestWrapper();
   const status = createStatus({

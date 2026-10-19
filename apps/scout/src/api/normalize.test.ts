@@ -151,9 +151,6 @@ describe("normalizeStatus", () => {
 });
 
 describe("normalizeStatus scanner names", () => {
-  // Scanner names come from the scan artefact. One named after an
-  // Object.prototype member must stay an ordinary entry, and a name the spec
-  // lacks must read as absent.
   it("keeps prototype-named scanners as ordinary entries", () => {
     const status = normalizeStatus({
       ...legacyStatus,

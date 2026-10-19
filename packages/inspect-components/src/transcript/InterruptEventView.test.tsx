@@ -11,8 +11,7 @@ import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 import { InterruptEventView } from "./InterruptEventView";
 import { EventNode } from "./types";
 
-// The source and interrupted values come from the log, so build the event
-// from raw JSON through the normalizer the viewer reads logs with.
+// Built from raw JSON so out-of-enum values reach the view as a log would.
 const interruptEvent = (fields: Record<string, string>): InterruptEvent => {
   const event = normalizeEvent({
     event: "interrupt",

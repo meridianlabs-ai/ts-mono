@@ -55,8 +55,6 @@ describe("ValidationCasesList", () => {
     cleanup();
   });
 
-  // Case ids are transcript ids from scan data. One named after an
-  // Object.prototype member must not read as selected.
   it("copies only the cases the user selected", async () => {
     const upserted: string[] = [];
     server.use(
