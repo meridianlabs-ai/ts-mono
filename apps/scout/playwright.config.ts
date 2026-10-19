@@ -5,10 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Most specs use a production build, which `vite preview` serves with the
 // viewer's Content-Security-Policy, as `scout view` does.
 const previewURL = "http://localhost:5176";
-// The dataframe spec drives a harness page under e2e/fixtures that only the
-// dev server serves.
+// Tests tagged @dev-server drive harness pages under e2e/fixtures, which
+// only the dev server serves.
 const devServerURL = "http://localhost:5178";
-const devServerSpecs = /(^|\/)dataframe\.spec\.ts$/;
+const devServerTag = /@dev-server/;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -25,12 +25,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: devServerSpecs,
+      grepInvert: devServerTag,
       use: { ...devices["Desktop Chrome"], baseURL: previewURL },
     },
     {
       name: "chromium-dev-server",
-      testMatch: devServerSpecs,
+      grep: devServerTag,
       use: { ...devices["Desktop Chrome"], baseURL: devServerURL },
     },
   ],
