@@ -8,12 +8,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import { MetaDataGrid } from "./MetaDataGrid";
 
@@ -23,11 +20,9 @@ const renderGrid = (
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <MetaDataGrid id="test-grid" entries={entries} options={options} />
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <MetaDataGrid id="test-grid" entries={entries} options={options} />
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

@@ -1,11 +1,13 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Icon, IconName } from "../icons";
+
 import styles from "./Card.module.css";
 
 interface CardHeaderProps {
   id?: string;
-  icon?: string;
+  icon?: IconName;
   label?: string;
   type?: "default" | "modern";
   className?: string;
@@ -44,7 +46,7 @@ export const CardHeader: FC<CardHeaderProps> = ({
       id={id || ""}
     >
       {icon ? (
-        <i className={clsx(styles.headerIcon, icon)}></i>
+        <Icon name={icon} className={styles.headerIcon} />
       ) : (
         <span
           className={clsx(styles.headerIcon, styles.headerIconEmpty)}

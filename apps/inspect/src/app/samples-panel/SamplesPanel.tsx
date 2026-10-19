@@ -22,7 +22,6 @@ import {
 import { highlightSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
 import { useFlowQuery } from "../flow/hooks";
 import { LogListFooter } from "../log-list/LogListFooter";
@@ -428,12 +427,16 @@ export const SamplesPanel: FC = () => {
 
   return (
     <div className={clsx(styles.panel)}>
-      <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
+      <ApplicationNavbar
+        currentPath={samplesPath}
+        fnNavigationUrl={samplesUrl}
+        viewerOptionsError={listing.refreshError}
+      >
         {hasFilter && (
           <NavbarButton
             key="reset-filters"
             label="Reset Filters"
-            icon={ApplicationIcons.filter}
+            icon="filter"
             onClick={handleResetFilters}
           />
         )}
@@ -442,11 +445,7 @@ export const SamplesPanel: FC = () => {
           <NavbarButton
             key="show-retried"
             label="Show Retried Logs"
-            icon={
-              showRetriedLogs
-                ? ApplicationIcons.toggle.on
-                : ApplicationIcons.toggle.off
-            }
+            icon={showRetriedLogs ? "toggleOn" : "toggleOff"}
             latched={showRetriedLogs}
             subtle
             onClick={() => {
@@ -458,7 +457,7 @@ export const SamplesPanel: FC = () => {
           key="choose-columns"
           ref={setColumnButtonEl}
           label="Columns"
-          icon={ApplicationIcons.columns}
+          icon="columns"
           dropdown
           subtle
           onClick={(e) => {

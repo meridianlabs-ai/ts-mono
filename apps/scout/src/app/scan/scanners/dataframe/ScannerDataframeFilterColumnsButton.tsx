@@ -2,7 +2,6 @@ import { forwardRef, useCallback } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 
 export const ScannerDataframeFilterColumnsButton = forwardRef<
@@ -20,7 +19,7 @@ export const ScannerDataframeFilterColumnsButton = forwardRef<
 
   return (
     <ToolButton
-      icon={ApplicationIcons.checkbox.checked}
+      icon="checkboxChecked"
       label="Choose Columns"
       onClick={toggleShowFilter}
       latched={showFilter}

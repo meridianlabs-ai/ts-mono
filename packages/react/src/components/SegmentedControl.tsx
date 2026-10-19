@@ -1,13 +1,15 @@
 import clsx from "clsx";
 import { FC, useCallback } from "react";
 
+import { Icon, IconName } from "../icons";
+
 import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./SegmentedControl.module.css";
 
 export interface Segment {
   id: string;
   label: string;
-  icon?: string;
+  icon?: IconName;
   selectedId?: string;
   disabled?: boolean;
   /** URL the segment navigates to. When set (and the segment is enabled) it
@@ -61,7 +63,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
         );
         const content = (
           <>
-            {segment.icon && <i className={segment.icon} />}
+            {segment.icon && <Icon name={segment.icon} />}
             {!compact && <span>{segment.label}</span>}
           </>
         );

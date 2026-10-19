@@ -58,16 +58,8 @@ export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";
 export {
   buildSelectableEventIndex,
   isSelectableEvent,
-  kEmptyTranscriptSelection,
-  resolveSelectedEvents,
-  resolveSelectedIds,
   selectedEventNodes,
-  selectionMenuChrome,
-  toggleTranscriptSelection,
-  type TranscriptSelection,
-  type TranscriptSelectionState,
 } from "./selection/transcriptSelection";
-export { TranscriptSelectTool } from "./selection/TranscriptSelectTool";
 export { useTranscriptSelection } from "./selection/useTranscriptSelection";
 
 // Message ID resolution
@@ -138,9 +130,6 @@ export {
   type TranscriptLayoutHeadroomProps,
   type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
-
-// Icons
-export { TranscriptIcons } from "./icons";
 
 // Context
 export {

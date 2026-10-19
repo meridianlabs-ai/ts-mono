@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from "react-router";
 
 import { InAppLink } from "@tsmono/react/components";
 import { navigateAndForget } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../appearance/icons";
 import { toFullUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowButton.module.css";
@@ -30,7 +30,7 @@ export const FlowButton: FC = () => {
         className={clsx(styles.button)}
         title="View Flow configuration for this directory"
       >
-        <i className={clsx(ApplicationIcons.flow, styles.viewerOptions)} />
+        <Icon name="flow" className={styles.viewerOptions} />
       </InAppLink>
     </div>
   );

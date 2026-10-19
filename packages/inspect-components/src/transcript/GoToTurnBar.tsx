@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { isEditableTarget } from "@tsmono/util";
 
 import styles from "./GoToTurnBar.module.css";
@@ -193,7 +194,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
               title="Close"
               onClick={() => close(true)}
             >
-              <i className="bi bi-x" />
+              <Icon name="close" />
             </button>
           </div>
         )}

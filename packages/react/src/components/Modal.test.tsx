@@ -9,35 +9,13 @@ import {
 import { ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ComponentIconProvider, ComponentIcons } from "./ComponentIconContext";
 import { Modal } from "./Modal";
-
-const icons: ComponentIcons = {
-  arrowDown: "",
-  arrowUp: "",
-  chevronDown: "",
-  chevronUp: "",
-  clearText: "",
-  close: "icon-close",
-  code: "",
-  confirm: "",
-  copy: "",
-  error: "",
-  menu: "",
-  next: "",
-  noSamples: "",
-  play: "",
-  previous: "",
-  toggleRight: "",
-};
 
 const renderModal = (props: Partial<Parameters<typeof Modal>[0]> = {}) =>
   render(
-    <ComponentIconProvider icons={icons}>
-      <Modal show onHide={() => {}} title="My Title" id="test-modal" {...props}>
-        {props.children ?? <button>inner</button>}
-      </Modal>
-    </ComponentIconProvider>
+    <Modal show onHide={() => {}} title="My Title" id="test-modal" {...props}>
+      {props.children ?? <button>inner</button>}
+    </Modal>
   );
 
 // Drives `show` from local state so closing the modal actually unmounts it,
@@ -45,14 +23,14 @@ const renderModal = (props: Partial<Parameters<typeof Modal>[0]> = {}) =>
 const Harness = ({ children }: { children?: ReactNode }) => {
   const [show, setShow] = useState(false);
   return (
-    <ComponentIconProvider icons={icons}>
+    <>
       <button data-testid="opener" onClick={() => setShow(true)}>
         open
       </button>
       <Modal show={show} onHide={() => setShow(false)} title="T" id="harness">
         {children ?? <button>inner</button>}
       </Modal>
-    </ComponentIconProvider>
+    </>
   );
 };
 
@@ -75,14 +53,14 @@ describe("Modal accessibility", () => {
 
   it("generates unique title ids when no id is provided", () => {
     render(
-      <ComponentIconProvider icons={icons}>
+      <>
         <Modal show onHide={() => {}} title="First">
           <button>first body</button>
         </Modal>
         <Modal show onHide={() => {}} title="Second">
           <button>second body</button>
         </Modal>
-      </ComponentIconProvider>
+      </>
     );
 
     const [firstDialog, secondDialog] = screen.getAllByRole("dialog");
@@ -223,16 +201,14 @@ describe("Modal keyboard listener lifecycle", () => {
     const nextHide = vi.fn();
     const nextSubmit = vi.fn();
     const ui = (show: boolean, onHide: () => void) => (
-      <ComponentIconProvider icons={icons}>
-        <Modal
-          show={show}
-          onHide={onHide}
-          onSubmit={nextSubmit}
-          title="Lifecycle"
-        >
-          <input aria-label="Lifecycle input" />
-        </Modal>
-      </ComponentIconProvider>
+      <Modal
+        show={show}
+        onHide={onHide}
+        onSubmit={nextSubmit}
+        title="Lifecycle"
+      >
+        <input aria-label="Lifecycle input" />
+      </Modal>
     );
     const { rerender, unmount } = render(ui(true, firstHide));
     rerender(ui(true, nextHide));

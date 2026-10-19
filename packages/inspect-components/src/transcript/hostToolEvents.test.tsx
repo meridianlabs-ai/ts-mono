@@ -22,7 +22,6 @@ import type {
   ToolCall,
 } from "@tsmono/inspect-common/types";
 import {
-  ComponentIconProvider,
   ComponentNavigationProvider,
   ContentTrustProvider,
 } from "@tsmono/react/components";
@@ -30,7 +29,6 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeReactiveStateHooks,
   ResizeObserverStub,
-  testIcons,
 } from "@tsmono/react/testing";
 
 import { computeToolEventIdsAtLevel } from "./hasToolEventsAtDepth";
@@ -296,17 +294,15 @@ describe("ModelEventView with tool events at its level", () => {
   ) =>
     render(
       <ComponentStateProvider hooks={makeReactiveStateHooks()}>
-        <ComponentIconProvider icons={testIcons}>
-          <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-            <ContentTrustProvider value="trusted">
-              <ModelEventView
-                eventNode={new EventNode<ModelEvent>("model", event, 0)}
-                showToolCalls={showToolCalls}
-                context={context}
-              />
-            </ContentTrustProvider>
-          </ComponentNavigationProvider>
-        </ComponentIconProvider>
+        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+          <ContentTrustProvider value="trusted">
+            <ModelEventView
+              eventNode={new EventNode<ModelEvent>("model", event, 0)}
+              showToolCalls={showToolCalls}
+              context={context}
+            />
+          </ContentTrustProvider>
+        </ComponentNavigationProvider>
       </ComponentStateProvider>
     );
 

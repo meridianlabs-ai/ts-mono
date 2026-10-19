@@ -11,8 +11,6 @@ import {
   ExpandablePanel,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../appearance/icons";
-
 import styles from "./TaskErrorPanel.module.css";
 
 interface TaskErrorProps {
@@ -22,10 +20,7 @@ interface TaskErrorProps {
 export const TaskErrorCard: FC<TaskErrorProps> = ({ error }) => {
   return (
     <Card>
-      <CardHeader
-        icon={ApplicationIcons.error}
-        label={`Task Failed`}
-      ></CardHeader>
+      <CardHeader icon="error" label={`Task Failed`}></CardHeader>
       <CardBody>
         <ExpandablePanel
           id="task-error-collapse"

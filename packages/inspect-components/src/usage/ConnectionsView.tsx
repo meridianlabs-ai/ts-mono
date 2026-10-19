@@ -3,6 +3,7 @@ import { FC, Fragment, useCallback, useState } from "react";
 
 import { InAppLink } from "@tsmono/react/components";
 import { useResizeObserver } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import {
   buildStepPath,
@@ -118,7 +119,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
                   title="Connection log"
                   onClick={() => onShowLog(model)}
                 >
-                  <i className="bi bi-clock-history" aria-hidden="true" />
+                  <Icon name="history" />
                   Log
                 </button>
               )}
@@ -329,7 +330,7 @@ const TimelineAction: FC<{ href?: string; onClick: () => void }> = ({
     className={styles.actionLink}
     title="View on activity"
   >
-    <i className="bi bi-graph-up" aria-hidden="true" />
+    <Icon name="graph" />
     Timeline
   </InAppLink>
 );

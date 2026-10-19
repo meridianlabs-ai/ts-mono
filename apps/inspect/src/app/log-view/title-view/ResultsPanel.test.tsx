@@ -9,9 +9,8 @@ import {
 import { ReactNode, useState } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeReactiveStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeReactiveStateHooks } from "@tsmono/react/testing";
 
 import { ScoreSummary } from "../../../scoring/types";
 
@@ -42,11 +41,7 @@ const score = (scorer: string, metricCount: number, headlineIndex?: number) =>
 const Wrapper = ({ children }: { children: ReactNode }) => {
   const [hooks] = useState(makeReactiveStateHooks);
   return (
-    <ComponentStateProvider hooks={hooks}>
-      <ComponentIconProvider icons={testIcons}>
-        {children}
-      </ComponentIconProvider>
-    </ComponentStateProvider>
+    <ComponentStateProvider hooks={hooks}>{children}</ComponentStateProvider>
   );
 };
 

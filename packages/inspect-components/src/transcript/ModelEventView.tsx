@@ -13,6 +13,7 @@ import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
 import { ContentCode, CopyButton } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { formatTime } from "@tsmono/util";
 
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
@@ -24,7 +25,6 @@ import { EventSection } from "./event/EventSection";
 import { RetryChip } from "./event/RetryChip";
 import { StopReasonBadge } from "./event/StopReasonBadge";
 import { formatTiming, formatTitle, isCancelError } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
 import { recentInputMessages } from "./recentInputMessages";
 import { retryAttemptKey } from "./timeline/retryGrouping";
@@ -182,7 +182,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           ? formatTiming(event.timestamp, event.working_start)
           : undefined
       }
-      icon={TranscriptIcons.model}
+      icon="model"
       turnNav={turnNav}
       headerExtra={
         fallbackBadge || retryChip ? (
@@ -206,10 +206,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
                   setShowAllMessages(true);
                 }}
               >
-                <i
-                  className={clsx(TranscriptIcons.expand, styles.showAllIcon)}
-                  aria-hidden="true"
-                />
+                <Icon name="chevronUp" className={styles.showAllIcon} />
                 Show all messages
               </button>
             </div>
@@ -226,7 +223,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         />
         {isCancelled ? (
           <div className={styles.cancelled}>
-            <i className={TranscriptIcons.cancel} />
+            <Icon name="cancel" />
             <span>{event.error}</span>
           </div>
         ) : event.error ? (

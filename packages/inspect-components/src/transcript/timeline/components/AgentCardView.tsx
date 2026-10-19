@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, MouseEvent, useCallback, useMemo } from "react";
 
 import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import { formatDurationShort } from "@tsmono/util";
 
 import { useTimelineSelect } from "../../TimelineSelectContext";
@@ -13,7 +14,6 @@ import {
 import { formatTokenCount } from "../swimlaneLayout";
 
 import styles from "./AgentCardView.module.css";
-import { useTimelineIcons } from "./TimelineIconsContext";
 
 interface AgentCardViewProps {
   span: TimelineSpan;
@@ -21,7 +21,6 @@ interface AgentCardViewProps {
 }
 
 export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
-  const icons = useTimelineIcons();
   const select = useTimelineSelect();
 
   const handleClick = useCallback(() => {
@@ -42,7 +41,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const tokens = formatTokenCount(span.totalTokens());
   const duration = formatDurationShort(span.startTime(), span.endTime());
 
-  const iconClass = isBranch ? icons.fork : icons.agent;
+  const iconName = isBranch ? "fork" : "agent";
   const label = isBranch ? "branch" : isUtility ? "utility" : "sub-agent";
 
   const cardClass = clsx(
@@ -55,9 +54,9 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const content = (
     <>
       <div className={clsx(styles.header, "text-size-small")}>
-        <i
-          className={clsx(iconClass, styles.icon, "text-style-secondary")}
-          aria-hidden="true"
+        <Icon
+          name={iconName}
+          className={clsx(styles.icon, "text-style-secondary")}
         />
         <div
           className={clsx(
@@ -73,13 +72,9 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
           {tokens} &middot; {duration}
         </div>
         {!isBranch && (
-          <i
-            className={clsx(
-              icons.chevron.right,
-              styles.disclosure,
-              "text-style-secondary"
-            )}
-            aria-hidden="true"
+          <Icon
+            name="chevronRight"
+            className={clsx(styles.disclosure, "text-style-secondary")}
           />
         )}
       </div>

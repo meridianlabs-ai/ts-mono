@@ -2,8 +2,8 @@ import { clsx } from "clsx";
 import { FC, useMemo } from "react";
 
 import { PopOver, SegmentedControl } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../appearance/icons";
 import { getFieldKey, type PickerColumn } from "../shared/gridUtils";
 
 import styles from "./ColumnSelectorPopover.module.css";
@@ -148,9 +148,7 @@ export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
             className={styles.checkbox}
           />
           <span>{col.headerName || field}</span>
-          {hasFilter && (
-            <i className={`${ApplicationIcons.filter} ${styles.filterIcon}`} />
-          )}
+          {hasFilter && <Icon name="filter" className={styles.filterIcon} />}
         </label>
       </div>
     );

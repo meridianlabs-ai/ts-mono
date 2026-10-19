@@ -1,63 +1,68 @@
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
-import { isRecord } from "@tsmono/util";
+import { IconName } from "@tsmono/react/icons";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 export const kToolTodoContentType = "agent/todo-list";
 
-/* Per-tool header icons (Bootstrap Icons classes) for the tool block
-   grammar. Keyed by the tool names Inspect and the common CLI agents emit. */
-const kToolIcons: Record<string, string> = {
-  // shells
-  bash: "bi-terminal",
-  Bash: "bi-terminal",
-  bash_session: "bi-terminal",
-  shell: "bi-terminal",
-  shell_command: "bi-terminal",
-  exec_command: "bi-terminal",
-  // code
-  python: "bi-code-square",
-  code_execution: "bi-code-square",
-  exec: "bi-code-square",
-  // web
-  web_search: "bi-search",
-  WebSearch: "bi-search",
-  web_fetch: "bi-globe2",
-  WebFetch: "bi-globe2",
-  web_browser: "bi-window",
-  // editing / files
-  text_editor: "bi-pencil-square",
-  str_replace_editor: "bi-pencil-square",
-  str_replace_based_edit_tool: "bi-pencil-square",
-  Edit: "bi-pencil-square",
-  Write: "bi-pencil-square",
-  NotebookEdit: "bi-pencil-square",
-  Read: "bi-file-earmark-text",
-  Glob: "bi-search",
-  Grep: "bi-search",
-  // sub-agents
-  task: "bi-people",
-  Task: "bi-people",
-  agent: "bi-people",
-  Agent: "bi-people",
-  spawn_agent: "bi-people",
-  send_input: "bi-people",
-  wait_agent: "bi-people",
-  resume_agent: "bi-people",
-  close_agent: "bi-people",
-  agent_status: "bi-people",
-  agent_wait: "bi-people",
-  agent_cancel: "bi-people",
-  agent_list: "bi-people",
-  // planning
-  TodoWrite: "bi-list-check",
-  todo_write: "bi-list-check",
-  update_plan: "bi-list-check",
-  think: "bi-lightbulb",
-  // misc
-  computer: "bi-display",
-  tool_search: "bi-search",
-  mcp_list_tools: "bi-plug",
-  mcp_call: "bi-plug",
-};
+/* Per-tool header icons for the tool block grammar. Keyed by the tool names
+   Inspect and the common CLI agents emit. */
+const kToolIcons = nullProtoRecord(
+  new Map<string, IconName>(
+    Object.entries({
+      // shells
+      bash: "terminal",
+      Bash: "terminal",
+      bash_session: "terminal",
+      shell: "terminal",
+      shell_command: "terminal",
+      exec_command: "terminal",
+      // code
+      python: "codeSquare",
+      code_execution: "codeSquare",
+      exec: "codeSquare",
+      // web
+      web_search: "search",
+      WebSearch: "search",
+      web_fetch: "globe",
+      WebFetch: "globe",
+      web_browser: "window",
+      // editing / files
+      text_editor: "edit",
+      str_replace_editor: "edit",
+      str_replace_based_edit_tool: "edit",
+      Edit: "edit",
+      Write: "edit",
+      NotebookEdit: "edit",
+      Read: "fileText",
+      Glob: "search",
+      Grep: "search",
+      // sub-agents
+      task: "people",
+      Task: "people",
+      agent: "people",
+      Agent: "people",
+      spawn_agent: "people",
+      send_input: "people",
+      wait_agent: "people",
+      resume_agent: "people",
+      close_agent: "people",
+      agent_status: "people",
+      agent_wait: "people",
+      agent_cancel: "people",
+      agent_list: "people",
+      // planning
+      TodoWrite: "listCheck",
+      todo_write: "listCheck",
+      update_plan: "listCheck",
+      think: "lightbulb",
+      // misc
+      computer: "computer",
+      tool_search: "search",
+      mcp_list_tools: "plug",
+      mcp_call: "plug",
+    } satisfies Record<string, IconName>)
+  )
+);
 
 /**
  * Header icon for a tool call. Unknown client tools get the general tool
@@ -66,15 +71,15 @@ const kToolIcons: Record<string, string> = {
 export const iconForTool = (
   tool: string,
   options?: { server?: boolean }
-): string => {
+): IconName => {
   const icon = kToolIcons[tool];
   if (icon) {
     return icon;
   }
   if (tool.startsWith("browser_")) {
-    return "bi-window";
+    return "window";
   }
-  return options?.server ? "bi-globe2" : "bi-tools";
+  return options?.server ? "globe" : "tools";
 };
 
 export interface ToolCallResult {

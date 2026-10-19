@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./EditButton.module.css";
 
@@ -37,7 +37,7 @@ export const EditButton: FC<EditButtonProps> = ({
     onClick={onClick}
     title={title ?? "edit"}
   >
-    <i className={ApplicationIcons.pencil} />
+    <Icon name="pencil" />
     {children ?? "edit"}
   </button>
 );

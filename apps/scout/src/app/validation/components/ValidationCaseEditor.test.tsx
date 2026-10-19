@@ -12,8 +12,6 @@ import { type FC, type PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
-import { testIcons } from "@tsmono/react/testing";
 import { decodeBase64Url, encodeBase64Url, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
@@ -119,11 +117,9 @@ const renderEditor = async (transcriptId: string) => {
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={testIcons}>
-            <MemoryRouter>
-              <WhenConfigLoaded>{children}</WhenConfigLoaded>
-            </MemoryRouter>
-          </ComponentIconProvider>
+          <MemoryRouter>
+            <WhenConfigLoaded>{children}</WhenConfigLoaded>
+          </MemoryRouter>
         </StoreProvider>
       </ApiProvider>
     </QueryClientProvider>

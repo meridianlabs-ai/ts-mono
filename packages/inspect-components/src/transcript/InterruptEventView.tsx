@@ -5,7 +5,6 @@ import type { InterruptEvent } from "@tsmono/inspect-common/types";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface InterruptEventViewProps {
@@ -43,7 +42,7 @@ export const InterruptEventView: FC<InterruptEventViewProps> = ({
     <EventPanel
       eventNodeId={eventNode.id}
       title={title}
-      icon={TranscriptIcons.interrupt}
+      icon="interrupt"
       className={className}
     >
       <div className={clsx("text-size-smaller")}>{detail}</div>

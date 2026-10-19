@@ -1,11 +1,9 @@
-import clsx from "clsx";
 import { FC, useCallback, useMemo, useState } from "react";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import { isRecord, valueAsString } from "@tsmono/util";
-
-import { ApplicationIcons } from "../../icons";
 
 import styles from "./AllScoresDialog.module.css";
 
@@ -72,13 +70,9 @@ export const AllScoresDialog: FC<AllScoresDialogProps> = ({
   const sortIcon = (column: SortColumn) => {
     if (sortColumn !== column) return null;
     return (
-      <i
-        className={clsx(
-          sortDirection === "asc"
-            ? ApplicationIcons.arrows.up
-            : ApplicationIcons.arrows.down,
-          styles.sortIcon
-        )}
+      <Icon
+        name={sortDirection === "asc" ? "arrowUp" : "arrowDown"}
+        className={styles.sortIcon}
       />
     );
   };

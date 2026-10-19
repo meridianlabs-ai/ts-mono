@@ -2,7 +2,6 @@ import { FC, useCallback } from "react";
 
 import { TextInput, type TextInputChange } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsSearch.module.css";
@@ -19,7 +18,7 @@ export const ScannerResultsSearch: FC = () => {
 
   return (
     <TextInput
-      icon={ApplicationIcons.search}
+      icon="search"
       value={scansSearchText ?? ""}
       onChange={handleChange}
       placeholder={"Search"}

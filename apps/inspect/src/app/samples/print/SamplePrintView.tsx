@@ -2,8 +2,12 @@ import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
-import { ChatView } from "@tsmono/inspect-components/chat";
+import {
+  buildSelectableMessageIndex,
+  ChatView,
+} from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { resolveSelected } from "@tsmono/inspect-components/selection";
 import {
   flatTree,
   selectedEventNodes,
@@ -44,13 +48,17 @@ import styles from "./SamplePrintView.module.css";
  * URL pattern: /logs/<logPath>/samples/sample/<id>/<epoch>/print?view=<tab>
  * Repeated `events=<node id>` params restrict a transcript print to those
  * events (ids as the transcript assigns them: the uuid, or the position-based
- * fallback for logs without uuids).
+ * fallback for logs without uuids). Repeated `messages=<id>` params restrict
+ * a messages print to those messages (the message id, or the position-based
+ * `msg-<n>` fallback for logs without ids).
  */
 export const SamplePrintView: FC = () => {
   const { sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
   const printingSelection = searchParams.has("events");
+  const printingMessageSelection =
+    searchParams.has("messages") && view === kSampleMessagesTabId;
 
   // Get sample data
   const sample = useSelectedEvalSampleData().sample;
@@ -74,6 +82,24 @@ export const SamplePrintView: FC = () => {
     flattenedNodes.length === 0;
   const listHandle = useRef<VirtualListHandle | null>(null);
 
+  // Messages: restrict to the selected rows when `messages=<id>` params are
+  // present, resolving against the same fold the Messages tab uses. A row is
+  // a head message plus its folded tool messages, so the header counts rows.
+  const sampleMessages = sample?.messages ?? [];
+  const messageIds = searchParams.getAll("messages");
+  const selectedMessageRows =
+    messageIds.length > 0
+      ? resolveSelected(
+          buildSelectableMessageIndex(sampleMessages),
+          new Set(messageIds)
+        )
+      : undefined;
+  const printMessages = selectedMessageRows?.flat() ?? sampleMessages;
+  const messageSelectionNotFound =
+    printingMessageSelection &&
+    sampleMessages.length > 0 &&
+    selectedMessageRows?.length === 0;
+
   // Auto-print once content has finished rendering.
   // Uses a MutationObserver to detect when the DOM stops changing,
   // then triggers print after a settling period.
@@ -85,7 +111,8 @@ export const SamplePrintView: FC = () => {
       !sample ||
       hasPrinted.current ||
       !contentRef.current ||
-      selectionNotFound
+      selectionNotFound ||
+      messageSelectionNotFound
     ) {
       return;
     }
@@ -119,7 +146,7 @@ export const SamplePrintView: FC = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [sample, selectionNotFound]);
+  }, [sample, selectionNotFound, messageSelectionNotFound]);
 
   if (!sample) {
     return (
@@ -128,9 +155,6 @@ export const SamplePrintView: FC = () => {
       </div>
     );
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const sampleMessages = sample.messages || [];
 
   return (
     <div className={styles.container} ref={contentRef}>
@@ -141,6 +165,9 @@ export const SamplePrintView: FC = () => {
             Sample {sampleId} (Epoch {epoch})
             {printingSelection
               ? ` · ${flattenedNodes.length} selected ${flattenedNodes.length === 1 ? "event" : "events"}`
+              : null}
+            {printingMessageSelection && selectedMessageRows
+              ? ` · ${selectedMessageRows.length} selected ${selectedMessageRows.length === 1 ? "message" : "messages"}`
               : null}
           </div>
         )}
@@ -159,16 +186,20 @@ export const SamplePrintView: FC = () => {
         />
       )}
 
-      {view === kSampleMessagesTabId && (
+      {view === kSampleMessagesTabId && !messageSelectionNotFound && (
         <ChatView
           id="print-messages"
-          messages={sampleMessages}
+          messages={printMessages}
           display={{
             indented: true,
             unlabeledRoles: ["assistant"],
             formatDateTime,
           }}
         />
+      )}
+
+      {messageSelectionNotFound && (
+        <NoContentsPanel text="None of the selected messages were found in this sample." />
       )}
 
       {view === kSampleScoringTabId && (

@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
+import { Icon } from "@tsmono/react/icons";
 
 import { AutogrowText } from "./AutogrowText";
 import { EditAnnotationsDialog } from "./EditAnnotationsDialog";
@@ -387,7 +387,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
               onClick={addKey}
               disabled={submitting || !newKey.trim()}
             >
-              <i className={ApplicationIcons.changes.add} /> Add key
+              <Icon name="changeAdd" /> Add key
             </button>
           </div>
         </div>
@@ -434,7 +434,7 @@ const MetaRow: FC<{
       aria-label={`Remove ${entry.key}`}
       disabled={disabled}
     >
-      <i className={ApplicationIcons.trash} />
+      <Icon name="trash" />
     </button>
   </div>
 );

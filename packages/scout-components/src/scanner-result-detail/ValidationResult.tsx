@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Icon } from "@tsmono/react/icons";
 import { isRecord } from "@tsmono/util";
 
 import styles from "./ValidationResult.module.css";
@@ -49,7 +50,7 @@ const Result: FC<{ value: boolean; targetValue?: string }> = ({
   return (
     <div>
       <div className={clsx(value ? styles.true : styles.false, styles.result)}>
-        <i className={clsx("bi", value ? "bi-check" : "bi-x")} />
+        <Icon name={value ? "confirm" : "close"} />
       </div>
       <span
         className={clsx(

@@ -10,7 +10,6 @@ import {
   TabSet,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../icons";
 import { GRID_STATE_NAME } from "../../state/dataframeState";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
@@ -214,10 +213,10 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
           {
             id: kSegmentList,
             label: kSegmentList,
-            icon: ApplicationIcons.file,
+            icon: "file",
           },
           {
-            icon: ApplicationIcons.samples,
+            icon: "samples",
             id: kSegmentDataframe,
             label: kSegmentDataframe,
           },

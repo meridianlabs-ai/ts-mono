@@ -4,12 +4,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { testEvalScore, testEvalSpec } from "@tsmono/inspect-common/testing";
 import type { EvalScore } from "@tsmono/inspect-common/types";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import { PlanDetailView } from "./PlanDetailView";
 
@@ -18,11 +15,9 @@ afterEach(cleanup);
 const renderScores = (scores: EvalScore[]) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <PlanDetailView evaluation={testEvalSpec()} scores={scores} />
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <PlanDetailView evaluation={testEvalSpec()} scores={scores} />
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

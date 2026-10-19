@@ -17,6 +17,7 @@ import {
   useLatestRef,
   useMountEffect,
 } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { VirtualList, type VirtualListHandle } from "@tsmono/react/virtual";
 import { valueAsString } from "@tsmono/util";
 
@@ -358,13 +359,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
                     >
                       <span>{id}</span>
                       {sorted && (
-                        <i
-                          aria-hidden="true"
-                          className={
-                            sorted === "asc"
-                              ? "bi bi-arrow-up"
-                              : "bi bi-arrow-down"
-                          }
+                        <Icon
+                          name={sorted === "asc" ? "arrowUp" : "arrowDown"}
                         />
                       )}
                     </button>

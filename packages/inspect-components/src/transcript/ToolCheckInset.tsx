@@ -8,6 +8,7 @@ import {
   type MarkdownReference,
 } from "@tsmono/react/components";
 import { useResizeObserver } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
 import { isRecord } from "@tsmono/util";
 
 import styles from "./ToolCheckInset.module.css";
@@ -42,7 +43,7 @@ interface CheckToggle {
 }
 
 interface CheckSummaryProps {
-  icon: string;
+  icon: IconName;
   iconClassName?: string;
   verdict: string;
   verdictClassName?: string;
@@ -99,10 +100,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   const clampable = !!clampReason && overflows;
   return (
     <div className={styles.summary}>
-      <i
-        className={clsx(icon, styles.icon, iconClassName)}
-        aria-hidden="true"
-      />
+      <Icon name={icon} className={clsx(styles.icon, iconClassName)} />
       <span className={clsx(styles.verdict, verdictClassName)}>{verdict}</span>
       {who ? (
         <span className={styles.who}>
@@ -144,13 +142,13 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
         <span className={styles.trailing}>
           {flagged ? (
             <span className={styles.chip}>
-              <i className="bi bi-flag-fill" aria-hidden="true" />
+              <Icon name="flag" />
               flagged
             </span>
           ) : null}
           {failed ? (
             <span className={styles.chip}>
-              <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+              <Icon name="warning" />
               {`${failed} failed`}
             </span>
           ) : null}
@@ -162,12 +160,9 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
               onClick={toggle.onToggle}
             >
               {toggle.label}
-              <i
-                className={clsx(
-                  toggle.open ? "bi bi-chevron-down" : "bi bi-chevron-right",
-                  styles.pillChevron
-                )}
-                aria-hidden="true"
+              <Icon
+                name={toggle.open ? "chevronDown" : "chevronRight"}
+                className={styles.pillChevron}
               />
             </button>
           ) : null}
@@ -233,7 +228,7 @@ interface NotRunWellProps {
 /** Stands in for the result region of a call that never ran. */
 export const NotRunWell: FC<NotRunWellProps> = ({ message }) => (
   <div className={styles.notRun}>
-    <i className="bi bi-slash-circle" aria-hidden="true" />
+    <Icon name="interrupt" />
     <div className={styles.notRunBody}>
       {message !== undefined ? (
         <>

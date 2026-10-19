@@ -8,7 +8,6 @@ import {
 import { PopOver } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../icons";
 
 import styles from "./AddFilterButton.module.css";
 import { Chip } from "./Chip";
@@ -50,7 +49,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
     <>
       <Chip
         ref={chipRef}
-        icon={ApplicationIcons.add}
+        icon="add"
         value="Add"
         title="Add a new filter"
         className={clsx(filterStyles.filterChip, "text-size-smallest")}

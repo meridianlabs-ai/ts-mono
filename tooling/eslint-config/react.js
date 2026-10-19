@@ -192,6 +192,45 @@ const requireMediaPermission = {
   },
 };
 
+// className takes any string, so an IconName or a misspelled class passed to a
+// raw <i> type-checks and renders nothing. <Icon name> is the one renderer.
+const ICON_COMPONENT_FILE = "packages/react/src/icons/Icon.tsx";
+
+const requireIconComponent = {
+  meta: {
+    type: "problem",
+    docs: {
+      description: "Require icons to render through <Icon name>",
+    },
+    schema: [],
+    messages: {
+      rawIcon:
+        "Render icons with <Icon name> from @tsmono/react/icons, not a raw " +
+        "<i className>.",
+    },
+  },
+  create(context) {
+    if (context.filename.endsWith(ICON_COMPONENT_FILE)) {
+      return {};
+    }
+    return {
+      JSXOpeningElement(node) {
+        if (
+          node.name.type === "JSXIdentifier" &&
+          node.name.name === "i" &&
+          node.attributes.some(
+            (attribute) =>
+              attribute.type === "JSXSpreadAttribute" ||
+              attribute.name.name === "className"
+          )
+        ) {
+          context.report({ node, messageId: "rawIcon" });
+        }
+      },
+    };
+  },
+};
+
 export default tseslint.config(...baseConfig, {
   files: ["**/*.{ts,tsx}"],
   plugins: {
@@ -205,6 +244,7 @@ export default tseslint.config(...baseConfig, {
       rules: {
         "no-raw-use-effect": noRawUseEffect,
         "require-media-permission": requireMediaPermission,
+        "require-icon-component": requireIconComponent,
       },
     },
   },
@@ -220,6 +260,7 @@ export default tseslint.config(...baseConfig, {
     "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
     "tsmono/no-raw-use-effect": "error",
     "tsmono/require-media-permission": "error",
+    "tsmono/require-icon-component": "error",
   },
   settings: {
     react: {

@@ -3,8 +3,8 @@ import { FC, ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { Icon } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./Modal.module.css";
 
 const TABBABLE_SELECTOR =
@@ -71,7 +71,6 @@ export const Modal: FC<ModalProps> = ({
   padded = true,
   bodyClassName,
 }) => {
-  const icons = useComponentIcons();
   const modalRef = useRef<HTMLDivElement>(null);
   const fallbackTitleId = useId();
 
@@ -170,7 +169,7 @@ export const Modal: FC<ModalProps> = ({
             onClick={onHide}
             aria-label="Close"
           >
-            <i className={icons.close} aria-hidden="true" />
+            <Icon name="close" />
           </button>
         </div>
         <div

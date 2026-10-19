@@ -3,6 +3,7 @@ import { FC, useState } from "react";
 
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { formatTime } from "@tsmono/util";
 
 import { attemptDurationSec } from "./attemptDuration";
@@ -55,15 +56,9 @@ export const RetryChip: FC<RetryChipProps> = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <i
-          className={clsx("bi", "bi-arrow-repeat", styles.chipIcon)}
-          aria-hidden="true"
-        />
+        <Icon name="retry" className={styles.chipIcon} />
         <span className={styles.chipText}>{chipText}</span>
-        <i
-          className={clsx("bi", "bi-chevron-down", styles.chipChevron)}
-          aria-hidden="true"
-        />
+        <Icon name="chevronDown" className={styles.chipChevron} />
       </button>
       {open && (
         <>

@@ -18,26 +18,19 @@ import {
   useStickyScroll,
 } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import { MessageLabel } from "../../chat/MessageLabel";
+import {
+  RowSelectCheckbox,
+  useSelectableRow,
+} from "../../selection/RowSelectCheckbox";
 import { EventLabelContext } from "../EventLabelContext";
 import { useStickyStuck } from "../hooks/useStickyStuck";
-import {
-  EventSelectCheckbox,
-  useEventRowSelection,
-} from "../selection/EventSelectCheckbox";
 import type { EventPanelCallbacks } from "../types";
 
 import { EventNavs } from "./EventNavs";
 import styles from "./EventPanel.module.css";
-
-// Default Bootstrap icon classes (same in both apps)
-const kChevronRight = "bi bi-chevron-right";
-const kChevronDown = "bi bi-chevron-down";
-const kChevronUp = "bi bi-chevron-up";
-const kLinkIcon = "bi bi-link-45deg";
-const kDefaultIcon = "bi bi-table";
-const kFocusIcon = "bi bi-arrows-angle-expand";
 
 interface EventPanelProps {
   eventNodeId: string;
@@ -45,7 +38,7 @@ interface EventPanelProps {
   title?: string;
   subTitle?: string;
   text?: string;
-  icon?: string;
+  icon?: IconName;
   children?: ReactNode | ReactNode[];
   childIds?: string[];
   collapsibleContent?: boolean;
@@ -109,7 +102,7 @@ export const EventPanel: FC<EventPanelProps> = ({
     onTabSelected,
   } = eventCallbacks ?? {};
   const eventLabel = useContext(EventLabelContext);
-  const rowSelection = useEventRowSelection(eventNodeId);
+  const rowSelection = useSelectableRow(eventNodeId);
   const selected = rowSelection?.selected === true;
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
@@ -285,7 +278,9 @@ export const EventPanel: FC<EventPanelProps> = ({
         onMouseEnter={() => setMouseOver(true)}
         onMouseLeave={() => setMouseOver(false)}
       >
-        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
+        {rowSelection ? (
+          <RowSelectCheckbox selection={rowSelection} item="event" />
+        ) : null}
         {isCollapsible && !useBottomDongle ? (
           <button
             type="button"
@@ -298,19 +293,16 @@ export const EventPanel: FC<EventPanelProps> = ({
                 : undefined
             }
           >
-            <i
-              className={collapsed ? kChevronRight : kChevronDown}
-              aria-hidden="true"
-            />
+            <Icon name={collapsed ? "chevronRight" : "chevronDown"} />
           </button>
         ) : (
           ""
         )}
         {icon ? (
-          <i
-            className={clsx(icon || kDefaultIcon, "text-style-secondary")}
+          <Icon
+            name={icon}
+            className="text-style-secondary"
             onClick={toggleCollapse}
-            aria-hidden="true"
           />
         ) : (
           ""
@@ -340,7 +332,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             <span role="presentation" onClick={(e) => e.stopPropagation()}>
               <CopyButton
                 value={url}
-                icon={kLinkIcon}
+                icon="link"
                 className={clsx(styles.copyLink)}
               />
             </span>
@@ -407,7 +399,7 @@ export const EventPanel: FC<EventPanelProps> = ({
                 disabled={turnNav.turnNumber >= turnNav.totalTurns}
                 onClick={() => onNextTurn(turnNav.turnNumber)}
               >
-                <i className={kChevronDown} />
+                <Icon name="chevronDown" />
               </button>
             )}
             {onPrevTurn && (
@@ -419,7 +411,7 @@ export const EventPanel: FC<EventPanelProps> = ({
                 disabled={turnNav.turnNumber <= 1}
                 onClick={() => onPrevTurn(turnNav.turnNumber)}
               >
-                <i className={kChevronUp} />
+                <Icon name="chevronUp" />
               </button>
             )}
             {focusUrl && (
@@ -441,7 +433,7 @@ export const EventPanel: FC<EventPanelProps> = ({
                   }
                 }}
               >
-                <i className={kFocusIcon} />
+                <Icon name="focusEnter" />
               </a>
             )}
           </span>
@@ -519,12 +511,9 @@ export const EventPanel: FC<EventPanelProps> = ({
           onClick={toggleCollapse}
           aria-expanded={!collapsed}
         >
-          <i
-            className={clsx(
-              collapsed ? kChevronRight : kChevronDown,
-              styles.dongleIcon
-            )}
-            aria-hidden="true"
+          <Icon
+            name={collapsed ? "chevronRight" : "chevronDown"}
+            className={styles.dongleIcon}
           />
           transcript ({childIds?.length}{" "}
           {childIds?.length === 1 ? "event" : "events"})

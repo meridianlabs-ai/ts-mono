@@ -80,7 +80,9 @@ invariant holds.
   for a mounted panel and report its `ListingStatus` (`loading` — a sync
   round-trip in flight, for prominent chrome like the navbar activity bar;
   `busy` — additionally folding in engine background fetching, for
-  subordinate indications; `error`);
+  subordinate indications; `error` — no sync of the log dir has
+  succeeded this session, a blocking failure; `refreshError` — a sync failed
+  after one succeeded, so the listing stays up and the navbar flags it);
   subscribing also keeps the listing fresh (a shared client-events poll
   re-syncs on host `refresh-evals` events and periodically).
   `imperativeLogData.invalidateLogListing()` is the invalidation counterpart for

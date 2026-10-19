@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, MouseEvent } from "react";
 
+import { Icon } from "@tsmono/react/icons";
+
 import styles from "./BranchPoint.module.css";
-import { TranscriptIcons } from "./icons";
 import type { ForkNavData } from "./timeline/timelineEventNodes";
 
 export interface BranchPointProps {
@@ -39,10 +40,7 @@ export const BranchPoint: FC<BranchPointProps> = ({
       className={clsx(styles.branchPoint, className)}
     >
       <span className={styles.label}>
-        <i
-          className={clsx(TranscriptIcons.fork, styles.glyph)}
-          aria-hidden="true"
-        />
+        <Icon name="fork" className={styles.glyph} />
         <span className={styles.labelText}>Branch point</span>
       </span>
       <div

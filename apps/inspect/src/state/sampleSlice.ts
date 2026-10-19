@@ -1,4 +1,8 @@
-import { EventSelectionState, SampleHandle, SampleState } from "../app/types";
+import {
+  EvidenceSelectionState,
+  SampleHandle,
+  SampleState,
+} from "../app/types";
 
 import { StoreState } from "./store";
 
@@ -27,22 +31,22 @@ export interface SampleSlice {
 
     /** Turn the mode on/off for the sample tab `key`; a different key starts
      *  from an empty selection. */
-    setEventSelectionActive: (key: string, active: boolean) => void;
-    setEventSelection: (
+    setEvidenceSelectionActive: (key: string, active: boolean) => void;
+    setEvidenceSelection: (
       key: string,
       selectedIds: string[],
       lastToggledId: string | null
     ) => void;
-    /** Drop the selected events; the mode toggle is left as is. */
-    clearEventSelection: () => void;
-    resetEventSelection: () => void;
+    /** Drop the selected rows; the mode toggle is left as is. */
+    clearEvidenceSelection: () => void;
+    resetEvidenceSelection: () => void;
 
     setTimelineSelected: (selected: string | null) => void;
     setActiveTimelineIndex: (index: number) => void;
   };
 }
 
-const kNoEventSelection: EventSelectionState = {
+const kNoEvidenceSelection: EvidenceSelectionState = {
   key: null,
   active: false,
   selectedIds: [],
@@ -50,7 +54,7 @@ const kNoEventSelection: EventSelectionState = {
 };
 
 /** Key of the evidence selection for a sample tab. */
-export const eventSelectionKey = (
+export const evidenceSelectionKey = (
   handle: SampleHandle | undefined,
   tabId: string
 ): string =>
@@ -70,7 +74,7 @@ const initialState: SampleState = {
   collapsedIdBuckets: {},
   selectedOutlineId: undefined,
 
-  eventSelection: kNoEventSelection,
+  evidenceSelection: kNoEvidenceSelection,
 
   timelineSelected: null,
   activeTimelineIndex: 0,
@@ -172,21 +176,21 @@ export const createSampleSlice = (
           state.sample.selectedOutlineId = undefined;
         });
       },
-      setEventSelectionActive: (key: string, active: boolean) => {
+      setEvidenceSelectionActive: (key: string, active: boolean) => {
         set((state) => {
-          if (state.sample.eventSelection.key !== key) {
-            state.sample.eventSelection = { ...kNoEventSelection, key };
+          if (state.sample.evidenceSelection.key !== key) {
+            state.sample.evidenceSelection = { ...kNoEvidenceSelection, key };
           }
-          state.sample.eventSelection.active = active;
+          state.sample.evidenceSelection.active = active;
         });
       },
-      setEventSelection: (
+      setEvidenceSelection: (
         key: string,
         selectedIds: string[],
         lastToggledId: string | null
       ) => {
         set((state) => {
-          state.sample.eventSelection = {
+          state.sample.evidenceSelection = {
             key,
             active: true,
             selectedIds,
@@ -194,15 +198,15 @@ export const createSampleSlice = (
           };
         });
       },
-      clearEventSelection: () => {
+      clearEvidenceSelection: () => {
         set((state) => {
-          state.sample.eventSelection.selectedIds = [];
-          state.sample.eventSelection.lastToggledId = null;
+          state.sample.evidenceSelection.selectedIds = [];
+          state.sample.evidenceSelection.lastToggledId = null;
         });
       },
-      resetEventSelection: () => {
+      resetEvidenceSelection: () => {
         set((state) => {
-          state.sample.eventSelection = kNoEventSelection;
+          state.sample.evidenceSelection = kNoEvidenceSelection;
         });
       },
       setTimelineSelected: (selected: string | null) => {

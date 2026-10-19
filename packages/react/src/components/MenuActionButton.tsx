@@ -1,14 +1,14 @@
 import { FC, useRef, useState } from "react";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { Icon, IconName } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./MenuActionButton.module.css";
 
 export interface MenuActionItem {
   label: string;
   value: string;
-  icon?: string;
+  icon?: IconName;
   disabled?: boolean;
 }
 
@@ -25,7 +25,6 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   disabled,
   title,
 }) => {
-  const icons = useComponentIcons();
   const [showMenu, setShowMenu] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +66,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
         aria-haspopup="menu"
         aria-expanded={showMenu}
       >
-        <i className={icons.menu} aria-hidden="true" />
+        <Icon name="threeDots" />
       </button>
       {showMenu && (
         <>
@@ -86,7 +85,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
                 onClick={() => handleSelect(item.value)}
                 disabled={item.disabled}
               >
-                {item.icon && <i className={item.icon} />}
+                {item.icon && <Icon name={item.icon} />}
                 {item.label}
               </button>
             ))}

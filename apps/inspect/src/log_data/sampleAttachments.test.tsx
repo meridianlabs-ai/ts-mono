@@ -4,12 +4,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import { MessageContent } from "@tsmono/inspect-components/chat";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import { resolveSample } from "./sampleFetch";
 
@@ -28,11 +25,9 @@ describe("sample attachment rendering", () => {
 
       render(
         <ComponentStateProvider hooks={makeStateHooks()}>
-          <ComponentIconProvider icons={testIcons}>
-            <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-              <MessageContent contents={message.content} />
-            </ComponentNavigationProvider>
-          </ComponentIconProvider>
+          <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+            <MessageContent contents={message.content} />
+          </ComponentNavigationProvider>
         </ComponentStateProvider>
       );
 

@@ -6,7 +6,8 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useState } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon } from "@tsmono/react/icons";
+
 import { ScansNavbar } from "../components/ScansNavbar";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useTranscriptsFilterBarProps } from "../hooks/useTranscriptsFilterBarProps";
@@ -152,7 +153,7 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
         {/* Run Button */}
         <div className={styles.runScanRow}>
           <VscodeButton disabled={!canRunScan} onClick={handleRunScan}>
-            <i className={ApplicationIcons.play} />
+            <Icon name="play" />
             Run Scan
           </VscodeButton>
           <div className={styles.mutationStatus}>

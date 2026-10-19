@@ -2,7 +2,6 @@ import { FC, useCallback } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 import { defaultColumns } from "../types";
 
@@ -72,10 +71,10 @@ export const ScannerDataframeCopyCSVButton: FC = () => {
 
   const icon =
     status === "error" || status === "empty"
-      ? ApplicationIcons.error
+      ? "error"
       : status === "success"
-        ? ApplicationIcons.check
-        : ApplicationIcons.copy;
+        ? "confirm"
+        : "copy";
 
   const label =
     status === "error"
@@ -130,10 +129,10 @@ export const ScannerDataframeDownloadCSVButton: FC = () => {
 
   const icon =
     status === "error"
-      ? ApplicationIcons.error
+      ? "error"
       : status === "success"
-        ? ApplicationIcons.check
-        : ApplicationIcons.download;
+        ? "confirm"
+        : "download";
 
   const label =
     status === "error"

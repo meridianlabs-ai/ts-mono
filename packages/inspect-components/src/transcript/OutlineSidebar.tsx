@@ -15,6 +15,7 @@ import {
 } from "react";
 
 import { StickyScroll } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import {
@@ -29,7 +30,6 @@ export interface TranscriptLayoutOutlineProps {
   onCollapsedChange: (collapsed: boolean) => void;
   toggleDisabled?: boolean;
   toggleTitle?: string;
-  toggleIcon: string;
   /** Header title shown next to the toggle icon when expanded. */
   title?: string;
   /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
@@ -137,7 +137,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
                 aria-label="Hide outline"
                 title={outline.toggleTitle ?? "Hide outline"}
               >
-                <i className="bi bi-x" />
+                <Icon name="close" />
               </button>
             </div>
             <TranscriptOutline
@@ -177,7 +177,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
             }
             aria-label="Show outline"
           >
-            <i className={outline.toggleIcon} />
+            <Icon name="sidebar" />
           </button>
         )}
       </StickyScroll>

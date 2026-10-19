@@ -1,6 +1,5 @@
 /* Inspect-specific overlay on top of @tsmono/theme/base + @tsmono/theme/vscode.
-   Rules here are either unique to inspect or reference assets that live under
-   apps/inspect/src/img/. Shared rules live in the theme package. */
+   Rules here are unique to inspect. Shared rules live in the theme package. */
 
 /* VS Code webview: clicking any non-interactive spot focuses the nearest
    container tabstop (e.g. .app-main-grid[tabindex="0"], 100vh — so its UA
@@ -74,81 +73,4 @@ li > ul {
     overflow-wrap: break-word;
     break-inside: auto;
   }
-}
-
-/* SVG Icon styles - following Bootstrap Icons pattern */
-.ii::before {
-  background-color: currentColor;
-}
-
-.inspect-icon-16::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-16.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-16.svg") no-repeat center / contain;
-}
-
-.inspect-icon-back::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-back.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-back.svg") no-repeat center / contain;
-}
-
-.inspect-icon-forward::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-forward.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-forward.svg") no-repeat center / contain;
-}
-
-.inspect-icon-file::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-file.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-file.svg") no-repeat center / contain;
-}
-
-.inspect-icon-home::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-home.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-home.svg") no-repeat center / contain;
-}
-
-.inspect-icon-tasks::before {
-  content: "";
-  width: 1em;
-  height: 1em;
-  display: inline-block;
-  vertical-align: middle;
-  margin-top: -2px;
-  mask: url("../img/tasks.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/tasks.svg") no-repeat center / contain;
-}
-
-.inspect-flow::before {
-  content: "";
-  margin-top: -4px;
-  width: 1.05em;
-  height: 1.05em;
-  display: inline-block;
-  vertical-align: middle;
-  mask: url("../img/inspect-flow.svg") no-repeat center / contain;
-  -webkit-mask: url("../img/inspect-flow.svg") no-repeat center / contain;
 }

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, MouseEvent as ReactMouseEvent, RefObject } from "react";
 
+import { Icon } from "@tsmono/react/icons";
 import { VirtualList } from "@tsmono/react/virtual";
 
 import { fmtDayClock } from "../usage";
@@ -156,7 +157,6 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   };
 
   const allSelected = selectedCategories.size === 0;
-  const sortIcon = timeDescending ? "bi-arrow-down" : "bi-arrow-up";
 
   return (
     <div className={styles.container}>
@@ -213,7 +213,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
             onClick={onToggleTimeSort}
           >
             Time
-            <i className={`bi ${sortIcon}`} aria-hidden="true" />
+            <Icon name={timeDescending ? "arrowDown" : "arrowUp"} />
           </button>
           <span>Kind</span>
           <span>Event</span>

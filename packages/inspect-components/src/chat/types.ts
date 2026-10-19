@@ -28,8 +28,6 @@ export interface ChatViewLinkingOptions {
   enabled?: boolean;
   /** Build a shareable URL for a message id. */
   getMessageUrl?: (messageId: string) => string | undefined;
-  /** Icon class for the link button. Default: "bi bi-link-45deg". */
-  icon?: string;
 }
 
 export interface ChatViewToolOptions {

@@ -11,18 +11,18 @@ import {
 import { createPortal } from "react-dom";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { Icon, IconName } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./ToolDropdownButton.module.css";
 
 interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string | ReactNode;
-  icon?: string;
+  icon?: IconName;
   items: Record<string, () => void>;
   /** Small uppercase heading rendered above the items. */
   heading?: string;
   /** Trailing action rendered below a divider (e.g. "Clear selection"). */
-  footer?: { label: string; icon?: string; onClick: () => void };
+  footer?: { label: string; icon?: IconName; onClick: () => void };
   dropdownAlign?: "left" | "right";
   dropdownClassName?: string | string[];
   subtle?: boolean;
@@ -47,7 +47,6 @@ export const ToolDropdownButton = forwardRef<
     },
     ref
   ) => {
-    const icons = useComponentIcons();
     const [isOpen, setIsOpen] = useState(false);
     const buttonRef = useRef<HTMLButtonElement | null>(null);
     const [menuPosition, setMenuPosition] = useState<{
@@ -145,12 +144,9 @@ export const ToolDropdownButton = forwardRef<
           aria-expanded={isOpen}
           {...rest}
         >
-          {icon && <i className={`${icon}`} aria-hidden="true" />}
+          {icon && <Icon name={icon} />}
           {label}
-          <i
-            className={clsx(icons.chevronDown, styles.chevron)}
-            aria-hidden="true"
-          />
+          <Icon name="chevronDown" className={styles.chevron} />
         </button>
         {isOpen &&
           menuPosition &&
@@ -196,7 +192,7 @@ export const ToolDropdownButton = forwardRef<
                       )}
                       onClick={() => handleItemClick(footer.onClick)}
                     >
-                      {footer.icon ? <i className={footer.icon} /> : null}
+                      {footer.icon ? <Icon name={footer.icon} /> : null}
                       {footer.label}
                     </button>
                   </>

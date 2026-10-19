@@ -3,8 +3,8 @@ import React, { CSSProperties, FC, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../../icons";
 import { transcriptRoute } from "../../../router/url";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { eventChecked } from "../../utils/formEvents";
@@ -262,7 +262,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
           </div>
         ) : (
           <div className={styles.notFoundRow}>
-            <i className={ApplicationIcons.logging.warning} />
+            <Icon name="logWarning" />
             <span>Not found in project transcripts</span>
           </div>
         )}
@@ -297,7 +297,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
           disabled={!transcriptsDir}
           title="View transcript"
         >
-          <i className={ApplicationIcons.edit} />
+          <Icon name="edit" />
         </button>
         {onDelete && (
           <button
@@ -307,7 +307,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
             disabled={isDeleting}
             title="Delete case"
           >
-            <i className={ApplicationIcons.trash} />
+            <Icon name="trash" />
           </button>
         )}
       </div>
