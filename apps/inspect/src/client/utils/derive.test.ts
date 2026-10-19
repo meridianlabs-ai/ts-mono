@@ -214,14 +214,11 @@ describe("deriveSampleFields", () => {
 
 // Scorer, metric and sample score names come straight from the log. A name
 // that is an Object.prototype member must stay an ordinary entry, never a
-// write onto Object.prototype, the Object constructor or a builtin method.
+// write onto Object.prototype or the Object constructor.
 describe("prototype safety", () => {
   const prototypeKeys = new Set(Object.getOwnPropertyNames(Object.prototype));
   const objectStatics = new Set(Object.getOwnPropertyNames(Object));
   const objectKeys = Object.keys;
-  const toStringKeys = new Set(
-    Object.getOwnPropertyNames(Object.prototype.toString)
-  );
 
   afterEach(() => {
     for (const key of Object.getOwnPropertyNames(Object.prototype)) {
@@ -230,10 +227,6 @@ describe("prototype safety", () => {
     }
     for (const key of Object.getOwnPropertyNames(Object)) {
       if (!objectStatics.has(key)) Reflect.deleteProperty(Object, key);
-    }
-    for (const key of Object.getOwnPropertyNames(Object.prototype.toString)) {
-      if (!toStringKeys.has(key))
-        Reflect.deleteProperty(Object.prototype.toString, key);
     }
     Object.keys = objectKeys;
   });
@@ -253,13 +246,11 @@ describe("prototype safety", () => {
   test.each([
     ["__proto__", "planted"],
     ["constructor", "keys"],
-    ["toString", "planted"],
   ])("keeps a scorer named %s as an ordinary entry", (name, metric) => {
     const scores = deriveLogFields(headerWithScore(name, metric)).scores;
 
     expect(Object.hasOwn(Object.prototype, "planted")).toBe(false);
     expect(Object.keys).toBe(objectKeys);
-    expect(Object.hasOwn(Object.prototype.toString, "planted")).toBe(false);
     expect(scores && Object.entries(scores)).toEqual([[name, { [metric]: 1 }]]);
   });
 

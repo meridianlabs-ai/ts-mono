@@ -46,9 +46,7 @@ describe("InterruptEventView", () => {
   });
 
   it("describes a known source and interruption point", () => {
-    renderView(
-      interruptEvent({ source: "limit", interrupted: "tool_call" })
-    );
+    renderView(interruptEvent({ source: "limit", interrupted: "tool_call" }));
     expect(screen.getByText(/Interrupted by limit/)).toBeDefined();
     expect(screen.getByText("during tool execution")).toBeDefined();
   });
