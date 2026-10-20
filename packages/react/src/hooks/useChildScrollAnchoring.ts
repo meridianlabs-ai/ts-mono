@@ -1,0 +1,83 @@
+import { RefObject, useEffect } from "react";
+
+/**
+ * Keeps on-screen content still when children of `containerRef` that were
+ * entirely above the scroll viewport change height, by scrolling the nearest
+ * scrolling ancestor by the same amount. Browsers do this natively (scroll
+ * anchoring), but VirtualList turns it off for its scroller so it can't
+ * fight the virtualizer's own resize compensation. Children whose height is
+ * an estimate until they first render (content-visibility: auto) need it, or
+ * scrolling up through them jumps.
+ *
+ * `childrenKey` must change whenever the container's set of children does.
+ */
+export const useChildScrollAnchoring = (
+  containerRef: RefObject<HTMLElement | null>,
+  childrenKey: unknown
+): void => {
+  useEffect(() => {
+    const container = containerRef.current;
+    const scroller = container ? scrollingAncestor(container) : null;
+    if (!container || !scroller) {
+      return;
+    }
+    const heights = new Map<Element, number>();
+    const observer = new ResizeObserver((entries) => {
+      const changes: { target: Element; previous: number; delta: number }[] =
+        [];
+      for (const entry of entries) {
+        const height = blockSize(entry);
+        const previous = heights.get(entry.target);
+        heights.set(entry.target, height);
+        if (previous !== undefined && height !== previous) {
+          changes.push({ target: entry.target, previous, delta: height - previous });
+        }
+      }
+      if (changes.length === 0) {
+        return;
+      }
+      const viewportTop = scroller.getBoundingClientRect().top;
+      changes.sort(
+        (a, b) =>
+          a.target.getBoundingClientRect().top -
+          b.target.getBoundingClientRect().top
+      );
+      // Positions are read after layout, so undo the growth of the changed
+      // children above each one to find where it was before this change.
+      let grownAbove = 0;
+      let compensation = 0;
+      for (const { target, previous, delta } of changes) {
+        const topBefore = target.getBoundingClientRect().top - grownAbove;
+        if (topBefore + previous <= viewportTop) {
+          compensation += delta;
+        }
+        grownAbove += delta;
+      }
+      if (compensation !== 0) {
+        scroller.scrollTop += compensation;
+      }
+    });
+    for (const child of container.children) {
+      observer.observe(child);
+    }
+    return () => observer.disconnect();
+  }, [containerRef, childrenKey]);
+};
+
+const blockSize = (entry: ResizeObserverEntry): number =>
+  entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
+
+// The nearest ancestor that scrolls now: an `overflow: auto` element whose
+// content fits (a `pre` sized to its text) doesn't count.
+const scrollingAncestor = (element: HTMLElement): HTMLElement | null => {
+  for (let el = element.parentElement; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      el.scrollHeight > el.clientHeight
+    ) {
+      return el;
+    }
+  }
+  return null;
+};

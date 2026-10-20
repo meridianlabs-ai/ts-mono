@@ -1,5 +1,6 @@
 import { ClipboardEvent, FC, useState } from "react";
 
+import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
 import { kChunkThreshold, splitTextChunks } from "./textChunks";
@@ -28,6 +29,7 @@ const TextChunks: FC<ChunkedTextProps> = ({ text }) => {
   const ref = useResizeObserver<HTMLSpanElement>((entry) => {
     setCharsPerLine(measureCharsPerLine(entry.target, entry.contentRect.width));
   });
+  useChildScrollAnchoring(ref, text);
   return (
     <span
       ref={ref}
