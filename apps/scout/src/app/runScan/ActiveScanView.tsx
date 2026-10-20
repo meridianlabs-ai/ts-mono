@@ -6,6 +6,7 @@ import {
   NoContentsPanel,
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
+import { getOwn } from "@tsmono/util";
 
 import {
   ActiveScanInfo,
@@ -76,16 +77,17 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
-    (name) => (summary.scanners[name]?.validation?.entries.length ?? 0) > 0
+    (name) =>
+      (getOwn(summary.scanners, name)?.validation?.entries.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
-    (name) => summary.scanners[name]?.metrics !== null
+    (name) => getOwn(summary.scanners, name)?.metrics !== null
   );
   const metricLabel = hasMetrics ? getMetricLabel(summary.scanners) : "";
 
   // Calculate scanner stats (iterate over scanner_names to show all rows from start)
   const scannerStats = info.scanner_names.map((name) => {
-    const scanner = summary.scanners[name];
+    const scanner = getOwn(summary.scanners, name);
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
           (sum, usage) => sum + usage.total_tokens,

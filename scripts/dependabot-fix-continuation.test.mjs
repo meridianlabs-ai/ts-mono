@@ -483,7 +483,7 @@ test("the workflow's Land step opts into build config only behind the agent user
 });
 
 // The agent job's pnpm store and .turbo saves would land in default-branch
-// scope, which ci.yaml and npm-publish.yml restore (Claude Security 4629157).
+// scope, which ci.yaml restores (Claude Security 4629157).
 test("the workflow's agent job cannot save the Actions cache", () => {
   const workflow = readFileSync(
     fileURLToPath(

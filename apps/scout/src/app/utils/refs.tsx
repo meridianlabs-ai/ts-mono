@@ -9,6 +9,7 @@ import {
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { MarkdownReference } from "@tsmono/react/components";
+import { getOwn } from "@tsmono/util";
 
 import { scanResultRoute } from "../../router/url";
 import { useScanRoute } from "../../router/useScanRoute";
@@ -85,7 +86,7 @@ export const toMarkdownRefs = (
 
   const refs: MarkdownReference[] = [];
   for (const ref of summary.messageReferences) {
-    const renderPreview = refLookup[ref.id];
+    const renderPreview = getOwn(refLookup, ref.id);
     const refUrl = makeReferenceUrl(ref.id, "message");
     if (ref.cite && (renderPreview || refUrl)) {
       refs.push({
@@ -98,7 +99,7 @@ export const toMarkdownRefs = (
   }
 
   for (const ref of summary.eventReferences) {
-    const renderPreview = refLookup[ref.id];
+    const renderPreview = getOwn(refLookup, ref.id);
     const refUrl = makeReferenceUrl(ref.id, "event");
     if (ref.cite && (renderPreview || refUrl)) {
       refs.push({

@@ -6,6 +6,7 @@ import {
   type WireTimeline,
 } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
 
 import type {
   ActiveScanInfo,
@@ -228,9 +229,9 @@ const mapRecord = <T, U>(
   record: Record<string, T>,
   map: (value: T) => U
 ): Record<string, U> => {
-  const out: Record<string, U> = {};
+  const out = new Map<string, U>();
   for (const [key, value] of Object.entries(record)) {
-    out[key] = map(value);
+    out.set(key, map(value));
   }
-  return out;
+  return nullProtoRecord(out);
 };

@@ -1,3 +1,5 @@
+import { getOwn } from "@tsmono/util";
+
 import type { StoreSlice } from "./store";
 
 export interface ValidationSlice {
@@ -36,7 +38,7 @@ export const createValidationSlice: StoreSlice<ValidationSlice> = (set) => ({
   },
   toggleValidationCaseSelection: (caseId: string) => {
     set((state) => {
-      const current = state.validationCaseSelection[caseId] ?? false;
+      const current = getOwn(state.validationCaseSelection, caseId) ?? false;
       state.validationCaseSelection[caseId] = !current;
     });
   },

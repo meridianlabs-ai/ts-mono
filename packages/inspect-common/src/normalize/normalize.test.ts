@@ -104,6 +104,16 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     ]);
   });
 
+  it("keeps a metric named __proto__ as an ordinary entry", () => {
+    const raw: unknown = JSON.parse(
+      '[{"name": "s", "metrics": {"__proto__": {"name": "m", "value": 1}}}]'
+    );
+    const results = normalizeEvalResults({ scores: raw })!;
+    expect(Object.entries(results.scores[0]!.metrics)).toEqual([
+      ["__proto__", testEvalMetric({ name: "m", value: 1 })],
+    ]);
+  });
+
   it("returns null results for in-progress logs", () => {
     expect(normalizeEvalResults(undefined)).toBeNull();
     expect(normalizeEvalResults(null)).toBeNull();

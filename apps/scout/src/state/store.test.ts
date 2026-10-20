@@ -159,6 +159,22 @@ describe("store properties prototype safety", () => {
   });
 });
 
+describe("validation case selection", () => {
+  it("toggles a case whose id is constructor on and off", () => {
+    const store = createStore(apiScoutServer());
+
+    store.getState().toggleValidationCaseSelection("constructor");
+    expect(store.getState().validationCaseSelection).toEqual({
+      constructor: true,
+    });
+
+    store.getState().toggleValidationCaseSelection("constructor");
+    expect(store.getState().validationCaseSelection).toEqual({
+      constructor: false,
+    });
+  });
+});
+
 describe("dataframe state lifetime", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

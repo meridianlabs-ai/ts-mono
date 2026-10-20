@@ -1,5 +1,5 @@
 import { defineNetworkFixture, type NetworkFixture } from "@msw/playwright";
-import { test as base } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
 
 import { defaultHandlers } from "./handlers";
 
@@ -47,9 +47,20 @@ const MOCK_EVENT_SOURCE_SCRIPT = `
   };
 `;
 
+declare global {
+  interface Window {
+    __reportCspViolation?: (violation: string) => void;
+  }
+}
+
 interface AppFixtures {
   network: NetworkFixture;
   disableRetries: void;
+  /** Off for a test that triggers CSP violations on purpose; it then asserts
+   *  `cspViolations` itself. */
+  allowCspViolations: boolean;
+  /** Every CSP violation a page in the test has reported so far. */
+  cspViolations: string[];
 }
 
 export const test = base.extend<AppFixtures>({
@@ -74,6 +85,40 @@ export const test = base.extend<AppFixtures>({
     { auto: true },
   ],
 
+  allowCspViolations: [false, { option: true }],
+  // The preview build serves the viewer's CSP, so every spec doubles as a
+  // check that what it renders works under the policy: a blocked stylesheet,
+  // icon or media source often still passes a rendering assertion. Every page
+  // in the context is watched. The dev server sends no policy, so this never
+  // fires for the dataframe harness.
+  cspViolations: [
+    async ({ context, allowCspViolations }, use) => {
+      const violations: string[] = [];
+      // The violation event, not console text: a blocked eval throws an
+      // EvalError and logs nothing, so only the event reports it. A worker's
+      // violations fire in the worker, not here; the build's eval check
+      // covers eval there.
+      await context.exposeBinding(
+        "__reportCspViolation",
+        (_source, violation: string) => {
+          violations.push(violation);
+        }
+      );
+      await context.addInitScript(() => {
+        document.addEventListener("securitypolicyviolation", (event) => {
+          window.__reportCspViolation?.(
+            `${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`
+          );
+        });
+      });
+      await use(violations);
+      if (!allowCspViolations) {
+        expect(violations, "CSP violations").toEqual([]);
+      }
+    },
+    { auto: true },
+  ],
+
   // Opt-in fixture: destructure in a test to disable React Query retries
   disableRetries: [
     async ({ page }, use) => {
@@ -86,4 +131,4 @@ export const test = base.extend<AppFixtures>({
   ],
 });
 
-export { expect } from "@playwright/test";
+export { expect };

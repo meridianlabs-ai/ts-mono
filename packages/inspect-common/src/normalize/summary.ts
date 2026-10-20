@@ -1,4 +1,4 @@
-import { isRecord } from "@tsmono/util";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 import type {
   ChatMessage,
@@ -23,7 +23,7 @@ export const normalizeModelUsageMap = (
     return {};
   }
   let changed = false;
-  const usage: Record<string, ModelUsage> = {};
+  const usage = new Map<string, ModelUsage>();
   for (const [model, entry] of Object.entries(raw)) {
     const normalized = normalizeModelUsage(entry);
     if (normalized === undefined) {
@@ -31,10 +31,10 @@ export const normalizeModelUsageMap = (
       continue;
     }
     if (normalized !== entry) changed = true;
-    usage[model] = normalized;
+    usage.set(model, normalized);
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped unchanged, so raw already satisfies the type
-  return changed ? usage : (raw as Record<string, ModelUsage>);
+  return changed ? nullProtoRecord(usage) : (raw as Record<string, ModelUsage>);
 };
 
 const isContent = (value: unknown): value is Content =>
