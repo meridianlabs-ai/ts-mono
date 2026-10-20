@@ -46,7 +46,12 @@ export const useChildScrollAnchoring = (
     const settle = (scroller: HTMLElement, attempts: number) => {
       const before = scroller.scrollTop;
       scroller.scrollTop = before + owed;
-      owed -= scroller.scrollTop - before;
+      const applied = scroller.scrollTop - before;
+      owed -= applied;
+      // Not the reader's scrolling, so the anchor's target doesn't move with it.
+      if (anchorRef?.current) {
+        anchorRef.current.scrollTop += applied;
+      }
       if (Math.abs(owed) >= 1 && attempts > 0) {
         frame = requestAnimationFrame(() => settle(scroller, attempts - 1));
       } else {
@@ -78,32 +83,41 @@ export const useChildScrollAnchoring = (
       if (row && row.getBoundingClientRect().bottom - grown <= viewportTop) {
         return;
       }
+      if (
+        anchorRef?.current &&
+        performance.now() - anchorRef.current.capturedAt > kAnchorLifetimeMs
+      ) {
+        anchorRef.current = null;
+      }
       const anchor = anchorRef?.current;
       const anchorTop = changes.some(({ target }) => target === anchor?.target)
         ? anchor?.locate()
         : undefined;
-      let compensation = 0;
       if (anchor && anchorTop !== undefined) {
         anchorRef.current = null;
-        // Where the anchor belongs now, after any scrolling since its capture.
+        // Where the anchor belongs now, after the reader's scrolling since its
+        // capture. It replaces any compensation still owed.
         const target = anchor.top - (scroller.scrollTop - anchor.scrollTop);
-        compensation = anchorTop - target;
-      } else {
-        changes.sort(
-          (a, b) =>
-            a.target.getBoundingClientRect().top -
-            b.target.getBoundingClientRect().top
-        );
-        // Positions are read after layout, so undo the growth of the changed
-        // children above each one to find where it was before this change.
-        let grownAbove = 0;
-        for (const { target, delta } of changes) {
-          const topBefore = target.getBoundingClientRect().top - grownAbove;
-          if (topBefore < viewportTop) {
-            compensation += delta;
-          }
-          grownAbove += delta;
+        cancelAnimationFrame(frame);
+        owed = anchorTop - target;
+        settle(scroller, kSettleFrames);
+        return;
+      }
+      let compensation = 0;
+      changes.sort(
+        (a, b) =>
+          a.target.getBoundingClientRect().top -
+          b.target.getBoundingClientRect().top
+      );
+      // Positions are read after layout, so undo the growth of the changed
+      // children above each one to find where it was before this change.
+      let grownAbove = 0;
+      for (const { target, delta } of changes) {
+        const topBefore = target.getBoundingClientRect().top - grownAbove;
+        if (topBefore < viewportTop) {
+          compensation += delta;
         }
+        grownAbove += delta;
       }
       if (compensation !== 0) {
         cancelAnimationFrame(frame);
@@ -129,13 +143,20 @@ export interface ScrollAnchor {
   target: Element;
   /** The point's viewport y when captured. */
   top: number;
-  /** The scroller's scrollTop when captured. */
+  /** The scroller's scrollTop when captured, plus any compensation since. */
   scrollTop: number;
+  /** `performance.now()` at capture. */
+  capturedAt: number;
   /** The point's viewport y now, or undefined until it can be found. */
   locate: () => number | undefined;
 }
 
 const kSettleFrames = 10;
+
+// The change an anchor is for follows its capture within a frame or two; an
+// anchor left unused (its child never resized) must not apply to a later,
+// unrelated resize.
+const kAnchorLifetimeMs = 1000;
 
 const blockSize = (entry: ResizeObserverEntry): number =>
   entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;

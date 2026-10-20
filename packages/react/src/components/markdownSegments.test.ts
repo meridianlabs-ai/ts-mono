@@ -51,7 +51,7 @@ const kEverySegment = { size: 1, hugeBlock: Infinity };
 const withoutMathIds = (html: string) => html.replace(/mjx-[0-9a-f]+/g, "mjx");
 
 const withoutSourceLines = (html: string) =>
-  html.replace(/ data-source-line="\d+"/g, "");
+  html.replace(/ data-source-lines="\d+ \d+"/g, "");
 
 describe("segmentMarkdown", () => {
   it("renders the same HTML as the whole document", async () => {
@@ -148,7 +148,7 @@ describe("segmentMarkdown", () => {
     });
   });
 
-  it("tags each rendered top-level block with the segment line it starts on", async () => {
+  it("tags each rendered top-level block with the segment lines it spans", async () => {
     const doc =
       "# Title\n\nFirst paragraph.\n\n- a\n- b\n\n```\ncode\n```\n\nLast.\n";
     const { segments, render } = await segmentMarkdown(doc, "full", {
@@ -158,14 +158,20 @@ describe("segmentMarkdown", () => {
     const tagged = segments.flatMap((segment) => {
       const lines = segment.source.split("\n");
       return [
-        ...render(segment).matchAll(/<(\w+)[^>]* data-source-line="(\d+)"/g),
-      ].map(([, tag, line]) => [tag, lines[Number(line)]]);
+        ...render(segment).matchAll(
+          /<(\w+)[^>]* data-source-lines="(\d+) (\d+)"/g
+        ),
+      ].map(([, tag, start, end]) => [
+        tag,
+        lines.slice(Number(start), Number(end)).join("\n"),
+      ]);
     });
     expect(tagged).toEqual([
       ["h1", "# Title"],
       ["p", "First paragraph."],
-      ["ul", "- a"],
-      ["code", "```"],
+      // markdown-it's list spans the blank line after it.
+      ["ul", "- a\n- b\n"],
+      ["code", "```\ncode\n```"],
       ["p", "Last."],
     ]);
   });

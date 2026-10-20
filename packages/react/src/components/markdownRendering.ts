@@ -14,7 +14,7 @@ import {
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
-  kSourceLineAttribute,
+  kSourceLinesAttribute,
   type MarkdownRenderer,
 } from "./markdownText";
 
@@ -537,7 +537,7 @@ export const segmentMarkdown = async (
         const tokens = md.parse(segment.prepared, env);
         for (const token of tokens) {
           if (token.level === 0 && token.nesting !== -1 && token.map) {
-            token.attrSet(kSourceLineAttribute, String(token.map[0]));
+            token.attrSet(kSourceLinesAttribute, token.map.join(" "));
           }
         }
         html = md.renderer.render(tokens, md.options, env);

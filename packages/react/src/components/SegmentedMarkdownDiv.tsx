@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import { CSSProperties, forwardRef, useCallback, useRef } from "react";
 
-import { scrollingAncestor } from "../hooks/scrollingAncestor";
 import type { ScrollAnchor } from "../hooks/useChildScrollAnchoring";
 import { useProgressiveTask } from "../hooks/useProgressiveTask";
 import { useRevealedChildren } from "../hooks/useRevealedChildren";
@@ -10,7 +9,8 @@ import { ChunkedText, chunkProps, useChunkLayout } from "./ChunkedText";
 import { useHasAllContentPermissions } from "./ContentTrustContext";
 import { markdownPipeline } from "./markdownPipelineLoader";
 import type { MarkdownSegment } from "./markdownRendering";
-import { escapeHtmlCharacters, kSourceLineAttribute } from "./markdownText";
+import { escapeHtmlCharacters } from "./markdownText";
+import { centerAnchor } from "./segmentAnchor";
 import { kChunkThreshold } from "./textChunks";
 import { yieldToBrowser } from "./yieldToBrowser";
 
@@ -162,109 +162,6 @@ const SegmentList = ({
       })}
     </div>
   );
-};
-
-// Swapping a segment's source for its HTML moves the text inside it. Find in
-// page scrolls a match in the source to the viewport's center, so the source
-// line there is kept in place once the segment renders.
-const centerAnchor = (
-  container: HTMLElement,
-  indexes: number[]
-): ScrollAnchor | undefined => {
-  const scroller = scrollingAncestor(container);
-  if (!scroller) {
-    return undefined;
-  }
-  const view = scroller.getBoundingClientRect();
-  const center = view.top + view.height / 2;
-  for (const index of indexes) {
-    const segment = container.children[index];
-    const text = segment?.firstChild;
-    if (
-      !segment?.classList.contains("markdown-segment-pending") ||
-      !(text instanceof Text)
-    ) {
-      continue;
-    }
-    const box = segment.getBoundingClientRect();
-    if (box.top > center || box.bottom <= center) {
-      continue;
-    }
-    const offset = offsetAtY(text, center);
-    const line = sourceLinePosition(text.data, offset);
-    const lineCount = sourceLinePosition(text.data, text.length) + 1;
-    return {
-      target: segment,
-      top: charTop(text, offset),
-      scrollTop: scroller.scrollTop,
-      locate: () => renderedLineTop(segment, line, lineCount),
-    };
-  }
-  return undefined;
-};
-
-const charTop = (text: Text, offset: number): number => {
-  const range = document.createRange();
-  range.setStart(text, offset);
-  range.setEnd(text, Math.min(offset + 1, text.length));
-  const box = range.getBoundingClientRect();
-  // A line break can have no box of its own; the character before it shares
-  // its row.
-  return box.height > 0 || offset === 0 ? box.top : charTop(text, offset - 1);
-};
-
-// The last character whose row starts at or above `y`.
-const offsetAtY = (text: Text, y: number): number => {
-  let low = 0;
-  let high = Math.max(0, text.length - 1);
-  while (low < high) {
-    const mid = (low + high + 1) >> 1;
-    if (charTop(text, mid) <= y) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return low;
-};
-
-// The line `offset` falls on, plus how far along that line it is.
-const sourceLinePosition = (source: string, offset: number): number => {
-  let line = 0;
-  let lineStart = 0;
-  for (let i = source.indexOf("\n"); i !== -1 && i < offset;) {
-    line++;
-    lineStart = i + 1;
-    i = source.indexOf("\n", i + 1);
-  }
-  const lineEnd = source.indexOf("\n", lineStart);
-  const length = (lineEnd === -1 ? source.length : lineEnd) - lineStart;
-  return line + (length > 0 ? Math.min(1, (offset - lineStart) / length) : 0);
-};
-
-// Where a source line sits in the segment's rendered HTML: within the block
-// it falls in, as far down as it is through that block's lines.
-const renderedLineTop = (
-  segment: Element,
-  line: number,
-  lineCount: number
-): number | undefined => {
-  if (segment.classList.contains("markdown-segment-pending")) {
-    return undefined;
-  }
-  const blocks = [...segment.querySelectorAll(`[${kSourceLineAttribute}]`)];
-  const starts = blocks.map((block) =>
-    Number(block.getAttribute(kSourceLineAttribute))
-  );
-  const index = starts.findLastIndex((start) => start <= line);
-  const block = blocks[index];
-  const start = starts[index];
-  if (!block || start === undefined) {
-    return segment.getBoundingClientRect().top;
-  }
-  const end = starts[index + 1] ?? lineCount;
-  const box = block.getBoundingClientRect();
-  return box.top + ((line - start) / Math.max(1, end - start)) * box.height;
 };
 
 const segmentHtml = (

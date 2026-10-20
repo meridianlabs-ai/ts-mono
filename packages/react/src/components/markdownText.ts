@@ -6,9 +6,9 @@ export type MarkdownRenderer = "full" | "textOnly" | "fragment";
 
 export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
-/** On a segment's rendered top-level blocks: the source line it starts on,
- *  counted from the segment's first line. */
-export const kSourceLineAttribute = "data-source-line";
+/** On a segment's rendered top-level blocks: the source lines the block
+ *  spans, "start end" (end exclusive), counted from the segment's first line. */
+export const kSourceLinesAttribute = "data-source-lines";
 
 // Markdown-aware truncation to `maxLength` reads at most this many times
 // `maxLength` characters (see markdownTruncate.ts). 8x leaves 7 * maxLength of

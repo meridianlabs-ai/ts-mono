@@ -173,6 +173,7 @@ describe("useChildScrollAnchoring", () => {
       target: above,
       top: 250,
       scrollTop: 1000,
+      capturedAt: performance.now(),
       locate: () => 400,
     };
     placeAt(above, -100, 600);
@@ -189,6 +190,7 @@ describe("useChildScrollAnchoring", () => {
       target: above,
       top: 250,
       scrollTop: 1000,
+      capturedAt: performance.now(),
       locate: () => 400,
     };
     // Scrolled down 100px after the anchor was captured: the anchor belongs
@@ -207,11 +209,67 @@ describe("useChildScrollAnchoring", () => {
       target: above,
       top: 250,
       scrollTop: 1000,
+      capturedAt: performance.now(),
       locate: () => undefined,
     };
     placeAt(above, -100, 600);
     resize(above, 600);
     expect(scrollTop.value).toBe(1300);
     expect(anchor.current).not.toBeNull();
+  });
+
+  it("ignores an anchor whose child didn't change", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    anchor.current = {
+      target: screen.getByTestId("visible"),
+      top: 250,
+      scrollTop: 1000,
+      capturedAt: performance.now(),
+      locate: () => 400,
+    };
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+  });
+
+  it("drops an anchor captured more than a moment ago", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    anchor.current = {
+      target: above,
+      top: 250,
+      scrollTop: 1000,
+      capturedAt: performance.now() - 5000,
+      locate: () => 400,
+    };
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+    expect(anchor.current).toBeNull();
+  });
+
+  it("doesn't count its own compensation as scrolling since the anchor's capture", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    let rendered = false;
+    anchor.current = {
+      target: above,
+      top: 250,
+      scrollTop: 1000,
+      capturedAt: performance.now(),
+      locate: () => (rendered ? 250 : undefined),
+    };
+    // Still showing its source: compensated as usual.
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+    // Rendered, and the anchored line is already where it was.
+    rendered = true;
+    resize(above, 700);
+    expect(scrollTop.value).toBe(1300);
   });
 });
