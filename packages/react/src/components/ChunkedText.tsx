@@ -1,10 +1,9 @@
-import { ClipboardEvent, FC } from "react";
+import { ClipboardEvent, CSSProperties, FC } from "react";
 
 import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
 import styles from "./ChunkedText.module.css";
-import { cssVars } from "./cssVars";
 import { kChunkThreshold, splitTextChunks } from "./textChunks";
 
 interface ChunkedTextProps {
@@ -21,15 +20,8 @@ interface ChunkedTextProps {
 export const ChunkedText: FC<ChunkedTextProps> = ({ text }) =>
   text.length <= kChunkThreshold ? text : <TextChunks text={text} />;
 
-/**
- * Layout shared by containers of content-visibility chunks: put the returned
- * ref on the element whose children are the chunks, and `chunkProps` on each
- * chunk. Chunks get a height estimate until they first render, and scrolling
- * stays anchored when a chunk above the viewport renders taller or shorter
- * than estimated. `childrenKey` must change when the chunks do.
- */
-export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
-  const ref = useResizeObserver<T>((entry) => {
+const TextChunks: FC<ChunkedTextProps> = ({ text }) => {
+  const ref = useResizeObserver<HTMLSpanElement>((entry) => {
     // Measured once: every chunk's contents inherit the variable, so changing
     // it restyles all of them, and re-estimating never-rendered chunks after
     // a resize would swing the whole text's height by the estimate error.
@@ -44,20 +36,7 @@ export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
       );
     }
   });
-  useChildScrollAnchoring(ref, childrenKey);
-  return ref;
-};
-
-const kCharsPerLine = "--chunk-chars-per-line";
-
-/** Class and style for one chunk of `chars` characters over `lines` lines. */
-export const chunkProps = (chars: number, lines: number) => ({
-  className: styles.chunk,
-  style: cssVars({ "--chunk-chars": chars, "--chunk-lines": lines }),
-});
-
-const TextChunks: FC<ChunkedTextProps> = ({ text }) => {
-  const ref = useChunkLayout<HTMLSpanElement>(text);
+  useChildScrollAnchoring(ref, text);
   return (
     <span
       ref={ref}
@@ -66,12 +45,28 @@ const TextChunks: FC<ChunkedTextProps> = ({ text }) => {
       data-chunk-container
     >
       {splitTextChunks(text).map((chunk, index) => (
-        <span key={index} {...chunkProps(chunk.text.length, chunk.lines)}>
+        <span
+          key={index}
+          className={styles.chunk}
+          style={chunkSize(chunk.text.length, chunk.lines)}
+        >
           {chunk.text}
         </span>
       ))}
     </span>
   );
+};
+
+const kCharsPerLine = "--chunk-chars-per-line";
+
+// The custom properties a chunk's height estimate reads. csstype declares no
+// `--*` properties; React passes these through to the DOM.
+const chunkSize = (chars: number, lines: number): CSSProperties => {
+  const vars: Record<`--${string}`, number> = {
+    "--chunk-chars": chars,
+    "--chunk-lines": lines,
+  };
+  return vars;
 };
 
 // A chunk boundary inside a long line is a block boundary, which the browser

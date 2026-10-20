@@ -4,6 +4,7 @@ import { FC, ReactNode } from "react";
 import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
+  ChunkedText,
   RequireMedia,
   usePlainText,
 } from "@tsmono/react/components";
@@ -112,10 +113,23 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const ansi =
     displayMode === "rendered" && isAnsiOutput(text.slice(0, kMaxInlineChars));
 
+  // As the head shows it: trimmed, unless raw or untrusted.
+  const trim = plain.trusted && displayMode !== "raw";
+  const renderPlain = (shown: string) => (
+    <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
+      <code className={clsx("sourceCode", styles.textCode)}>
+        <ChunkedText text={shown} />
+      </code>
+    </pre>
+  );
+
   return (
     <CappedText
       text={text}
-      toPlainText={ansi ? stripAnsi : undefined}
+      toPlainText={(all) => {
+        const shown = ansi ? stripAnsi(all) : all;
+        return trim ? shown.trim() : shown;
+      }}
       render={(shown) =>
         ansi ? (
           <ANSIDisplay
@@ -123,19 +137,10 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
             style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
           />
         ) : (
-          <pre
-            className={clsx(styles.textOutput, "tool-output", plain.className)}
-          >
-            <code className={clsx("sourceCode", styles.textCode)}>
-              {!plain.trusted
-                ? plain.present(shown)
-                : displayMode === "raw"
-                  ? shown
-                  : shown.trim()}
-            </code>
-          </pre>
+          renderPlain(trim ? shown.trim() : plain.present(shown))
         )
       }
+      renderPlain={renderPlain}
     />
   );
 };

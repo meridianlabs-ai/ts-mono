@@ -50,24 +50,34 @@ describe("text past 250K characters", () => {
   it("renders the first 250K, and all of it as plain text on request", async () => {
     const { container } = render(
       withProviders(
-        <RenderedText markdown={markdown} />,
+        <RenderedText markdown={markdown} className="caller-class" />,
         makeReactiveStateStore().hooks
       )
     );
-    await waitFor(() => {
-      expect(container.querySelector("strong")?.textContent).toBe("Opening");
-    });
+    // Rendering 250K of markdown takes seconds on a loaded machine.
+    await waitFor(
+      () => {
+        expect(container.querySelector("strong")?.textContent).toBe("Opening");
+      },
+      { timeout: 15_000 }
+    );
     expect(container.textContent).not.toContain("TAIL-MARKER");
     expect(container.textContent).toContain(
-      "Showing the first 250K of 300K characters"
+      "Showing the first 250,000 of 300,029 characters."
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show all" }));
     expect(container.textContent).toContain("TAIL-MARKER");
     expect(container.textContent).toContain("**Opening** line");
     expect(container.querySelector("strong")).toBeNull();
+    // Shown the way the caller shows plain text.
+    expect(container.querySelector("pre.caller-class")?.textContent).toContain(
+      "TAIL-MARKER"
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Show first 250K" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show the first 250,000" })
+    );
     expect(container.textContent).not.toContain("TAIL-MARKER");
   });
 
@@ -101,5 +111,8 @@ describe("text past 250K characters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show all" }));
     expect(container.textContent).toContain("TAIL-MARKER");
     expect(container.textContent).not.toContain("\u001b");
+    expect(container.querySelector("pre.tool-output")?.textContent).toContain(
+      "TAIL-MARKER"
+    );
   });
 });

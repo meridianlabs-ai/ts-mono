@@ -49,6 +49,16 @@ export const RenderedText = forwardRef<
     const displayMode = useDisplayMode();
     const plain = usePlainText();
 
+    const renderPlain = (shown: string) => (
+      <Preformatted
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
+        ref={ref as ForwardedRef<HTMLPreElement>}
+        text={shown}
+        style={style}
+        className={clsx(className, plain.className)}
+      />
+    );
+
     const renderText = (text: string) =>
       // forceRender overrides the display mode, never content trust.
       plain.trusted && (forceRender || displayMode === "rendered") ? (
@@ -64,17 +74,13 @@ export const RenderedText = forwardRef<
           truncateAt={truncateAt}
         />
       ) : (
-        <Preformatted
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
-          ref={ref as ForwardedRef<HTMLPreElement>}
-          text={plain.present(
+        renderPlain(
+          plain.present(
             truncateAt === undefined
               ? text
               : simpleMarkdownTruncate(text, truncateAt)
-          )}
-          style={style}
-          className={clsx(className, plain.className)}
-        />
+          )
+        )
       );
 
     return (
@@ -86,6 +92,7 @@ export const RenderedText = forwardRef<
             : truncationWindow(markdown, truncateAt)
         }
         render={renderText}
+        renderPlain={renderPlain}
       />
     );
   }

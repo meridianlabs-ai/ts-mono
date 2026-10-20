@@ -1,6 +1,6 @@
 import { FC, ReactNode, useRef } from "react";
 
-import { Preformatted, usePlainText } from "@tsmono/react/components";
+import { usePlainText } from "@tsmono/react/components";
 import { scrollingAncestor, useCollapsedState } from "@tsmono/react/hooks";
 
 import styles from "./cappedText.module.css";
@@ -18,6 +18,9 @@ interface CappedTextProps {
   text: string;
   /** Renders `text`, or its first `kMaxInlineChars` characters, as usual. */
   render: (text: string) => ReactNode;
+  /** Renders the whole text, already prepared for display, as plain text in
+   *  a `pre-wrap` element: through `Preformatted` or `ChunkedText`. */
+  renderPlain: (text: string) => ReactNode;
   /** The text as the reader sees it in plain text, when they ask for all of
    *  it; the text as-is by default. */
   toPlainText?: (text: string) => string;
@@ -38,6 +41,7 @@ export const CappedText: FC<CappedTextProps> = (props) =>
 const LongText: FC<CappedTextProps> = ({
   text,
   render,
+  renderPlain,
   toPlainText = (full) => full,
 }) => {
   const [headOnly, setHeadOnly] = useCollapsedState(
@@ -46,7 +50,7 @@ const LongText: FC<CappedTextProps> = ({
     "capped-text"
   );
   const plain = usePlainText();
-  const fullRef = useRef<HTMLPreElement>(null);
+  const fullRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const head = text.slice(0, kMaxInlineChars);
 
@@ -74,28 +78,21 @@ const LongText: FC<CappedTextProps> = ({
       {headOnly ? (
         render(head)
       ) : (
-        <Preformatted
-          ref={fullRef}
-          text={plain.present(toPlainText(text))}
-          className={plain.className}
-        />
+        <div ref={fullRef}>{renderPlain(plain.present(toPlainText(text)))}</div>
       )}
       <div ref={noticeRef} className={styles.notice}>
         {headOnly
           ? `Showing the first ${count(kMaxInlineChars)} of ${count(text.length)} characters.`
           : `Showing all ${count(text.length)} characters as plain text.`}{" "}
         <button type="button" className={styles.toggle} onClick={toggle}>
-          {headOnly ? "Show all" : `Show first ${count(kMaxInlineChars)}`}
+          {headOnly ? "Show all" : `Show the first ${count(kMaxInlineChars)}`}
         </button>
       </div>
     </>
   );
 };
 
-const count = (n: number): string =>
-  n >= 1_000_000
-    ? `${(n / 1_000_000).toFixed(1)}M`
-    : `${Math.round(n / 1_000)}K`;
+const count = (n: number): string => n.toLocaleString();
 
 // Identifies a text for remembering the reader's choice, without hashing
 // megabytes on every render: its length and its two ends.
@@ -112,18 +109,26 @@ const textKey = (text: string): string => {
 // Over the next frames, scrolls so the located point stays at `top`: the
 // swapped text's chunks lay out and the list around it remeasures over
 // several frames, each of which can move it. Positions are relative to the
-// scroller, which itself can move (a header collapsing as it scrolls).
+// scroller, which itself can move (a header collapsing as it scrolls). Stops
+// once the reader scrolls.
 const keepInPlace = (
   scroller: HTMLElement,
   locate: () => number | null | undefined,
   top: number
 ) => {
   const offset = top - scroller.getBoundingClientRect().top;
+  const readerScrolls = new AbortController();
+  for (const type of ["wheel", "touchmove", "keydown"]) {
+    scroller.addEventListener(type, () => readerScrolls.abort(), {
+      signal: readerScrolls.signal,
+    });
+  }
   let frames = 0;
   let settled = 0;
   const step = () => {
-    const now = locate();
+    const now = readerScrolls.signal.aborted ? undefined : locate();
     if (now === null || now === undefined) {
+      readerScrolls.abort();
       return;
     }
     const delta = now - scroller.getBoundingClientRect().top - offset;
@@ -136,6 +141,8 @@ const keepInPlace = (
     frames++;
     if (settled < 2 && frames < kPlaceFrames) {
       requestAnimationFrame(step);
+    } else {
+      readerScrolls.abort();
     }
   };
   requestAnimationFrame(step);

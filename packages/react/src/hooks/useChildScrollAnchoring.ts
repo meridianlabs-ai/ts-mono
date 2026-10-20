@@ -17,9 +17,6 @@ import { scrollingAncestor } from "./scrollingAncestor";
  * `overflow-anchor: none`), and a VirtualList row entirely above the
  * viewport, which the virtualizer scrolls for itself.
  *
- * A child holding its own chunk container (`data-chunk-container`) anchors
- * its own chunks, so it is left to that container.
- *
  * `childrenKey` must change whenever the container's set of children does.
  */
 export const useChildScrollAnchoring = (
@@ -95,9 +92,7 @@ export const useChildScrollAnchoring = (
       }
     });
     for (const child of container.children) {
-      if (!child.querySelector("[data-chunk-container]")) {
-        observer.observe(child);
-      }
+      observer.observe(child);
     }
     return () => {
       observer.disconnect();
