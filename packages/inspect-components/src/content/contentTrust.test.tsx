@@ -129,7 +129,7 @@ describe("untrusted content rendering", () => {
   });
 
   it.each(["trusted", "untrusted"] as const)(
-    "truncates a very long %s text without a 'truncated' notice",
+    "truncates a very long %s text without the long-text notice",
     (trust) => {
       const { container } = render(
         withTrust(
@@ -137,7 +137,7 @@ describe("untrusted content rendering", () => {
           <RenderedText markdown={"word ".repeat(100_000)} truncateAt={250} />
         )
       );
-      expect(container.textContent).not.toContain("Output truncated");
+      expect(container.textContent).not.toContain("Showing the first");
       expect(container.textContent.length).toBeLessThan(300);
     }
   );

@@ -11,9 +11,10 @@ import {
   isAnsiOutput,
   isRenderableImageSource,
   parseJsonRecord,
+  stripAnsi,
 } from "@tsmono/util";
 
-import { cappedText } from "../../content/cappedText";
+import { CappedText, kMaxInlineChars } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
@@ -106,37 +107,35 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     }
   }
 
-  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
-  // which the browser re-layerizes on every resize (~1.4s each — laggy in
-  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
-  // a fixed-height scroller does not help because the off-screen content is
-  // still layerized.
-  const { text: capped, notice } = cappedText(text);
-
-  // It could have ANSI codes. Detection is bounded to the capped prefix so
-  // log-authored output can never feed the regex an unbounded string; the
-  // ANSI renderer still receives the full text as before.
-  if (displayMode === "rendered" && isAnsiOutput(capped)) {
-    return (
-      <ANSIDisplay
-        output={text}
-        style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
-      />
-    );
-  }
+  // It could have ANSI codes. Detection is bounded to the head the cap renders
+  // so log-authored output can never feed the regex an unbounded string.
+  const ansi =
+    displayMode === "rendered" && isAnsiOutput(text.slice(0, kMaxInlineChars));
 
   return (
-    <>
-      <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
-        <code className={clsx("sourceCode", styles.textCode)}>
-          {!plain.trusted
-            ? plain.present(capped)
-            : displayMode === "raw"
-              ? capped
-              : capped.trim()}
-        </code>
-      </pre>
-      {notice}
-    </>
+    <CappedText
+      text={text}
+      toPlainText={ansi ? stripAnsi : undefined}
+      render={(shown) =>
+        ansi ? (
+          <ANSIDisplay
+            output={shown}
+            style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
+          />
+        ) : (
+          <pre
+            className={clsx(styles.textOutput, "tool-output", plain.className)}
+          >
+            <code className={clsx("sourceCode", styles.textCode)}>
+              {!plain.trusted
+                ? plain.present(shown)
+                : displayMode === "raw"
+                  ? shown
+                  : shown.trim()}
+            </code>
+          </pre>
+        )
+      }
+    />
   );
 };
