@@ -7,10 +7,10 @@ import { scrollingAncestor } from "./scrollingAncestor";
  * above the scroll viewport change height, by scrolling the nearest scrolling
  * ancestor by the same amount: what follows such a child stays put. That
  * includes a child straddling the viewport's top edge, because Safari renders
- * a content-visibility chunk only once it reaches the viewport, while its
- * visible part still shows the placeholder. Children whose height is an
- * estimate until they first render (content-visibility: auto) need it, or
- * scrolling up through them jumps.
+ * a content-visibility chunk only once it reaches the viewport, so a chunk
+ * can grow from its estimated height while partly on screen. Children whose
+ * height is an estimate until they first render (content-visibility: auto)
+ * need it, or scrolling up through them jumps.
  *
  * It leaves alone what something else already compensates: a scroller the
  * browser anchors natively (VirtualList opts its rows out with
