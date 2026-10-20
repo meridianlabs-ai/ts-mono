@@ -18,7 +18,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@uwdata/flechette": "^2.5.0",
+    "@uwdata/flechette": "^2.7.0",
     "arquero": "^8.0.3",
     "json5": "^2.2.3",
     "lz4js": "^0.2.0"
@@ -29,7 +29,7 @@
     "@tsmono/vitest-config": "workspace:*",
     "@types/lz4js": "^0.2.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@uwdata/flechette": "^2.5.0",
+    "@uwdata/flechette": "^2.7.0",
     "arquero": "^8.0.3",
     "esbuild": "^0.28.2",
     "eslint": "^10.7.0",
@@ -37,7 +37,7 @@
     "lz4js": "^0.2.0",
     "playwright-core": "^1.63.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.71.1",
-    "vitest": "^5.0.3"
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
   }
 }
