@@ -1,6 +1,7 @@
 import { RefObject, useEffect, useState } from "react";
 
 import { scrollContainer } from "./scrollingAncestor";
+import { useLatestRef } from "./useLatestRef";
 
 const kNone: ReadonlySet<number> = new Set();
 
@@ -9,11 +10,15 @@ const kNone: ReadonlySet<number> = new Set();
  * viewport height of its scroller's visible area. A child stays revealed once
  * it has been, so callers can swap in costly content that then remains.
  * `childrenKey` must change when the children do; it resets the set.
+ * `onReveal` runs with the newly revealed indexes while the DOM still shows
+ * those children as they were.
  */
 export const useRevealedChildren = (
   containerRef: RefObject<HTMLElement | null>,
-  childrenKey: unknown
+  childrenKey: unknown,
+  onReveal?: (indexes: number[]) => void
 ): ReadonlySet<number> => {
+  const onRevealRef = useLatestRef(onReveal);
   const [revealed, setRevealed] = useState<{
     key: unknown;
     indexes: ReadonlySet<number>;
@@ -34,6 +39,7 @@ export const useRevealedChildren = (
             return children.indexOf(entry.target);
           });
         if (newly.length > 0) {
+          onRevealRef.current?.(newly);
           setRevealed((prev) => ({
             key: childrenKey,
             indexes: new Set([
@@ -51,7 +57,7 @@ export const useRevealedChildren = (
       observer.observe(child);
     }
     return () => observer.disconnect();
-  }, [containerRef, childrenKey]);
+  }, [containerRef, childrenKey, onRevealRef]);
 
   return revealed && revealed.key === childrenKey ? revealed.indexes : kNone;
 };

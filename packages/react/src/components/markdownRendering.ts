@@ -14,6 +14,7 @@ import {
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
+  kSourceLineAttribute,
   type MarkdownRenderer,
 } from "./markdownText";
 
@@ -533,7 +534,13 @@ export const segmentMarkdown = async (
     render: (segment) => {
       let html = segment.prepared;
       try {
-        html = md.render(segment.prepared, env);
+        const tokens = md.parse(segment.prepared, env);
+        for (const token of tokens) {
+          if (token.level === 0 && token.nesting !== -1 && token.map) {
+            token.attrSet(kSourceLineAttribute, String(token.map[0]));
+          }
+        }
+        html = md.renderer.render(tokens, md.options, env);
       } catch (ex) {
         console.log("Unable to markdown render content");
         console.error(ex);

@@ -1,6 +1,9 @@
-import { ClipboardEvent, FC } from "react";
+import { ClipboardEvent, FC, RefObject } from "react";
 
-import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
+import {
+  ScrollAnchor,
+  useChildScrollAnchoring,
+} from "../hooks/useChildScrollAnchoring";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
 import styles from "./ChunkedText.module.css";
@@ -28,7 +31,10 @@ export const ChunkedText: FC<ChunkedTextProps> = ({ text }) =>
  * stays anchored when a chunk above the viewport renders taller or shorter
  * than estimated. `childrenKey` must change when the chunks do.
  */
-export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
+export const useChunkLayout = <T extends HTMLElement>(
+  childrenKey: unknown,
+  anchorRef?: RefObject<ScrollAnchor | null>
+) => {
   const ref = useResizeObserver<T>((entry) => {
     // Measured once: every chunk's contents inherit the variable, so changing
     // it restyles all of them, and re-estimating never-rendered chunks after
@@ -44,7 +50,7 @@ export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
       );
     }
   });
-  useChildScrollAnchoring(ref, childrenKey);
+  useChildScrollAnchoring(ref, childrenKey, anchorRef);
   return ref;
 };
 

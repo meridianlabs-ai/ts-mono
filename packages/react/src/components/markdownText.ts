@@ -6,6 +6,10 @@ export type MarkdownRenderer = "full" | "textOnly" | "fragment";
 
 export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
+/** On a segment's rendered top-level blocks: the source line it starts on,
+ *  counted from the segment's first line. */
+export const kSourceLineAttribute = "data-source-line";
+
 // Markdown-aware truncation to `maxLength` reads at most this many times
 // `maxLength` characters (see markdownTruncate.ts). 8x leaves 7 * maxLength of
 // headroom for markup that carries no visible text (URLs, tags, fences)

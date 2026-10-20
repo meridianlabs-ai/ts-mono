@@ -20,6 +20,7 @@ const markdown = Array.from(
 
 describe("MarkdownDiv with a huge document", () => {
   beforeEach(() => {
+    CapturingIntersectionObserver.last = undefined;
     vi.stubGlobal("ResizeObserver", ResizeObserverStub);
     vi.stubGlobal("IntersectionObserver", CapturingIntersectionObserver);
   });
@@ -45,6 +46,11 @@ describe("MarkdownDiv with a huge document", () => {
       /## Section \d+\n\nParagraph \d+ with \*\*bold\*\* text\./
     );
 
+    await waitFor(() => {
+      expect(CapturingIntersectionObserver.last?.observed.has(middle)).toBe(
+        true
+      );
+    });
     act(() => {
       CapturingIntersectionObserver.last?.intersect(middle);
     });

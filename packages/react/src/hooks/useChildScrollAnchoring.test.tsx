@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CapturingResizeObserver } from "../test/dom-stubs";
 
-import { useChildScrollAnchoring } from "./useChildScrollAnchoring";
+import {
+  ScrollAnchor,
+  useChildScrollAnchoring,
+} from "./useChildScrollAnchoring";
 
 // Reports `target` at `blockSize` px tall, as a ResizeObserver would.
 const resize = (target: Element, blockSize: number) => {
@@ -20,9 +23,11 @@ const placeAt = (element: Element, top: number, height: number) => {
   element.getBoundingClientRect = () => new DOMRect(0, top, 100, height);
 };
 
+const anchor: { current: ScrollAnchor | null } = { current: null };
+
 const Chunks = () => {
   const ref = useRef<HTMLDivElement>(null);
-  useChildScrollAnchoring(ref, "text");
+  useChildScrollAnchoring(ref, "text", anchor);
   return (
     <div ref={ref}>
       <div data-testid="above" />
@@ -85,6 +90,7 @@ describe("useChildScrollAnchoring", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    anchor.current = null;
   });
 
   it("scrolls by the growth of a child that was entirely above the viewport", () => {
@@ -155,5 +161,57 @@ describe("useChildScrollAnchoring", () => {
     placeAt(above, -1400, 600);
     resize(above, 600);
     expect(scrollTop.value).toBe(1300);
+  });
+
+  it("keeps an anchor inside a changed child still, rather than what follows the child", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    // The anchored line was 250px down the viewport; the change moved it to
+    // 400px, though the child grew by 300.
+    anchor.current = {
+      target: above,
+      top: 250,
+      scrollTop: 1000,
+      locate: () => 400,
+    };
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1150);
+    expect(anchor.current).toBeNull();
+  });
+
+  it("keeps an anchor where scrolling since it was captured has moved it", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    anchor.current = {
+      target: above,
+      top: 250,
+      scrollTop: 1000,
+      locate: () => 400,
+    };
+    // Scrolled down 100px after the anchor was captured: the anchor belongs
+    // at 150px now.
+    scrollTop.value = 1100;
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1350);
+  });
+
+  it("compensates as usual while an anchor can't be located yet", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    anchor.current = {
+      target: above,
+      top: 250,
+      scrollTop: 1000,
+      locate: () => undefined,
+    };
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+    expect(anchor.current).not.toBeNull();
   });
 });

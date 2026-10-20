@@ -50,6 +50,9 @@ const kEverySegment = { size: 1, hugeBlock: Infinity };
 // MathJax gives each formula a random element id.
 const withoutMathIds = (html: string) => html.replace(/mjx-[0-9a-f]+/g, "mjx");
 
+const withoutSourceLines = (html: string) =>
+  html.replace(/ data-source-line="\d+"/g, "");
+
 describe("segmentMarkdown", () => {
   it("renders the same HTML as the whole document", async () => {
     const whole = await renderMarkdown(document, "full");
@@ -59,9 +62,9 @@ describe("segmentMarkdown", () => {
       kEverySegment
     );
     expect(segments.length).toBeGreaterThan(5);
-    expect(withoutMathIds(segments.map(render).join(""))).toBe(
-      withoutMathIds(whole)
-    );
+    expect(
+      withoutSourceLines(withoutMathIds(segments.map(render).join("")))
+    ).toBe(withoutMathIds(whole));
   });
 
   it("keeps the source of every line, in order", async () => {
@@ -143,5 +146,27 @@ describe("segmentMarkdown", () => {
       text: `${code}\n\`\`\`tail\n`,
       code: true,
     });
+  });
+
+  it("tags each rendered top-level block with the segment line it starts on", async () => {
+    const doc =
+      "# Title\n\nFirst paragraph.\n\n- a\n- b\n\n```\ncode\n```\n\nLast.\n";
+    const { segments, render } = await segmentMarkdown(doc, "full", {
+      size: Infinity,
+      hugeBlock: Infinity,
+    });
+    const tagged = segments.flatMap((segment) => {
+      const lines = segment.source.split("\n");
+      return [
+        ...render(segment).matchAll(/<(\w+)[^>]* data-source-line="(\d+)"/g),
+      ].map(([, tag, line]) => [tag, lines[Number(line)]]);
+    });
+    expect(tagged).toEqual([
+      ["h1", "# Title"],
+      ["p", "First paragraph."],
+      ["ul", "- a"],
+      ["code", "```"],
+      ["p", "Last."],
+    ]);
   });
 });
