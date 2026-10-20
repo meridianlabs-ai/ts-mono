@@ -4,6 +4,7 @@ import { FC, ReactNode } from "react";
 import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
+  ChunkedText,
   RequireMedia,
   usePlainText,
 } from "@tsmono/react/components";
@@ -13,7 +14,6 @@ import {
   parseJsonRecord,
 } from "@tsmono/util";
 
-import { cappedText } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
@@ -106,17 +106,12 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     }
   }
 
-  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
-  // which the browser re-layerizes on every resize (~1.4s each — laggy in
-  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
-  // a fixed-height scroller does not help because the off-screen content is
-  // still layerized.
-  const { text: capped, notice } = cappedText(text);
-
-  // It could have ANSI codes. Detection is bounded to the capped prefix so
-  // log-authored output can never feed the regex an unbounded string; the
-  // ANSI renderer still receives the full text as before.
-  if (displayMode === "rendered" && isAnsiOutput(capped)) {
+  // It could have ANSI codes. Detection reads a bounded prefix so
+  // log-authored output can never feed the regex an unbounded string.
+  if (
+    displayMode === "rendered" &&
+    isAnsiOutput(text.slice(0, kAnsiDetectionChars))
+  ) {
     return (
       <ANSIDisplay
         output={text}
@@ -126,17 +121,20 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   }
 
   return (
-    <>
-      <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
-        <code className={clsx("sourceCode", styles.textCode)}>
-          {!plain.trusted
-            ? plain.present(capped)
-            : displayMode === "raw"
-              ? capped
-              : capped.trim()}
-        </code>
-      </pre>
-      {notice}
-    </>
+    <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
+      <code className={clsx("sourceCode", styles.textCode)}>
+        <ChunkedText
+          text={
+            !plain.trusted
+              ? plain.present(text)
+              : displayMode === "raw"
+                ? text
+                : text.trim()
+          }
+        />
+      </code>
+    </pre>
   );
 };
+
+const kAnsiDetectionChars = 250_000;

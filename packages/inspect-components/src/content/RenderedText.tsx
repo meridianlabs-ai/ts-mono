@@ -48,40 +48,43 @@ export const RenderedText = forwardRef<
   ) => {
     const displayMode = useDisplayMode();
     const plain = usePlainText();
-    // Truncation reads only this much, so the cap never applies to it.
-    const { text, notice } = cappedText(
+    const source =
       truncateAt === undefined
         ? markdown
-        : truncationWindow(markdown, truncateAt)
-    );
-    const plainText =
-      truncateAt === undefined
-        ? text
-        : simpleMarkdownTruncate(text, truncateAt);
+        : truncationWindow(markdown, truncateAt);
 
     // forceRender overrides the display mode, never content trust.
-    const body =
-      plain.trusted && (forceRender || displayMode === "rendered") ? (
-        <MarkdownDivWithReferences
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
-          ref={ref as ForwardedRef<HTMLDivElement>}
-          markdown={text}
-          references={references}
-          options={options}
-          style={style}
-          className={className}
-          renderer={renderer}
-          truncateAt={truncateAt}
-        />
-      ) : (
+    if (!plain.trusted || (!forceRender && displayMode !== "rendered")) {
+      return (
         <Preformatted
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLPreElement>}
-          text={plain.present(plainText)}
+          text={plain.present(
+            truncateAt === undefined
+              ? source
+              : simpleMarkdownTruncate(source, truncateAt)
+          )}
           style={style}
           className={clsx(className, plain.className)}
         />
       );
+    }
+
+    // Truncation reads only this much, so the cap never applies to it.
+    const { text, notice } = cappedText(source);
+    const body = (
+      <MarkdownDivWithReferences
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
+        ref={ref as ForwardedRef<HTMLDivElement>}
+        markdown={text}
+        references={references}
+        options={options}
+        style={style}
+        className={className}
+        renderer={renderer}
+        truncateAt={truncateAt}
+      />
+    );
 
     if (notice === null) {
       return body;

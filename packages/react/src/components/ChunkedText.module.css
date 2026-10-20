@@ -1,0 +1,21 @@
+.chunks {
+  display: block;
+}
+
+/* The browser skips layout and paint of a chunk while it is off screen. Until
+   a chunk has rendered once, its height is estimated: one row per line, or,
+   when lines wrap, a row per line's worth of characters (half a row added per
+   line for the partly filled last row). After that the browser keeps its last
+   rendered height. */
+.chunk {
+  display: block;
+  content-visibility: auto;
+  contain-intrinsic-height: auto
+    calc(
+      max(
+          var(--chunk-lines),
+          var(--chunk-chars) / var(--chunk-chars-per-line) + var(--chunk-lines) *
+            0.5
+        ) * 1lh
+    );
+}

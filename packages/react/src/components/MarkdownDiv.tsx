@@ -13,6 +13,7 @@ import "./MarkdownDiv.css";
 
 import { onDemandModule } from "../hooks/onDemandModule";
 
+import { ChunkedText } from "./ChunkedText";
 import { usePlainText } from "./ContentTrust";
 import { useHasAllContentPermissions } from "./ContentTrustContext";
 import {
@@ -79,11 +80,13 @@ const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
         style={style}
         className={clsx(className, "untrusted-content", plain.className)}
       >
-        {plain.present(
-          truncateAt === undefined
-            ? markdown
-            : simpleMarkdownTruncate(markdown, truncateAt)
-        )}
+        <ChunkedText
+          text={plain.present(
+            truncateAt === undefined
+              ? markdown
+              : simpleMarkdownTruncate(markdown, truncateAt)
+          )}
+        />
       </div>
     );
   }
