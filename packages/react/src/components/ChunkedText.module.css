@@ -9,6 +9,9 @@
    rendered height. */
 .chunk {
   display: block;
+  /* content-visibility clips overflow and hides it from the scroll width, so
+     a line too long for the container must wrap to stay readable. */
+  overflow-wrap: anywhere;
   content-visibility: auto;
   contain-intrinsic-height: auto
     calc(

@@ -228,28 +228,49 @@ const LineChunks: FC<{
   return (
     <div ref={ref} data-chunk-container>
       {lineGroups(lines).map(({ start, end, chars }, group) => (
-        <div key={start} {...chunkProps(chars, end - start)}>
-          {revealed.has(group) ? (
-            lines
-              .slice(start, end)
-              .map((line, offset) => (
-                <OutputLine
-                  key={start + offset}
-                  line={line}
-                  index={start + offset}
-                  firstOutputIndex={firstOutputIndex}
-                />
-              ))
-          ) : (
-            <div className={styles.plainLines}>
-              {plainLines(lines, start, end, firstOutputIndex)}
-            </div>
-          )}
-        </div>
+        <LineGroup
+          key={start}
+          lines={lines}
+          start={start}
+          end={end}
+          chars={chars}
+          firstOutputIndex={firstOutputIndex}
+          revealed={revealed.has(group)}
+        />
       ))}
     </div>
   );
 };
+
+// A component per group so each reveal rebuilds only the revealed group, not
+// every other group's plain text.
+const LineGroup: FC<{
+  lines: ANSIOutputLine[];
+  start: number;
+  end: number;
+  chars: number;
+  firstOutputIndex: number;
+  revealed: boolean;
+}> = ({ lines, start, end, chars, firstOutputIndex, revealed }) => (
+  <div {...chunkProps(chars, end - start)}>
+    {revealed ? (
+      lines
+        .slice(start, end)
+        .map((line, offset) => (
+          <OutputLine
+            key={start + offset}
+            line={line}
+            index={start + offset}
+            firstOutputIndex={firstOutputIndex}
+          />
+        ))
+    ) : (
+      <div className={styles.plainLines}>
+        {plainLines(lines, start, end, firstOutputIndex)}
+      </div>
+    )}
+  </div>
+);
 
 // What the rich lines show, as text: a line per line, none before the first
 // line with output.

@@ -20,15 +20,25 @@ const plainLines = lines.map((_, i) => `line ${i} tail`);
 
 describe("RichANSIDisplay with huge output", () => {
   beforeEach(() => {
+    CapturingIntersectionObserver.last = undefined;
     vi.stubGlobal("ResizeObserver", ResizeObserverStub);
     vi.stubGlobal("IntersectionObserver", CapturingIntersectionObserver);
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("shows plain text chunks of every line, and colors a chunk once it nears the viewport", async () => {
+    // Every parse slice overruns its time budget, so parsing yields between
+    // slices as it does on a slow machine.
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (now += 20));
     const { container } = render(<RichANSIDisplay output={output} />);
+    // Until parsing finishes, the output shows as one preformatted text.
+    await waitFor(() => {
+      expect(container.querySelector("pre")).toBeNull();
+    });
     const chunks = await waitFor(() => {
       const found = container.querySelectorAll("[data-chunk-container] > div");
       expect(found.length).toBeGreaterThan(1);
@@ -43,6 +53,11 @@ describe("RichANSIDisplay with huge output", () => {
     if (!second) {
       throw new Error("expected a second chunk");
     }
+    await waitFor(() => {
+      expect(CapturingIntersectionObserver.last?.observed.has(second)).toBe(
+        true
+      );
+    });
     act(() => {
       CapturingIntersectionObserver.last?.intersect(second);
     });

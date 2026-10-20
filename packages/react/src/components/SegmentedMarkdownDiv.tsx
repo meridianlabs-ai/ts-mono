@@ -57,7 +57,9 @@ export const SegmentedMarkdownDiv = forwardRef<
       publish: (segmentation: Segmentation) => void,
       signal: AbortSignal
     ) => {
-      if (cachedSegmentation(renderer, markdown)) {
+      const cached = cachedSegmentation(renderer, markdown);
+      if (cached) {
+        publish(cached);
         return;
       }
       const pipeline = await markdownPipeline.load();
@@ -204,6 +206,12 @@ const cacheSegmentation = (
     segmentations.set(renderer, byMarkdown);
   }
   byMarkdown.set(markdown, segmentation);
+  const existing = cacheOrder.findIndex(
+    ([r, m]) => r === renderer && m === markdown
+  );
+  if (existing !== -1) {
+    cacheOrder.splice(existing, 1);
+  }
   cacheOrder.push([renderer, markdown]);
   while (cacheOrder.length > kCachedDocuments) {
     const evicted = cacheOrder.shift();

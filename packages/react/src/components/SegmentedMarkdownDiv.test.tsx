@@ -70,4 +70,29 @@ describe("MarkdownDiv with a huge document", () => {
       container.querySelectorAll(".markdown-segment").length
     ).toBeGreaterThan(3);
   });
+
+  it("keeps showing a remounted document's segments after other documents push it out of the cache", async () => {
+    const doc = (name: string) => `# ${name}\n\n${markdown}`;
+    const segmented = async (text: string) => {
+      const view = render(<MarkdownDiv markdown={text} />, {
+        wrapper: TrustedContentWrapper,
+      });
+      await waitFor(() => {
+        expect(
+          view.container.querySelector(".markdown-segment")
+        ).not.toBeNull();
+      });
+      return view;
+    };
+    (await segmented(doc("A"))).unmount();
+    const remounted = await segmented(doc("A"));
+    for (const other of ["B", "C", "D"]) {
+      (await segmented(doc(other))).unmount();
+    }
+
+    remounted.rerender(<MarkdownDiv markdown={doc("A")} onClick={() => {}} />);
+    expect(
+      remounted.container.querySelectorAll(".markdown-segment").length
+    ).toBeGreaterThan(3);
+  });
 });

@@ -29,7 +29,7 @@ export const splitTextChunks = (
   while (start < text.length) {
     let end = Math.min(start + size, text.length);
     if (end < text.length) {
-      const newline = text.lastIndexOf("\n", end - 1);
+      const newline = lastNewline(text, start, end);
       if (newline >= start) {
         end = newline + 1;
       } else {
@@ -44,6 +44,17 @@ export const splitTextChunks = (
     start = end;
   }
   return chunks;
+};
+
+// lastIndexOf would scan back past `start` through a long line, making the
+// split quadratic in text without newlines.
+const lastNewline = (text: string, start: number, end: number): number => {
+  for (let i = end - 1; i >= start; i--) {
+    if (text.charCodeAt(i) === 0x0a) {
+      return i;
+    }
+  }
+  return -1;
 };
 
 const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
