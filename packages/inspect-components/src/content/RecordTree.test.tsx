@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
-import { RecordTree } from "./RecordTree";
+import { RecordTree, toTreeItems } from "./RecordTree";
 
 const renderTree = (
   record: Record<string, unknown>,
@@ -83,5 +83,35 @@ describe("RecordTree copy button", () => {
     expect(screen.queryByRole("button", { name: "Copy nested" })).toBeNull();
     expect(screen.getByRole("button", { name: "Copy a" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy leaf" })).toBeTruthy();
+  });
+});
+
+describe("toTreeItems", () => {
+  const items = Array.from({ length: 216_217 }, (_, id) => ({ id }));
+
+  it("groups the children of a huge array into ranges", () => {
+    const tree = toTreeItems({ items }, (_id, hasChildren, depth) => {
+      // Collapse the ranges (depth 1); expand everything else.
+      return hasChildren && depth === 1;
+    });
+    expect(tree).toHaveLength(1 + 217);
+    expect(tree.slice(1, 3)).toMatchObject([
+      { key: "[0 … 999]", depth: 1, childCount: 1000, isCollapsed: true },
+      { key: "[1000 … 1999]", depth: 1, childCount: 1000, isCollapsed: true },
+    ]);
+    expect(tree.at(-1)).toMatchObject({ key: "[216000 … 216216]", childCount: 217 });
+  });
+
+  it("expands every range of an array with hundreds of thousands of items", () => {
+    const tree = toTreeItems({ items }, () => false);
+    // The array row, a row per range, then an object row and an `id` row per item.
+    expect(tree).toHaveLength(1 + 217 + items.length * 2);
+    expect(tree.at(-1)).toMatchObject({ key: "id", value: 216_216, depth: 3 });
+  });
+
+  it("lists up to a range's worth of children directly", () => {
+    const tree = toTreeItems({ items: items.slice(0, 1000) }, () => false);
+    expect(tree[1]).toMatchObject({ key: "[0]", depth: 1 });
+    expect(tree).toHaveLength(1 + 1000 * 2);
   });
 });

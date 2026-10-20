@@ -308,30 +308,31 @@ export const toTreeItems = (
 
   Object.entries(record).forEach(([key, value], index) => {
     const itemSegment = index.toString();
-    result.push(
-      ...processNodeRecursive(
-        key,
-        value,
-        currentDepth,
-        currentPath,
-        itemSegment,
-        isCollapsed
-      )
+    processNodeRecursive(
+      result,
+      key,
+      value,
+      currentDepth,
+      currentPath,
+      itemSegment,
+      isCollapsed
     );
   });
 
   return result;
 };
 
+// Appends to `items` rather than returning arrays to spread: spreading an
+// array's children into push() overflows the stack for very large arrays.
 const processNodeRecursive = (
+  items: MetadataItem[],
   key: string,
   value: unknown,
   depth: number,
   parentPath: string[],
   thisPath: string,
   isCollapsed: IsCollapsedFn
-): MetadataItem[] => {
-  const items: MetadataItem[] = [];
+): void => {
   const currentItemPath = [...parentPath, thisPath];
   const id = `${depth}.${currentItemPath.join(".")}`;
 
@@ -345,7 +346,7 @@ const processNodeRecursive = (
       hasChildren: false,
       isCollapsed: false,
     });
-    return items;
+    return;
   }
 
   // For non-primitives (objects, arrays, functions, etc.)
@@ -393,44 +394,75 @@ const processNodeRecursive = (
 
   // Process children
   if (processChildren && !collapsed) {
+    const children: [key: string, value: unknown, segment: string][] =
+      Array.isArray(value)
+        ? value.map((element, index) => [`[${index}]`, element, `[${index}]`])
+        : isRecord(value)
+          ? Object.entries(value).map(([childKey, childValue], index) => [
+              childKey,
+              childValue,
+              index.toString(),
+            ])
+          : [];
     const childDepth = depth + 1;
-    if (Array.isArray(value)) {
-      if (value.length > 0) {
-        value.forEach((element, index) => {
-          const elementKey = `[${index}]`;
-          const elementIdentifier = `[${index}]`;
-          items.push(
-            ...processNodeRecursive(
-              elementKey,
-              element,
-              childDepth,
-              currentItemPath,
-              elementIdentifier,
-              isCollapsed
-            )
-          );
-        });
-      }
-    } else if (isRecord(value)) {
-      // Process object properties
-      Object.entries(value).forEach(([childKey, childValue], index) => {
-        const childIdentifier = index.toString();
-        items.push(
-          ...processNodeRecursive(
-            childKey,
-            childValue,
-            childDepth,
-            currentItemPath,
-            childIdentifier,
-            isCollapsed
-          )
+    if (children.length <= kRangeSize) {
+      for (const [childKey, childValue, segment] of children) {
+        processNodeRecursive(
+          items,
+          childKey,
+          childValue,
+          childDepth,
+          currentItemPath,
+          segment,
+          isCollapsed
         );
-      });
+      }
+    } else {
+      // Rendering every child of a huge array or object at once would build
+      // more rows than the page can lay out, so they group into ranges that
+      // expand one at a time.
+      for (let start = 0; start < children.length; start += kRangeSize) {
+        const range = children.slice(start, start + kRangeSize);
+        const rangePath = [...currentItemPath, `${start}-`];
+        const rangeId = `${childDepth}.${rangePath.join(".")}`;
+        const rangeCollapsed = isCollapsed(
+          rangeId,
+          true,
+          childDepth,
+          range.length
+        );
+        items.push({
+          id: rangeId,
+          key: `[${start} … ${start + range.length - 1}]`,
+          value: `${range.length} items`,
+          rawValue: Array.isArray(value)
+            ? value.slice(start, start + range.length)
+            : Object.fromEntries(range.map(([k, v]) => [k, v])),
+          depth: childDepth,
+          hasChildren: true,
+          childCount: range.length,
+          isCollapsed: rangeCollapsed,
+        });
+        if (!rangeCollapsed) {
+          for (const [childKey, childValue, segment] of range) {
+            processNodeRecursive(
+              items,
+              childKey,
+              childValue,
+              childDepth + 1,
+              rangePath,
+              segment,
+              isCollapsed
+            );
+          }
+        }
+      }
     }
   }
-
-  return items;
 };
+
+// Children past this many show as ranges of this many.
+const kRangeSize = 1_000;
 
 const isPrimitiveOrNull = (
   value: unknown
