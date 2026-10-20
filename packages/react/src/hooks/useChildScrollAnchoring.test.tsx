@@ -92,12 +92,37 @@ describe("useChildScrollAnchoring", () => {
     expect(scrollTop.value).toBe(1300);
   });
 
-  it("leaves the scroll position alone when a visible child grows", () => {
+  it("scrolls by the growth of a child straddling the viewport's top edge", () => {
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    placeAt(above, -100, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+  });
+
+  it("leaves the scroll position alone when a child starting in view grows", () => {
     const scrollTop = renderInScroller();
     const visible = screen.getByTestId("visible");
     resize(visible, 300);
-    placeAt(visible, -100, 600);
+    placeAt(visible, 50, 600);
     resize(visible, 600);
     expect(scrollTop.value).toBe(1000);
   });
+
+  it("anchors once the container becomes scrollable after mounting", () => {
+    const scrollHeight = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(400);
+    const scrollTop = renderInScroller();
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+
+    // A collapsed panel expands: now the scroller scrolls.
+    scrollHeight.mockReturnValue(5000);
+    placeAt(above, -800, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+  });
 });
+

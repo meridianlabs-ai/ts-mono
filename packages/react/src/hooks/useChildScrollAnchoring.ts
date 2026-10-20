@@ -3,9 +3,12 @@ import { RefObject, useEffect } from "react";
 import { scrollingAncestor } from "./scrollingAncestor";
 
 /**
- * Keeps on-screen content still when children of `containerRef` that were
- * entirely above the scroll viewport change height, by scrolling the nearest
- * scrolling ancestor by the same amount. Browsers do this natively (scroll
+ * Keeps on-screen content still when children of `containerRef` that start
+ * above the scroll viewport change height, by scrolling the nearest scrolling
+ * ancestor by the same amount: what follows such a child stays put. That
+ * includes a child straddling the viewport's top edge, because Safari renders
+ * a content-visibility chunk only once it reaches the viewport, while its
+ * visible part still shows the placeholder. Browsers do this natively (scroll
  * anchoring), but VirtualList turns it off for its scroller so it can't
  * fight the virtualizer's own resize compensation. Children whose height is
  * an estimate until they first render (content-visibility: auto) need it, or
@@ -22,23 +25,24 @@ export const useChildScrollAnchoring = (
 ): void => {
   useEffect(() => {
     const container = containerRef.current;
-    const scroller = container ? scrollingAncestor(container) : null;
-    if (!container || !scroller) {
+    if (!container) {
       return;
     }
     const heights = new Map<Element, number>();
     const observer = new ResizeObserver((entries) => {
-      const changes: { target: Element; previous: number; delta: number }[] =
-        [];
+      const changes: { target: Element; delta: number }[] = [];
       for (const entry of entries) {
         const height = blockSize(entry);
         const previous = heights.get(entry.target);
         heights.set(entry.target, height);
         if (previous !== undefined && height !== previous) {
-          changes.push({ target: entry.target, previous, delta: height - previous });
+          changes.push({ target: entry.target, delta: height - previous });
         }
       }
-      if (changes.length === 0) {
+      // Looked up now: the container may not have been scrollable when this
+      // mounted (inside a collapsed panel, say).
+      const scroller = scrollingAncestor(container);
+      if (changes.length === 0 || !scroller) {
         return;
       }
       const viewportTop = scroller.getBoundingClientRect().top;
@@ -51,9 +55,9 @@ export const useChildScrollAnchoring = (
       // children above each one to find where it was before this change.
       let grownAbove = 0;
       let compensation = 0;
-      for (const { target, previous, delta } of changes) {
+      for (const { target, delta } of changes) {
         const topBefore = target.getBoundingClientRect().top - grownAbove;
-        if (topBefore + previous <= viewportTop) {
+        if (topBefore < viewportTop) {
           compensation += delta;
         }
         grownAbove += delta;
