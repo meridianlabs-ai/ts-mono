@@ -150,11 +150,11 @@ test.describe("rendering canary", () => {
   // Known gap, pinned so it flips when fixed: the sanitizer still admits
   // `<table background>` (fixed separately), so the policy has to block, and
   // report, that one fetch. Any other report means another vector got past
-  // the sanitizer. Once it strips the table, expect no report at all.
-  // Inline handlers are the exception: Chromium 156+ reports script-src-attr
-  // when DOMPurify parses a handler into its inert document, before stripping
-  // it, so handlers are checked in the rendered DOM instead.
-  test("the only vector that reaches the policy is <table background>", async ({
+  // the sanitizer, except script-src-attr: Chromium 156+ reports a handler
+  // when DOMPurify parses it into its inert document, before stripping it, so
+  // handlers are checked in the rendered DOM instead. Once the sanitizer
+  // strips the table, expect no other report.
+  test("only <table background> gets past the sanitizer", async ({
     page,
     network,
     cspViolations,
