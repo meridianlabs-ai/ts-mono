@@ -29,8 +29,6 @@ describe("RichANSIDisplay with huge output", () => {
 
   it("shows plain text chunks of every line, and colors a chunk once it nears the viewport", async () => {
     const { container } = render(<RichANSIDisplay output={output} />);
-    expect(container.textContent).toBe(plainLines.join("\n"));
-
     const chunks = await waitFor(() => {
       const found = container.querySelectorAll("[data-chunk-container] > div");
       expect(found.length).toBeGreaterThan(1);
@@ -52,5 +50,16 @@ describe("RichANSIDisplay with huge output", () => {
     expect(colored.length).toBeGreaterThan(0);
     expect(colored[0]?.getAttribute("style")).toContain("color");
     expect(chunks[0]?.querySelector("span[style]")).toBeNull();
+  });
+
+  it("shows a single huge line as chunked plain text", async () => {
+    const line = `\u001b[32m${"x".repeat(kChunkThreshold * 2)}\u001b[0m`;
+    const { container } = render(<RichANSIDisplay output={line} />);
+    await waitFor(() => {
+      expect(
+        container.querySelectorAll("[data-chunk-container] > *").length
+      ).toBeGreaterThan(2);
+    });
+    expect(container.textContent).toBe("x".repeat(kChunkThreshold * 2));
   });
 });

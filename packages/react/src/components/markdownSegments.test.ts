@@ -130,4 +130,18 @@ describe("segmentMarkdown", () => {
       code: false,
     });
   });
+
+  it("keeps the last line of a huge unclosed fence", async () => {
+    const code = Array.from({ length: 50 }, (_, i) => `line ${i}`).join("\n");
+    // A fence can't close on a line with text after its markers.
+    const doc = `\`\`\`\n${code}\n\`\`\`tail\n`;
+    const { segments } = await segmentMarkdown(doc, "full", {
+      size: 1_000_000,
+      hugeBlock: 100,
+    });
+    expect(segments.find((s) => s.plain)?.plain).toEqual({
+      text: `${code}\n\`\`\`tail\n`,
+      code: true,
+    });
+  });
 });

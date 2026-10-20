@@ -39,6 +39,15 @@
   overflow-wrap: anywhere;
 }
 
+/* A huge block shown as text keeps a paragraph's gap to the next block. */
+.markdown-segment-text {
+  margin-bottom: 1rem;
+}
+
+.markdown-segment:last-child > .markdown-segment-text {
+  margin-bottom: 0;
+}
+
 /* Untrusted content is shown as its literal source text. */
 .untrusted-content {
   white-space: pre-wrap;

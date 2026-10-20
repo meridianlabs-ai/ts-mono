@@ -42,4 +42,14 @@ describe("splitTextChunks", () => {
     expect(splitTextChunks("a\nb\n", 10)[0]?.lines).toBe(2);
     expect(splitTextChunks("", 10)).toEqual([]);
   });
+
+  it("never splits a surrogate pair", () => {
+    const text = `a${"😀".repeat(30)}`;
+    const chunks = splitTextChunks(text, 10);
+    expect(chunks.map((c) => c.text).join("")).toBe(text);
+    for (const chunk of chunks) {
+      const last = chunk.text.charCodeAt(chunk.text.length - 1);
+      expect(last >= 0xd800 && last <= 0xdbff).toBe(false);
+    }
+  });
 });

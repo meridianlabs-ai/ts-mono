@@ -556,13 +556,22 @@ const plainBlock = (
   }
   const closed =
     blockEnd - blockStart > 1 &&
-    sourceOf(blockEnd - 1, blockEnd)
-      .trim()
-      .startsWith(token.markup);
+    isClosingFence(sourceOf(blockEnd - 1, blockEnd), token.markup);
   return {
     text: sourceOf(blockStart + 1, closed ? blockEnd - 1 : blockEnd),
     code: true,
   };
+};
+
+// markdown-it's closing fence: up to three spaces of indent, then at least
+// as many of the opening fence's character, then only whitespace.
+const isClosingFence = (line: string, markup: string): boolean => {
+  const fence = /^ {0,3}(`+|~+)[ \t]*\n?$/.exec(line)?.[1];
+  return (
+    fence !== undefined &&
+    fence[0] === markup[0] &&
+    fence.length >= markup.length
+  );
 };
 
 // Offsets at which each line starts.

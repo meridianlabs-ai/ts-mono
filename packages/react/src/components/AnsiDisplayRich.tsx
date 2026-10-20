@@ -129,7 +129,12 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
         </pre>
       ) : (
         <div className={clsx(ansiStyles.ansiDisplay)} style={backgroundStyle}>
-          {output.length > kChunkThreshold ? (
+          {output.length > kChunkThreshold &&
+          longestLine(outputLines) > kChunkSize ? (
+            // Lines don't split across chunks, so a huge line would be one
+            // huge element: show its text, without colors.
+            <ChunkedText text={stripAnsi(output)} />
+          ) : output.length > kChunkThreshold ? (
             <LineChunks
               lines={outputLines}
               firstOutputIndex={firstOutputIndex}
@@ -262,12 +267,18 @@ const plainLines = (
     .map((line) => line.outputRuns.map((run) => run.text).join(""))
     .join("\n");
 
+const lineLength = (line: ANSIOutputLine) =>
+  line.outputRuns.reduce((n, run) => n + run.text.length, 0);
+
+const longestLine = (lines: ANSIOutputLine[]) =>
+  lines.reduce((longest, line) => Math.max(longest, lineLength(line)), 0);
+
 const lineGroups = (lines: ANSIOutputLine[]) => {
   const groups: { start: number; end: number; chars: number }[] = [];
   let start = 0;
   let chars = 0;
   lines.forEach((line, index) => {
-    chars += line.outputRuns.reduce((n, run) => n + run.text.length, 0) + 1;
+    chars += lineLength(line) + 1;
     if (chars >= kChunkSize || index === lines.length - 1) {
       groups.push({ start, end: index + 1, chars });
       start = index + 1;

@@ -35,6 +35,9 @@ export const splitTextChunks = (
       } else {
         end = softBreak(text, Math.max(start, end - kSoftBreakWindow), end);
       }
+      if (end - start > 1 && isHighSurrogate(text.charCodeAt(end - 1))) {
+        end--;
+      }
     }
     const chunk = text.slice(start, end);
     chunks.push({ text: chunk, lines: countLines(chunk) });
@@ -42,6 +45,8 @@ export const splitTextChunks = (
   }
   return chunks;
 };
+
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
 
 const softBreak = (text: string, from: number, to: number): number => {
   for (let i = to - 1; i > from; i--) {
