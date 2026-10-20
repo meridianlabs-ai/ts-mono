@@ -6,7 +6,6 @@
 
 import clsx from "clsx";
 import {
-  CSSProperties,
   FC,
   ReactNode,
   RefObject,
@@ -20,6 +19,7 @@ import type {
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
 import {
+  cssVars,
   NoContentsPanel,
   RailDock,
   StickyScroll,
@@ -221,14 +221,6 @@ export interface TranscriptLayoutProps {
 // =============================================================================
 // Component
 // =============================================================================
-
-/**
- * CSS custom properties for a `style` prop. csstype's `Properties` declares no
- * `--*` index signature, so a custom-property literal can't be written inline;
- * React passes these straight through to the DOM.
- */
-const cssVars = (vars: Record<`--${string}`, string | number>): CSSProperties =>
-  vars;
 
 function renderAgentCard(node: EventNode, agentCardClassName?: string) {
   const span = node.sourceSpan;

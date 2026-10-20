@@ -50,6 +50,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  cssVars,
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
@@ -101,7 +102,6 @@ import {
   useSelectedSampleSummary,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
 import { useCurrentSampleHandle } from "../routing/currentSelection";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
