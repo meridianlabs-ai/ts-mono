@@ -41,7 +41,9 @@ describe("MarkdownDiv with a huge document", () => {
       throw new Error("expected a middle segment");
     }
     expect(middle.querySelector("h2, strong")).toBeNull();
-    expect(middle.textContent).toMatch(/## Section \d+\n\nParagraph \d+ with \*\*bold\*\* text\./);
+    expect(middle.textContent).toMatch(
+      /## Section \d+\n\nParagraph \d+ with \*\*bold\*\* text\./
+    );
 
     act(() => {
       CapturingIntersectionObserver.last?.intersect(middle);

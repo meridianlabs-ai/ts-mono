@@ -5,14 +5,7 @@
  */
 
 import clsx from "clsx";
-import {
-  FC,
-  ReactNode,
-  RefObject,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { FC, ReactNode, RefObject, useCallback, useMemo, useRef } from "react";
 
 import type {
   Event,

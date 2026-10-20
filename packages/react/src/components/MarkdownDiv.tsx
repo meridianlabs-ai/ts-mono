@@ -15,8 +15,6 @@ import { ChunkedText } from "./ChunkedText";
 import { usePlainText } from "./ContentTrust";
 import { useHasAllContentPermissions } from "./ContentTrustContext";
 import { markdownPipeline } from "./markdownPipelineLoader";
-import { SegmentedMarkdownDiv } from "./SegmentedMarkdownDiv";
-import { kChunkThreshold } from "./textChunks";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
@@ -24,6 +22,8 @@ import {
   truncationWindow,
   type MarkdownRenderer,
 } from "./markdownText";
+import { SegmentedMarkdownDiv } from "./SegmentedMarkdownDiv";
+import { kChunkThreshold } from "./textChunks";
 
 export type { MarkdownRenderer } from "./markdownText";
 

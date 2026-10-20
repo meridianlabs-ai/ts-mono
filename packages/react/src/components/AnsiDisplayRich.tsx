@@ -20,8 +20,8 @@ import ansiStyles from "./AnsiDisplay.module.css";
 import styles from "./AnsiDisplayRich.module.css";
 import { ChunkedText, chunkProps, useChunkLayout } from "./ChunkedText";
 import { kChunkSize, kChunkThreshold } from "./textChunks";
-import { yieldToBrowser } from "./yieldToBrowser";
 import { ToolButton } from "./ToolButton";
+import { yieldToBrowser } from "./yieldToBrowser";
 
 const RichANSIDisplay: FC<ANSIDisplayProps> = ({
   output,
@@ -33,7 +33,10 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
   if (!outputLines) {
     // A huge output is still parsing: show its text, escapes removed.
     return (
-      <div className={clsx(ansiStyles.ansiDisplayContainer, className)} style={style}>
+      <div
+        className={clsx(ansiStyles.ansiDisplayContainer, className)}
+        style={style}
+      >
         <pre className={ansiStyles.ansiDisplay}>
           <ChunkedText text={stripAnsi(output)} />
         </pre>
@@ -156,10 +159,7 @@ const useAnsiLines = (output: string): ANSIOutputLine[] | undefined => {
   const huge = output.length > kChunkThreshold;
   // Its identity restarts parsing, so it must change only with its inputs.
   const parse = useCallback(
-    async (
-      publish: (lines: ANSIOutputLine[]) => void,
-      signal: AbortSignal
-    ) => {
+    async (publish: (lines: ANSIOutputLine[]) => void, signal: AbortSignal) => {
       if (!huge) {
         return;
       }
@@ -225,14 +225,16 @@ const LineChunks: FC<{
       {lineGroups(lines).map(({ start, end, chars }, group) => (
         <div key={start} {...chunkProps(chars, end - start)}>
           {revealed.has(group) ? (
-            lines.slice(start, end).map((line, offset) => (
-              <OutputLine
-                key={start + offset}
-                line={line}
-                index={start + offset}
-                firstOutputIndex={firstOutputIndex}
-              />
-            ))
+            lines
+              .slice(start, end)
+              .map((line, offset) => (
+                <OutputLine
+                  key={start + offset}
+                  line={line}
+                  index={start + offset}
+                  firstOutputIndex={firstOutputIndex}
+                />
+              ))
           ) : (
             <div className={styles.plainLines}>
               {plainLines(lines, start, end, firstOutputIndex)}
@@ -253,7 +255,10 @@ const plainLines = (
   firstOutputIndex: number
 ) =>
   lines
-    .slice(Math.max(start, firstOutputIndex === -1 ? end : firstOutputIndex), end)
+    .slice(
+      Math.max(start, firstOutputIndex === -1 ? end : firstOutputIndex),
+      end
+    )
     .map((line) => line.outputRuns.map((run) => run.text).join(""))
     .join("\n");
 

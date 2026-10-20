@@ -3,40 +3,17 @@ import { render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CapturingResizeObserver } from "../test/dom-stubs";
+
 import { useChildScrollAnchoring } from "./useChildScrollAnchoring";
-
-let observer: CapturingResizeObserver | undefined;
-
-class CapturingResizeObserver {
-  readonly callback: ResizeObserverCallback;
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
-    // eslint-disable-next-line @typescript-eslint/no-this-alias -- the test drives the observer the hook created
-    observer = this;
-  }
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 // Reports `target` at `blockSize` px tall, as a ResizeObserver would.
 const resize = (target: Element, blockSize: number) => {
+  const observer = CapturingResizeObserver.last;
   if (!observer) {
     throw new Error("no observer");
   }
-  const size = { blockSize, inlineSize: 100 };
-  observer.callback(
-    [
-      {
-        target,
-        borderBoxSize: [size],
-        contentBoxSize: [size],
-        devicePixelContentBoxSize: [size],
-        contentRect: new DOMRectReadOnly(0, 0, 100, blockSize),
-      } satisfies ResizeObserverEntry,
-    ],
-    observer
-  );
+  observer.resize(target, blockSize);
 };
 
 const placeAt = (element: Element, top: number, height: number) => {
@@ -75,7 +52,9 @@ const renderInScroller = () => {
 describe("useChildScrollAnchoring", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", CapturingResizeObserver);
-    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(5000);
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(
+      5000
+    );
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
   });
   afterEach(() => {
@@ -125,4 +104,3 @@ describe("useChildScrollAnchoring", () => {
     expect(scrollTop.value).toBe(1300);
   });
 });
-

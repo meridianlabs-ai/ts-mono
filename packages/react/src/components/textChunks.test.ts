@@ -4,7 +4,9 @@ import { splitTextChunks } from "./textChunks";
 
 describe("splitTextChunks", () => {
   it("returns text shorter than the chunk size as one chunk", () => {
-    expect(splitTextChunks("a\nb\n", 10)).toEqual([{ text: "a\nb\n", lines: 2 }]);
+    expect(splitTextChunks("a\nb\n", 10)).toEqual([
+      { text: "a\nb\n", lines: 2 },
+    ]);
   });
 
   it("ends each chunk after a newline and preserves the text exactly", () => {
@@ -20,7 +22,10 @@ describe("splitTextChunks", () => {
   it("breaks a single long line after a space or comma near the target", () => {
     const text = "x".repeat(30) + "," + "y".repeat(30);
     const chunks = splitTextChunks(text, 40);
-    expect(chunks.map((c) => c.text)).toEqual(["x".repeat(30) + ",", "y".repeat(30)]);
+    expect(chunks.map((c) => c.text)).toEqual([
+      "x".repeat(30) + ",",
+      "y".repeat(30),
+    ]);
   });
 
   it("hard-splits a line with no break opportunity", () => {

@@ -99,7 +99,10 @@ describe("toTreeItems", () => {
       { key: "[0 … 999]", depth: 1, childCount: 1000, isCollapsed: true },
       { key: "[1000 … 1999]", depth: 1, childCount: 1000, isCollapsed: true },
     ]);
-    expect(tree.at(-1)).toMatchObject({ key: "[216000 … 216216]", childCount: 217 });
+    expect(tree.at(-1)).toMatchObject({
+      key: "[216000 … 216216]",
+      childCount: 217,
+    });
   });
 
   it("expands every range of an array with hundreds of thousands of items", () => {

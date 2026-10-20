@@ -478,8 +478,14 @@ export const segmentMarkdown = async (
   let startLine = 0;
   const cut = (endLine: number, plain?: MarkdownSegment["plain"]) => {
     segments.push({
-      source: source.slice(at(sourceLines, startLine, source), at(sourceLines, endLine, source)),
-      prepared: prepared.slice(at(preparedLines, startLine, prepared), at(preparedLines, endLine, prepared)),
+      source: source.slice(
+        at(sourceLines, startLine, source),
+        at(sourceLines, endLine, source)
+      ),
+      prepared: prepared.slice(
+        at(preparedLines, startLine, prepared),
+        at(preparedLines, endLine, prepared)
+      ),
       lines: endLine - startLine,
       plain,
     });
@@ -550,7 +556,9 @@ const plainBlock = (
   }
   const closed =
     blockEnd - blockStart > 1 &&
-    sourceOf(blockEnd - 1, blockEnd).trim().startsWith(token.markup);
+    sourceOf(blockEnd - 1, blockEnd)
+      .trim()
+      .startsWith(token.markup);
   return {
     text: sourceOf(blockStart + 1, closed ? blockEnd - 1 : blockEnd),
     code: true,

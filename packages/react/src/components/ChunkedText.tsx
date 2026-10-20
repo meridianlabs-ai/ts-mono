@@ -4,9 +4,9 @@ import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
-import { kChunkThreshold, splitTextChunks } from "./textChunks";
 import styles from "./ChunkedText.module.css";
 import { cssVars } from "./cssVars";
+import { kChunkThreshold, splitTextChunks } from "./textChunks";
 
 interface ChunkedTextProps {
   text: string;

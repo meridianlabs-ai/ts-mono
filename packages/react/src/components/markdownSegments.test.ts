@@ -53,7 +53,11 @@ const withoutMathIds = (html: string) => html.replace(/mjx-[0-9a-f]+/g, "mjx");
 describe("segmentMarkdown", () => {
   it("renders the same HTML as the whole document", async () => {
     const whole = await renderMarkdown(document, "full");
-    const { segments, render } = await segmentMarkdown(document, "full", kEverySegment);
+    const { segments, render } = await segmentMarkdown(
+      document,
+      "full",
+      kEverySegment
+    );
     expect(segments.length).toBeGreaterThan(5);
     expect(withoutMathIds(segments.map(render).join(""))).toBe(
       withoutMathIds(whole)
@@ -94,7 +98,9 @@ describe("segmentMarkdown", () => {
   });
 
   it("gives a huge fenced code block its own plain segment of the code", async () => {
-    const code = Array.from({ length: 50 }, (_, i) => `line ${i} < x`).join("\n");
+    const code = Array.from({ length: 50 }, (_, i) => `line ${i} < x`).join(
+      "\n"
+    );
     const doc = `Before.\n\n\`\`\`text\n${code}\n\`\`\`\n## After\n\nAfter.\n`;
     const { segments } = await segmentMarkdown(doc, "full", {
       size: 1_000_000,
@@ -110,12 +116,18 @@ describe("segmentMarkdown", () => {
   });
 
   it("shows any other huge block as its source", async () => {
-    const paragraph = Array.from({ length: 50 }, (_, i) => `**line ${i}**`).join("\n");
+    const paragraph = Array.from(
+      { length: 50 },
+      (_, i) => `**line ${i}**`
+    ).join("\n");
     const doc = `# Title\n\n${paragraph}\n`;
     const { segments } = await segmentMarkdown(doc, "full", {
       size: 1_000_000,
       hugeBlock: 200,
     });
-    expect(segments.at(-1)?.plain).toEqual({ text: `${paragraph}\n`, code: false });
+    expect(segments.at(-1)?.plain).toEqual({
+      text: `${paragraph}\n`,
+      code: false,
+    });
   });
 });

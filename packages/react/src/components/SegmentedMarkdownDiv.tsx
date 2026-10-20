@@ -89,11 +89,11 @@ export const SegmentedMarkdownDiv = forwardRef<
   }
 
   return (
-    // The container is not itself a control: onClick delegates for the
-    // anchors inside the rendered markdown, as in MarkdownDiv.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    // Not itself a control: onClick delegates for the anchors inside the
+    // rendered markdown, which handle Enter themselves.
     <div
       ref={ref}
+      role="presentation"
       style={style}
       className={clsx(className, "markdown-content")}
       onClick={onClick}
