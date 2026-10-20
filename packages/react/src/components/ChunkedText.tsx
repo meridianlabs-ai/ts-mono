@@ -1,7 +1,6 @@
 import { ClipboardEvent, FC } from "react";
 
 import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
-import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
 import styles from "./ChunkedText.module.css";
@@ -30,28 +29,19 @@ export const ChunkedText: FC<ChunkedTextProps> = ({ text }) =>
  * than estimated. `childrenKey` must change when the chunks do.
  */
 export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
-  // Every chunk's contents inherit the variable, so setting it restyles all
-  // of them: set it at once the first time, then only when resizing stops.
-  const setCharsPerLine = useDebouncedCallback(
-    (element: HTMLElement, width: number) => {
-      element.style.setProperty(
-        kCharsPerLine,
-        String(measureCharsPerLine(element, width))
-      );
-    },
-    kResizeSettleMs
-  );
   const ref = useResizeObserver<T>((entry) => {
-    if (!(entry.target instanceof HTMLElement)) {
-      return;
-    }
-    if (entry.target.style.getPropertyValue(kCharsPerLine) === "") {
+    // Measured once: every chunk's contents inherit the variable, so changing
+    // it restyles all of them, and re-estimating never-rendered chunks after
+    // a resize would swing the whole text's height by the estimate error.
+    if (
+      entry.target instanceof HTMLElement &&
+      entry.contentRect.width > 0 &&
+      entry.target.style.getPropertyValue(kCharsPerLine) === ""
+    ) {
       entry.target.style.setProperty(
         kCharsPerLine,
         String(measureCharsPerLine(entry.target, entry.contentRect.width))
       );
-    } else {
-      setCharsPerLine(entry.target, entry.contentRect.width);
     }
   });
   useChildScrollAnchoring(ref, childrenKey);
@@ -59,7 +49,6 @@ export const useChunkLayout = <T extends HTMLElement>(childrenKey: unknown) => {
 };
 
 const kCharsPerLine = "--chunk-chars-per-line";
-const kResizeSettleMs = 250;
 
 /** Class and style for one chunk of `chars` characters over `lines` lines. */
 export const chunkProps = (chars: number, lines: number) => ({

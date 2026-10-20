@@ -31,13 +31,38 @@ const Chunks = () => {
   );
 };
 
-const renderInScroller = () => {
+interface ScrollerOptions {
+  /** As VirtualList does, so the browser doesn't anchor these children. */
+  anchoringOff?: boolean;
+  /** Wrap the chunks in a VirtualList row placed here. */
+  row?: { top: number; height: number };
+}
+
+const renderInScroller = ({
+  anchoringOff = true,
+  row,
+}: ScrollerOptions = {}) => {
   const scrollTop = { value: 1000 };
   render(
-    <div data-testid="scroller" style={{ overflowY: "auto" }}>
-      <Chunks />
+    <div
+      data-testid="scroller"
+      style={{
+        overflowY: "auto",
+        overflowAnchor: anchoringOff ? "none" : undefined,
+      }}
+    >
+      {row ? (
+        <div data-index={0} data-testid="row">
+          <Chunks />
+        </div>
+      ) : (
+        <Chunks />
+      )}
     </div>
   );
+  if (row) {
+    placeAt(screen.getByTestId("row"), row.top, row.height);
+  }
   const scroller = screen.getByTestId("scroller");
   Object.defineProperty(scroller, "scrollTop", {
     get: () => scrollTop.value,
@@ -103,4 +128,33 @@ describe("useChildScrollAnchoring", () => {
     resize(above, 600);
     expect(scrollTop.value).toBe(1300);
   });
+
+  it("leaves a scroller the browser anchors natively to the browser", () => {
+    const scrollTop = renderInScroller({ anchoringOff: false });
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    placeAt(above, -800, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1000);
+  });
+
+  it("leaves a VirtualList row entirely above the viewport to the virtualizer", () => {
+    // The row ended 100px above the viewport before its child grew by 300.
+    const scrollTop = renderInScroller({ row: { top: -1400, height: 1600 } });
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    placeAt(above, -1400, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1000);
+  });
+
+  it("compensates inside a VirtualList row that reaches into the viewport", () => {
+    const scrollTop = renderInScroller({ row: { top: -1400, height: 2000 } });
+    const above = screen.getByTestId("above");
+    resize(above, 300);
+    placeAt(above, -1400, 600);
+    resize(above, 600);
+    expect(scrollTop.value).toBe(1300);
+  });
 });
+

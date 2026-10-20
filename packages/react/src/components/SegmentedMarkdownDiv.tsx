@@ -81,8 +81,6 @@ export const SegmentedMarkdownDiv = forwardRef<
     [markdown, renderer, postProcess]
   );
   const segmented = useProgressiveTask(segmentDocument);
-  const layoutRef = useChunkLayout<HTMLDivElement>(segmented?.segments);
-  const revealed = useRevealedChildren(layoutRef, segmented?.segments);
 
   if (!trusted) {
     throw new Error("SegmentedMarkdownDiv renders trusted content only");
@@ -99,27 +97,7 @@ export const SegmentedMarkdownDiv = forwardRef<
       onClick={onClick}
     >
       {segmented ? (
-        <div ref={layoutRef} data-chunk-container>
-          {segmented.segments.map((segment, index) => {
-            // The edge segments aren't chunks, so they always lay out.
-            const edge = index === 0 || index === segmented.segments.length - 1;
-            return (
-              <Segment
-                key={index}
-                chars={segment.source.length}
-                lines={segment.lines}
-                plain={segment.plain}
-                chunked={!edge}
-                html={
-                  !segment.plain && (edge || revealed.has(index))
-                    ? segmented.renderHtml(index)
-                    : undefined
-                }
-                placeholder={segmented.placeholders[index] ?? ""}
-              />
-            );
-          })}
-        </div>
+        <SegmentList segmented={segmented} />
       ) : (
         <div className="markdown-segment-pending">
           <ChunkedText text={markdown} />
@@ -130,6 +108,37 @@ export const SegmentedMarkdownDiv = forwardRef<
 });
 
 SegmentedMarkdownDiv.displayName = "SegmentedMarkdownDiv";
+
+// Its own component so the chunk container exists when its layout hooks
+// first run.
+const SegmentList = ({ segmented }: { segmented: Segmented }) => {
+  const layoutRef = useChunkLayout<HTMLDivElement>(segmented.segments);
+  const revealed = useRevealedChildren(layoutRef, segmented.segments);
+  const last = segmented.segments.length - 1;
+  return (
+    <div ref={layoutRef} data-chunk-container>
+      {segmented.segments.map((segment, index) => {
+        // The edge segments aren't chunks, so they always lay out.
+        const edge = index === 0 || index === last;
+        return (
+          <Segment
+            key={index}
+            chars={segment.source.length}
+            lines={segment.lines}
+            plain={segment.plain}
+            chunked={!edge}
+            html={
+              !segment.plain && (edge || revealed.has(index))
+                ? segmented.renderHtml(index)
+                : undefined
+            }
+            placeholder={segmented.placeholders[index] ?? ""}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 interface SegmentProps {
   chars: number;
