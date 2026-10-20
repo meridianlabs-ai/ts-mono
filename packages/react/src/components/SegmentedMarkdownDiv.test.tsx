@@ -53,4 +53,21 @@ describe("MarkdownDiv with a huge document", () => {
     // The edge segments always render.
     expect(segments[0]?.querySelector("h2")?.textContent).toBe("Section 0");
   });
+
+  it("shows the segments at once when the same document mounts again", async () => {
+    const first = render(<MarkdownDiv markdown={markdown} />, {
+      wrapper: TrustedContentWrapper,
+    });
+    await waitFor(() => {
+      expect(first.container.querySelector(".markdown-segment")).not.toBeNull();
+    });
+    first.unmount();
+
+    const { container } = render(<MarkdownDiv markdown={markdown} />, {
+      wrapper: TrustedContentWrapper,
+    });
+    expect(
+      container.querySelectorAll(".markdown-segment").length
+    ).toBeGreaterThan(3);
+  });
 });

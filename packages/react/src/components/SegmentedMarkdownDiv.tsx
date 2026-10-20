@@ -21,12 +21,17 @@ interface SegmentedMarkdownDivProps {
   onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
 }
 
-interface Segmented {
+/** A segmented document, and its segments' HTML as they're rendered. */
+interface Segmentation {
   segments: MarkdownSegment[];
   /** Each segment's source as HTML text, shown until the segment renders. */
   placeholders: string[];
-  /** A segment's sanitized HTML, rendered on first request. */
-  renderHtml: (index: number) => string;
+  render: (segment: MarkdownSegment) => string;
+  sanitize: (html: string) => string;
+  /** Sanitized HTML by segment index. */
+  html: Map<number, string>;
+  /** Post-processed HTML by segment index, per post-processor. */
+  postProcessed: WeakMap<(html: string) => string, Map<number, string>>;
 }
 
 // Rendered markdown is far taller per character than plain text (lists,
@@ -38,8 +43,8 @@ const kSegmentSize = 10_000;
  * Renders a long markdown document as segments of top-level blocks, each a
  * content-visibility chunk. A segment renders to HTML when it first nears
  * the viewport and shows its source text until then: some browsers (Safari)
- * relayout every element on resize, skipped or not, so the DOM holds only
- * the rendered segments.
+ * relayout every element on resize, skipped or not, so only the segments
+ * read so far hold rendered HTML.
  */
 export const SegmentedMarkdownDiv = forwardRef<
   HTMLDivElement,
@@ -48,7 +53,13 @@ export const SegmentedMarkdownDiv = forwardRef<
   const trusted = useHasAllContentPermissions();
   // Its identity restarts segmenting, so it must change only with its inputs.
   const segmentDocument = useCallback(
-    async (publish: (segmented: Segmented) => void, signal: AbortSignal) => {
+    async (
+      publish: (segmentation: Segmentation) => void,
+      signal: AbortSignal
+    ) => {
+      if (cachedSegmentation(renderer, markdown)) {
+        return;
+      }
       const pipeline = await markdownPipeline.load();
       // Let the source placeholder paint before parsing the whole document.
       await yieldToBrowser();
@@ -58,29 +69,24 @@ export const SegmentedMarkdownDiv = forwardRef<
         renderer,
         { size: kSegmentSize, hugeBlock: kChunkThreshold }
       );
-      const rendered = new Map<number, string>();
-      publish({
-        segments,
-        placeholders: segments.map((segment) =>
-          escapeHtmlCharacters(segment.source)
-        ),
-        renderHtml: (index) => {
-          let html = rendered.get(index);
-          const segment = segments[index];
-          if (html === undefined && segment) {
-            const sanitized = pipeline.sanitizeRenderedHtml(render(segment));
-            html = postProcess
-              ? pipeline.sanitizeRenderedHtml(postProcess(sanitized))
-              : sanitized;
-            rendered.set(index, html);
-          }
-          return html ?? "";
-        },
-      });
+      publish(
+        cacheSegmentation(renderer, markdown, {
+          segments,
+          placeholders: segments.map((segment) =>
+            escapeHtmlCharacters(segment.source)
+          ),
+          render,
+          sanitize: pipeline.sanitizeRenderedHtml,
+          html: new Map(),
+          postProcessed: new WeakMap(),
+        })
+      );
     },
-    [markdown, renderer, postProcess]
+    [markdown, renderer]
   );
-  const segmented = useProgressiveTask(segmentDocument);
+  const segmentation =
+    useProgressiveTask(segmentDocument) ??
+    cachedSegmentation(renderer, markdown);
 
   if (!trusted) {
     throw new Error("SegmentedMarkdownDiv renders trusted content only");
@@ -96,8 +102,8 @@ export const SegmentedMarkdownDiv = forwardRef<
       className={clsx(className, "markdown-content")}
       onClick={onClick}
     >
-      {segmented ? (
-        <SegmentList segmented={segmented} />
+      {segmentation ? (
+        <SegmentList segmentation={segmentation} postProcess={postProcess} />
       ) : (
         <div className="markdown-segment-pending">
           <ChunkedText text={markdown} />
@@ -111,13 +117,20 @@ SegmentedMarkdownDiv.displayName = "SegmentedMarkdownDiv";
 
 // Its own component so the chunk container exists when its layout hooks
 // first run.
-const SegmentList = ({ segmented }: { segmented: Segmented }) => {
-  const layoutRef = useChunkLayout<HTMLDivElement>(segmented.segments);
-  const revealed = useRevealedChildren(layoutRef, segmented.segments);
-  const last = segmented.segments.length - 1;
+const SegmentList = ({
+  segmentation,
+  postProcess,
+}: {
+  segmentation: Segmentation;
+  postProcess: ((html: string) => string) | undefined;
+}) => {
+  const { segments, placeholders } = segmentation;
+  const layoutRef = useChunkLayout<HTMLDivElement>(segments);
+  const revealed = useRevealedChildren(layoutRef, segments);
+  const last = segments.length - 1;
   return (
     <div ref={layoutRef} data-chunk-container>
-      {segmented.segments.map((segment, index) => {
+      {segments.map((segment, index) => {
         // The edge segments aren't chunks, so they always lay out.
         const edge = index === 0 || index === last;
         return (
@@ -129,15 +142,76 @@ const SegmentList = ({ segmented }: { segmented: Segmented }) => {
             chunked={!edge}
             html={
               !segment.plain && (edge || revealed.has(index))
-                ? segmented.renderHtml(index)
+                ? segmentHtml(segmentation, index, postProcess)
                 : undefined
             }
-            placeholder={segmented.placeholders[index] ?? ""}
+            placeholder={placeholders[index] ?? ""}
           />
         );
       })}
     </div>
   );
+};
+
+const segmentHtml = (
+  segmentation: Segmentation,
+  index: number,
+  postProcess: ((html: string) => string) | undefined
+): string => {
+  const segment = segmentation.segments[index];
+  if (!segment) {
+    return "";
+  }
+  let html = segmentation.html.get(index);
+  if (html === undefined) {
+    html = segmentation.sanitize(segmentation.render(segment));
+    segmentation.html.set(index, html);
+  }
+  if (!postProcess) {
+    return html;
+  }
+  let processed = segmentation.postProcessed.get(postProcess);
+  if (!processed) {
+    processed = new Map();
+    segmentation.postProcessed.set(postProcess, processed);
+  }
+  let result = processed.get(index);
+  if (result === undefined) {
+    result = segmentation.sanitize(postProcess(html));
+    processed.set(index, result);
+  }
+  return result;
+};
+
+// The last few documents segmented. VirtualList unmounts a message's row
+// once it scrolls out of range, and segmenting a huge document again would
+// cost about half a second each time it comes back.
+const kCachedDocuments = 3;
+const segmentations = new Map<string, Map<string, Segmentation>>();
+const cacheOrder: [renderer: string, markdown: string][] = [];
+
+const cachedSegmentation = (renderer: string, markdown: string) =>
+  segmentations.get(renderer)?.get(markdown);
+
+const cacheSegmentation = (
+  renderer: string,
+  markdown: string,
+  segmentation: Segmentation
+): Segmentation => {
+  let byMarkdown = segmentations.get(renderer);
+  if (!byMarkdown) {
+    byMarkdown = new Map();
+    segmentations.set(renderer, byMarkdown);
+  }
+  byMarkdown.set(markdown, segmentation);
+  cacheOrder.push([renderer, markdown]);
+  while (cacheOrder.length > kCachedDocuments) {
+    const evicted = cacheOrder.shift();
+    if (evicted) {
+      segmentations.get(evicted[0])?.delete(evicted[1]);
+    }
+  }
+  return segmentation;
 };
 
 interface SegmentProps {
