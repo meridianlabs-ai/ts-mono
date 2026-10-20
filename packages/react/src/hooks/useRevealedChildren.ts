@@ -1,6 +1,6 @@
 import { RefObject, useEffect, useState } from "react";
 
-import { scrollingAncestor } from "./scrollingAncestor";
+import { scrollContainer } from "./scrollingAncestor";
 
 const kNone: ReadonlySet<number> = new Set();
 
@@ -45,7 +45,7 @@ export const useRevealedChildren = (
       },
       // The scroller as root, so the margin reaches past its visible area;
       // with the viewport as root, the scroller would clip everything outside.
-      { root: scrollingAncestor(container), rootMargin: "100% 0px" }
+      { root: scrollContainer(container), rootMargin: "100% 0px" }
     );
     for (const child of children) {
       observer.observe(child);

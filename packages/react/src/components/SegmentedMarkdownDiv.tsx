@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { CSSProperties, forwardRef, useCallback } from "react";
 
 import { useProgressiveTask } from "../hooks/useProgressiveTask";
+import { useRevealedChildren } from "../hooks/useRevealedChildren";
 
 import { ChunkedText, chunkProps, useChunkLayout } from "./ChunkedText";
 import { useHasAllContentPermissions } from "./ContentTrustContext";
@@ -20,12 +21,12 @@ interface SegmentedMarkdownDivProps {
   onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
 }
 
-interface Rendered {
+interface Segmented {
   segments: MarkdownSegment[];
   /** Each segment's source as HTML text, shown until the segment renders. */
   placeholders: string[];
-  /** Sanitized HTML of the segments rendered so far, in order. */
-  html: string[];
+  /** A segment's sanitized HTML, rendered on first request. */
+  renderHtml: (index: number) => string;
 }
 
 // Rendered markdown is far taller per character than plain text (lists,
@@ -33,28 +34,21 @@ interface Rendered {
 // chunk on screen on each resize.
 const kSegmentSize = 10_000;
 
-// Work done before yielding to the browser, so rendering a huge document
-// never blocks input or painting for long.
-const kSliceMs = 12;
-
-// How often finished segments are committed.
-const kPublishMs = 150;
-
-
 /**
  * Renders a long markdown document as segments of top-level blocks, each a
- * content-visibility chunk, so the browser lays out only the segments near
- * the viewport. Segments render to HTML a slice at a time; until a segment
- * has, it shows its source text, which find-in-page can already reach.
+ * content-visibility chunk. A segment renders to HTML when it first nears
+ * the viewport and shows its source text until then: some browsers (Safari)
+ * relayout every element on resize, skipped or not, so the DOM holds only
+ * the rendered segments.
  */
 export const SegmentedMarkdownDiv = forwardRef<
   HTMLDivElement,
   SegmentedMarkdownDivProps
 >(({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
   const trusted = useHasAllContentPermissions();
-  // Its identity restarts rendering, so it must change only with its inputs.
-  const renderSegments = useCallback(
-    async (publish: (rendered: Rendered) => void, signal: AbortSignal) => {
+  // Its identity restarts segmenting, so it must change only with its inputs.
+  const segmentDocument = useCallback(
+    async (publish: (segmented: Segmented) => void, signal: AbortSignal) => {
       const pipeline = await markdownPipeline.load();
       // Let the source placeholder paint before parsing the whole document.
       await yieldToBrowser();
@@ -64,40 +58,31 @@ export const SegmentedMarkdownDiv = forwardRef<
         renderer,
         { size: kSegmentSize, hugeBlock: kChunkThreshold }
       );
-      const placeholders = segments.map((segment) =>
-        escapeHtmlCharacters(segment.source)
-      );
-      const html: string[] = [];
-      publish({ segments, placeholders, html: [] });
-      let sliceStart = performance.now();
-      let lastPublish = sliceStart;
-      for (const segment of segments) {
-        signal.throwIfAborted();
-        if (segment.plain) {
-          html.push("");
-          continue;
-        }
-        const sanitized = pipeline.sanitizeRenderedHtml(render(segment));
-        html.push(
-          postProcess
-            ? pipeline.sanitizeRenderedHtml(postProcess(sanitized))
-            : sanitized
-        );
-        if (performance.now() - sliceStart > kSliceMs) {
-          if (performance.now() - lastPublish > kPublishMs) {
-            publish({ segments, placeholders, html: [...html] });
-            lastPublish = performance.now();
+      const rendered = new Map<number, string>();
+      publish({
+        segments,
+        placeholders: segments.map((segment) =>
+          escapeHtmlCharacters(segment.source)
+        ),
+        renderHtml: (index) => {
+          let html = rendered.get(index);
+          const segment = segments[index];
+          if (html === undefined && segment) {
+            const sanitized = pipeline.sanitizeRenderedHtml(render(segment));
+            html = postProcess
+              ? pipeline.sanitizeRenderedHtml(postProcess(sanitized))
+              : sanitized;
+            rendered.set(index, html);
           }
-          await yieldToBrowser();
-          sliceStart = performance.now();
-        }
-      }
-      publish({ segments, placeholders, html });
+          return html ?? "";
+        },
+      });
     },
     [markdown, renderer, postProcess]
   );
-  const rendered = useProgressiveTask(renderSegments);
-  const layoutRef = useChunkLayout<HTMLDivElement>(rendered?.segments);
+  const segmented = useProgressiveTask(segmentDocument);
+  const layoutRef = useChunkLayout<HTMLDivElement>(segmented?.segments);
+  const revealed = useRevealedChildren(layoutRef, segmented?.segments);
 
   if (!trusted) {
     throw new Error("SegmentedMarkdownDiv renders trusted content only");
@@ -113,19 +98,27 @@ export const SegmentedMarkdownDiv = forwardRef<
       className={clsx(className, "markdown-content")}
       onClick={onClick}
     >
-      {rendered ? (
+      {segmented ? (
         <div ref={layoutRef} data-chunk-container>
-          {rendered.segments.map((segment, index) => (
-            <Segment
-              key={index}
-              chars={segment.source.length}
-              lines={segment.lines}
-              plain={segment.plain}
-              chunked={index > 0 && index < rendered.segments.length - 1}
-              html={rendered.html[index]}
-              placeholder={rendered.placeholders[index] ?? ""}
-            />
-          ))}
+          {segmented.segments.map((segment, index) => {
+            // The edge segments aren't chunks, so they always lay out.
+            const edge = index === 0 || index === segmented.segments.length - 1;
+            return (
+              <Segment
+                key={index}
+                chars={segment.source.length}
+                lines={segment.lines}
+                plain={segment.plain}
+                chunked={!edge}
+                html={
+                  !segment.plain && (edge || revealed.has(index))
+                    ? segmented.renderHtml(index)
+                    : undefined
+                }
+                placeholder={segmented.placeholders[index] ?? ""}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="markdown-segment-pending">

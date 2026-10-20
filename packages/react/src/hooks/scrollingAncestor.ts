@@ -12,3 +12,22 @@ export const scrollingAncestor = (element: HTMLElement): HTMLElement | null => {
   }
   return null;
 };
+
+/**
+ * The element that scrolls `element`: the scrolling ancestor if one scrolls
+ * now, else the nearest ancestor set to scroll (whose content may not
+ * overflow yet, as inside a collapsed panel).
+ */
+export const scrollContainer = (element: HTMLElement): HTMLElement | null => {
+  const scrolling = scrollingAncestor(element);
+  if (scrolling) {
+    return scrolling;
+  }
+  for (let el = element.parentElement; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return el;
+    }
+  }
+  return null;
+};
