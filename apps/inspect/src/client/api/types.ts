@@ -345,7 +345,6 @@ export interface ClientAPI {
   // Read flow data
   get_flow: (dir?: string) => Promise<string | undefined>;
 
-  get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
   // Per-file settled results, aligned with `log_files` — one unreadable file
   // never fails the others. See client-api.ts for the fallback that backs it.
   get_log_summaries_settled: (

@@ -333,12 +333,6 @@
     }
   },
   "apps/inspect/src/client/api/client-api.ts": {
-    "@ts-expect-error": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
     }
