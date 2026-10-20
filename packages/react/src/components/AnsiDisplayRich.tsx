@@ -1,12 +1,26 @@
 // The rich (colored) terminal renderer, loaded on demand by ANSIDisplay so
 // ansi-output is never fetched or run for untrusted content.
-import { ANSIColor, ANSIOutput, ANSIOutputRun, ANSIStyle } from "ansi-output";
+import {
+  ANSIColor,
+  ANSIOutput,
+  ANSIOutputLine,
+  ANSIOutputRun,
+  ANSIStyle,
+} from "ansi-output";
 import clsx from "clsx";
-import { FC, useState } from "react";
+import { FC, useCallback, useState } from "react";
+
+import { stripAnsi } from "@tsmono/util";
+
+import { useProgressiveTask } from "../hooks/useProgressiveTask";
+import { useRevealedChildren } from "../hooks/useRevealedChildren";
 
 import type { ANSIDisplayProps } from "./AnsiDisplay";
 import ansiStyles from "./AnsiDisplay.module.css";
 import styles from "./AnsiDisplayRich.module.css";
+import { ChunkedText, chunkProps, useChunkLayout } from "./ChunkedText";
+import { kChunkSize, kChunkThreshold } from "./textChunks";
+import { yieldToBrowser } from "./yieldToBrowser";
 import { ToolButton } from "./ToolButton";
 
 const RichANSIDisplay: FC<ANSIDisplayProps> = ({
@@ -15,8 +29,17 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
   className,
 }) => {
   const [showRaw, setShowRaw] = useState(false);
-  const ansiOutput = new ANSIOutput();
-  ansiOutput.processOutput(output);
+  const outputLines = useAnsiLines(output);
+  if (!outputLines) {
+    // A huge output is still parsing: show its text, escapes removed.
+    return (
+      <div className={clsx(ansiStyles.ansiDisplayContainer, className)} style={style}>
+        <pre className={ansiStyles.ansiDisplay}>
+          <ChunkedText text={stripAnsi(output)} />
+        </pre>
+      </div>
+    );
+  }
 
   // Check if more than 80% of lines share the same background color
   const getUniformBackgroundColor = (): string | undefined => {
@@ -24,7 +47,7 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
     let totalLinesWithBackground = 0;
 
     // Count background colors across all lines
-    for (const line of ansiOutput.outputLines) {
+    for (const line of outputLines) {
       let lineBackgroundColor: string | undefined = undefined;
 
       // Get the background color for this line (from any run that has one)
@@ -75,7 +98,7 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
     ? computeForegroundBackgroundColor(kBackground, uniformBackgroundColor)
     : {};
 
-  const firstOutputIndex = ansiOutput.outputLines.findIndex(
+  const firstOutputIndex = outputLines.findIndex(
     (line) => line.outputRuns.length > 0
   );
   return (
@@ -99,30 +122,154 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
         <pre
           className={clsx(ansiStyles.ansiDisplay, ansiStyles.ansiDisplayRaw)}
         >
-          {output}
+          <ChunkedText text={output} />
         </pre>
       ) : (
         <div className={clsx(ansiStyles.ansiDisplay)} style={backgroundStyle}>
-          {ansiOutput.outputLines.map((line, index) => {
-            return (
-              <div key={index}>
-                {!line.outputRuns.length ? (
-                  // Blank lines keep their height once output has started.
-                  firstOutputIndex !== -1 && index > firstOutputIndex ? (
-                    <br />
-                  ) : null
-                ) : (
-                  line.outputRuns.map((outputRun) => (
-                    <OutputRun key={outputRun.id} run={outputRun} />
-                  ))
-                )}
-              </div>
-            );
-          })}
+          {output.length > kChunkThreshold ? (
+            <LineChunks
+              lines={outputLines}
+              firstOutputIndex={firstOutputIndex}
+            />
+          ) : (
+            outputLines.map((line, index) => (
+              <OutputLine
+                key={index}
+                line={line}
+                index={index}
+                firstOutputIndex={firstOutputIndex}
+              />
+            ))
+          )}
         </div>
       )}
     </div>
   );
+};
+
+/**
+ * The output's lines with their runs' formats resolved. A huge output is
+ * parsed a slice at a time (the parser carries escape state across slices),
+ * so it is undefined until parsing finishes; anything else parses at once.
+ */
+const useAnsiLines = (output: string): ANSIOutputLine[] | undefined => {
+  const huge = output.length > kChunkThreshold;
+  // Its identity restarts parsing, so it must change only with its inputs.
+  const parse = useCallback(
+    async (
+      publish: (lines: ANSIOutputLine[]) => void,
+      signal: AbortSignal
+    ) => {
+      if (!huge) {
+        return;
+      }
+      const ansiOutput = new ANSIOutput();
+      let sliceStart = performance.now();
+      for (let i = 0; i < output.length; i += kParseSlice) {
+        ansiOutput.processOutput(output.slice(i, i + kParseSlice));
+        if (performance.now() - sliceStart > kSliceMs) {
+          await yieldToBrowser();
+          signal.throwIfAborted();
+          sliceStart = performance.now();
+        }
+      }
+      publish(ansiOutput.outputLines);
+    },
+    [output, huge]
+  );
+  const parsed = useProgressiveTask(parse);
+  if (huge) {
+    return parsed;
+  }
+  const ansiOutput = new ANSIOutput();
+  ansiOutput.processOutput(output);
+  return ansiOutput.outputLines;
+};
+
+const kParseSlice = 65_536;
+const kSliceMs = 12;
+
+interface OutputLineProps {
+  line: ANSIOutputLine;
+  index: number;
+  firstOutputIndex: number;
+}
+
+const OutputLine: FC<OutputLineProps> = ({ line, index, firstOutputIndex }) => (
+  <div>
+    {!line.outputRuns.length ? (
+      // Blank lines keep their height once output has started.
+      firstOutputIndex !== -1 && index > firstOutputIndex ? (
+        <br />
+      ) : null
+    ) : (
+      line.outputRuns.map((outputRun) => (
+        <OutputRun key={outputRun.id} run={outputRun} />
+      ))
+    )}
+  </div>
+);
+
+// Each run carries its resolved format, so lines group into chunks without
+// carrying any escape-sequence state across a chunk boundary.
+// Building a rich line costs a few elements per run, so a chunk shows its
+// plain text (the same characters) until it first nears the viewport.
+const LineChunks: FC<{
+  lines: ANSIOutputLine[];
+  firstOutputIndex: number;
+}> = ({ lines, firstOutputIndex }) => {
+  const ref = useChunkLayout<HTMLDivElement>(lines);
+  const revealed = useRevealedChildren(ref, lines);
+  return (
+    <div ref={ref} data-chunk-container>
+      {lineGroups(lines).map(({ start, end, chars }, group) => (
+        <div key={start} {...chunkProps(chars, end - start)}>
+          {revealed.has(group) ? (
+            lines.slice(start, end).map((line, offset) => (
+              <OutputLine
+                key={start + offset}
+                line={line}
+                index={start + offset}
+                firstOutputIndex={firstOutputIndex}
+              />
+            ))
+          ) : (
+            <div className={styles.plainLines}>
+              {plainLines(lines, start, end, firstOutputIndex)}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// What the rich lines show, as text: a line per line, none before the first
+// line with output.
+const plainLines = (
+  lines: ANSIOutputLine[],
+  start: number,
+  end: number,
+  firstOutputIndex: number
+) =>
+  lines
+    .slice(Math.max(start, firstOutputIndex === -1 ? end : firstOutputIndex), end)
+    .map((line) => line.outputRuns.map((run) => run.text).join(""))
+    .join("\n");
+
+const lineGroups = (lines: ANSIOutputLine[]) => {
+  const groups: { start: number; end: number; chars: number }[] = [];
+  let start = 0;
+  let chars = 0;
+  lines.forEach((line, index) => {
+    chars += line.outputRuns.reduce((n, run) => n + run.text.length, 0) + 1;
+    if (chars >= kChunkSize || index === lines.length - 1) {
+      groups.push({ start, end: index + 1, chars });
+      start = index + 1;
+      chars = 0;
+    }
+  });
+  return groups;
 };
 
 const kForeground = 0;

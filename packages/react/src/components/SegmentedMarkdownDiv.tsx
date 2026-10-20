@@ -9,6 +9,7 @@ import { markdownPipeline } from "./markdownPipelineLoader";
 import type { MarkdownSegment } from "./markdownRendering";
 import { escapeHtmlCharacters } from "./markdownText";
 import { kChunkThreshold } from "./textChunks";
+import { yieldToBrowser } from "./yieldToBrowser";
 
 interface SegmentedMarkdownDivProps {
   markdown: string;
@@ -39,13 +40,6 @@ const kSliceMs = 12;
 // How often finished segments are committed.
 const kPublishMs = 150;
 
-// A message-channel task, unlike a nested setTimeout(0), isn't clamped to 4ms.
-const yieldToBrowser = () =>
-  new Promise<void>((resolve) => {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => resolve();
-    channel.port2.postMessage(null);
-  });
 
 /**
  * Renders a long markdown document as segments of top-level blocks, each a

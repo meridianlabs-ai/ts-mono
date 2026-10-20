@@ -12,3 +12,9 @@
   padding: 0 0.2rem;
   background-color: var(--bs-body-bg);
 }
+
+/* A chunk's text before it renders rich: one line per line, like the rich
+   lines' blocks. */
+.plainLines {
+  white-space: pre-wrap;
+}

@@ -35,3 +35,4 @@ export * from "./useUnmount";
 export * from "./useCopyToClipboard";
 export * from "./useChildScrollAnchoring";
 export * from "./useProgressiveTask";
+export * from "./useRevealedChildren";

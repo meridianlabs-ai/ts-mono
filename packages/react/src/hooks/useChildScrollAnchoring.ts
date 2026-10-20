@@ -1,5 +1,7 @@
 import { RefObject, useEffect } from "react";
 
+import { scrollingAncestor } from "./scrollingAncestor";
+
 /**
  * Keeps on-screen content still when children of `containerRef` that were
  * entirely above the scroll viewport change height, by scrolling the nearest
@@ -71,18 +73,3 @@ export const useChildScrollAnchoring = (
 
 const blockSize = (entry: ResizeObserverEntry): number =>
   entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
-
-// The nearest ancestor that scrolls now: an `overflow: auto` element whose
-// content fits (a `pre` sized to its text) doesn't count.
-const scrollingAncestor = (element: HTMLElement): HTMLElement | null => {
-  for (let el = element.parentElement; el; el = el.parentElement) {
-    const { overflowY } = getComputedStyle(el);
-    if (
-      (overflowY === "auto" || overflowY === "scroll") &&
-      el.scrollHeight > el.clientHeight
-    ) {
-      return el;
-    }
-  }
-  return null;
-};

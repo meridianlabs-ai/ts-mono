@@ -6,6 +6,7 @@ import { stripAnsi } from "@tsmono/util";
 import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import styles from "./AnsiDisplay.module.css";
+import { ChunkedText } from "./ChunkedText";
 import { usePlainText } from "./ContentTrust";
 import { useContentPolicy } from "./ContentTrustContext";
 
@@ -42,7 +43,7 @@ const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
           plain.className
         )}
       >
-        {plain.present(output)}
+        <ChunkedText text={plain.present(output)} />
       </pre>
     </div>
   );
@@ -60,6 +61,8 @@ const LoadingANSIDisplay: FC<ANSIDisplayProps> = ({
   className,
 }) => (
   <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
-    <pre className={styles.ansiDisplay}>{stripAnsi(output)}</pre>
+    <pre className={styles.ansiDisplay}>
+      <ChunkedText text={stripAnsi(output)} />
+    </pre>
   </div>
 );
