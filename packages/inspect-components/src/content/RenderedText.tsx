@@ -11,7 +11,6 @@ import {
   type MarkdownRenderer,
 } from "@tsmono/react/components";
 
-import { cappedText } from "./cappedText";
 import { useDisplayMode } from "./DisplayModeContext";
 
 interface RenderedTextProps {
@@ -70,13 +69,11 @@ export const RenderedText = forwardRef<
       );
     }
 
-    // Truncation reads only this much, so the cap never applies to it.
-    const { text, notice } = cappedText(source);
-    const body = (
+    return (
       <MarkdownDivWithReferences
         // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
         ref={ref as ForwardedRef<HTMLDivElement>}
-        markdown={text}
+        markdown={source}
         references={references}
         options={options}
         style={style}
@@ -84,17 +81,6 @@ export const RenderedText = forwardRef<
         renderer={renderer}
         truncateAt={truncateAt}
       />
-    );
-
-    if (notice === null) {
-      return body;
-    }
-
-    return (
-      <>
-        {body}
-        {notice}
-      </>
     );
   }
 );

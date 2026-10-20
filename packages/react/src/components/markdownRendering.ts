@@ -3,7 +3,7 @@
  * Extracted for testability (no CSS/React imports).
  */
 
-import markdownit, { type MarkdownIt } from "markdown-it";
+import markdownit, { type Env, type MarkdownIt, type Token } from "markdown-it";
 
 import {
   canonicalImageSource,
@@ -356,10 +356,9 @@ export function unescapeCodeHtmlEntities(str: string): string {
 
 type MarkdownRenderFunction = (markdown: string) => Promise<string>;
 
-const renderFullPipelineMarkdown = async (
-  markdown: string,
-  renderer: "full" | "fragment"
-): Promise<string> => {
+// The pipeline's text transforms before markdown-it. None of them adds or
+// removes a line, so line numbers in the prepared text match the source.
+const prepareFullPipelineMarkdown = (markdown: string): string => {
   // Protect backslashes in LaTeX expressions
   const protectedContent = protectBackslashesInLatex(markdown);
 
@@ -372,7 +371,24 @@ const renderFullPipelineMarkdown = async (
   const protectedText = protectMarkdown(preRendered);
 
   // Restore backslashes for LaTeX processing
-  const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
+  return restoreBackslashesForLatex(protectedText);
+};
+
+const finishFullPipelineHtml = (html: string): string => {
+  const unescaped = unprotectMarkdown(html);
+
+  // For `code` tags, reverse the escaping if we can
+  const withCode = unescapeCodeHtmlEntities(unescaped);
+
+  // For `sup` tags, reverse the escaping if we can
+  return unescapeSupHtmlEntities(withCode);
+};
+
+const renderFullPipelineMarkdown = async (
+  markdown: string,
+  renderer: "full" | "fragment"
+): Promise<string> => {
+  const preparedForMarkdown = prepareFullPipelineMarkdown(markdown);
 
   let html = preparedForMarkdown;
   try {
@@ -383,15 +399,173 @@ const renderFullPipelineMarkdown = async (
     console.error(ex);
   }
 
-  const unescaped = unprotectMarkdown(html);
+  return finishFullPipelineHtml(html);
+};
 
-  // For `code` tags, reverse the escaping if we can
-  const withCode = unescapeCodeHtmlEntities(unescaped);
+/** A run of top-level blocks of a markdown document. */
+export interface MarkdownSegment {
+  /** The segment's markdown source, shown until it renders. */
+  source: string;
+  /** The segment's text as the pipeline prepared it for markdown-it. */
+  prepared: string;
+  /** Lines in the source. */
+  lines: number;
+  /** Set for a single top-level block too large to render as markdown in
+   *  one piece: the text to show as plain text instead, and whether it is
+   *  the content of a code block. */
+  plain?: { text: string; code: boolean };
+}
 
-  // For `sup` tags, reverse the escaping if we can
-  const withSup = unescapeSupHtmlEntities(withCode);
+export interface SegmentedMarkdown {
+  segments: MarkdownSegment[];
+  /** Renders a segment to unsanitized HTML; reference links resolve against
+   *  the whole document. */
+  render: (segment: MarkdownSegment) => string;
+}
 
-  return withSup;
+// markdown-it's own newline normalization, applied up front so its block
+// parse's line numbers index the same lines as the source.
+const kNewlines = /\r\n?|\n/g;
+
+// Block types a segment may start at. Their top margin is zero, so the gap
+// above them is the previous block's bottom margin whether or not a segment
+// boundary (a block formatting context) sits between them.
+const kSegmentStarts = new Set([
+  "paragraph_open",
+  "bullet_list_open",
+  "ordered_list_open",
+  "fence",
+  "code_block",
+  "table_open",
+  "blockquote_open",
+]);
+
+export interface SegmentOptions {
+  /** Target segment length in characters. */
+  size: number;
+  /** A top-level block longer than this gets a segment of its own, shown as
+   *  plain text (`MarkdownSegment.plain`). */
+  hugeBlock: number;
+}
+
+/**
+ * Splits a markdown document into segments of about `size` characters that
+ * render, one at a time, to the same HTML as the whole document: segments
+ * end between top-level blocks, which markdown-it renders independently, and
+ * share the document's link reference definitions. A single block too large
+ * to lay out as one element becomes a plain-text segment. The first and last
+ * segments hold only the blocks before the first, and from the last, place a
+ * segment may start.
+ */
+export const segmentMarkdown = async (
+  markdown: string,
+  renderer: "full" | "fragment",
+  { size, hugeBlock }: SegmentOptions
+): Promise<SegmentedMarkdown> => {
+  const source = markdown.replace(kNewlines, "\n");
+  const prepared = prepareFullPipelineMarkdown(source);
+  const md = await getMarkdownInstance(renderer, hasMathContent(markdown));
+  const env: Env = {};
+  const tokens: Token[] = [];
+  md.block.parse(prepared, md, env, tokens);
+
+  const sourceLines = lineStarts(source);
+  const preparedLines = lineStarts(prepared);
+  const segments: MarkdownSegment[] = [];
+  const end = sourceLines.length;
+  const at = (lines: number[], line: number, text: string) =>
+    line < lines.length ? (lines[line] ?? text.length) : text.length;
+  let startLine = 0;
+  const cut = (endLine: number, plain?: MarkdownSegment["plain"]) => {
+    segments.push({
+      source: source.slice(at(sourceLines, startLine, source), at(sourceLines, endLine, source)),
+      prepared: prepared.slice(at(preparedLines, startLine, prepared), at(preparedLines, endLine, prepared)),
+      lines: endLine - startLine,
+      plain,
+    });
+    startLine = endLine;
+  };
+  const sourceOf = (from: number, to: number) =>
+    source.slice(at(sourceLines, from, source), at(sourceLines, to, source));
+
+  const blocks = tokens.filter(
+    (token): token is Token & { map: [number, number] } =>
+      token.level === 0 && token.nesting !== -1 && token.map !== null
+  );
+  // The first and last segments end and start at the first and last
+  // possible boundaries: they aren't chunks (their edge margins collapse
+  // through them), so the browser always lays them out, and they stay small.
+  const lastStart = blocks.findLast(
+    (token) => token.map[0] > 0 && kSegmentStarts.has(token.type)
+  )?.map[0];
+
+  for (const token of blocks) {
+    const [blockStart, blockEnd] = token.map;
+    if (sourceOf(blockStart, blockEnd).length > hugeBlock) {
+      if (blockStart > startLine) {
+        cut(blockStart);
+      }
+      cut(blockEnd, plainBlock(token, sourceOf, blockStart, blockEnd));
+      continue;
+    }
+    if (
+      blockStart > startLine &&
+      kSegmentStarts.has(token.type) &&
+      (segments.length === 0 ||
+        blockStart === lastStart ||
+        sourceOf(startLine, blockStart).length >= size)
+    ) {
+      cut(blockStart);
+    }
+  }
+  if (sourceOf(startLine, end).length > 0 || segments.length === 0) {
+    cut(end);
+  }
+
+  return {
+    segments,
+    render: (segment) => {
+      let html = segment.prepared;
+      try {
+        html = md.render(segment.prepared, env);
+      } catch (ex) {
+        console.log("Unable to markdown render content");
+        console.error(ex);
+      }
+      return finishFullPipelineHtml(html);
+    },
+  };
+};
+
+// A huge block as plain text: a fenced code block's content, or otherwise
+// the block's source.
+const plainBlock = (
+  token: Token,
+  sourceOf: (from: number, to: number) => string,
+  blockStart: number,
+  blockEnd: number
+): MarkdownSegment["plain"] => {
+  if (token.type !== "fence") {
+    return { text: sourceOf(blockStart, blockEnd), code: false };
+  }
+  const closed =
+    blockEnd - blockStart > 1 &&
+    sourceOf(blockEnd - 1, blockEnd).trim().startsWith(token.markup);
+  return {
+    text: sourceOf(blockStart + 1, closed ? blockEnd - 1 : blockEnd),
+    code: true,
+  };
+};
+
+// Offsets at which each line starts.
+const lineStarts = (text: string): number[] => {
+  const starts = [0];
+  let index = text.indexOf("\n");
+  while (index !== -1) {
+    starts.push(index + 1);
+    index = text.indexOf("\n", index + 1);
+  }
+  return starts;
 };
 
 const renderTextOnlyMarkdown = async (markdown: string): Promise<string> => {

@@ -14,7 +14,7 @@
     calc(
       max(
           var(--chunk-lines),
-          var(--chunk-chars) / var(--chunk-chars-per-line) + var(--chunk-lines) *
+          var(--chunk-chars) / var(--chunk-chars-per-line, 100) + var(--chunk-lines) *
             0.5
         ) * 1lh
     );

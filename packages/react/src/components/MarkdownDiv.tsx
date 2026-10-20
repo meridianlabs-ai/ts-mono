@@ -11,11 +11,12 @@ import {
 
 import "./MarkdownDiv.css";
 
-import { onDemandModule } from "../hooks/onDemandModule";
-
 import { ChunkedText } from "./ChunkedText";
 import { usePlainText } from "./ContentTrust";
 import { useHasAllContentPermissions } from "./ContentTrustContext";
+import { markdownPipeline } from "./markdownPipelineLoader";
+import { SegmentedMarkdownDiv } from "./SegmentedMarkdownDiv";
+import { kChunkThreshold } from "./textChunks";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
@@ -25,10 +26,6 @@ import {
 } from "./markdownText";
 
 export type { MarkdownRenderer } from "./markdownText";
-
-// The markdown pipeline (markdown-it, DOMPurify, MathJax) loads on first
-// trusted render, so none of it is fetched or run for untrusted content.
-const markdownPipeline = onDemandModule(() => import("./markdownPipeline"));
 
 interface MarkdownDivProps {
   markdown: string;
@@ -57,6 +54,25 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       props.truncateAt === undefined
         ? props.markdown
         : truncationWindow(props.markdown, props.truncateAt);
+    const renderer = props.renderer ?? defaultMarkdownRenderer;
+    if (
+      trusted &&
+      renderer !== "textOnly" &&
+      props.truncateAt === undefined &&
+      markdown.length > kChunkThreshold
+    ) {
+      return (
+        <SegmentedMarkdownDiv
+          ref={ref}
+          markdown={markdown}
+          renderer={renderer}
+          style={props.style}
+          className={props.className}
+          postProcess={props.postProcess}
+          onClick={props.onClick}
+        />
+      );
+    }
     return trusted ? (
       <RichMarkdownDiv {...props} markdown={markdown} ref={ref} />
     ) : (

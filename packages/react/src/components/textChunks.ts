@@ -54,7 +54,8 @@ const softBreak = (text: string, from: number, to: number): number => {
   return to;
 };
 
-const countLines = (text: string): number => {
+/** Lines in `text`: its newlines, plus a trailing partial line. */
+export const countLines = (text: string): number => {
   let lines = 0;
   let index = text.indexOf("\n");
   while (index !== -1) {

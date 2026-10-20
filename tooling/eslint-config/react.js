@@ -68,7 +68,10 @@ const MEDIA_ELEMENTS = new Set([
   "object",
   "video",
 ]);
-const RAW_HTML_FILES = ["packages/react/src/components/MarkdownDiv.tsx"];
+const RAW_HTML_FILES = [
+  "packages/react/src/components/MarkdownDiv.tsx",
+  "packages/react/src/components/SegmentedMarkdownDiv.tsx",
+];
 // An <a> whose href isn't a string literal could point at a log-supplied
 // destination. Log-derived links go through ExternalLink or MediaReference,
 // which render inert text when links are denied; the other files build their

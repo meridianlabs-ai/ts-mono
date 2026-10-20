@@ -19,8 +19,24 @@
   margin-bottom: 0.2em;
 }
 
-.markdown-content p:last-child {
+/* In a segmented document only the last segment's last paragraph is last. */
+.markdown-content p:last-child:not(.markdown-segment > p),
+.markdown-content .markdown-segment:last-child > p:last-child {
   margin-bottom: 0;
+}
+
+/* A segment may start at a block with a top margin only after a huge block,
+   whose bottom margin is at least as large; dropping the top margin keeps the
+   gap the two would have collapsed to. */
+.markdown-segment + .markdown-segment > :first-child {
+  margin-top: 0;
+}
+
+/* Source text: a segment's until it renders, and a huge block's for good. */
+.markdown-segment-pending,
+.markdown-segment-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Untrusted content is shown as its literal source text. */

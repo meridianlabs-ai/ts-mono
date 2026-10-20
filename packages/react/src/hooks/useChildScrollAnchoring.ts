@@ -9,6 +9,9 @@ import { RefObject, useEffect } from "react";
  * an estimate until they first render (content-visibility: auto) need it, or
  * scrolling up through them jumps.
  *
+ * A child holding its own chunk container (`data-chunk-container`) anchors
+ * its own chunks, so it is left to that container.
+ *
  * `childrenKey` must change whenever the container's set of children does.
  */
 export const useChildScrollAnchoring = (
@@ -58,7 +61,9 @@ export const useChildScrollAnchoring = (
       }
     });
     for (const child of container.children) {
-      observer.observe(child);
+      if (!child.querySelector("[data-chunk-container]")) {
+        observer.observe(child);
+      }
     }
     return () => observer.disconnect();
   }, [containerRef, childrenKey]);

@@ -5,6 +5,6 @@
 
 import "./mathjax.css";
 
-export { renderMarkdown } from "./markdownRendering";
+export { renderMarkdown, segmentMarkdown } from "./markdownRendering";
 export { truncateMarkdown } from "./markdownTruncate";
 export { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
