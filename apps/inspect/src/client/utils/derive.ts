@@ -42,7 +42,7 @@ type DeriveVersion = LessThan<100>;
  * only recomputed via the recreate-on-mismatch wipe. Must stay below 100
  * (enforced by `DeriveVersion`; schema.ts asserts it again at runtime).
  */
-export const DERIVE_VERSION: number = 2 satisfies DeriveVersion;
+export const DERIVE_VERSION: number = 3 satisfies DeriveVersion;
 
 export const deriveLogFields = (header: LogHeader): LogDerived => {
   let total_tokens: number | undefined;
