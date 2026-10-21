@@ -110,7 +110,8 @@ describe("text past 250K characters", () => {
   });
 
   it("colors the first 250K of ANSI tool output, and shows all of it without escapes on request", async () => {
-    const output = `${"\u001b[31mred\u001b[0m line\n".repeat(30_000)}TAIL-MARKER`;
+    // Long lines keep the colored head to a few hundred line elements.
+    const output = `${`\u001b[31mred\u001b[0m ${"x".repeat(1_000)}\n`.repeat(300)}TAIL-MARKER`;
     const { container } = render(
       withProviders(
         <ToolOutput output={output} />,
