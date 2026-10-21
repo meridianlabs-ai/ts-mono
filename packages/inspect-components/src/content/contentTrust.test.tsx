@@ -137,7 +137,7 @@ describe("untrusted content rendering", () => {
           <RenderedText markdown={"word ".repeat(100_000)} truncateAt={250} />
         )
       );
-      expect(container.textContent).not.toContain("Showing the first");
+      expect(container.textContent).not.toContain("Output truncated");
       expect(container.textContent.length).toBeLessThan(300);
     }
   );

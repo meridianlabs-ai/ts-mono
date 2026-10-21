@@ -82,17 +82,21 @@ const LongText: FC<CappedTextProps> = ({
       )}
       <div ref={noticeRef} className={styles.notice}>
         {headOnly
-          ? `Showing the first ${count(kMaxInlineChars)} of ${count(text.length)} characters.`
-          : `Showing all ${count(text.length)} characters as plain text.`}{" "}
+          ? `Output truncated — ${count(text.length - head.length)} characters hidden.`
+          : "Showing all as plain text."}{" "}
         <button type="button" className={styles.toggle} onClick={toggle}>
-          {headOnly ? "Show all" : `Show the first ${count(kMaxInlineChars)}`}
+          {headOnly ? "Show all" : "Truncate"}
         </button>
       </div>
     </>
   );
 };
 
-const count = (n: number): string => n.toLocaleString();
+const count = (n: number): string =>
+  n.toLocaleString(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
 
 // Identifies a text for remembering the reader's choice, without hashing
 // megabytes on every render: its length and its two ends.

@@ -47,39 +47,45 @@ const withProviders = (
 const markdown = `**Opening** line\n\n${"filler text\n".repeat(25_000)}TAIL-MARKER`;
 
 describe("text past 250K characters", () => {
-  it("renders the first 250K, and all of it as plain text on request", async () => {
-    const { container } = render(
-      withProviders(
-        <RenderedText markdown={markdown} className="caller-class" />,
-        makeReactiveStateStore().hooks
-      )
-    );
-    // Rendering 250K of markdown takes seconds on a loaded machine.
-    await waitFor(
-      () => {
-        expect(container.querySelector("strong")?.textContent).toBe("Opening");
-      },
-      { timeout: 15_000 }
-    );
-    expect(container.textContent).not.toContain("TAIL-MARKER");
-    expect(container.textContent).toContain(
-      "Showing the first 250,000 of 300,029 characters."
-    );
+  // Rendering 250K of markdown takes seconds on a loaded machine.
+  it(
+    "renders the first 250K, and all of it as plain text on request",
+    { timeout: 30_000 },
+    async () => {
+      const { container } = render(
+        withProviders(
+          <RenderedText markdown={markdown} className="caller-class" />,
+          makeReactiveStateStore().hooks
+        )
+      );
+      await waitFor(
+        () => {
+          expect(container.querySelector("strong")?.textContent).toBe(
+            "Opening"
+          );
+        },
+        { timeout: 15_000 }
+      );
+      expect(container.textContent).not.toContain("TAIL-MARKER");
+      expect(container.textContent).toContain(
+        "Output truncated — 50K characters hidden."
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
-    expect(container.textContent).toContain("TAIL-MARKER");
-    expect(container.textContent).toContain("**Opening** line");
-    expect(container.querySelector("strong")).toBeNull();
-    // Shown the way the caller shows plain text.
-    expect(container.querySelector("pre.caller-class")?.textContent).toContain(
-      "TAIL-MARKER"
-    );
+      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      expect(container.textContent).toContain("TAIL-MARKER");
+      expect(container.textContent).toContain("**Opening** line");
+      expect(container.querySelector("strong")).toBeNull();
+      // Shown the way the caller shows plain text.
+      expect(
+        container.querySelector("pre.caller-class")?.textContent
+      ).toContain("TAIL-MARKER");
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show the first 250,000" })
-    );
-    expect(container.textContent).not.toContain("TAIL-MARKER");
-  });
+      expect(container.textContent).toContain("Showing all as plain text.");
+
+      fireEvent.click(screen.getByRole("button", { name: "Truncate" }));
+      expect(container.textContent).not.toContain("TAIL-MARKER");
+    }
+  );
 
   it("keeps showing all of it when the text mounts again", () => {
     const hooks = makeReactiveStateStore().hooks;
@@ -113,6 +119,18 @@ describe("text past 250K characters", () => {
     expect(container.textContent).not.toContain("\u001b");
     expect(container.querySelector("pre.tool-output")?.textContent).toContain(
       "TAIL-MARKER"
+    );
+  });
+
+  it("counts a few hidden characters exactly", () => {
+    const { container } = render(
+      withProviders(
+        <ToolOutput output={"x".repeat(250_400)} />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    expect(container.textContent).toContain(
+      "Output truncated — 400 characters hidden."
     );
   });
 });
