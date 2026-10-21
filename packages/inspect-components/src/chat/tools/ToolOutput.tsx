@@ -126,11 +126,13 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   return (
     <CappedText
       text={text}
-      // Escapes can start past the head, so the full text is always stripped
-      // when rendered. Only its start is trimmed: where the hidden text starts
-      // is measured on the head's length.
+      // Escapes can start past the head, so trusted output is stripped
+      // whenever it's rendered. Untrusted output keeps them, for `present` to
+      // reveal. Only the start is trimmed: where the hidden text starts is
+      // measured on the head's length.
       toPlainText={(all) => {
-        const shown = displayMode === "rendered" ? stripAnsi(all) : all;
+        const shown =
+          displayMode === "rendered" && plain.trusted ? stripAnsi(all) : all;
         return trim ? shown.trimStart() : shown;
       }}
       render={(shown) =>

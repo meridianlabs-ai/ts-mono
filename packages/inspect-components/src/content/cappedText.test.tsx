@@ -202,4 +202,35 @@ describe("text past 250K characters", () => {
     );
     expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
   });
+
+  it("keeps the control sequences of untrusted ANSI output visible in the full text", () => {
+    const { container } = render(
+      <ContentTrustProvider value="untrusted">
+        <ComponentStateProvider hooks={makeReactiveStateStore().hooks}>
+          <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
+            <ToolOutput
+              output={`${"x".repeat(250_000)}\u001b]0;HIDDEN-PAYLOAD\u0007VISIBLE`}
+            />
+          </DisplayModeContext.Provider>
+        </ComponentStateProvider>
+      </ContentTrustProvider>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(container.textContent).toContain(
+      "⟨U+001B⟩]0;HIDDEN-PAYLOAD⟨U+0007⟩VISIBLE"
+    );
+  });
+
+  it("strips OSC sequences from trusted ANSI output's full text", () => {
+    const output = `${"plain line\n".repeat(25_000)}\u001b]0;TITLE\u0007VISIBLE`;
+    const { container } = render(
+      withProviders(
+        <ToolOutput output={output} />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(container.textContent).toContain("VISIBLE");
+    expect(container.textContent).not.toContain("TITLE");
+  });
 });
