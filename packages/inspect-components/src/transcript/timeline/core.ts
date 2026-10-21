@@ -1368,9 +1368,10 @@ function hasToolCalls(event: ModelEvent): boolean {
  * foreign-prompt wrapping is skipped entirely (warmup calls are still
  * wrapped; they are identified independently of prompts).
  *
- * A call that records its `origin` is classified by it alone: it is utility
- * unless its origin is "agent", and the rules above apply only to calls
- * without one (logs written before `origin` existed).
+ * A call whose recorded `origin` is not "agent" is utility and never sets
+ * the primary prompt. A call recorded as "agent" goes through the rules
+ * above, as a call with no `origin` does, since a bridged agent's warm-ups
+ * and helper calls are recorded as "agent".
  *
  * Operates recursively on the entire span tree.
  */
@@ -1410,10 +1411,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
 
-      if (modelEvt.origin != null) {
-        newContent.push(
-          isAgentTurn(modelEvt.origin) ? item : utilityWrapper(item, index)
-        );
+      if (!mayBeTurn(modelEvt)) {
+        newContent.push(utilityWrapper(item, index));
         continue;
       }
 
@@ -1537,18 +1536,6 @@ function isSingleTurn(span: TimelineSpan): boolean {
 }
 
 /**
- * Check whether span's direct model calls record their origin.
- */
-function recordsOrigin(span: TimelineSpan): boolean {
-  return span.content.some(
-    (item) =>
-      item.type === "event" &&
-      item.event.event === "model" &&
-      item.event.origin != null
-  );
-}
-
-/**
  * Check whether span's direct content contains a tool-calling ModelEvent.
  */
 function hasAgenticLoop(span: TimelineSpan): boolean {
@@ -1572,10 +1559,6 @@ function hasAgenticLoop(span: TimelineSpan): boolean {
  * when the parent runs an agentic (tool-calling) loop: absent a loop there
  * is no main trajectory for a helper to be subordinate to — plain workflows
  * of generate() calls routinely mix system prompts.
- *
- * A span whose calls record their `origin` is never utility by this rule:
- * its calls were classified by origin, and a span with no agent turn (such
- * as an auditor's) stays a conversation.
  */
 function classifyUtilityAgents(
   node: TimelineSpan,
@@ -1593,8 +1576,7 @@ function classifyUtilityAgents(
     parentSystemPrompt !== null &&
     parentHasLoop &&
     agentSystemPrompt !== null &&
-    !node.toolInvoked &&
-    !recordsOrigin(node)
+    !node.toolInvoked
   ) {
     if (agentSystemPrompt !== parentSystemPrompt && isSingleTurn(node)) {
       node.utility = true;

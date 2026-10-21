@@ -329,6 +329,20 @@ function createEvent(data: JsonEvent): Event | null {
   }
 }
 
+function withoutOrigin(events: JsonEvent[]): boolean {
+  return events.every(
+    (event) => event.origin === undefined && withoutOrigin(event.events ?? [])
+  );
+}
+
+function recordedAsAgent(events: JsonEvent[]): JsonEvent[] {
+  return events.map((event) => ({
+    ...event,
+    ...(event.event === "model" ? { origin: "agent" } : {}),
+    ...(event.events ? { events: recordedAsAgent(event.events) } : {}),
+  }));
+}
+
 function eventsFromJson(data: FixtureData): Event[] {
   return data.events
     .map((e) => createEvent(e))
@@ -659,6 +673,21 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
     const result = buildTimeline(events);
     assertTimelineMatches(result, fixture.expected);
   });
+
+  // a call recorded as "agent" goes through the same rules as one with no
+  // origin, so a log written with origins keeps its tree
+  it.each(fixtures.filter((name) => withoutOrigin(loadFixture(name).events)))(
+    "fixture with every call recorded as agent: %s",
+    (fixtureName) => {
+      const fixture = loadFixture(fixtureName);
+      const events = eventsFromJson({
+        ...fixture,
+        events: recordedAsAgent(fixture.events),
+      });
+      const result = buildTimeline(events);
+      assertTimelineMatches(result, fixture.expected);
+    }
+  );
 
   it("returns empty structure for empty events array", () => {
     const result = buildTimeline([]);
