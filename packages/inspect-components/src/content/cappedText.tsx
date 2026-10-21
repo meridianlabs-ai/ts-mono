@@ -55,6 +55,8 @@ const LongText: FC<CappedTextProps> = ({
   const fullRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const head = text.slice(0, kMaxInlineChars);
+  const showable = !hasMoreLines(text, kMaxFullTextLines);
+  const showHead = headOnly || !showable;
 
   const toggle = () => {
     const notice = noticeRef.current;
@@ -78,26 +80,46 @@ const LongText: FC<CappedTextProps> = ({
 
   return (
     <>
-      {headOnly ? (
+      {showHead ? (
         render(head)
       ) : (
         <div ref={fullRef}>{renderPlain(plain.present(toPlainText(text)))}</div>
       )}
       <div ref={noticeRef} className={styles.notice}>
-        {headOnly
+        {showHead
           ? `Output truncated — ${hidden(text.length - head.length)}.`
-          : "Showing all as plain text."}{" "}
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={!headOnly}
-          onClick={toggle}
-        >
-          {headOnly ? "Show all" : "Truncate"}
-        </button>
+          : "Showing all as plain text."}
+        {showable ? (
+          <>
+            {" "}
+            <button
+              type="button"
+              className={styles.toggle}
+              aria-expanded={!headOnly}
+              onClick={toggle}
+            >
+              {headOnly ? "Show all" : "Truncate"}
+            </button>
+          </>
+        ) : null}
       </div>
     </>
   );
+};
+
+// Laid out, more lines than this can be taller than a browser lets an element
+// be (Chromium stops at 33,554,432px, Firefox at about 17.9M), which would
+// leave the end of the text, and everything after it, out of reach.
+const kMaxFullTextLines = 1_000_000;
+
+const hasMoreLines = (text: string, max: number): boolean => {
+  let lines = 0;
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) {
+    if (++lines > max) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const hidden = (n: number): string =>

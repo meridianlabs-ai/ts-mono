@@ -188,4 +188,17 @@ describe("text past 250K characters", () => {
       expect(container.textContent).not.toContain("\u202E");
     }
   );
+
+  it("doesn't offer all of a text with more lines than a browser can lay out", () => {
+    const { container } = render(
+      withProviders(
+        <ToolOutput output={"1\n".repeat(1_000_001)} />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    expect(container.textContent).toContain(
+      "Output truncated — 1.8M characters hidden."
+    );
+    expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+  });
 });
