@@ -23,6 +23,7 @@ import { DisplayModeContext } from "./DisplayModeContext";
 import { RenderedText } from "./RenderedText";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+vi.stubGlobal("navigator", { ...navigator, language: "en-US" });
 
 afterEach(() => {
   cleanup();
@@ -71,7 +72,9 @@ describe("text past 250K characters", () => {
         "Output truncated — 50K characters hidden."
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Show all", expanded: false })
+      );
       expect(container.textContent).toContain("TAIL-MARKER");
       expect(container.textContent).toContain("**Opening** line");
       expect(container.querySelector("strong")).toBeNull();
@@ -82,7 +85,9 @@ describe("text past 250K characters", () => {
 
       expect(container.textContent).toContain("Showing all as plain text.");
 
-      fireEvent.click(screen.getByRole("button", { name: "Truncate" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Truncate", expanded: true })
+      );
       expect(container.textContent).not.toContain("TAIL-MARKER");
     }
   );
@@ -132,5 +137,30 @@ describe("text past 250K characters", () => {
     expect(container.textContent).toContain(
       "Output truncated — 400 characters hidden."
     );
+  });
+
+  it("counts a single hidden character in the singular", () => {
+    const { container } = render(
+      withProviders(
+        <ToolOutput output={"x".repeat(250_001)} />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    expect(container.textContent).toContain(
+      "Output truncated — 1 character hidden."
+    );
+  });
+
+  it("strips ANSI escapes that start past the first 250K from the full text", () => {
+    const output = `${"plain line\n".repeat(25_000)}\u001b[31mFAILED\u001b[0m`;
+    const { container } = render(
+      withProviders(
+        <ToolOutput output={output} />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(container.textContent).toContain("FAILED");
+    expect(container.textContent).not.toContain("\u001b");
   });
 });

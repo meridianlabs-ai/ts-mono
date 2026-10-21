@@ -51,3 +51,4 @@ export * from "./useFindBandShortcut";
 export * from "./MarkdownDivWithReferences";
 export * from "./NextPreviousNav";
 export * from "./ChunkedText";
+export { findScrollableParent } from "./findBandDom";

@@ -1,7 +1,7 @@
 import { FC, ReactNode, useRef } from "react";
 
-import { usePlainText } from "@tsmono/react/components";
-import { scrollingAncestor, useCollapsedState } from "@tsmono/react/hooks";
+import { findScrollableParent, usePlainText } from "@tsmono/react/components";
+import { useCollapsedState } from "@tsmono/react/hooks";
 
 import styles from "./cappedText.module.css";
 
@@ -56,7 +56,8 @@ const LongText: FC<CappedTextProps> = ({
 
   const toggle = () => {
     const notice = noticeRef.current;
-    const scroller = notice && scrollingAncestor(notice);
+    const scroller =
+      notice && findScrollableParent(notice, { minScrollBuffer: 0 });
     if (scroller) {
       const top = notice.getBoundingClientRect().top;
       // Showing all of it: the text that was hidden starts where the notice
@@ -82,9 +83,14 @@ const LongText: FC<CappedTextProps> = ({
       )}
       <div ref={noticeRef} className={styles.notice}>
         {headOnly
-          ? `Output truncated — ${count(text.length - head.length)} characters hidden.`
+          ? `Output truncated — ${hidden(text.length - head.length)}.`
           : "Showing all as plain text."}{" "}
-        <button type="button" className={styles.toggle} onClick={toggle}>
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={!headOnly}
+          onClick={toggle}
+        >
           {headOnly ? "Show all" : "Truncate"}
         </button>
       </div>
@@ -92,11 +98,11 @@ const LongText: FC<CappedTextProps> = ({
   );
 };
 
-const count = (n: number): string =>
-  n.toLocaleString(undefined, {
+const hidden = (n: number): string =>
+  `${n.toLocaleString(navigator.language, {
     notation: "compact",
     maximumFractionDigits: 1,
-  });
+  })} ${n === 1 ? "character" : "characters"} hidden`;
 
 // Identifies a text for remembering the reader's choice, without hashing
 // megabytes on every render: its length and its two ends.

@@ -108,8 +108,8 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     }
   }
 
-  // It could have ANSI codes. Detection is bounded to the head the cap renders
-  // so log-authored output can never feed the regex an unbounded string.
+  // It could have ANSI codes. Colors render only for the head, so only the
+  // head is checked.
   const ansi =
     displayMode === "rendered" && isAnsiOutput(text.slice(0, kMaxInlineChars));
 
@@ -126,9 +126,12 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   return (
     <CappedText
       text={text}
+      // Escapes can start past the head, so the full text is always stripped
+      // when rendered. Only its start is trimmed: where the hidden text starts
+      // is measured on the head's length.
       toPlainText={(all) => {
-        const shown = ansi ? stripAnsi(all) : all;
-        return trim ? shown.trim() : shown;
+        const shown = displayMode === "rendered" ? stripAnsi(all) : all;
+        return trim ? shown.trimStart() : shown;
       }}
       render={(shown) =>
         ansi ? (

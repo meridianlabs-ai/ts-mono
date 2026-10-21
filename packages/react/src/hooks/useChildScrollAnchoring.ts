@@ -1,6 +1,6 @@
 import { RefObject, useEffect } from "react";
 
-import { scrollingAncestor } from "./scrollingAncestor";
+import { findScrollableParent } from "../components/findBandDom";
 
 /**
  * Keeps on-screen content still when children of `containerRef` that start
@@ -59,7 +59,7 @@ export const useChildScrollAnchoring = (
       }
       // Looked up now: the container may not have been scrollable when this
       // mounted (inside a collapsed panel, say).
-      const scroller = scrollingAncestor(container);
+      const scroller = findScrollableParent(container, { minScrollBuffer: 0 });
       if (!scroller || anchoredNatively(container, scroller)) {
         return;
       }
