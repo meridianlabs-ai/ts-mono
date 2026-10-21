@@ -20,12 +20,22 @@ import { useScansDir } from "../utils/useScansDir";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 
 import styles from "./DefineScannerSection.module.css";
+import {
+  defaultJevParams,
+  jevScannerParams,
+  ScannerParamsResult,
+} from "./jevParams";
+import { JevScannerParams } from "./JevScannerParams";
 import { LlmScannerParams, LlmScannerParamsValue } from "./LlmScannerParams";
 import { ScannerParamsPlaceholder } from "./ScannerParamsPlaceholder";
+import { errorSummary } from "./startScanError";
 
 function getSelectValue(e: Event): string {
   return eventValue(e);
 }
+
+const kLlmScanner = "inspect_scout/llm_scanner";
+const kJevScanner = "inspect_scout/jev_scanner";
 
 interface Props {
   onScanStarted: (scanId: string) => void;
@@ -42,6 +52,7 @@ const defaultLlmParams: LlmScannerParamsValue = {
 export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
   const [selectedScanner, setSelectedScanner] = useState<string | null>(null);
   const [llmParams, setLlmParams] = useState(defaultLlmParams);
+  const [jevParams, setJevParams] = useState(defaultJevParams);
   const { loading, data: scanners } = useScanners();
   const mutation = useStartScan();
 
@@ -66,21 +77,11 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
   const selectedScannerInfo = scanners?.find(
     (s) => s.name === effectiveScanner
   );
-  const canRunScan =
-    effectiveScanner === "inspect_scout/llm_scanner" &&
-    llmParams.question.trim().length > 0 &&
-    !mutation.isPending;
-
-  const handleRunScan = () => {
-    mutation.mutate(
-      {
-        name: "inspect_scout/llm_scanner",
-        filter: [],
-        limit: 100,
-        scanners: [
-          {
-            name: "inspect_scout/llm_scanner",
-            version: 0,
+  const scannerParams = ((): ScannerParamsResult | null => {
+    if (effectiveScanner === kLlmScanner) {
+      return llmParams.question.trim().length > 0
+        ? {
+            ok: true,
             params: {
               question: llmParams.question,
               answer: llmParams.answerType,
@@ -90,6 +91,36 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
                 exclude_tool_usage: llmParams.excludeToolUsage,
               },
             },
+          }
+        : { ok: false, error: "Enter a question." };
+    }
+    if (effectiveScanner === kJevScanner) {
+      return jevScannerParams(jevParams);
+    }
+    return null;
+  })();
+  const canRunScan = scannerParams?.ok === true && !mutation.isPending;
+  // Validation hints wait until a question is typed, so a fresh form isn't
+  // greeted with an error.
+  const question =
+    effectiveScanner === kJevScanner ? jevParams.question : llmParams.question;
+  const validationHint =
+    scannerParams?.ok === false && question.trim() ? scannerParams.error : null;
+
+  const handleRunScan = () => {
+    if (!effectiveScanner || scannerParams?.ok !== true) {
+      return;
+    }
+    mutation.mutate(
+      {
+        name: effectiveScanner,
+        filter: [],
+        limit: 100,
+        scanners: [
+          {
+            name: effectiveScanner,
+            version: 0,
+            params: scannerParams.params,
           },
         ],
       },
@@ -126,7 +157,10 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
           <div className={styles.scannerRow}>
             <VscodeSingleSelect
               value={effectiveScanner ?? ""}
-              onChange={(e) => setSelectedScanner(getSelectValue(e))}
+              onChange={(e) => {
+                setSelectedScanner(getSelectValue(e));
+                mutation.reset();
+              }}
               disabled={loading}
             >
               {scanners?.map((s) => (
@@ -144,8 +178,10 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
         </div>
 
         {/* Scanner Params */}
-        {effectiveScanner === "inspect_scout/llm_scanner" ? (
+        {effectiveScanner === kLlmScanner ? (
           <LlmScannerParams value={llmParams} onChange={setLlmParams} />
+        ) : effectiveScanner === kJevScanner ? (
+          <JevScannerParams value={jevParams} onChange={setJevParams} />
         ) : effectiveScanner ? (
           <ScannerParamsPlaceholder scannerName={effectiveScanner} />
         ) : null}
@@ -157,7 +193,10 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
             Run Scan
           </VscodeButton>
           <div className={styles.mutationStatus}>
-            start scan status: {mutation.status}
+            {validationHint ??
+              (mutation.isError
+                ? `start scan failed: ${errorSummary(mutation.error.message)}`
+                : `start scan status: ${mutation.status}`)}
           </div>
         </div>
       </div>
