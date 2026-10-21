@@ -16,9 +16,12 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
-import { TimelineEvent, TimelineSpan } from "./core";
+import { buildEventNodes } from "../hooks/useEventNodes";
+import type { EventNode } from "../types";
+
+import { buildTimeline, TimelineEvent, TimelineSpan } from "./core";
 import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
-import { makeSpan, ts } from "./testHelpers";
+import { makeSpan, rawEventBuilders, ts } from "./testHelpers";
 import {
   buildSelectionKey,
   collectPathWithNavigators,
@@ -26,6 +29,7 @@ import {
   computeCompactionRegions,
   findTerminatorTool,
   getParentKeyFromBranch,
+  getSelectedSpans,
   isForkNavData,
   parseSelection,
   type EmptyBranchData,
@@ -790,4 +794,147 @@ describe("collectRawEvents — utility span elision", () => {
     const { events } = collectRawEvents([root], { includeUtility: true });
     expect(events.filter((e) => e.event === "span_begin")).toHaveLength(2);
   });
+});
+
+describe("collectRawEvents — agent cards inside checkpoint spans", () => {
+  // A main agent dispatching two subagents through tool calls, with its turns
+  // optionally inside a checkpoint span. The shape matches what Inspect logs:
+  // the ToolEvent sits in the enclosing span and is timestamped before the
+  // spans its call opens.
+  const sampleEvents = ({
+    checkpoint = false,
+    dispatch,
+  }: {
+    checkpoint?: boolean;
+    dispatch: "agent" | "handoff" | "collect";
+  }): Event[] => {
+    const { base, spanBegin, spanEnd } = rawEventBuilders();
+    const parent = checkpoint ? "checkpoint" : "main";
+    const model = (spanId: string): Event =>
+      testModelEvent({ ...base(), span_id: spanId });
+    const agentSpan = (id: string, parentId: string): Event[] => [
+      spanBegin(id, "general", "agent", parentId),
+      model(id),
+      spanEnd(id),
+    ];
+    const toolCall = (n: number, agentSpanId: string | null): Event =>
+      testToolEvent({
+        ...base(),
+        id: `call_${n}`,
+        function: "agent",
+        span_id: parent,
+        agent_span_id: agentSpanId,
+      });
+    // `agent` tool: tool span > agent span.
+    // handoff: handoff span > tool span > agent span.
+    // collect() in a user tool: tool span > task spans > agent spans.
+    const subagentCalls = (n: number): Event[] => {
+      const turn = model(parent);
+      if (dispatch === "collect") {
+        const call = toolCall(n, null);
+        return [
+          turn,
+          spanBegin(`tool${n}`, "fan_out", "tool", parent),
+          call,
+          ...[1, 2].flatMap((t) => [
+            spanBegin(`task${n}.${t}`, `task-${t}`, "task", `tool${n}`),
+            ...agentSpan(`sub${n}.${t}`, `task${n}.${t}`),
+            spanEnd(`task${n}.${t}`),
+          ]),
+          spanEnd(`tool${n}`),
+        ];
+      }
+      const call = toolCall(n, `sub${n}`);
+      const toolSpanParent = dispatch === "handoff" ? `handoff${n}` : parent;
+      const toolSpan = [
+        spanBegin(`tool${n}`, "agent", "tool", toolSpanParent),
+        call,
+        ...agentSpan(`sub${n}`, `tool${n}`),
+        spanEnd(`tool${n}`),
+      ];
+      return [
+        turn,
+        ...(dispatch === "handoff"
+          ? [
+              spanBegin(`handoff${n}`, "general", "handoff", parent),
+              ...toolSpan,
+              spanEnd(`handoff${n}`),
+            ]
+          : toolSpan),
+      ];
+    };
+    const turns = [...subagentCalls(1), ...subagentCalls(2), model(parent)];
+    return [
+      spanBegin("solvers", "solvers", "solvers", null),
+      spanBegin("main", "main", "agent", "solvers"),
+      ...(checkpoint
+        ? [
+            spanBegin("checkpoint", "checkpoint 1", "checkpoint", "main"),
+            ...turns,
+            spanEnd("checkpoint"),
+          ]
+        : turns),
+      spanEnd("main"),
+      spanEnd("solvers"),
+    ];
+  };
+
+  // Tool calls and agent cards in render order, with their tree depth.
+  const renderedCalls = (events: Event[]): string[] => {
+    const rows = computeSwimlaneRows(buildTimeline(events).root);
+    const collected = collectRawEvents(getSelectedSpans(rows, rows[0]!.key));
+    const { eventNodes } = buildEventNodes(
+      collected.events,
+      false,
+      collected.sourceSpans
+    );
+    const label = ({ event, sourceSpan }: EventNode): string | null => {
+      if (event.event === "tool") return `tool ${event.id}`;
+      if (event.event === "span_begin" && sourceSpan) return `card ${event.id}`;
+      return null;
+    };
+    const walk = (nodes: EventNode[], depth: number): string[] =>
+      nodes.flatMap((node) => {
+        const own = label(node);
+        return [
+          ...(own ? [`${depth} ${own}`] : []),
+          ...walk(node.children, depth + 1),
+        ];
+      });
+    return walk(eventNodes, 0);
+  };
+
+  const besideToolCalls = [
+    "0 tool call_1",
+    "0 card sub1",
+    "0 tool call_2",
+    "0 card sub2",
+  ];
+
+  // The expected render is the same with and without a checkpoint span: once
+  // discard_checkpoint_span flattens it, the log should read as if it had no
+  // checkpoint.
+  it.each([
+    { dispatch: "agent", expected: besideToolCalls },
+    { dispatch: "handoff", expected: besideToolCalls },
+    {
+      dispatch: "collect",
+      expected: [
+        "0 tool call_1",
+        "0 card sub1.1",
+        "0 card sub1.2",
+        "0 tool call_2",
+        "0 card sub2.1",
+        "0 card sub2.2",
+      ],
+    },
+  ] as const)(
+    "renders $dispatch cards beside their tool call, with or without a checkpoint span",
+    ({ dispatch, expected }) => {
+      expect(renderedCalls(sampleEvents({ dispatch }))).toEqual(expected);
+      expect(
+        renderedCalls(sampleEvents({ checkpoint: true, dispatch }))
+      ).toEqual(expected);
+    }
+  );
 });
