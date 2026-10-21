@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { splitTextChunks } from "./textChunks";
+import { lineLengths, splitTextChunks, wrappedRows } from "./textChunks";
 
 describe("splitTextChunks", () => {
   it("returns text shorter than the chunk size as one chunk", () => {
@@ -51,5 +51,15 @@ describe("splitTextChunks", () => {
       const last = chunk.text.charCodeAt(chunk.text.length - 1);
       expect(last >= 0xd800 && last <= 0xdbff).toBe(false);
     }
+  });
+});
+
+describe("wrappedRows", () => {
+  it("counts a row per line, plus a row per width's worth a line wraps onto", () => {
+    const lengths = lineLengths(
+      ["", "abc", "x".repeat(10), "x".repeat(11)].join("\n")
+    );
+    expect(wrappedRows(lengths, 10)).toBe(1 + 1 + 1 + 2);
+    expect(wrappedRows(lengths, 3)).toBe(1 + 1 + 4 + 4);
   });
 });

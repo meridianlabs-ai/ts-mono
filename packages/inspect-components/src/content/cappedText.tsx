@@ -1,7 +1,12 @@
-import { FC, ReactNode, useRef } from "react";
+import { FC, ReactNode, RefObject, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
-import { findScrollableParent, usePlainText } from "@tsmono/react/components";
-import { useCollapsedState } from "@tsmono/react/hooks";
+import {
+  findScrollableParent,
+  measureTextHeight,
+  usePlainText,
+} from "@tsmono/react/components";
+import { useCollapsedState, useResizeObserver } from "@tsmono/react/hooks";
 
 import styles from "./cappedText.module.css";
 
@@ -51,21 +56,69 @@ const LongText: FC<CappedTextProps> = ({
     true,
     "capped-text"
   );
+  const [tooTall, setTooTall] = useState(false);
   const plain = usePlainText();
   const fullRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
+  const measured = useRef<{
+    text: string;
+    width: number;
+    height: (element: HTMLElement) => number;
+  } | null>(null);
   const head = text.slice(0, kMaxInlineChars);
-  const showable = !hasMoreLines(text, kMaxFullTextLines);
-  const showHead = headOnly || !showable;
+  const showHead = headOnly || tooTall;
+
+  // Whether all of the text, laid out in `view`, stays short enough for the
+  // browser to lay it out whole. Past its tallest element (33,554,432px in
+  // Chromium, about 17.9M in Firefox) the end of the text, and everything
+  // after it, can't be scrolled to.
+  const fits = (view: HTMLElement): boolean => {
+    const container =
+      view.querySelector<HTMLElement>("[data-chunk-container]") ?? view;
+    if (measured.current?.text !== text) {
+      measured.current = {
+        text,
+        width: 0,
+        height: measureTextHeight(plain.present(toPlainText(text))),
+      };
+    }
+    measured.current.width = view.clientWidth;
+    return measured.current.height(container) <= kMaxTextHeight;
+  };
+
+  // Synchronously, so the text that doesn't fit is never painted.
+  const giveUp = () => {
+    flushSync(() => {
+      setTooTall(true);
+      setHeadOnly(true);
+    });
+  };
+
+  // A narrower view (or a remount) can make the shown text too tall.
+  const checkResized = (view: HTMLElement) => {
+    if (view.clientWidth !== measured.current?.width && !fits(view)) {
+      giveUp();
+    }
+  };
 
   const toggle = () => {
     const notice = noticeRef.current;
     const scroller =
       notice && findScrollableParent(notice, { minScrollBuffer: 0 });
-    if (scroller) {
-      const top = notice.getBoundingClientRect().top;
+    const top = notice?.getBoundingClientRect().top;
+    // Committed now so the new layout can be measured and adjusted before it
+    // paints.
+    flushSync(() => setHeadOnly(!headOnly));
+    if (headOnly) {
+      const view = fullRef.current;
+      if (view && !fits(view)) {
+        giveUp();
+        return;
+      }
+    }
+    if (scroller && top !== undefined) {
       // Showing all of it: the text that was hidden starts where the notice
-      // was. Showing the head again: the notice returns to where it is now.
+      // was. Showing the head again: the notice returns to where it was.
       const hiddenStart = plain.present(toPlainText(head)).length;
       keepInPlace(
         scroller,
@@ -75,7 +128,6 @@ const LongText: FC<CappedTextProps> = ({
         top
       );
     }
-    setHeadOnly(!headOnly);
   };
 
   return (
@@ -83,13 +135,17 @@ const LongText: FC<CappedTextProps> = ({
       {showHead ? (
         render(head)
       ) : (
-        <div ref={fullRef}>{renderPlain(plain.present(toPlainText(text)))}</div>
+        <FullText ref={fullRef} onResize={checkResized}>
+          {renderPlain(plain.present(toPlainText(text)))}
+        </FullText>
       )}
       <div ref={noticeRef} className={styles.notice}>
         {showHead
           ? `Output truncated — ${hidden(text.length - head.length)}.`
           : "Showing all as plain text."}
-        {showable ? (
+        {tooTall ? (
+          " Too long to show in full."
+        ) : (
           <>
             {" "}
             <button
@@ -101,25 +157,28 @@ const LongText: FC<CappedTextProps> = ({
               {headOnly ? "Show all" : "Truncate"}
             </button>
           </>
-        ) : null}
+        )}
       </div>
     </>
   );
 };
 
-// Laid out, more lines than this can be taller than a browser lets an element
-// be (Chromium stops at 33,554,432px, Firefox at about 17.9M), which would
-// leave the end of the text, and everything after it, out of reach.
-const kMaxFullTextLines = 1_000_000;
+// Under both browsers' limits, with room for wrapping at spaces, which took
+// up to 9% more rows than measured on long lines.
+const kMaxTextHeight = 15_000_000;
 
-const hasMoreLines = (text: string, max: number): boolean => {
-  let lines = 0;
-  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) {
-    if (++lines > max) {
-      return true;
+// Its own component so its resize observer attaches when it mounts.
+const FullText: FC<{
+  ref: RefObject<HTMLDivElement | null>;
+  onResize: (view: HTMLElement) => void;
+  children: ReactNode;
+}> = ({ ref, onResize, children }) => {
+  useResizeObserver((entry) => {
+    if (entry.target instanceof HTMLElement) {
+      onResize(entry.target);
     }
-  }
-  return false;
+  }, ref);
+  return <div ref={ref}>{children}</div>;
 };
 
 const hidden = (n: number): string =>
@@ -140,8 +199,8 @@ const textKey = (text: string): string => {
   return `${text.length}-${(hash >>> 0).toString(16)}`;
 };
 
-// Over the next frames, scrolls so the located point stays at `top`: the
-// swapped text's chunks lay out and the list around it remeasures over
+// Now and over the next frames, scrolls so the located point stays at `top`:
+// the swapped text's chunks lay out and the list around it remeasures over
 // several frames, each of which can move it. Positions are relative to the
 // scroller, which itself can move (a header collapsing as it scrolls). Stops
 // once the reader scrolls.
@@ -180,7 +239,7 @@ const keepInPlace = (
       readerScrolls.abort();
     }
   };
-  requestAnimationFrame(step);
+  step();
 };
 
 const kPlaceFrames = 30;

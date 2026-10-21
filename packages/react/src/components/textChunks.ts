@@ -80,3 +80,27 @@ const countLines = (text: string): number => {
   }
   return text.endsWith("\n") ? lines : lines + 1;
 };
+
+/** How many of `text`'s lines have each length. */
+export const lineLengths = (text: string): Map<number, number> => {
+  const lengths = new Map<number, number>();
+  for (let start = 0; start <= text.length;) {
+    const newline = text.indexOf("\n", start);
+    const end = newline === -1 ? text.length : newline;
+    lengths.set(end - start, (lengths.get(end - start) ?? 0) + 1);
+    start = end + 1;
+  }
+  return lengths;
+};
+
+/** Rows the lines take when each wraps every `charsPerLine` characters. */
+export const wrappedRows = (
+  lengths: ReadonlyMap<number, number>,
+  charsPerLine: number
+): number => {
+  let rows = 0;
+  for (const [length, count] of lengths) {
+    rows += count * Math.max(1, Math.ceil(length / charsPerLine));
+  }
+  return rows;
+};

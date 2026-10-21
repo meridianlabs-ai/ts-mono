@@ -4,7 +4,12 @@ import { useChildScrollAnchoring } from "../hooks/useChildScrollAnchoring";
 import { useResizeObserver } from "../hooks/useResizeObserver";
 
 import styles from "./ChunkedText.module.css";
-import { kChunkThreshold, splitTextChunks } from "./textChunks";
+import {
+  kChunkThreshold,
+  lineLengths,
+  splitTextChunks,
+  wrappedRows,
+} from "./textChunks";
 
 interface ChunkedTextProps {
   text: string;
@@ -19,6 +24,29 @@ interface ChunkedTextProps {
  */
 export const ChunkedText: FC<ChunkedTextProps> = ({ text }) =>
   text.length <= kChunkThreshold ? text : <TextChunks text={text} />;
+
+/**
+ * Measures how tall `text` lays out in a `pre-wrap` element of a monospace
+ * font: a row per line, plus a row per element width's worth of characters a
+ * line wraps onto. Wrapping at spaces can take a few more rows than that.
+ * Counting is done once per text, so measuring again (at a new width) is
+ * cheap.
+ */
+export const measureTextHeight = (text: string) => {
+  const lengths = lineLengths(text);
+  return (element: HTMLElement): number =>
+    wrappedRows(lengths, measureCharsPerLine(element, element.clientWidth)) *
+    lineHeight(element);
+};
+
+const lineHeight = (element: HTMLElement): number => {
+  const probe = document.createElement("span");
+  probe.style.cssText = "display: block; height: 1lh; visibility: hidden";
+  element.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+};
 
 const TextChunks: FC<ChunkedTextProps> = ({ text }) => {
   const ref = useResizeObserver<HTMLSpanElement>((entry) => {

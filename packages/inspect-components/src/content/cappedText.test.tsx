@@ -30,6 +30,7 @@ vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const withProviders = (
@@ -190,16 +191,20 @@ describe("text past 250K characters", () => {
     }
   );
 
-  it("doesn't offer all of a text with more lines than a browser can lay out", () => {
+  it("goes back to the first 250K when all of it would be taller than a browser lays out", () => {
+    // jsdom lays nothing out: give every line a 20px row.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 0, 20)
+    );
     const { container } = render(
       withProviders(
-        <ToolOutput output={"1\n".repeat(1_000_001)} />,
+        <ToolOutput output={`${"1\n".repeat(800_000)}TAIL-MARKER`} />,
         makeReactiveStateStore().hooks
       )
     );
-    expect(container.textContent).toContain(
-      "Output truncated — 1.8M characters hidden."
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(container.textContent).not.toContain("TAIL-MARKER");
+    expect(container.textContent).toContain("Too long to show in full.");
     expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
   });
 
