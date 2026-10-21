@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isRecord } from "@tsmono/util";
 
-import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
+import {
+  findAcrossChunks,
+  findScrollableParent,
+  scrollRangeToCenter,
+} from "./findBandDom";
 
 // DOMRectList is array-like with item(); an array plus item() satisfies it.
 const rectList = (...rects: DOMRect[]): DOMRectList =>
@@ -285,5 +289,54 @@ describe("scrollRangeToCenter", () => {
       top: 0, // Should be clamped to 0, not negative
       behavior: "auto",
     });
+  });
+});
+
+describe("findAcrossChunks", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const chunks = (...texts: string[]) => {
+    const container = document.createElement("span");
+    container.setAttribute("data-chunk-container", "");
+    for (const text of texts) {
+      const chunk = document.createElement("span");
+      chunk.textContent = text;
+      container.appendChild(chunk);
+    }
+    document.body.appendChild(container);
+    return [...container.children].map((chunk) => {
+      const node = chunk.firstChild;
+      if (!(node instanceof Text)) {
+        throw new Error("expected text");
+      }
+      return node;
+    });
+  };
+
+  const at = (node: Text, offset: number) => {
+    const range = document.createRange();
+    range.setStart(node, offset);
+    return range;
+  };
+
+  test("finds only matches that cross a chunk boundary, ignoring case", () => {
+    chunks("NEEDLE then xNE", "EDLEx");
+    expect(findAcrossChunks("needle", false, null)?.toString()).toBe("NEEDLE");
+    const match = findAcrossChunks("needle", false, null);
+    expect(match?.startOffset).toBe(13);
+  });
+
+  test("finds the nearest match after the starting point, or before it going back", () => {
+    const [a, b, c] = chunks("one ne", "edle two ne", "edle three");
+    if (!a || !b || !c) {
+      throw new Error("expected three chunks");
+    }
+    expect(findAcrossChunks("needle", false, at(a, 0))?.startContainer).toBe(a);
+    expect(findAcrossChunks("needle", false, at(b, 0))?.startContainer).toBe(b);
+    expect(findAcrossChunks("needle", false, at(c, 0))).toBeNull();
+    expect(findAcrossChunks("needle", true, at(c, 9))?.startContainer).toBe(b);
+    expect(findAcrossChunks("needle", true, at(b, 0))).toBeNull();
   });
 });

@@ -176,6 +176,23 @@ describe("FindBand", () => {
     );
   });
 
+  it("selects a match that crosses a boundary between text chunks", async () => {
+    const { input } = renderFindBand(
+      vi.fn(),
+      <span data-chunk-container="">
+        <span>aaa nee</span>
+        <span>dle bbb</span>
+      </span>
+    );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(window.getSelection()?.toString()).toBe("needle")
+    );
+    expect(screen.getByText("No results").style.visibility).not.toBe("visible");
+  });
+
   it("degrades to No results when window.find is unavailable", async () => {
     Object.defineProperty(window, "find", {
       configurable: true,
