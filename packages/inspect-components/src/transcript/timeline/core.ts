@@ -1368,6 +1368,10 @@ function hasToolCalls(event: ModelEvent): boolean {
  * foreign-prompt wrapping is skipped entirely (warmup calls are still
  * wrapped; they are identified independently of prompts).
  *
+ * A call that records its `origin` is classified by it alone: it is utility
+ * unless its origin is "agent", and the rules above apply only to calls
+ * without one (logs written before `origin` existed).
+ *
  * Operates recursively on the entire span tree.
  */
 function wrapUtilityEvents(agent: TimelineSpan): void {
@@ -1377,7 +1381,7 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const item of agent.content) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
-      if (hasToolCalls(modelEvt)) {
+      if (hasToolCalls(modelEvt) && mayBeTurn(modelEvt)) {
         primaryPrompt = getSystemPromptForEvent(modelEvt);
         break;
       }
@@ -1405,6 +1409,13 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const [index, item] of agent.content.entries()) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
+
+      if (modelEvt.origin != null) {
+        newContent.push(
+          isAgentTurn(modelEvt.origin) ? item : utilityWrapper(item, index)
+        );
+        continue;
+      }
 
       // Warmup/cache-priming call (max_tokens=1)
       if (isWarmupCall(modelEvt)) {
@@ -1435,6 +1446,21 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const branch of agent.branches) {
     wrapUtilityEvents(branch);
   }
+}
+
+/**
+ * Whether a model call with this origin is one of its conversation's agent
+ * turns; a kind added later reads as not a turn.
+ */
+function isAgentTurn(origin: string | null | undefined): boolean {
+  return origin === "agent";
+}
+
+/**
+ * An agent turn by its recorded origin, or a call that records none.
+ */
+function mayBeTurn(event: ModelEvent): boolean {
+  return event.origin == null || isAgentTurn(event.origin);
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
@@ -1511,6 +1537,18 @@ function isSingleTurn(span: TimelineSpan): boolean {
 }
 
 /**
+ * Check whether span's direct model calls record their origin.
+ */
+function recordsOrigin(span: TimelineSpan): boolean {
+  return span.content.some(
+    (item) =>
+      item.type === "event" &&
+      item.event.event === "model" &&
+      item.event.origin != null
+  );
+}
+
+/**
  * Check whether span's direct content contains a tool-calling ModelEvent.
  */
 function hasAgenticLoop(span: TimelineSpan): boolean {
@@ -1534,6 +1572,10 @@ function hasAgenticLoop(span: TimelineSpan): boolean {
  * when the parent runs an agentic (tool-calling) loop: absent a loop there
  * is no main trajectory for a helper to be subordinate to — plain workflows
  * of generate() calls routinely mix system prompts.
+ *
+ * A span whose calls record their `origin` is never utility by this rule:
+ * its calls were classified by origin, and a span with no agent turn (such
+ * as an auditor's) stays a conversation.
  */
 function classifyUtilityAgents(
   node: TimelineSpan,
@@ -1551,7 +1593,8 @@ function classifyUtilityAgents(
     parentSystemPrompt !== null &&
     parentHasLoop &&
     agentSystemPrompt !== null &&
-    !node.toolInvoked
+    !node.toolInvoked &&
+    !recordsOrigin(node)
   ) {
     if (agentSystemPrompt !== parentSystemPrompt && isSingleTurn(node)) {
       node.utility = true;

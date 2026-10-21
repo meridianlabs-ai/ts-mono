@@ -67,6 +67,7 @@ interface JsonEvent {
   timestamp?: string;
   completed?: string;
   model?: string;
+  origin?: string | null;
   function?: string;
   agent?: string;
   agent_span_id?: string;
@@ -227,6 +228,7 @@ function createEvent(data: JsonEvent): Event | null {
       return testModelEvent({
         ...baseFields,
         model,
+        origin: data.origin ?? null,
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         config: data.config ?? {},
