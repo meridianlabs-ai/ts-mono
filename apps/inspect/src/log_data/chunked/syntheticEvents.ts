@@ -51,6 +51,7 @@ import type { Event } from "@tsmono/inspect-common/types";
 
 import { formatPyTimestamp, parsePyTimestamp } from "./pyTimestamp";
 import type { SampleSkeleton, SkeletonNotable, SkeletonSpan } from "./types";
+import { validateSyntheticModelBudget } from "./validation";
 
 export interface SyntheticStream {
   events: Event[];
@@ -78,6 +79,7 @@ const synth = (fields: Record<string, unknown>): Event => {
 export const syntheticEventsFromSkeleton = (
   skel: SampleSkeleton
 ): SyntheticStream => {
+  validateSyntheticModelBudget(skel);
   const events: Event[] = [];
   const ordinals = new Map<string, number>();
 
