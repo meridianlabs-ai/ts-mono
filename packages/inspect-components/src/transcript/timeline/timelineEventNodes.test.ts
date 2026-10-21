@@ -797,19 +797,20 @@ describe("collectRawEvents — utility span elision", () => {
 });
 
 describe("collectRawEvents — agent cards inside checkpoint spans", () => {
-  // A main agent dispatching two subagents through tool calls, with its turns
-  // optionally inside a checkpoint span. The shape matches what Inspect logs:
+  // A main agent dispatching two subagents through tool calls. The turns run
+  // directly in the agent span, inside a checkpoint span, or (after a
+  // checkpoint resume) inside checkpoint spans that a `prior_run` wrap holds,
+  // followed by a live checkpoint span. The shape matches what Inspect logs:
   // the ToolEvent sits in the enclosing span and is timestamped before the
   // spans its call opens.
   const sampleEvents = ({
-    checkpoint = false,
+    layout = "plain",
     dispatch,
   }: {
-    checkpoint?: boolean;
+    layout?: "plain" | "checkpoint" | "resumed";
     dispatch: "agent" | "handoff" | "collect";
   }): Event[] => {
     const { base, spanBegin, spanEnd } = rawEventBuilders();
-    const parent = checkpoint ? "checkpoint" : "main";
     const model = (spanId: string): Event =>
       testModelEvent({ ...base(), span_id: spanId });
     const agentSpan = (id: string, parentId: string): Event[] => [
@@ -817,7 +818,11 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
       model(id),
       spanEnd(id),
     ];
-    const toolCall = (n: number, agentSpanId: string | null): Event =>
+    const toolCall = (
+      n: number,
+      parent: string,
+      agentSpanId: string | null
+    ): Event =>
       testToolEvent({
         ...base(),
         id: `call_${n}`,
@@ -828,10 +833,10 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
     // `agent` tool: tool span > agent span.
     // handoff: handoff span > tool span > agent span.
     // collect() in a user tool: tool span > task spans > agent spans.
-    const subagentCalls = (n: number): Event[] => {
+    const subagentCall = (n: number, parent: string): Event[] => {
       const turn = model(parent);
       if (dispatch === "collect") {
-        const call = toolCall(n, null);
+        const call = toolCall(n, parent, null);
         return [
           turn,
           spanBegin(`tool${n}`, "fan_out", "tool", parent),
@@ -844,7 +849,7 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
           spanEnd(`tool${n}`),
         ];
       }
-      const call = toolCall(n, `sub${n}`);
+      const call = toolCall(n, parent, `sub${n}`);
       const toolSpanParent = dispatch === "handoff" ? `handoff${n}` : parent;
       const toolSpan = [
         spanBegin(`tool${n}`, "agent", "tool", toolSpanParent),
@@ -863,17 +868,41 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
           : toolSpan),
       ];
     };
-    const turns = [...subagentCalls(1), ...subagentCalls(2), model(parent)];
+    const layouts = {
+      plain: () => [
+        ...subagentCall(1, "main"),
+        ...subagentCall(2, "main"),
+        model("main"),
+      ],
+      checkpoint: () => [
+        spanBegin("ck1", "checkpoint 1", "checkpoint", "main"),
+        ...subagentCall(1, "ck1"),
+        ...subagentCall(2, "ck1"),
+        model("ck1"),
+        spanEnd("ck1"),
+      ],
+      // Each restored checkpoint span is followed by its CheckpointEvent,
+      // which hydrate moves into the wrap (an info event stands in for it).
+      resumed: () => [
+        spanBegin("restore", "checkpoint restore 1", "prior_run", "main"),
+        spanBegin("ck1", "checkpoint 1", "checkpoint", "restore"),
+        ...subagentCall(1, "ck1"),
+        spanEnd("ck1"),
+        testInfoEvent({ ...base(), span_id: "restore" }),
+        spanBegin("ck2", "checkpoint 2", "checkpoint", "restore"),
+        ...subagentCall(2, "ck2"),
+        spanEnd("ck2"),
+        testInfoEvent({ ...base(), span_id: "restore" }),
+        spanEnd("restore"),
+        spanBegin("ck3", "checkpoint 3", "checkpoint", "main"),
+        model("ck3"),
+        spanEnd("ck3"),
+      ],
+    };
     return [
       spanBegin("solvers", "solvers", "solvers", null),
       spanBegin("main", "main", "agent", "solvers"),
-      ...(checkpoint
-        ? [
-            spanBegin("checkpoint", "checkpoint 1", "checkpoint", "main"),
-            ...turns,
-            spanEnd("checkpoint"),
-          ]
-        : turns),
+      ...layouts[layout](),
       spanEnd("main"),
       spanEnd("solvers"),
     ];
@@ -911,9 +940,9 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
     "0 card sub2",
   ];
 
-  // The expected render is the same with and without a checkpoint span: once
-  // discard_checkpoint_span flattens it, the log should read as if it had no
-  // checkpoint.
+  // Once discard_checkpoint_span flattens the checkpoint spans, a checkpointed
+  // log reads as if it had none, and a resumed one as if its restored turns
+  // ran inside the "checkpoint restore" span.
   it.each([
     { dispatch: "agent", expected: besideToolCalls },
     { dispatch: "handoff", expected: besideToolCalls },
@@ -929,12 +958,15 @@ describe("collectRawEvents — agent cards inside checkpoint spans", () => {
       ],
     },
   ] as const)(
-    "renders $dispatch cards beside their tool call, with or without a checkpoint span",
+    "renders $dispatch cards beside their tool call, with or without checkpointing",
     ({ dispatch, expected }) => {
       expect(renderedCalls(sampleEvents({ dispatch }))).toEqual(expected);
       expect(
-        renderedCalls(sampleEvents({ checkpoint: true, dispatch }))
+        renderedCalls(sampleEvents({ layout: "checkpoint", dispatch }))
       ).toEqual(expected);
+      expect(
+        renderedCalls(sampleEvents({ layout: "resumed", dispatch }))
+      ).toEqual(expected.map((line) => line.replace(/^0 /, "1 ")));
     }
   );
 });
