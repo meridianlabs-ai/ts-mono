@@ -22,7 +22,9 @@ interface CappedTextProps {
    *  a `pre-wrap` element: through `Preformatted` or `ChunkedText`. */
   renderPlain: (text: string) => ReactNode;
   /** The text as the reader sees it in plain text, when they ask for all of
-   *  it; the text as-is by default. */
+   *  it; the text as-is by default. It is also applied to the head to find
+   *  where the hidden text starts, so it must map a prefix of the text to a
+   *  prefix of the result (no trimming the end). */
   toPlainText?: (text: string) => string;
 }
 
@@ -128,7 +130,8 @@ const keepInPlace = (
 ) => {
   const offset = top - scroller.getBoundingClientRect().top;
   const readerScrolls = new AbortController();
-  for (const type of ["wheel", "touchmove", "keydown"]) {
+  // pointerdown covers dragging the scrollbar.
+  for (const type of ["wheel", "touchmove", "keydown", "pointerdown"]) {
     scroller.addEventListener(type, () => readerScrolls.abort(), {
       signal: readerScrolls.signal,
     });

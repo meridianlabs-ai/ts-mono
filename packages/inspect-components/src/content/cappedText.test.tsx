@@ -9,7 +9,11 @@ import {
 import { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  ContentTrustProvider,
+  untrustedTextClassName,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeReactiveStateStore,
@@ -23,7 +27,6 @@ import { DisplayModeContext } from "./DisplayModeContext";
 import { RenderedText } from "./RenderedText";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
-vi.stubGlobal("navigator", { ...navigator, language: "en-US" });
 
 afterEach(() => {
   cleanup();
@@ -163,4 +166,26 @@ describe("text past 250K characters", () => {
     expect(container.textContent).toContain("FAILED");
     expect(container.textContent).not.toContain("\u001b");
   });
+
+  it.each([
+    ["tool output", (text: string) => <ToolOutput output={text} />],
+    ["text", (text: string) => <RenderedText markdown={text} />],
+  ])(
+    "shows all of an untrusted %s with its hidden characters revealed",
+    (_, ui) => {
+      const { container } = render(
+        <ContentTrustProvider value="untrusted">
+          <ComponentStateProvider hooks={makeReactiveStateStore().hooks}>
+            <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
+              {ui(`${"x".repeat(250_000)}tail \u202Eflipped`)}
+            </DisplayModeContext.Provider>
+          </ComponentStateProvider>
+        </ContentTrustProvider>
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      const full = container.querySelector(`pre.${untrustedTextClassName}`);
+      expect(full?.textContent).toContain("tail ⟨U+202E⟩flipped");
+      expect(container.textContent).not.toContain("\u202E");
+    }
+  );
 });

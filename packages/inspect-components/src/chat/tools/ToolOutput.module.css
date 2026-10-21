@@ -16,7 +16,11 @@
   border-radius: var(--bs-border-radius);
 }
 
+/* A block that inherits the pre's unicode-bidi, so an untrusted output's
+   `plaintext` reaches the content-visibility chunks inside a long one. */
 .textCode {
+  display: block;
+  unicode-bidi: inherit;
   word-wrap: anywhere;
   color: inherit;
 }
