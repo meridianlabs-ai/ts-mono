@@ -330,6 +330,7 @@ const mockScan = (
                 scans: 3,
                 results: 3,
                 tokens: 0,
+                unscored: 0,
                 errors: 0,
                 model_usage: {},
               },

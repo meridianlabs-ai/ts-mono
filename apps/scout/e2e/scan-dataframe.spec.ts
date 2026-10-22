@@ -43,6 +43,7 @@ function mockRegressionScan(network: NetworkFixture): void {
                 scans: 2,
                 results: 2,
                 tokens: 0,
+                unscored: 0,
                 errors: 0,
                 model_usage: {},
               },
