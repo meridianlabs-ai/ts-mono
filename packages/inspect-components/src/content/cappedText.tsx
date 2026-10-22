@@ -1,4 +1,4 @@
-import { FC, ReactNode, RefObject, useRef, useState } from "react";
+import { FC, ReactNode, RefObject, useRef } from "react";
 import { flushSync } from "react-dom";
 
 import {
@@ -6,7 +6,13 @@ import {
   measureTextHeight,
   usePlainText,
 } from "@tsmono/react/components";
-import { useCollapsedState, useResizeObserver } from "@tsmono/react/hooks";
+import {
+  useCollapsedState,
+  useLatestRef,
+  useMountEffect,
+  useProperty,
+  useResizeObserver,
+} from "@tsmono/react/hooks";
 
 import styles from "./cappedText.module.css";
 
@@ -56,49 +62,66 @@ const LongText: FC<CappedTextProps> = ({
     true,
     "capped-text"
   );
-  const [tooTall, setTooTall] = useState(false);
+  // Shared like the choice, so no copy of the text keeps offering it.
+  const [tooTall, setTooTall] = useProperty<boolean>(
+    "capped-text-too-tall",
+    textKey(text),
+    { defaultValue: false }
+  );
   const plain = usePlainText();
   const fullRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const measured = useRef<{
     text: string;
-    width: number;
-    height: (element: HTMLElement) => number;
+    measure: (element: HTMLElement) => number;
+    layout: string;
+    height: number;
   } | null>(null);
   const head = text.slice(0, kMaxInlineChars);
   const showHead = headOnly || tooTall;
 
-  // Whether all of the text, laid out in `view`, stays short enough for the
-  // browser to lay it out whole. Past its tallest element (33,554,432px in
-  // Chromium, about 17.9M in Firefox) the end of the text, and everything
-  // after it, can't be scrolled to.
+  // Whether all of the text, laid out in `view`, ends where the browser can
+  // still lay it out: past its limit, the end of the text and everything
+  // after it can't be scrolled to.
   const fits = (view: HTMLElement): boolean => {
-    const container =
-      view.querySelector<HTMLElement>("[data-chunk-container]") ?? view;
+    const container = textContainer(view);
     if (measured.current?.text !== text) {
       measured.current = {
         text,
-        width: 0,
-        height: measureTextHeight(plain.present(toPlainText(text))),
+        measure: measureTextHeight(plain.present(toPlainText(text))),
+        layout: "",
+        height: 0,
       };
     }
-    measured.current.width = view.clientWidth;
-    return measured.current.height(container) <= kMaxTextHeight;
+    // Measured again only for a new width or font size.
+    const layout = layoutKey(container);
+    if (measured.current.layout !== layout) {
+      measured.current.layout = layout;
+      measured.current.height = measured.current.measure(container);
+    }
+    return contentTop(container) + measured.current.height <= maxTextBottom();
   };
 
   // Synchronously, so the text that doesn't fit is never painted.
   const giveUp = () => {
+    const focused = noticeRef.current?.contains(document.activeElement);
     flushSync(() => {
       setTooTall(true);
       setHeadOnly(true);
     });
+    // The focused toggle is gone.
+    if (focused) {
+      noticeRef.current?.focus({ preventScroll: true });
+    }
   };
 
-  // A narrower view (or a remount) can make the shown text too tall.
-  const checkResized = (view: HTMLElement) => {
-    if (view.clientWidth !== measured.current?.width && !fits(view)) {
-      giveUp();
+  // Whether the shown text still fits, going back to the head when not.
+  const check = (view: HTMLElement): boolean => {
+    if (fits(view)) {
+      return true;
     }
+    giveUp();
+    return false;
   };
 
   const toggle = () => {
@@ -115,6 +138,8 @@ const LongText: FC<CappedTextProps> = ({
         giveUp();
         return;
       }
+      // Everything after this text moved down.
+      recheckFullTexts();
     }
     if (scroller && top !== undefined) {
       // Showing all of it: the text that was hidden starts where the notice
@@ -135,11 +160,11 @@ const LongText: FC<CappedTextProps> = ({
       {showHead ? (
         render(head)
       ) : (
-        <FullText ref={fullRef} onResize={checkResized}>
+        <FullText ref={fullRef} check={check}>
           {renderPlain(plain.present(toPlainText(text)))}
         </FullText>
       )}
-      <div ref={noticeRef} className={styles.notice}>
+      <div ref={noticeRef} className={styles.notice} tabIndex={-1}>
         {showHead
           ? `Output truncated — ${hidden(text.length - head.length)}.`
           : "Showing all as plain text."}
@@ -163,22 +188,110 @@ const LongText: FC<CappedTextProps> = ({
   );
 };
 
-// Under both browsers' limits, with room for wrapping at spaces, which took
-// up to 9% more rows than measured on long lines.
-const kMaxTextHeight = 15_000_000;
+const textContainer = (view: HTMLElement): HTMLElement =>
+  view.querySelector<HTMLElement>("[data-chunk-container]") ?? view;
+
+// What the measured height depends on besides the text.
+const layoutKey = (container: HTMLElement): string =>
+  `${container.clientWidth} ${getComputedStyle(container).fontSize}`;
+
+// How far down its scroll content `element` starts.
+const contentTop = (element: HTMLElement): number => {
+  const scroller = findScrollableParent(element, { minScrollBuffer: 0 });
+  return scroller
+    ? element.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop
+    : element.getBoundingClientRect().top + window.scrollY;
+};
+
+// How far down its scroll content the full text may end. Browsers clamp or
+// overflow positions and sizes past a limit (33,554,432px in Chromium, about
+// 17,895,697 in Firefox, where a taller element lays out as 0). Probed once: a
+// browser that lays out a 30M px element allows 28M, any other 15M. Both
+// leave room for wrapping at spaces, which took up to 9% more rows than
+// measured on long lines.
+let maxBottom: number | undefined;
+const maxTextBottom = (): number => {
+  if (maxBottom === undefined) {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+      "position: absolute; visibility: hidden; height: 30000000px";
+    document.body.appendChild(probe);
+    maxBottom =
+      probe.getBoundingClientRect().height >= 30_000_000
+        ? 28_000_000
+        : 15_000_000;
+    probe.remove();
+  }
+  return maxBottom;
+};
 
 // Its own component so its resize observer attaches when it mounts.
+// Rechecks the text when it resizes (a new width or font size) and, for a
+// few frames after, while the list around it settles: a list moves its rows
+// without resizing them, so a move down past the limit isn't observed.
 const FullText: FC<{
   ref: RefObject<HTMLDivElement | null>;
-  onResize: (view: HTMLElement) => void;
+  check: (view: HTMLElement) => boolean;
   children: ReactNode;
-}> = ({ ref, onResize, children }) => {
+}> = ({ ref, check, children }) => {
+  const watching = useRef(false);
+  const watch = (view: HTMLElement) => {
+    if (watching.current || !check(view)) {
+      return;
+    }
+    watching.current = true;
+    let top = view.getBoundingClientRect().top;
+    let still = 0;
+    let frames = 0;
+    const step = () => {
+      const now = view.getBoundingClientRect().top;
+      still = now === top ? still + 1 : 0;
+      top = now;
+      frames++;
+      if (
+        view.isConnected &&
+        check(view) &&
+        still < kSettledFrames &&
+        frames < kMaxWatchFrames
+      ) {
+        requestAnimationFrame(step);
+      } else {
+        watching.current = false;
+      }
+    };
+    requestAnimationFrame(step);
+  };
   useResizeObserver((entry) => {
     if (entry.target instanceof HTMLElement) {
-      onResize(entry.target);
+      watch(entry.target);
     }
   }, ref);
+  const latestWatch = useLatestRef(watch);
+  useMountEffect(() => {
+    const recheck = () => {
+      if (ref.current) {
+        latestWatch.current(ref.current);
+      }
+    };
+    fullTextRechecks.add(recheck);
+    return () => {
+      fullTextRechecks.delete(recheck);
+    };
+  });
   return <div ref={ref}>{children}</div>;
+};
+
+const kSettledFrames = 3;
+const kMaxWatchFrames = 60;
+
+// Every mounted full text's recheck, run when another one expands.
+const fullTextRechecks = new Set<() => void>();
+const recheckFullTexts = () => {
+  for (const recheck of fullTextRechecks) {
+    recheck();
+  }
 };
 
 const hidden = (n: number): string =>
