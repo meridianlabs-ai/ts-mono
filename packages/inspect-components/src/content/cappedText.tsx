@@ -369,7 +369,15 @@ const offsetTop = (root: Element, offset: number): number | undefined => {
       const range = document.createRange();
       range.setStart(node, offset - start);
       range.setEnd(node, offset - start + 1);
-      return range.getBoundingClientRect().top;
+      const top = range.getBoundingClientRect().top;
+      // Safari reports a stale position for text in a chunk it hasn't laid
+      // out yet: go by the chunk instead, as far down as the character is,
+      // which brings it on screen to be laid out.
+      const chunk = node.parentElement?.getBoundingClientRect();
+      if (chunk && (top < chunk.top || top > chunk.bottom)) {
+        return chunk.top + ((offset - start) / node.length) * chunk.height;
+      }
+      return top;
     }
     start += node.length;
   }
