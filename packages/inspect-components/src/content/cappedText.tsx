@@ -62,7 +62,8 @@ const LongText: FC<CappedTextProps> = ({
     true,
     "capped-text"
   );
-  // Shared like the choice, so no copy of the text keeps offering it.
+  // Shared like the choice, so every copy says why it went back. It only adds
+  // a note: the link stays, and asking again measures again.
   const [tooTall, setTooTall] = useProperty<boolean>(
     "capped-text-too-tall",
     textKey(text),
@@ -73,22 +74,28 @@ const LongText: FC<CappedTextProps> = ({
   const noticeRef = useRef<HTMLDivElement>(null);
   const measured = useRef<{
     text: string;
+    shownLength: number;
     measure: (element: HTMLElement) => number;
     layout: string;
     height: number;
   } | null>(null);
   const head = text.slice(0, kMaxInlineChars);
-  const showHead = headOnly || tooTall;
+  const shown = plain.present(toPlainText(text));
 
   // Whether all of the text, laid out in `view`, ends where the browser can
   // still lay it out: past its limit, the end of the text and everything
   // after it can't be scrolled to.
   const fits = (view: HTMLElement): boolean => {
     const container = textContainer(view);
-    if (measured.current?.text !== text) {
+    // The length tells apart the text's display modes (raw keeps escapes).
+    if (
+      measured.current?.text !== text ||
+      measured.current.shownLength !== shown.length
+    ) {
       measured.current = {
         text,
-        measure: measureTextHeight(plain.present(toPlainText(text))),
+        shownLength: shown.length,
+        measure: measureTextHeight(shown),
         layout: "",
         height: 0,
       };
@@ -99,20 +106,15 @@ const LongText: FC<CappedTextProps> = ({
       measured.current.layout = layout;
       measured.current.height = measured.current.measure(container);
     }
-    return contentTop(container) + measured.current.height <= maxTextBottom();
+    return contentTop(view) + measured.current.height <= maxTextBottom();
   };
 
   // Synchronously, so the text that doesn't fit is never painted.
   const giveUp = () => {
-    const focused = noticeRef.current?.contains(document.activeElement);
     flushSync(() => {
       setTooTall(true);
       setHeadOnly(true);
     });
-    // The focused toggle is gone.
-    if (focused) {
-      noticeRef.current?.focus({ preventScroll: true });
-    }
   };
 
   // Whether the shown text still fits, going back to the head when not.
@@ -131,9 +133,16 @@ const LongText: FC<CappedTextProps> = ({
     const top = notice?.getBoundingClientRect().top;
     // Committed now so the new layout can be measured and adjusted before it
     // paints.
-    flushSync(() => setHeadOnly(!headOnly));
+    flushSync(() => {
+      setTooTall(false);
+      setHeadOnly(!headOnly);
+    });
     if (headOnly) {
       const view = fullRef.current;
+      // Asked for, so measured afresh.
+      if (measured.current) {
+        measured.current.layout = "";
+      }
       if (view && !fits(view)) {
         giveUp();
         return;
@@ -157,32 +166,25 @@ const LongText: FC<CappedTextProps> = ({
 
   return (
     <>
-      {showHead ? (
+      {headOnly ? (
         render(head)
       ) : (
         <FullText ref={fullRef} check={check}>
-          {renderPlain(plain.present(toPlainText(text)))}
+          {renderPlain(shown)}
         </FullText>
       )}
-      <div ref={noticeRef} className={styles.notice} tabIndex={-1}>
-        {showHead
-          ? `Output truncated — ${hidden(text.length - head.length)}.`
-          : "Showing all as plain text."}
-        {tooTall ? (
-          " Too long to show in full."
-        ) : (
-          <>
-            {" "}
-            <button
-              type="button"
-              className={styles.toggle}
-              aria-expanded={!headOnly}
-              onClick={toggle}
-            >
-              {headOnly ? "Show all" : "Truncate"}
-            </button>
-          </>
-        )}
+      <div ref={noticeRef} className={styles.notice}>
+        {headOnly
+          ? `Output truncated — ${hidden(text.length - head.length)}.${tooTall ? " Too long to show in full." : ""}`
+          : "Showing all as plain text."}{" "}
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={!headOnly}
+          onClick={toggle}
+        >
+          {headOnly ? "Show all" : "Truncate"}
+        </button>
       </div>
     </>
   );
@@ -242,11 +244,12 @@ const FullText: FC<{
       return;
     }
     watching.current = true;
-    let top = view.getBoundingClientRect().top;
+    // Its place in the scroll content, which scrolling doesn't change.
+    let top = contentTop(view);
     let still = 0;
     let frames = 0;
     const step = () => {
-      const now = view.getBoundingClientRect().top;
+      const now = contentTop(view);
       still = now === top ? still + 1 : 0;
       top = now;
       frames++;

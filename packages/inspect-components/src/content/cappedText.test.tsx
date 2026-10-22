@@ -205,7 +205,8 @@ describe("text past 250K characters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show all" }));
     expect(container.textContent).not.toContain("TAIL-MARKER");
     expect(container.textContent).toContain("Too long to show in full.");
-    expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+    // Asking again measures again.
+    expect(screen.getByRole("button", { name: "Show all" })).not.toBeNull();
   });
 
   it("keeps the control sequences of untrusted ANSI output visible in the full text", () => {
@@ -242,15 +243,8 @@ describe("text past 250K characters", () => {
   it("goes back to the first 250K when all of it would end past what a browser lays out", () => {
     // jsdom lays nothing out: a short text, 20px a row, that would start
     // 14,990,000px down its scroll content.
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-      function (this: HTMLElement) {
-        return new DOMRect(
-          0,
-          this.hasAttribute("data-chunk-container") ? 14_990_000 : 0,
-          0,
-          20
-        );
-      }
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 14_990_000, 0, 20)
     );
     const { container } = render(
       withProviders(
@@ -262,10 +256,10 @@ describe("text past 250K characters", () => {
     expect(container.textContent).toContain("Too long to show in full.");
   });
 
-  it("tells every copy of a text that it's too long, and moves focus to the notice", () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
-      new DOMRect(0, 0, 0, 20)
-    );
+  it("tells every copy of a text that it's too long, and still offers all of it", () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue(new DOMRect(0, 0, 0, 20));
     const output = `${"1\n".repeat(800_000)}TAIL-MARKER`;
     const { container } = render(
       withProviders(
@@ -277,18 +271,18 @@ describe("text past 250K characters", () => {
       )
     );
     const [first] = screen.getAllByRole("button", { name: "Show all" });
-    first?.focus();
-    if (first) {
-      fireEvent.click(first);
+    if (!first) {
+      throw new Error("expected a Show all button");
     }
-    expect(screen.queryAllByRole("button", { name: "Show all" })).toHaveLength(
-      0
-    );
+    fireEvent.click(first);
     expect(
       container.textContent.split("Too long to show in full.").length - 1
     ).toBe(2);
-    expect(document.activeElement?.textContent).toContain(
-      "Too long to show in full."
-    );
+
+    // Rows half as tall now (a wider view, say): asking again shows it.
+    rect.mockReturnValue(new DOMRect(0, 0, 0, 10));
+    fireEvent.click(first);
+    expect(container.textContent).toContain("TAIL-MARKER");
+    expect(container.textContent).not.toContain("Too long to show in full.");
   });
 });
