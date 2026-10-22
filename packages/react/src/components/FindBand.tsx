@@ -13,11 +13,7 @@ import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { useEventListener } from "../hooks/useEventListener";
 
 import { useExtendedFind } from "./ExtendedFindContext";
-import {
-  findAcrossChunks,
-  findScrollableParent,
-  scrollRangeToCenter,
-} from "./findBandDom";
+import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
 import { FindBandUI } from "./FindBandUI";
 import { isFindNextShortcut, isFindShortcut } from "./findShortcuts";
 import { useFindTargetSetter } from "./FindTargetContext";
@@ -402,16 +398,8 @@ declare global {
   }
 }
 
-// Selects the next match from the selection, as `window.find` does, but also
-// one that crosses a boundary between text chunks, which it can't match.
 function windowFind(searchTerm: string, back: boolean): boolean {
-  const selection = window.getSelection();
-  let from: Range | null = null;
-  if (selection?.rangeCount) {
-    from = selection.getRangeAt(0).cloneRange();
-    from.collapse(back);
-  }
-  const found =
+  return (
     window.find?.(
       searchTerm,
       findConfig.caseSensitive,
@@ -420,24 +408,8 @@ function windowFind(searchTerm: string, back: boolean): boolean {
       findConfig.wholeWord,
       findConfig.searchInFrames,
       findConfig.showDialog
-    ) ?? false;
-  const across = findAcrossChunks(searchTerm, back, from);
-  if (!across) {
-    return found;
-  }
-  const native =
-    found && selection?.rangeCount ? selection.getRangeAt(0) : null;
-  if (
-    native &&
-    native.compareBoundaryPoints(Range.START_TO_START, across) *
-      (back ? -1 : 1) <
-      0
-  ) {
-    return true;
-  }
-  selection?.removeAllRanges();
-  selection?.addRange(across);
-  return true;
+    ) ?? false
+  );
 }
 
 function positionSelectionForWrap(back: boolean): void {
@@ -675,7 +647,7 @@ function waitForTextInDOM(
         return true;
       }
     }
-    return findAcrossChunks(searchTerm, false, null) !== null;
+    return false;
   };
 
   return new Promise((resolve) => {
