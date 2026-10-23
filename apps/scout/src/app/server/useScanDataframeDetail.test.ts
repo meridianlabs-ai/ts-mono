@@ -213,3 +213,65 @@ it("does not make a request when skipToken is passed", async () => {
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(requested).toBe(false);
 });
+
+it("requests input_storage and maps an unresolved reference row", async () => {
+  let columns: string[] = [];
+  server.use(
+    http.get(detailUrl, ({ request }) => {
+      columns = new URL(request.url).searchParams.getAll("column");
+      return HttpResponse.json({
+        input: null,
+        input_type: "transcript",
+        input_data: null,
+        input_storage: "reference",
+        scan_events: legacyDetailResponse.scan_events,
+        input_error: {
+          reason: "too_large",
+          message:
+            "The sample is 412.0 MiB, over this server's 16.0 MiB limit for referenced inputs.",
+        },
+      });
+    })
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  expect(columns).toContain("input_storage");
+  expect(result.current.data).toMatchObject({
+    input: { input_type: "transcript", input: null },
+    inputStorage: "reference",
+    inputError: {
+      reason: "too_large",
+      message:
+        "The sample is 412.0 MiB, over this server's 16.0 MiB limit for referenced inputs.",
+    },
+  });
+  expect(result.current.data?.scanEvents).toHaveLength(2);
+});
+
+it("leaves inputStorage unset for scans that predate the column", async () => {
+  server.use(
+    http.get(detailUrl, () =>
+      HttpResponse.json({ ...legacyDetailResponse, input_storage: null })
+    )
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  expect(result.current.data?.inputStorage).toBeUndefined();
+  expect(result.current.data?.inputError).toBeUndefined();
+});

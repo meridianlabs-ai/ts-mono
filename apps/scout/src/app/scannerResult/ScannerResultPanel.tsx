@@ -31,9 +31,9 @@ import { useSelectedScanResultData } from "../hooks/useSelectedScanResultData";
 import { useSelectedScanResultDetail } from "../hooks/useSelectedScanResultDetail";
 import { useAppConfig } from "../server/useAppConfig";
 import { useHasTranscript } from "../server/useHasTranscript";
-import { isTranscriptInput, ScanResultData } from "../types";
+import { ScanResultData } from "../types";
 import { getScanDisplayName } from "../utils/scan";
-import { getTranscriptDisplayName } from "../utils/transcript";
+import { formatTaskName } from "../utils/transcript";
 import { useScansDir } from "../utils/useScansDir";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
@@ -174,15 +174,20 @@ export const ScannerResultPanel: FC = () => {
   const { data: selectedResult, loading: resultLoading } =
     useSelectedScanResultData(scanResultUuid);
 
-  const { loading: detailLoading, data: detailData } =
-    useSelectedScanResultDetail(selectedResult?.uuid);
-  const inputData = detailData?.input;
-  const detailScanEvents = detailData?.scanEvents;
+  const detail = useSelectedScanResultDetail(selectedResult?.uuid);
+  const inputData = detail.data?.input;
+  const detailScanEvents = detail.data?.scanEvents;
 
-  // Set document title with task name and scan location
+  // Set document title with task name and scan location. The task name comes
+  // from the row's columns: a reference row's input has no task_set, or may
+  // not load at all.
   const taskName =
-    inputData && isTranscriptInput(inputData)
-      ? getTranscriptDisplayName(inputData.input)
+    selectedResult?.inputType === "transcript"
+      ? formatTaskName({
+          taskSet: selectedResult.transcriptTaskSet,
+          taskId: selectedResult.transcriptTaskId,
+          taskRepeat: selectedResult.transcriptTaskRepeat,
+        })
       : undefined;
   useDocumentTitle(
     taskName,
@@ -357,9 +362,7 @@ export const ScannerResultPanel: FC = () => {
           }}
           className={styles.fullHeight}
         >
-          {inputData && (
-            <ResultPanel resultData={resultData} inputData={inputData} />
-          )}
+          <ResultPanel resultData={resultData} detail={detail} />
         </TabPanel>
       ) : undefined}
       {showEvents ? (
@@ -425,7 +428,7 @@ export const ScannerResultPanel: FC = () => {
       </ScansNavbar>
       <LoadingBar
         loading={
-          scanLoading || resultLoading || detailLoading || hasTranscriptLoading
+          scanLoading || resultLoading || detail.loading || hasTranscriptLoading
         }
       />
       {/* Untrusted until the result (and so its transcript's trust) loads. */}

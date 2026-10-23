@@ -149,10 +149,12 @@ export const scanDataframeDetailQuery = (
   params: ScanDataframeDetailParams | typeof skipToken
 ) =>
   queryOptions({
+    // No topic tag: a written row never changes, and re-fetching it would
+    // re-resolve a by-reference input on every scans tick.
     queryKey:
       params === skipToken
         ? kSkipped
-        : (["scanDataframeDetail", params, topicTag("scans")] as const),
+        : (["scanDataframeDetail", params] as const),
     queryFn:
       params === skipToken
         ? skipToken

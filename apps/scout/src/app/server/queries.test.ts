@@ -7,6 +7,7 @@ import { apiScoutServer } from "../../api/api-scout-server";
 import {
   isInvalidationTopic,
   projectConfigQuery,
+  scanDataframeDetailQuery,
   scanQuery,
   topicQueries,
   topicTag,
@@ -56,5 +57,17 @@ describe("transcriptsByIdsQuery", () => {
       skipToken
     );
     expect(transcriptsByIdsQuery(api, "/t", []).queryFn).toBe(skipToken);
+  });
+});
+
+describe("scanDataframeDetailQuery", () => {
+  it("is not keyed on the scans topic: a written row never changes", () => {
+    const { queryKey } = scanDataframeDetailQuery(api, {
+      scansDir: "/scans",
+      scanPath: "a.scan",
+      scanner: "s",
+      uuid: "u",
+    });
+    expect(queryKey).not.toContain(topicTag("scans"));
   });
 });

@@ -30,9 +30,19 @@ export type ClientStorage = StateStorage;
 
 export type ScalarValue = string | number | boolean | null;
 
+export type InputReferenceReason =
+  "not_resolved" | "forbidden" | "not_found" | "too_large" | "unavailable";
+
+export interface InputReferenceError {
+  reason: InputReferenceReason;
+  message: string;
+}
+
 export interface ScanResultDetail {
   input: ScannerInput;
   scanEvents: Event[];
+  inputStorage?: "inline" | "reference";
+  inputError?: InputReferenceError;
 }
 
 export interface SearchResultScope {
@@ -132,6 +142,11 @@ export interface ScoutApiV2 {
   // around as a value (destructured, used as a prop) rather than invoked on the
   // api object; this keeps @typescript-eslint/unbound-method satisfied.
   downloadScan?: (scansDir: string, scanPath: string) => Promise<Blob>;
+  // Where to view a transcript whose scan input is stored by reference and
+  // could not be shown inline, for hosts that have such a page. The URL is
+  // rendered as a link href without validation, so the host must build it from
+  // its own routes and encode transcriptId (untrusted row data).
+  inputReferenceUrl?: (transcriptId: string) => string | undefined;
 
   storage: ClientStorage;
   capability: "scans" | "workbench";
