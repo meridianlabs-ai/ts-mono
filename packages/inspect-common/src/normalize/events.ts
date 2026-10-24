@@ -2,6 +2,8 @@ import { isRecord } from "@tsmono/util";
 
 import type { Event, ModelOutput, ModelUsage } from "../types";
 
+import { normalizeMessageContent, normalizeMessagesContent } from "./content";
+
 /**
  * Fill pydantic token defaults on one raw ModelUsage record
  * (`input_tokens`/`output_tokens`/`total_tokens` default to 0 upstream).
@@ -37,12 +39,14 @@ const normalizeChoices = (raw: unknown): unknown[] => {
       changed = true;
       continue;
     }
+    let fixed: Record<string, unknown> = choice;
     if (typeof choice["stop_reason"] !== "string") {
-      changed = true;
-      choices.push({ ...choice, stop_reason: "unknown" });
-    } else {
-      choices.push(choice);
+      fixed = { ...fixed, stop_reason: "unknown" };
     }
+    const message = normalizeMessageContent(choice["message"]);
+    if (message !== choice["message"]) fixed = { ...fixed, message };
+    if (fixed !== choice) changed = true;
+    choices.push(fixed);
   }
   return changed ? choices : raw;
 };
@@ -161,7 +165,12 @@ const eventFixes = (
       if (typeof raw["model"] !== "string") fix("model", "");
       if (!isRecord(raw["config"])) fix("config", {});
       if (!Array.isArray(raw["tools"])) fix("tools", []);
-      if (!Array.isArray(raw["input"])) fix("input", []);
+      if (Array.isArray(raw["input"])) {
+        const input = normalizeMessagesContent(raw["input"]);
+        if (input !== raw["input"]) fix("input", input);
+      } else {
+        fix("input", []);
+      }
       // == null: these fields' types don't admit null, so an explicit wire
       // null must fill like an absence (same below for tool/compaction).
       if (raw["tool_choice"] == null) fix("tool_choice", "none");

@@ -1,6 +1,6 @@
-import type { Content } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
+import { contentTexts } from "../chat/contentText";
 import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
 
 import { eventTitle } from "./event/utils";
@@ -83,14 +83,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       }
       // Extract text from model output
       for (const choice of modelEvent.output.choices) {
-        for (const text of extractContentText(choice.message.content)) {
+        for (const text of contentTexts(choice.message.content)) {
           fields.push(["output", text]);
         }
       }
       // Extract text from user/system input messages shown in the view
       for (const msg of modelEvent.input) {
         if (msg.role === "user" || msg.role === "system") {
-          for (const text of extractContentText(msg.content)) {
+          for (const text of contentTexts(msg.content)) {
             fields.push([msg.role, text]);
           }
         }
@@ -536,65 +536,6 @@ const kCodeLikeFields: ReadonlySet<string> = new Set([
 
 const looksLikeJson = (value: string): boolean =>
   /^\s*[[{]/.test(value) && /[\]}]\s*$/.test(value);
-
-/**
- * Extracts text strings from message content.
- */
-const extractContentText = (content: string | Array<Content>): string[] => {
-  if (typeof content === "string") {
-    return [content];
-  }
-
-  const texts: string[] = [];
-  for (const item of content) {
-    switch (item.type) {
-      case "text":
-        texts.push(item.text);
-        break;
-      case "reasoning": {
-        // The transcript uses MessageContent.tsx's reasoning renderer (via
-        // the chat view), which shows the summary when redacted (since the
-        // reasoning blob is encrypted) and the reasoning otherwise. Match
-        // that here so search hits what the user can see.
-        const text = item.redacted
-          ? item.summary
-          : item.reasoning || item.summary;
-        if (text) {
-          texts.push(text);
-        }
-        break;
-      }
-      case "tool_use": {
-        const toolUse = item;
-        if (toolUse.name) {
-          texts.push(toolUse.name);
-        }
-        if (toolUse.arguments) {
-          texts.push(sanitizeStringify(toolUse.arguments));
-        }
-        if (toolUse.result) {
-          texts.push(
-            typeof toolUse.result === "string"
-              ? toolUse.result
-              : sanitizeStringify(toolUse.result)
-          );
-        }
-        if (toolUse.error) {
-          texts.push(toolUse.error);
-        }
-        break;
-      }
-      case "image":
-      case "audio":
-      case "video":
-      case "data":
-      case "document":
-        texts.push(`<${item.type} />`);
-        break;
-    }
-  }
-  return texts;
-};
 
 const extractToolResultText = (value: unknown): string[] => {
   if (Array.isArray(value)) {
