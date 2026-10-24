@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties, forwardRef } from "react";
 
+import { ChunkedText } from "./ChunkedText";
 import styles from "./Preformatted.module.css";
 
 export interface PreformattedProps {
@@ -17,7 +18,7 @@ export const Preformatted = forwardRef<HTMLPreElement, PreformattedProps>(
         className={clsx(styles.content, "text-size-smaller", className)}
         style={style}
       >
-        {text}
+        <ChunkedText text={text} />
       </pre>
     );
   }
