@@ -111,7 +111,7 @@
     "fzstd": "^0.1.1",
     "immer": "^11.1.21",
     "json5": "^2.2.3",
-    "markdown-it": "^15.0.2",
+    "markdown-it": "^15.0.3",
     "postcss-url": "^10.1.4",
     "prismjs": "^1.30.0",
     "react": "^19.3.0",
