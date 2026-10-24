@@ -1,0 +1,9 @@
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.sessionLabel {
+  margin-bottom: 0.3em;
+}

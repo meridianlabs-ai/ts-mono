@@ -1,14 +1,11 @@
-import { create } from "asciinema-player";
+import { create, DataSource } from "asciinema-player";
 
 import "asciinema-player/dist/bundle/asciinema-player.css";
 
 import { CSSProperties, FC, useEffect, useRef } from "react";
 
-interface AsciinemaPlayerProps {
+interface AsciinemaPlayerBaseProps {
   id?: string;
-  input: string;
-  output: string;
-  timing: string;
   rows?: number;
   cols?: number;
   fit?: "width" | "height" | "both" | "none" | false;
@@ -21,6 +18,24 @@ interface AsciinemaPlayerProps {
   className?: string;
 }
 
+// A session recorded as a `script -m advanced` input/output/timing triple.
+interface AsciinemaTimingProps extends AsciinemaPlayerBaseProps {
+  input: string;
+  output: string;
+  timing: string;
+  cast?: never;
+}
+
+// A session recorded as a single asciicast v2 document.
+interface AsciinemaCastProps extends AsciinemaPlayerBaseProps {
+  cast: string;
+  input?: never;
+  output?: never;
+  timing?: never;
+}
+
+type AsciinemaPlayerProps = AsciinemaTimingProps | AsciinemaCastProps;
+
 const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   id,
   rows,
@@ -28,6 +43,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   input,
   output,
   timing,
+  cast,
   fit,
   speed,
   autoPlay,
@@ -42,30 +58,34 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   useEffect(() => {
     if (!playerContainerRef.current) return;
 
-    const player = create(
-      {
-        // In-memory Responses, not Blob URLs the player would fetch: the
-        // viewer's CSP allows no blob: connections. Fresh per load, since a
-        // Response body reads once.
-        data: () => [
-          new Response(timing),
-          new Response(output),
-          new Response(input),
-        ],
-        parser: "typescript",
-      },
-      playerContainerRef.current,
-      {
-        rows,
-        cols,
-        autoPlay,
-        loop,
-        theme,
-        speed,
-        idleTimeLimit,
-        fit,
-      }
-    );
+    // In-memory Responses, not Blob URLs the player would fetch: the
+    // viewer's CSP allows no blob: connections. Fresh per load, since a
+    // Response body reads once.
+    const source: DataSource =
+      cast !== undefined
+        ? {
+            data: () => new Response(cast),
+            parser: "asciicast",
+          }
+        : {
+            data: () => [
+              new Response(timing),
+              new Response(output),
+              new Response(input),
+            ],
+            parser: "typescript",
+          };
+
+    const player = create(source, playerContainerRef.current, {
+      rows,
+      cols,
+      autoPlay,
+      loop,
+      theme,
+      speed,
+      idleTimeLimit,
+      fit,
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     player.play();
@@ -77,6 +97,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
     timing,
     output,
     input,
+    cast,
     rows,
     cols,
     autoPlay,

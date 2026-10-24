@@ -122,6 +122,7 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { storeCasts, StoreTerminalSessions } from "./StoreTerminalSessions";
 import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
@@ -1447,14 +1448,35 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample.store).length > 0) {
+  // Asciicasts in the store play in their own card rather than printing as
+  // (very long) strings in the store tree.
+  const terminalSessions = storeCasts(sample.store);
+  if (terminalSessions.length > 0) {
+    sampleMetadatas.push(
+      <Card key={`sample-terminal-sessions-${id}`}>
+        <CardHeader label="Terminal Sessions" />
+        <CardBody>
+          <StoreTerminalSessions
+            id={`task-sample-terminal-sessions-${id}`}
+            casts={terminalSessions}
+          />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  const castKeys = new Set(terminalSessions.map((session) => session.key));
+  const storeRecord = Object.fromEntries(
+    Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
+  );
+  if (Object.keys(storeRecord).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-store-${id}`}>
         <CardHeader label="Store" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-store-${id}`}
-            record={sample.store}
+            record={storeRecord}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}
