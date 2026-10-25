@@ -1218,10 +1218,6 @@
     }
   },
   "packages/react/src/components/AsciinemaPlayerImpl.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }

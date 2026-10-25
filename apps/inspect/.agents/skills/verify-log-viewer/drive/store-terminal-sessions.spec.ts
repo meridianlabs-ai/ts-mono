@@ -4,9 +4,9 @@ import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-// Real-backend drive for the Terminal Sessions card: a sample whose store
-// holds asciinema:* keys plays them as asciicasts on the Metadata tab and
-// keeps those keys out of the Store record tree.
+// Real-backend drive for the Terminals tab: a sample whose store holds
+// asciinema:* keys plays them as asciicasts in a Terminals tab and keeps those
+// keys out of the Info tab's Store record tree.
 //
 // Fixture: any viewer-casts .eval in VERIFY_LOG_DIR — one sample whose store
 // holds `asciinema:terminal-main` (first output line `$ nmap -sV 10.0.20.5`),
@@ -41,7 +41,7 @@ test.beforeAll(() => {
   mkdirSync(evidence, { recursive: true });
 });
 
-test("store asciicasts play in a Terminal Sessions card, filtered from the store tree", async ({
+test("store asciicasts play in a Terminals tab, filtered from the store tree", async ({
   page,
 }) => {
   test.skip(
@@ -50,26 +50,39 @@ test("store asciicasts play in a Terminal Sessions card, filtered from the store
   );
   const castsLog = castsLogOrThrow();
   await page.goto(
-    `/#/logs/${encodeURIComponent(castsLog)}/samples/sample/1/1/metadata`
+    `/#/logs/${encodeURIComponent(castsLog)}/samples/sample/1/1/terminals`
   );
 
-  // The card renders with one labeled player per asciinema:* key.
-  await expect(
-    page.getByText("Terminal Sessions", { exact: true })
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("terminal-main").first()).toBeVisible();
-  await expect(page.getByText("terminal-listener").first()).toBeVisible();
-
-  // The players parsed the casts: asciinema-player mounts its terminal UI
-  // and autoplay writes the recorded output into it.
-  const players = page.locator("div[id^='asciinema-player-']");
-  await expect(players).toHaveCount(2);
-  await expect(page.getByText("nmap -sV 10.0.20.5").first()).toBeVisible({
+  // One paused preview tile per asciinema:* key.
+  await expect(page.getByRole("tab", { name: "Terminals" })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText("nc -lvnp 4444").first()).toBeVisible();
+  const mainTile = page.getByRole("button", {
+    name: "Play terminal terminal-main",
+  });
+  await expect(mainTile).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Play terminal terminal-listener" })
+  ).toBeVisible();
 
-  // The Store card keeps non-cast keys and holds no asciinema:* entries.
+  // Clicking a tile opens it full-viewport and plays the recorded output.
+  await mainTile.click();
+  const dialog = page.getByRole("dialog", { name: "Terminal terminal-main" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("nmap -sV 10.0.20.5").first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.screenshot({
+    path: join(evidence, "store-terminal-sessions-expanded.png"),
+  });
+
+  // Escape closes it.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  // The Info tab's Store card keeps non-cast keys and holds no asciinema:*
+  // entries.
+  await page.getByRole("tab", { name: "Info" }).click();
   await expect(page.getByText("inspect_ranges:evidence")).toBeVisible();
   await expect(page.getByText("asciinema:terminal-main")).toHaveCount(0);
 

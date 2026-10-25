@@ -114,6 +114,7 @@ export const iconClasses = {
   playCircle: "bi bi-play-circle-fill",
   plug: "bi bi-plug",
   previous: "bi bi-chevron-left",
+  print: "bi bi-printer",
   refresh: "bi bi-arrow-clockwise",
   refuse: "bi bi-ban",
   retry: "bi bi-arrow-repeat",

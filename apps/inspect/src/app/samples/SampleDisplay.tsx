@@ -80,13 +80,14 @@ import { SampleSummary } from "../../client/api/types";
 import {
   kSampleActivityTabId,
   kSampleErrorTabId,
+  kSampleInfoTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
-  kSampleMetdataTabId,
   kSampleRetriesTabId,
   kSampleScoringTabId,
+  kSampleTerminalsTabId,
   kSampleTranscriptTabId,
-  kSampleUsageTabId,
+  sampleTabAlias,
 } from "../../constants";
 import {
   kDefaultMessageRowOptions,
@@ -252,7 +253,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
-  const effectiveSelectedTab = sampleTabId || selectedTab;
+  const routedTab = sampleTabId || selectedTab;
+  const effectiveSelectedTab = routedTab
+    ? sampleTabAlias(routedTab)
+    : routedTab;
 
   // The Messages tab's rows, assembled by the data layer. Which feed serves
   // the conversation (monolith fetch, chunked hydration, live stream) is
@@ -340,6 +344,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     []
   );
 
+  const terminalSessions = sample ? storeCasts(sample.store) : [];
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
@@ -524,11 +529,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleEpoch: sample?.epoch ?? undefined,
     open: storedDock === undefined || storedDock === "scans",
   });
-  // Default the dock to Scans when the sample has them and this log has no
-  // stored choice — including "none": a user who closed the dock shouldn't
+  // Default the dock to Scans when the sample has scan results and this log
+  // has no stored choice — including "none": a user who closed the dock shouldn't
   // have it forced back open. Derived rather than persisted; nothing is
   // written until the user acts.
-  const rightDock = storedDock ?? (scans.hasScans ? "scans" : "none");
+  const rightDock = storedDock ?? (scans.hasResults ? "scans" : "none");
   const setRightDock = useCallback(
     (value: "none" | "search" | "scans") =>
       setPropertyValue("rail-dock", dockKey, value),
@@ -611,6 +616,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon={isCollapsed(collapsedMode) ? "expandAll" : "collapseAll"}
         onClick={toggleCollapsedMode}
         subtle
+        collapseLabel
       />
     );
   }
@@ -624,6 +630,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ref={optionsRef}
       latched={displayMode === "raw"}
       subtle
+      collapseLabel
     />
   );
 
@@ -636,7 +643,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 
   if (evidence.tool) {
-    tools.push(<SelectTool key="sample-select" {...evidence.tool} />);
+    tools.push(
+      <SelectTool key="sample-select" {...evidence.tool} collapseLabel />
+    );
   }
 
   tools.push(
@@ -645,6 +654,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       label="Copy"
       icon={icon}
       subtle
+      collapseLabel
       dropdownClassName="text-size-smallest"
       heading={selected?.menu.heading}
       footer={selected?.menu.footer}
@@ -694,6 +704,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label="Download"
         icon="download"
         subtle
+        collapseLabel
         dropdownClassName="text-size-smallest"
         heading={selected?.menu.heading}
         footer={selected?.menu.footer}
@@ -756,9 +767,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             ? `Print ${selected.count} selected ${selected.item}${selected.count === 1 ? "" : "s"}`
             : undefined
         }
-        icon="copy"
+        icon="print"
         onClick={handlePrintClick}
         subtle
+        collapseLabel
       />
     );
   }
@@ -1074,6 +1086,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {terminalSessions.length > 0 ? (
+              <TabPanel
+                key={kSampleTerminalsTabId}
+                id={kSampleTerminalsTabId}
+                className="sample-tab"
+                title="Terminals"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleTerminalsTabId)}
+                selected={effectiveSelectedTab === kSampleTerminalsTabId}
+              >
+                <div className={clsx(styles.padded, styles.fullWidth)}>
+                  <StoreTerminalSessions
+                    id={`${baseId}-${id}-terminal-sessions`}
+                    casts={terminalSessions}
+                  />
+                </div>
+              </TabPanel>
+            ) : null}
             <TabPanel
               key={kSampleScoringTabId}
               id={kSampleScoringTabId}
@@ -1114,15 +1144,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 </div>
               </TabPanel>
             ) : null}
-            {sampleUsages.length > 0 ? (
-              <TabPanel
-                id={kSampleUsageTabId}
-                className={clsx("sample-tab")}
-                title="Usage"
-                onSelected={onSelectedTab}
-                href={sampleTabHref(kSampleUsageTabId)}
-                selected={effectiveSelectedTab === kSampleUsageTabId}
-              >
+            <TabPanel
+              id={kSampleInfoTabId}
+              className={clsx("sample-tab")}
+              title="Info"
+              onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleInfoTabId)}
+              selected={effectiveSelectedTab === kSampleInfoTabId}
+            >
+              {sampleUsages.length > 0 || sampleMetadatas.length > 0 ? (
                 <div
                   className={clsx(
                     styles.padded,
@@ -1131,29 +1161,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )}
                 >
                   {sampleUsages}
-                </div>
-              </TabPanel>
-            ) : null}
-            <TabPanel
-              id={kSampleMetdataTabId}
-              className={clsx("sample-tab")}
-              title="Metadata"
-              onSelected={onSelectedTab}
-              href={sampleTabHref(kSampleMetdataTabId)}
-              selected={effectiveSelectedTab === kSampleMetdataTabId}
-            >
-              {sampleMetadatas.length > 0 ? (
-                <div
-                  className={clsx(
-                    styles.padded,
-                    styles.fullWidth,
-                    styles.metadataPanel
-                  )}
-                >
                   {sampleMetadatas}
                 </div>
               ) : (
-                <NoContentsPanel text="No sample metadata available" />
+                <NoContentsPanel text="No sample usage or metadata available" />
               )}
             </TabPanel>
             {sample?.error && (
@@ -1448,24 +1459,9 @@ const metadataViewsForSample = (
     );
   }
 
-  // Asciicasts in the store play in their own card rather than printing as
-  // (very long) strings in the store tree.
-  const terminalSessions = storeCasts(sample.store);
-  if (terminalSessions.length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-terminal-sessions-${id}`}>
-        <CardHeader label="Terminal Sessions" />
-        <CardBody>
-          <StoreTerminalSessions
-            id={`task-sample-terminal-sessions-${id}`}
-            casts={terminalSessions}
-          />
-        </CardBody>
-      </Card>
-    );
-  }
-
-  const castKeys = new Set(terminalSessions.map((session) => session.key));
+  // Asciicasts play in the Terminals tab rather than printing as (very long)
+  // strings in the store tree.
+  const castKeys = new Set(storeCasts(sample.store).map((cast) => cast.key));
   const storeRecord = Object.fromEntries(
     Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
   );

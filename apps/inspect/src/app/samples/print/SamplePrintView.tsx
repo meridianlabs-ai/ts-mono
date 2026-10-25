@@ -24,11 +24,12 @@ import {
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
+  kSampleInfoTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
-  kSampleMetdataTabId,
   kSampleScoringTabId,
   kSampleTranscriptTabId,
+  sampleTabAlias,
 } from "../../../constants";
 import {
   useSelectedEvalSampleData,
@@ -55,7 +56,9 @@ import styles from "./SamplePrintView.module.css";
 export const SamplePrintView: FC = () => {
   const { sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
-  const view = searchParams.get("view") ?? kSampleTranscriptTabId;
+  const view = sampleTabAlias(
+    searchParams.get("view") ?? kSampleTranscriptTabId
+  );
   const printingSelection = searchParams.has("events");
   const printingMessageSelection =
     searchParams.has("messages") && view === kSampleMessagesTabId;
@@ -206,7 +209,7 @@ export const SamplePrintView: FC = () => {
         <SampleScoresView sample={sample} scrollRef={contentRef} />
       )}
 
-      {view === kSampleMetdataTabId && <PrintMetadata sample={sample} />}
+      {view === kSampleInfoTabId && <PrintMetadata sample={sample} />}
 
       {view === kSampleJsonTabId && <SampleJSONView sample={sample} />}
     </div>

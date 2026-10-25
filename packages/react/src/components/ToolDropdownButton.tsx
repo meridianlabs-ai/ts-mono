@@ -26,6 +26,8 @@ interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   dropdownAlign?: "left" | "right";
   dropdownClassName?: string | string[];
   subtle?: boolean;
+  /** Visually hide the label (icon only) at narrow viewport widths. */
+  collapseLabel?: boolean;
 }
 
 export const ToolDropdownButton = forwardRef<
@@ -43,6 +45,8 @@ export const ToolDropdownButton = forwardRef<
       dropdownAlign = "left",
       dropdownClassName,
       subtle,
+      collapseLabel,
+      title,
       ...rest
     },
     ref
@@ -142,10 +146,23 @@ export const ToolDropdownButton = forwardRef<
           onClick={() => setIsOpen(!isOpen)}
           aria-haspopup="menu"
           aria-expanded={isOpen}
+          title={
+            title ??
+            (collapseLabel && typeof label === "string" ? label : undefined)
+          }
           {...rest}
         >
-          {icon && <Icon name={icon} />}
-          {label}
+          {icon && (
+            <Icon
+              name={icon}
+              className={collapseLabel ? styles.noMargin : undefined}
+            />
+          )}
+          {collapseLabel ? (
+            <span className={styles.collapsibleLabel}>{label}</span>
+          ) : (
+            label
+          )}
           <Icon name="chevronDown" className={styles.chevron} />
         </button>
         {isOpen &&

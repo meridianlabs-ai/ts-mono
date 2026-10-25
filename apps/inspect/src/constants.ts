@@ -23,8 +23,12 @@ export const kWorkspaceTabs = [
 // Sample tab constants
 export const kSampleMessagesTabId = `messages`;
 export const kSampleTranscriptTabId = `transcript`;
+export const kSampleTerminalsTabId = `terminals`;
 export const kSampleScoringTabId = `scoring`;
 export const kSampleActivityTabId = `activity`;
+export const kSampleInfoTabId = `info`;
+// Usage and Metadata were merged into Info; their ids stay routable so
+// existing links open Info (see `sampleTabAlias`).
 export const kSampleMetdataTabId = `metadata`;
 export const kSampleUsageTabId = `usage`;
 export const kSampleErrorTabId = `error`;
@@ -35,11 +39,19 @@ export const kSampleJsonTabId = `json`;
 // Like `print`, intentionally absent from kSampleTabIds — it's not a sample tab.
 export const kSampleEventTabId = `event`;
 
+/** Resolve a legacy sample tab id to the tab that now shows its content. */
+export const sampleTabAlias = (tabId: string): string =>
+  tabId === kSampleUsageTabId || tabId === kSampleMetdataTabId
+    ? kSampleInfoTabId
+    : tabId;
+
 export const kSampleTabIds = [
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
+  kSampleTerminalsTabId,
   kSampleScoringTabId,
   kSampleActivityTabId,
+  kSampleInfoTabId,
   kSampleUsageTabId,
   kSampleMetdataTabId,
   kSampleErrorTabId,

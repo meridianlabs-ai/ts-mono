@@ -27,3 +27,19 @@
     inset 0 2px 4px rgba(0, 0, 0, 0.15),
     inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
+
+.collapsibleLabel {
+  margin-left: 0.5em;
+}
+
+/* Below this width the label is visually hidden but stays the accessible name. */
+@media (max-width: 1300px) {
+  .collapsibleLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

@@ -1,4 +1,4 @@
-import { create, DataSource } from "asciinema-player";
+import { create, DataSource, Marker } from "asciinema-player";
 
 import "asciinema-player/dist/bundle/asciinema-player.css";
 
@@ -15,6 +15,16 @@ interface AsciinemaPlayerBaseProps {
   loop?: boolean;
   theme?: string;
   idleTimeLimit?: number;
+  /** Frame shown before playback, e.g. `npt:12.5` for the frame at 12.5s. */
+  poster?: string;
+  controls?: boolean | "auto";
+  /** Scrubber ticks, at playback times (after idle shortening). */
+  markers?: Marker[];
+  /** Focus the player so its keyboard shortcuts work without a click. */
+  autoFocus?: boolean;
+  /** Clicking the terminal toggles play/pause (the player only reacts to
+   *  clicks on its control bar by default). */
+  clickToToggle?: boolean;
   className?: string;
 }
 
@@ -50,13 +60,23 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   loop,
   theme,
   idleTimeLimit = 2,
+  poster,
+  controls,
+  markers,
+  autoFocus,
+  clickToToggle,
   style,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  // Where the last player instance left off, so an option change (e.g.
+  // speed) that recreates the player resumes the same recording at the same
+  // point rather than starting over.
+  const resumeRef = useRef<ResumePoint | null>(null);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    if (!playerContainerRef.current) return;
+    const container = playerContainerRef.current;
+    if (!container) return;
 
     // In-memory Responses, not Blob URLs the player would fetch: the
     // viewer's CSP allows no blob: connections. Fresh per load, since a
@@ -76,21 +96,80 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
             parser: "typescript",
           };
 
-    const player = create(source, playerContainerRef.current, {
+    const recording = { cast, input, output, timing };
+    const resume =
+      resumeRef.current && sameRecording(resumeRef.current.recording, recording)
+        ? resumeRef.current
+        : null;
+
+    const player = create(source, container, {
       rows,
       cols,
-      autoPlay,
+      // A resumed player must not start itself during init: that would play
+      // a paused session (and flash its opening frame) before the seek lands.
+      autoPlay: resume ? false : autoPlay,
       loop,
       theme,
       speed,
       idleTimeLimit,
       fit,
+      poster,
+      controls,
+      markers,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    player.play();
+    let playing = false;
+    player.addEventListener("playing", () => {
+      playing = true;
+    });
+    player.addEventListener("pause", () => {
+      playing = false;
+    });
+    player.addEventListener("ended", () => {
+      playing = false;
+    });
+
+    if (resume) {
+      // getCurrentTime() is on the idle-shortened timeline, which seek() takes
+      // too (startAt would read it as original-timeline time).
+      runPlayback(
+        player
+          .seek(resume.time)
+          .then(() => (resume.playing ? player.play() : undefined))
+      );
+    } else if (autoPlay !== false) {
+      // Plays unless autoPlay is explicitly false (callers like the human
+      // baseline lightbox rely on mount-to-play).
+      runPlayback(player.play());
+    }
+
+    if (autoFocus) {
+      player.el.focus();
+    }
+
+    const onClick = (e: MouseEvent) => {
+      if (
+        e.target instanceof Element &&
+        e.target.closest(".ap-control-bar, .ap-overlay")
+      ) {
+        return;
+      }
+      // The end of a drag to select terminal text also fires a click.
+      if (window.getSelection()?.toString()) return;
+      runPlayback(playing ? player.pause() : player.play());
+    };
+    if (clickToToggle) {
+      container.addEventListener("click", onClick);
+    }
 
     return () => {
+      container.removeEventListener("click", onClick);
+      // Only a player that got somewhere leaves a resume point. Otherwise a
+      // remount that never played (StrictMode's mount/unmount/mount) would
+      // "resume" at 0, skipping the poster frame and autoPlay.
+      const time = player.getCurrentTime();
+      resumeRef.current =
+        playing || time > 0 ? { recording, time, playing } : null;
       player.dispose();
     };
   }, [
@@ -106,6 +185,11 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
     speed,
     idleTimeLimit,
     fit,
+    poster,
+    controls,
+    markers,
+    autoFocus,
+    clickToToggle,
   ]);
 
   return (
@@ -115,6 +199,31 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       style={{ ...style }}
     />
   );
+};
+
+interface RecordingSource {
+  cast?: string;
+  input?: string;
+  output?: string;
+  timing?: string;
+}
+
+interface ResumePoint {
+  recording: RecordingSource;
+  time: number;
+  playing: boolean;
+}
+
+const sameRecording = (a: RecordingSource, b: RecordingSource): boolean =>
+  a.cast === b.cast &&
+  a.input === b.input &&
+  a.output === b.output &&
+  a.timing === b.timing;
+
+// Playback commands reject when the player is disposed mid-command (e.g. an
+// option change recreates it); there's nothing to recover.
+const runPlayback = (command: Promise<unknown>): void => {
+  command.catch(() => undefined);
 };
 
 export default AsciinemaPlayerImpl;

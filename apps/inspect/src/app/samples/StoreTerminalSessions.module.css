@@ -1,9 +1,190 @@
-.sessions {
-  display: flex;
-  flex-direction: column;
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1em;
 }
 
-.sessionLabel {
-  margin-bottom: 0.3em;
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+  background-color: var(--bs-body-bg);
+}
+
+.tile:hover,
+.tile:focus-within {
+  border-color: var(--bs-primary);
+}
+
+.tileHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5em;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.tileName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tilePreview {
+  position: relative;
+  height: 200px;
+  background-color: #121314;
+  pointer-events: none;
+}
+
+.tilePlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3em;
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tile:hover .tilePlay,
+.tile:focus-within .tilePlay {
+  opacity: 1;
+}
+
+.tileButton {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tileButton:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: -2px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(0, 0, 0, 0.92);
+}
+
+.overlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.6em 1em;
+  color: #fff;
+}
+
+.overlayTitleGroup {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 1em;
+  min-width: 0;
+}
+
+.overlayTitle {
+  font-weight: 600;
+}
+
+.overlayNote {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.overlayNoteDetail {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.overlayControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-left: auto;
+}
+
+.speedGroup {
+  display: inline-flex;
+}
+
+.speedGroup .headerButton:not(:first-child) {
+  margin-left: -1px;
+}
+
+.speedGroup .headerButton:not(:first-child, :last-child) {
+  border-radius: 0;
+}
+
+.speedGroup .headerButton:first-child:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.speedGroup .headerButton:last-child:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.headerButton {
+  padding: 0.15em 0.6em;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--bs-border-radius);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--inspect-font-size-small);
+  cursor: pointer;
+}
+
+.headerButton:hover,
+.headerButton:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.headerButton.headerButtonActive {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.15em;
+  border: 0;
+  border-radius: var(--bs-border-radius);
+  background: transparent;
+  color: #fff;
+  font-size: 1.75em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.overlayBody {
+  flex: 1;
+  min-height: 0;
+  padding: 0 1em 1em;
+}
+
+.overlayBody :global(.ap-term) {
+  cursor: pointer;
 }
