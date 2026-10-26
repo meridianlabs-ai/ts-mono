@@ -1636,6 +1636,7 @@ class Continuity {
   // the heads and the candidates open at each summary compaction, until the
   // next call's input shows which summarized
   private summarized: [ContinuityCall[], ContinuityCall[]][] = [];
+  private readonly summarizerCalls: ContinuityCall[] = [];
 
   call(event: ModelEvent): void {
     const call: ContinuityCall = {
@@ -1709,7 +1710,18 @@ class Continuity {
         this.turns.set(failed.event, true);
       }
     }
-    return this.turns;
+    if (this.linked) {
+      return this.turns;
+    }
+    // no call continued another: only the summarizers, and the failed calls
+    // they retried, are answered
+    const answered = new Set(this.summarizerCalls.map((call) => call.event));
+    for (const [failed, retry] of this.retried) {
+      if (answered.has(retry.event)) {
+        answered.add(failed.event);
+      }
+    }
+    return new Map([...this.turns].filter(([event]) => answered.has(event)));
   }
 
   /**
@@ -1736,6 +1748,7 @@ class Continuity {
         (call) => input !== null && summarizes(call, input)
       );
       this.close(summarizers);
+      this.summarizerCalls.push(...summarizers);
       const kept = heads.filter((head) => !summarizers.includes(head));
       if (kept.length === 1) {
         this.settle(kept[0]!, kept);
@@ -1866,7 +1879,8 @@ export class AgentSpans {
  * continuity. The rule runs over each conversation in the span apart (a span
  * can hold more than one, where the timeline unrolls a solver beside an
  * agent), and a conversation in which no call continues another has no
- * answers, so the existing rules decide its calls.
+ * answers but its summarizers', so the existing rules decide its other
+ * calls.
  */
 function continuityTurns(
   agent: TimelineSpan,
@@ -1896,11 +1910,8 @@ function continuityTurns(
   }
   const turns = new Map<ModelEvent, boolean>();
   for (const found of threads.values()) {
-    const verdicts = found.finish();
-    if (found.linked) {
-      for (const [event, turn] of verdicts) {
-        turns.set(event, turn);
-      }
+    for (const [event, turn] of found.finish()) {
+      turns.set(event, turn);
     }
   }
   return turns;
