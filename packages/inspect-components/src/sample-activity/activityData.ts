@@ -2,6 +2,8 @@ import type {
   Event,
   ModelEvent,
   ScoreEvent,
+  SentinelEvent,
+  ToolCall,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
@@ -9,6 +11,15 @@ import { nullProtoRecord } from "@tsmono/util";
 
 // Direct file imports keep this module React-free (the usage barrel pulls
 // in component modules).
+import {
+  buildSentinelSteps,
+  instanceLabel,
+} from "../transcript/transform/toolSentinels";
+import type {
+  SentinelNode,
+  SentinelStep,
+} from "../transcript/transform/toolSentinels";
+import { TYPE_SENTINEL } from "../transcript/transform/utils";
 import { fmtCompactDuration } from "../usage/timeFormat";
 import { usageTotal } from "../usage/tokenTotals";
 
@@ -253,7 +264,8 @@ export interface TurnColumn {
   modelWork: number;
   /** Working seconds spent in tool calls (likewise unread by the chart). */
   toolWork: number;
-  /** Non-approve approval decisions inside the turn (ghost slots). */
+  /** Calls from the turn that an approval or sentinel decision acted on
+   *  (ghost slots). */
   rejected: number;
 }
 
@@ -282,9 +294,9 @@ export interface ActivityHistoryRow {
   mono?: string;
   tail?: string;
   detail?: string;
-  /** Right-aligned By column ("system", approver, "user"). */
+  /** Right-aligned By column ("system", approver, sentinel path, "user"). */
   by: string;
-  /** Muted suffix after `by` ("approver" for approval-policy names). */
+  /** Muted suffix after `by` ("approver" or "sentinel"). */
   byRole?: string;
 }
 
@@ -320,7 +332,8 @@ export interface ActivityData {
   turns: TurnColumn[];
   markers: ActivityMarker[];
   rows: ActivityHistoryRow[];
-  /** Non-approve approval decisions (the activity headline's "N rejected"). */
+  /** Non-approve approval decisions plus sentinel steps that acted (the
+   *  activity headline's "N rejected"). */
   rejectedCount: number;
   /** Any open-ended span (running sample). */
   pending: boolean;
@@ -501,6 +514,17 @@ const decisionWord = (decision: unknown): string => {
   );
 };
 
+/** What a sentinel step acted on, by stage. The stage is log-authored, so
+ *  a Map lookup with a fallback, as for decision words. */
+const kSentinelStageLead = new Map<string, string>([
+  ["tool_call", "Tool call"],
+  ["tool_result", "Tool result"],
+  ["model_input", "Model input"],
+  ["model_output", "Model output"],
+]);
+
+const kSentinelToolStages = new Set(["tool_call", "tool_result"]);
+
 const valueText = (value: unknown): string =>
   typeof value === "string" ? value : JSON.stringify(value);
 
@@ -538,6 +562,9 @@ const resultSize = (result: ToolEvent["result"]): number => {
   }
   return size;
 };
+
+const toolFailed = (event: ToolEvent): boolean =>
+  event.error != null || event.failed === true;
 
 /** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
 const completedEpoch = (event: Event): number | undefined =>
@@ -633,6 +660,84 @@ interface Conversation {
   /** The conversation's own span (agent/subtask/solver), when keyed by one. */
   span?: SpanInfo;
 }
+
+/** A sentinel step whose decision took effect. */
+interface SentinelDecision {
+  step: SentinelStep;
+  /** The check that made the decision: it names the row and links it. */
+  decider: SentinelNode;
+  /** The call a tool-stage step judged, as the model proposed it. */
+  call?: Pick<ToolCall, "function" | "arguments">;
+  /** The call never ran, so it takes a ghost slot in its turn. */
+  ghost: boolean;
+}
+
+interface SentinelDecisions {
+  /** Keyed by the step's returned decision, where the pass emits the row. */
+  byOutcome: Map<SentinelEvent, SentinelDecision>;
+  /** Calls a sentinel acted on; their approval rows would count them twice. */
+  actedCalls: Set<string>;
+  /** Calls a rejection stopped. Inspect still records each one's ToolEvent,
+   *  failed; the rejection's ghost and row stand in for it. */
+  blockedCalls: Set<string>;
+}
+
+/** Each sentinel step counts once, by the decision that took effect —
+ *  nested configurations record a decision per layer. */
+const collectSentinelDecisions = (
+  events: Event[],
+  spans: Map<string, SpanInfo>
+): SentinelDecisions => {
+  const proposed = new Map<string, ToolCall>();
+  const toolsById = new Map<string, ToolEvent>();
+  for (const event of events) {
+    if (event.event === "model") {
+      // Monitors' own calls run inside the sentinel span.
+      if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
+      for (const choice of event.output.choices) {
+        for (const call of choice.message.tool_calls ?? []) {
+          proposed.set(call.id, call);
+        }
+      }
+    } else if (event.event === "tool" && !toolsById.has(event.id)) {
+      toolsById.set(event.id, event);
+    }
+  }
+
+  const byOutcome = new Map<SentinelEvent, SentinelDecision>();
+  const actedCalls = new Set<string>();
+  const blockedCalls = new Set<string>();
+  for (const step of buildSentinelSteps(events)) {
+    const { effective: decider, outcome } = step;
+    if (!decider || !outcome || step.verdict === "proceed") continue;
+    const onCall = kSentinelToolStages.has(step.stage);
+    const tool = onCall ? toolsById.get(step.stepId) : undefined;
+    // A modified call ran (as its replacement) and draws its own span.
+    const ghost =
+      step.stage === "tool_call" &&
+      step.verdict !== "modify" &&
+      (!tool || toolFailed(tool));
+    if (onCall) actedCalls.add(step.stepId);
+    if (ghost && tool) blockedCalls.add(step.stepId);
+    byOutcome.set(outcome.event, {
+      step,
+      decider,
+      call: onCall ? (proposed.get(step.stepId) ?? tool) : undefined,
+      ghost,
+    });
+  }
+  for (const event of events) {
+    if (
+      event.event !== "approval" ||
+      (event.decision !== "reject" && event.decision !== "terminate")
+    ) {
+      continue;
+    }
+    const tool = toolsById.get(event.call.id);
+    if (tool && toolFailed(tool)) blockedCalls.add(event.call.id);
+  }
+  return { byOutcome, actedCalls, blockedCalls };
+};
 
 export interface ActivityInputs {
   events: Event[];
@@ -834,6 +939,23 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   ): Conversation =>
     currentConversationBySpan.get(spanKey(spanId)) ??
     conversationForSpan(spanId);
+  /** The span a sentinel's dispatch ran under. Its own span also holds its
+   *  monitors' model calls, and a role-keyed one would claim the span key
+   *  for a stray row. */
+  const outsideSentinelSpans = (
+    spanId: string | null | undefined
+  ): string | null | undefined => {
+    let id = spanId;
+    let span = id ? spans.get(id) : undefined;
+    const visited = new Set<string>();
+    while (span?.type === TYPE_SENTINEL && !visited.has(span.id)) {
+      visited.add(span.id);
+      id = span.parentId;
+      span = id ? spans.get(id) : undefined;
+    }
+    return id;
+  };
+  const sentinelDecisions = collectSentinelDecisions(events, spans);
 
   const rowFor = (conversation: Conversation): AgentRow => {
     let row = rowsById.get(conversation.id);
@@ -983,7 +1105,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         break;
       }
       case "tool": {
-        const failed = event.error != null || event.failed === true;
+        const failed = toolFailed(event);
+        if (failed && sentinelDecisions.blockedCalls.has(event.id)) break;
         const isPending = event.pending === true && completed === undefined;
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
@@ -1082,6 +1205,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       }
       case "approval": {
         if (event.decision === "approve") break;
+        // The sentinel runs after approval, so its decision is the call's last.
+        if (sentinelDecisions.actedCalls.has(event.call.id)) break;
         rejectedCount += 1;
         const word = decisionWord(event.decision);
         const args = callArgsText(event.call.arguments);
@@ -1114,6 +1239,55 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
             : undefined,
           by: event.approver,
           byRole: "approver",
+        });
+        break;
+      }
+      case "sentinel": {
+        const decision = sentinelDecisions.byOutcome.get(event);
+        if (!decision) break;
+        const { step, decider, call, ghost } = decision;
+        rejectedCount += 1;
+        const word = decisionWord(step.verdict);
+        const lead = kSentinelStageLead.get(step.stage) ?? "Sentinel step";
+        const args = call ? callArgsText(call.arguments) : "";
+        // A model_input step judged the next turn's request, which the
+        // marker snaps forward to; every other stage judged what the
+        // current turn produced.
+        if (step.stage !== "model_input") {
+          const conversation = conversationForEvent(
+            outsideSentinelSpans(event.span_id)
+          );
+          const turn = currentTurnByRow.get(conversation.id);
+          if (turn) {
+            if (ghost) turn.rejected += 1;
+            turn.end = Math.max(turn.end, t);
+          }
+        }
+        const reason =
+          step.reason ?? (decider.event.message?.trim() || undefined);
+        markers.push({
+          time: t,
+          category: "approval",
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          label: `${lead}${call ? ` ${call.function}` : ""} ${word}`,
+        });
+        rows.push({
+          time: t,
+          category: "approval",
+          kind: word,
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          lead,
+          mono: call
+            ? args
+              ? `${call.function}: ${args}`
+              : call.function
+            : undefined,
+          tail: word,
+          detail: reason ? `“${truncate(reason)}”` : undefined,
+          by: instanceLabel(decider.event),
+          byRole: "sentinel",
         });
         break;
       }

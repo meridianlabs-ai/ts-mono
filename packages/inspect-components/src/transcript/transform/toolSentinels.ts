@@ -1,4 +1,5 @@
 import type {
+  Event,
   ModelEvent,
   Reference,
   SentinelEvent,
@@ -6,8 +7,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { eventNodeOf } from "../types";
-import type { EventNode } from "../types";
+import { EventNode, eventNodeOf } from "../types";
 
 import { SPAN_BEGIN, TYPE_SENTINEL } from "./utils";
 
@@ -364,6 +364,33 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
     reason: explanationOf(node),
     reasonReferences: explanationOf(node) ? event.references : [],
   };
+}
+
+/**
+ * The steps of a flat event list, in recording order: the events of one
+ * sentinel span form a step, and events outside a span group by stage and
+ * step id, as `pairToolSentinels` groups a tree. A node's id is its event's
+ * uuid, or `evt:<index>` in `events` without one.
+ */
+export function buildSentinelSteps(events: Event[]): SentinelStep[] {
+  const sentinelSpans = new Set<string>();
+  for (const event of events) {
+    if (event.event === SPAN_BEGIN && event.type === TYPE_SENTINEL) {
+      sentinelSpans.add(event.id);
+    }
+  }
+  const groups = new Map<string, SentinelNode[]>();
+  events.forEach((event, index) => {
+    if (event.event !== "sentinel") return;
+    const key =
+      event.span_id && sentinelSpans.has(event.span_id)
+        ? event.span_id
+        : `${event.stage}\u0000${event.step_id}`;
+    let nodes = groups.get(key);
+    if (!nodes) groups.set(key, (nodes = []));
+    nodes.push(new EventNode(event.uuid ?? `evt:${index}`, event, 0));
+  });
+  return [...groups.values()].map((nodes) => buildSentinelStep(nodes));
 }
 
 interface SentinelSpan {

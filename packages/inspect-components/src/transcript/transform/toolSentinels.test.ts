@@ -22,6 +22,7 @@ import { EventNode } from "../types";
 import {
   buildLoneSentinelStep,
   buildSentinelStep,
+  buildSentinelSteps,
   formatSuspicion,
   pairToolSentinels,
   topScore,
@@ -933,5 +934,43 @@ describe("pairToolSentinels on a sub-agent run as a tool", () => {
     expect(result.sentinelScrollRedirects.get("sen-outer-result")).toBe(
       "tool-outer"
     );
+  });
+});
+
+describe("buildSentinelSteps", () => {
+  it("groups a flat list by sentinel span, else by stage and step id", () => {
+    const events: Event[] = [
+      testSpanBeginEvent({ id: "s1", type: "sentinel", name: "sentinel" }),
+      testSentinelEvent({
+        uuid: "a",
+        span_id: "s1",
+        step_id: "call_1",
+        path: "rule",
+      }),
+      testSentinelEvent({
+        uuid: "b",
+        span_id: "s1",
+        step_id: "call_1",
+        action: "reject",
+      }),
+      testSentinelEvent({
+        step_id: "call_2",
+        stage: "tool_call",
+        action: "reject",
+      }),
+      testSentinelEvent({ step_id: "call_2", stage: "tool_result" }),
+    ];
+    const steps = buildSentinelSteps(events);
+
+    expect(steps.map((step) => step.rows.map((row) => row.node.id))).toEqual([
+      ["b", "a"],
+      ["evt:3"],
+      ["evt:4"],
+    ]);
+    expect(steps.map((step) => step.verdict)).toEqual([
+      "reject",
+      "reject",
+      "proceed",
+    ]);
   });
 });
