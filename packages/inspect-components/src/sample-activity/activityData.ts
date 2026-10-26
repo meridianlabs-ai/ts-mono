@@ -680,8 +680,8 @@ interface SentinelDecisions {
   /** Approvals of calls a sentinel then acted on; they would count the call
    *  twice. */
   overruledApprovals: Set<ApprovalEvent>;
-  /** Inspect still records a ToolEvent, failed, for each call a rejection
-   *  stopped; the rejection's ghost and row stand in for it. */
+  /** Inspect still records a ToolEvent, failed, for each call a sentinel
+   *  stopped; the decision's ghost and row stand in for it. */
   blockedTools: Set<ToolEvent>;
 }
 
@@ -691,6 +691,8 @@ interface CallSlot {
   producer?: ModelEvent;
   approval?: ApprovalEvent;
   tool?: ToolEvent;
+  /** An approval or a `tool_call` decision stopped the call before it ran. */
+  stopped?: boolean;
 }
 
 /** The calls under one id in one conversation, from the latest model output
@@ -720,10 +722,15 @@ const takeSlot = (
   return slot;
 };
 
-const approvalStopped = (approval: ApprovalEvent | undefined): boolean =>
-  approval !== undefined &&
-  approval.decision !== "approve" &&
-  approval.decision !== "modify";
+const approvalStopped = (approval: ApprovalEvent): boolean =>
+  approval.decision !== "approve" && approval.decision !== "modify";
+
+/** A call stopped before it ran, or whose arguments never parsed, has no
+ *  result; an escalation older builds let through ran despite its step. */
+const didNotRun = (slot: CallSlot): boolean =>
+  !slot.tool ||
+  (toolFailed(slot.tool) &&
+    (slot.stopped === true || slot.tool.error?.type === "parsing"));
 
 /** Each sentinel step counts once, by the decision that took effect —
  *  nested configurations record a decision per layer. Pairing runs in
@@ -774,39 +781,34 @@ const collectSentinelDecisions = (
         chains.set(chainKey(event.span_id, id), newChain(slots));
       }
     } else if (event.event === "approval") {
-      takeSlot(chainFor(event.span_id, event.call.id), "approvals").approval =
-        event;
+      const slot = takeSlot(
+        chainFor(event.span_id, event.call.id),
+        "approvals"
+      );
+      slot.approval = event;
+      if (approvalStopped(event)) slot.stopped = true;
     } else if (event.event === "tool") {
-      const slot = takeSlot(chainFor(event.span_id, event.id), "tools");
-      slot.tool = event;
-      const { approval } = slot;
-      if (
-        toolFailed(event) &&
-        (approval?.decision === "reject" || approval?.decision === "terminate")
-      ) {
-        blockedTools.add(event);
-      }
+      takeSlot(chainFor(event.span_id, event.id), "tools").tool = event;
     } else if (event.event === "sentinel") {
       const step = steps.get(event);
       if (!step) continue;
       if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, step.stepId);
-        slotOfStep.set(
-          step,
-          takeSlot(chain, "checks", (slot) => approvalStopped(slot.approval))
-        );
+        const slot = takeSlot(chain, "checks", (slot) => slot.stopped === true);
+        slotOfStep.set(step, slot);
+        if (
+          step.effective &&
+          step.verdict !== "proceed" &&
+          step.verdict !== "modify"
+        ) {
+          slot.stopped = true;
+        }
       } else if (step.stage === "tool_result") {
-        // Only a call that ran has a result to judge.
+        // Only a call that ran has a result to judge, though the run may
+        // have failed.
         const chain = chainFor(event.span_id, step.stepId);
-        slotOfStep.set(
-          step,
-          takeSlot(
-            chain,
-            "results",
-            (slot) => !slot.tool || toolFailed(slot.tool)
-          )
-        );
+        slotOfStep.set(step, takeSlot(chain, "results", didNotRun));
       } else {
         const producer = latestModel.get(conversationOf(event.span_id));
         if (producer) producerOfStep.set(step, producer);
