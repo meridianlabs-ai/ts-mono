@@ -1633,6 +1633,9 @@ class Continuity {
   // its retry
   private failed = new Map<string, ContinuityCall[]>();
   private readonly retried: [ContinuityCall, ContinuityCall][] = [];
+  // the heads and the candidates open at each summary compaction, until the
+  // next call's input shows which summarized
+  private summarized: [ContinuityCall[], ContinuityCall[]][] = [];
 
   call(event: ModelEvent): void {
     const call: ContinuityCall = {
@@ -1640,6 +1643,9 @@ class Continuity {
       input: event.input,
       output: continuityAnswer(event),
     };
+    if (this.summarized.length > 0) {
+      this.summarizers(call.input);
+    }
     const key = inputKey(call);
     if (call.output === null) {
       const waiting = this.failed.get(key) ?? [];
@@ -1683,8 +1689,7 @@ class Continuity {
 
   compaction(event: CompactionEvent): void {
     if (event.type === "summary") {
-      this.close(this.heads.calls);
-      this.close(this.candidates.calls);
+      this.summarized.push([this.heads.calls, this.candidates.calls]);
     } else {
       this.end();
     }
@@ -1694,6 +1699,9 @@ class Continuity {
   }
 
   finish(): Map<ModelEvent, boolean> {
+    if (this.summarized.length > 0) {
+      this.summarizers(null);
+    }
     this.end();
     for (const [failed, retry] of this.retried) {
       const turn = this.turns.get(retry.event);
@@ -1719,6 +1727,26 @@ class Continuity {
     if (heads.length === 1) {
       this.settle(heads[0]!, heads);
     }
+  }
+
+  /**
+   * Settle the calls open at each summary compaction since the last call,
+   * given the next call's input (null at the span's end): a call whose output
+   * appears in it is the summarizer, utility (decided by Charles 2026-10-26);
+   * of the others, a lone head is the thread's last turn.
+   */
+  private summarizers(input: ChatMessage[] | null): void {
+    for (const [heads, candidates] of this.summarized) {
+      const summarizers = [...heads, ...candidates].filter(
+        (call) => input !== null && summarizes(call, input)
+      );
+      this.close(summarizers);
+      const kept = heads.filter((head) => !summarizers.includes(head));
+      if (kept.length === 1) {
+        this.settle(kept[0]!, kept);
+      }
+    }
+    this.summarized = [];
   }
 
   private advance(turn: ContinuityCall, call: ContinuityCall): void {
@@ -1750,6 +1778,30 @@ class Continuity {
       fingerprint(call.input[at]!) === fingerprint(earlier.output)
     );
   }
+}
+
+// where a summarizer's summary begins, after any analysis before it
+const kSummaryTag = "<summary>";
+
+/**
+ * Whether `call`'s output appears in `input`: a message of it holds the
+ * output's text, or its text from its last `<summary>` tag (Inspect drops the
+ * `<analysis>` before it). A summary reworded on the way in is not found.
+ */
+function summarizes(call: ContinuityCall, input: ChatMessage[]): boolean {
+  const text = call.output === null ? "" : messageText(call.output);
+  if (!text) {
+    return false;
+  }
+  const needles = [text];
+  const at = text.lastIndexOf(kSummaryTag);
+  if (at > 0) {
+    needles.push(text.slice(at));
+  }
+  return input.some((message) => {
+    const held = messageText(message);
+    return needles.some((needle) => held.includes(needle));
+  });
 }
 
 /**
