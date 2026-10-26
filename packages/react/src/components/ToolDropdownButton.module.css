@@ -94,3 +94,23 @@
 .dropdownFooter i {
   font-size: 0.85em;
 }
+
+.toolButton .noMargin {
+  margin-right: 0;
+}
+
+.collapsibleLabel {
+  margin-left: 0.5em;
+}
+
+/* Below this width the label is visually hidden but stays the accessible name. */
+@media (max-width: 1300px) {
+  .collapsibleLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
