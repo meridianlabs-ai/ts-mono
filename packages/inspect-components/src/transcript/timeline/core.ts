@@ -2311,9 +2311,11 @@ export function buildTimeline(events: Event[]): Timeline {
 
     if (agentNode) {
       agentNode.name = "main";
+      // results first, while every model call is in its span's content: a
+      // result can reach only a call then wrapped as utility (a summary call)
+      extractAgentResults(agentNode);
       wrapUtilityEvents(agentNode, new AgentSpans(events));
       classifyUtilityAgents(agentNode);
-      extractAgentResults(agentNode);
 
       // Prepend init span to agent content
       if (initSpanObj) {
@@ -2349,9 +2351,11 @@ export function buildTimeline(events: Event[]): Timeline {
     // No phase spans - treat entire tree as agent
     const agentRoot = buildAgentFromTree(tree);
     if (agentRoot) {
+      // results first, while every model call is in its span's content: a
+      // result can reach only a call then wrapped as utility (a summary call)
+      extractAgentResults(agentRoot);
       wrapUtilityEvents(agentRoot, new AgentSpans(events));
       classifyUtilityAgents(agentRoot);
-      extractAgentResults(agentRoot);
       root = agentRoot;
     } else {
       // All content was empty — construct an empty root
