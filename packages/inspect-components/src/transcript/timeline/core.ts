@@ -1633,9 +1633,10 @@ class Continuity {
   // its retry
   private failed = new Map<string, ContinuityCall[]>();
   private readonly retried: [ContinuityCall, ContinuityCall][] = [];
-  // the heads and the candidates open at each summary compaction, until the
-  // next call's input shows which summarized
-  private summarized: [ContinuityCall[], ContinuityCall[]][] = [];
+  // the last call, and the heads open at each summary compaction, until the
+  // next call's input shows whether the last call summarized
+  private last: ContinuityCall | null = null;
+  private summarized: [ContinuityCall[], ContinuityCall | null][] = [];
   private readonly summarizerCalls: ContinuityCall[] = [];
 
   call(event: ModelEvent): void {
@@ -1647,6 +1648,7 @@ class Continuity {
     if (this.summarized.length > 0) {
       this.summarizers(call.input);
     }
+    this.last = call;
     if (call.output === null) {
       const key = inputIdentity(call);
       const waiting = this.failed.get(key) ?? [];
@@ -1685,10 +1687,11 @@ class Continuity {
 
   compaction(event: CompactionEvent): void {
     if (event.type === "summary") {
-      this.summarized.push([this.heads.calls, this.candidates.calls]);
+      this.summarized.push([this.heads.calls, this.last]);
     } else {
       this.end();
     }
+    this.last = null;
     this.tip = null;
     this.heads.clear();
     this.candidates.clear();
@@ -1738,18 +1741,22 @@ class Continuity {
 
   /**
    * Settle the calls open at each summary compaction since the last call,
-   * given the next call's input (null at the span's end): a call whose output
-   * appears in it is the summarizer, utility (decided by Charles 2026-10-26);
-   * of the others, a lone head is the thread's last turn.
+   * given the next call's input (null at the span's end): the call before the
+   * compaction is the summarizer, utility, if its output appears in it
+   * (decided by Charles 2026-10-26); of the other heads, a lone head is the
+   * thread's last turn. Only the last call is looked for, so each compaction
+   * reads the next input once; a summary call followed by another call before
+   * the compaction stays a turn.
    */
   private summarizers(input: ChatMessage[] | null): void {
-    for (const [heads, candidates] of this.summarized) {
-      const summarizers = [...heads, ...candidates].filter(
-        (call) => input !== null && summarizes(call, input)
-      );
-      this.close(summarizers);
-      this.summarizerCalls.push(...summarizers);
-      const kept = heads.filter((head) => !summarizers.includes(head));
+    for (const [heads, last] of this.summarized) {
+      let summarizer: ContinuityCall | null = null;
+      if (last !== null && input !== null && summarizes(last, input)) {
+        summarizer = last;
+        this.close([summarizer]);
+        this.summarizerCalls.push(summarizer);
+      }
+      const kept = heads.filter((head) => head !== summarizer);
       if (kept.length === 1) {
         this.settle(kept[0]!, kept);
       }
