@@ -685,6 +685,15 @@ interface SentinelDecisions {
   blockedTools: Set<ToolEvent>;
 }
 
+/** The decisions that count as rejections. An action a newer or odd log
+ *  records is left out rather than guessed at. */
+const kCountedVerdicts = new Set<SentinelStep["verdict"]>([
+  "reject",
+  "modify",
+  "terminate",
+  "escalate",
+]);
+
 /** One proposed call and the events recorded for it. */
 interface CallSlot {
   call?: ToolCall;
@@ -819,7 +828,7 @@ const collectSentinelDecisions = (
   const byOutcome = new Map<SentinelEvent, SentinelDecision>();
   for (const step of steps.values()) {
     const { effective: decider, outcome } = step;
-    if (!decider || !outcome || step.verdict === "proceed") continue;
+    if (!decider || !outcome || !kCountedVerdicts.has(step.verdict)) continue;
     const slot = slotOfStep.get(step);
     const tool = slot?.tool;
     // A modified call ran (as its replacement) and draws its own span.

@@ -254,6 +254,10 @@ const eventFixes = (
     case "sentinel":
       // Logs written before the "continue" action was renamed "proceed".
       if (raw["action"] === "continue") fix("action", "proceed");
+      // Required upstream with no default; a crafted record can omit them.
+      for (const field of ["factory", "path", "step_id", "conversation"]) {
+        if (typeof raw[field] !== "string") fix(field, "");
+      }
       break;
     default:
       // Unknown/future event kinds pass through untouched beyond the base

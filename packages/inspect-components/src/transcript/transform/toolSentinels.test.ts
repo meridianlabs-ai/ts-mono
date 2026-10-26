@@ -522,6 +522,47 @@ describe("buildSentinelStep", () => {
     ]);
     expect(step.audit).toBe(true);
   });
+
+  it("builds a step with tens of thousands of checks in linear time", () => {
+    // Each rule reports, is superseded, then reports again; the old builder
+    // rescanned the step per superseded event and per check (~13s here).
+    const count = 20_000;
+    const nodes: SentinelNode[] = [];
+    for (let i = 0; i < count; i++) {
+      const path = `guard/r${i}`;
+      nodes.push(
+        sentinel(`r${i}`, { path, function: "decide", action: "reject" }),
+        sentinel(`r${i}:superseded`, {
+          path,
+          function: "decide",
+          action: "reject",
+          status: "superseded",
+        }),
+        sentinel(`r${i}:final`, { path, function: "decide", action: "proceed" })
+      );
+    }
+    nodes.push(
+      decision("guard", "guard", "guard", "reject"),
+      decision("root", "", "concurrent", "reject")
+    );
+
+    const started = performance.now();
+    const step = buildSentinelStep(nodes);
+    const elapsed = performance.now() - started;
+
+    expect(step.rows).toHaveLength(2 + 2 * count);
+    expect(
+      step.rows.slice(0, 4).map((row) => [row.node.id, row.depth])
+    ).toEqual([
+      ["root", 0],
+      ["guard", 1],
+      ["r0:superseded", 2],
+      ["r0:final", 2],
+    ]);
+    expect(step.rows.at(-1)?.node.id).toBe(`r${count - 1}:final`);
+    expect(step.effective?.id).toBe("guard");
+    expect(elapsed).toBeLessThan(2000);
+  });
 });
 
 describe("topScore", () => {
@@ -972,6 +1013,47 @@ describe("buildSentinelSteps", () => {
     expect(steps.map((step) => step.verdict)).toEqual([
       "reject",
       "reject",
+      "proceed",
+    ]);
+  });
+
+  it("splits spanless steps on a shared id by conversation and occurrence", () => {
+    const report = (
+      uuid: string,
+      conversation: string,
+      path: string,
+      overrides: Partial<SentinelEvent> = {}
+    ) =>
+      testSentinelEvent({
+        uuid,
+        step_id: "call_1",
+        conversation,
+        path,
+        action: "reject",
+        ...overrides,
+      });
+    const events: Event[] = [
+      report("a1", "agent-a", "rule"),
+      report("b1", "agent-b", "", { action: "proceed" }),
+      report("a2", "agent-a", ""),
+      // Names a1's decision, after the root reported: still that step.
+      report("a3", "agent-a", "rule", { status: "superseded" }),
+      // The id again, in a later turn of agent-a.
+      report("a4", "agent-a", "", { action: "proceed" }),
+    ];
+    const byFirst = buildSentinelSteps(events);
+    const steps = [...byFirst.values()];
+
+    expect([...byFirst.keys()]).toEqual([events[0], events[1], events[4]]);
+    // a3 stands in for the decision it supersedes, a1.
+    expect(steps.map((step) => step.rows.map((row) => row.node.id))).toEqual([
+      ["a2", "a3"],
+      ["b1"],
+      ["a4"],
+    ]);
+    expect(steps.map((step) => step.verdict)).toEqual([
+      "reject",
+      "proceed",
       "proceed",
     ]);
   });

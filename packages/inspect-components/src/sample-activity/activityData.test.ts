@@ -2093,14 +2093,15 @@ describe("sentinel decisions", () => {
     start: number,
     callId: string,
     cmd: string,
-    uuid = `m-${callId}`
+    uuid = `m-${callId}`,
+    spanId = kAgent
   ): ModelEvent => {
     const event = modelCall({
       start,
       duration: 1,
       workingStart: start,
       uuid,
-      spanId: kAgent,
+      spanId,
     });
     const call = testToolCall({
       id: callId,
@@ -2628,6 +2629,133 @@ describe("sentinel decisions", () => {
     expect(data.rows.map((r) => [r.lead, r.mono])).toEqual([
       ["Tool", "bash"],
       ["Tool result", "bash: cat notes.txt"],
+    ]);
+  });
+
+  describe("steps recorded outside a sentinel span", () => {
+    const kOther = "agent-b";
+    /** A lone protocol's decision recorded in the agent's own span. */
+    const spanless = (
+      uuid: string,
+      at: number,
+      conversation: string,
+      action: NonNullable<SentinelEvent["action"]>
+    ): SentinelEvent =>
+      testSentinelEvent({
+        uuid,
+        span_id: conversation,
+        timestamp: iso(at),
+        step_id: "c1",
+        path: "",
+        factory: "no_network",
+        action,
+        conversation,
+      });
+
+    it("keeps two agents' steps on a shared call id apart", () => {
+      const events: Event[] = [
+        agentBegin,
+        testSpanBeginEvent({
+          id: kOther,
+          name: "helper",
+          type: "agent",
+          timestamp: iso(0),
+        }),
+        proposes(0, "c1", "curl https://example.com", "m-a"),
+        proposes(0.2, "c1", "ls", "m-b", kOther),
+        // Merged, the step would take agent-b's root as its outcome.
+        spanless("b", 1.05, kOther, "proceed"),
+        spanless("a", 1.1, kAgent, "reject"),
+        toolFor("c1", 1.4, { ...rejectedByApproval, uuid: "t-a" }),
+        toolFor("c1", 1.5, { uuid: "t-b", span_id: kOther }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rejectedCount).toBe(1);
+      expect(data.rows.map((r) => [r.uuid, r.mono])).toEqual([
+        ["a", "bash: curl https://example.com"],
+      ]);
+      expect(
+        data.turns.map((turn) => [
+          turn.rowId,
+          turn.rejected,
+          turn.tools.map((tool) => tool.uuid),
+        ])
+      ).toEqual([
+        [kAgent, 1, []],
+        [kOther, 0, ["t-b"]],
+      ]);
+    });
+
+    it("counts each turn's step when the agent reuses a call id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposes(0, "c1", "curl https://example.com", "m-1"),
+        spanless("s-1", 1.1, kAgent, "reject"),
+        toolFor("c1", 1.2, { ...rejectedByApproval, uuid: "t-1" }),
+        proposes(2, "c1", "ls", "m-2"),
+        spanless("s-2", 3.1, kAgent, "proceed"),
+        toolFor("c1", 3.2, { uuid: "t-2" }),
+        proposes(4, "c1", "wget https://example.com", "m-3"),
+        spanless("s-3", 5.1, kAgent, "reject"),
+        toolFor("c1", 5.2, { ...rejectedByApproval, uuid: "t-3" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.uuid, r.mono])).toEqual([
+        ["s-1", "bash: curl https://example.com"],
+        ["s-3", "bash: wget https://example.com"],
+      ]);
+      expect(
+        data.turns.map((turn) => [
+          turn.rejected,
+          turn.tools.map((tool) => tool.uuid),
+        ])
+      ).toEqual([
+        [1, []],
+        [0, ["t-2"]],
+        [1, []],
+      ]);
+    });
+  });
+
+  it("does not count an action it does not know", () => {
+    const raw = {
+      ...check("s1", 1.2, "c1", "", "reject"),
+      action: "audit",
+    };
+    const events: Event[] = [
+      agentBegin,
+      proposes(0, "c1", "ls"),
+      sentinelSpan("s1", 1.1),
+      ...normalizeEvents([raw]),
+      toolFor("c1", 1.3),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.rejectedCount).toBe(0);
+    expect(data.rows).toEqual([]);
+    expect(data.markers).toEqual([]);
+    expect(data.turns[0]).toMatchObject({ rejected: 0 });
+  });
+
+  it("derives a normalized sentinel record that omits its path", () => {
+    const raw: Record<string, unknown> = {
+      ...check("s1", 1.2, "c1", "", "reject", { factory: "no_network" }),
+    };
+    delete raw.path;
+    const events: Event[] = [
+      agentBegin,
+      proposes(0, "c1", "curl https://example.com"),
+      sentinelSpan("s1", 1.1),
+      ...normalizeEvents([raw]),
+      toolFor("c1", 1.3, rejectedByApproval),
+    ];
+    const data = deriveActivityData({ events });
+
+    // A record with no path reads as the root, like a lone protocol.
+    expect(data.rows.map((r) => [rowKind(r), r.by])).toEqual([
+      ["rejected", "no_network"],
     ]);
   });
 

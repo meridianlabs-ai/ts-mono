@@ -558,13 +558,30 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  const pathless = {
+    ...base,
+    event: "sentinel",
+    kind: "decision",
+    step_id: "call_1",
+    conversation: "agent",
+  };
+  const sentinel = { ...pathless, factory: "guard", path: "guard/rules" };
+
   it("sentinel: reads an old log's continue action as proceed", () => {
-    const event = { ...base, event: "sentinel", kind: "decision" };
-    expect(normalizeEvent({ ...event, action: "continue" })).toMatchObject({
+    expect(normalizeEvent({ ...sentinel, action: "continue" })).toMatchObject({
       action: "proceed",
     });
-    const current = { ...event, action: "proceed" };
+    const current = { ...sentinel, action: "proceed" };
     expect(normalizeEvent(current)).toBe(current);
+  });
+
+  it("sentinel: fills the required strings a crafted record omits", () => {
+    expect(normalizeEvent({ ...pathless, action: "reject" })).toMatchObject({
+      path: "",
+      factory: "",
+      step_id: "call_1",
+      conversation: "agent",
+    });
   });
 
   it("span_begin / span_end: fill ids and names", () => {
