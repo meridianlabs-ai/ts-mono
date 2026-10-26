@@ -8,6 +8,8 @@
  */
 
 import type {
+  ChatMessage,
+  CompactionEvent,
   Event,
   ModelEvent,
   Timeline as ServerTimeline,
@@ -1373,6 +1375,10 @@ function hasToolCalls(event: ModelEvent): boolean {
  * above, as a call with no `origin` does, since a bridged agent's warm-ups
  * and helper calls are recorded as "agent".
  *
+ * Where calls record no `origin` and one of them continues another, the
+ * continuity rule decides which of those calls are turns in place of the
+ * prompt rules (`Continuity`); warm-ups stay utility.
+ *
  * Operates recursively on the entire span tree.
  */
 function wrapUtilityEvents(agent: TimelineSpan): void {
@@ -1402,6 +1408,8 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     return wrapper;
   };
 
+  const continuity = continuityTurns(agent);
+
   // --- Scan and wrap utility candidates ---
   const originalSpans = agent.content.filter(
     (item): item is TimelineSpan => item.type === "span"
@@ -1422,7 +1430,12 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
         continue;
       }
 
-      if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
+      if (continuity !== null && modelEvt.origin == null) {
+        if (continuity.get(modelEvt) === false) {
+          newContent.push(utilityWrapper(item, index));
+          continue;
+        }
+      } else if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
         const evtPrompt = getSystemPromptForEvent(modelEvt);
         if (evtPrompt !== null && evtPrompt !== primaryPrompt) {
           newContent.push(utilityWrapper(item, index));
@@ -1483,6 +1496,243 @@ function isWarmupCall(event: ModelEvent): boolean {
 // =============================================================================
 // Utility Agent Classification
 // =============================================================================
+
+// =============================================================================
+// Continuity
+// =============================================================================
+
+interface ContinuityCall {
+  event: ModelEvent;
+  input: ChatMessage[];
+  // the message the call answered with; null for a call that failed
+  output: ChatMessage | null;
+}
+
+// the calls kept open for a later call to continue or retry, of each kind:
+// beyond it the oldest is settled, so each call is compared with a bounded
+// number of others
+const kOpenCalls = 4;
+
+/**
+ * The text of a message, as Python's `ChatMessage.text`: its string content,
+ * or its text parts joined by newlines.
+ */
+function messageText(message: ChatMessage): string {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+  const parts: string[] = [];
+  for (const c of message.content) {
+    if (c.type === "text") {
+      parts.push(c.text);
+    }
+  }
+  return parts.join("\n");
+}
+
+/**
+ * A message as continuity matches it: its role, its text and the tool calls
+ * it makes, by id and function. Message ids do not survive a scaffold's
+ * round trip, so messages are matched by role and text, as the agent bridge
+ * matches them; tool call ids do, and they tell apart turns that make calls
+ * with no text. Each message is fingerprinted once.
+ */
+const fingerprints = new WeakMap<ChatMessage, string>();
+
+function fingerprint(message: ChatMessage): string {
+  let found = fingerprints.get(message);
+  if (found === undefined) {
+    const calls =
+      message.role === "assistant"
+        ? (message.tool_calls ?? []).map((c) => `${c.id}\u0001${c.function}`)
+        : [];
+    found = [message.role, messageText(message), calls.join("\u0002")].join(
+      "\u0000"
+    );
+    fingerprints.set(message, found);
+  }
+  return found;
+}
+
+function continuityAnswer(event: ModelEvent): ChatMessage | null {
+  if (
+    event.error != null ||
+    event.pending ||
+    event.output.choices.length === 0
+  ) {
+    return null;
+  }
+  return event.output.choices[0]!.message;
+}
+
+/**
+ * The continuity rule: which of a span's model calls are its conversation's
+ * turns, by which calls carry on the others' output. A port of
+ * `_Continuity` in inspect_ai's `event/_timeline.py`, which documents it;
+ * the shared fixtures (`continuity_*.json`) keep the two in step.
+ */
+class Continuity {
+  readonly turns = new Map<ModelEvent, boolean>();
+  linked = false;
+  private tip: ContinuityCall | null = null;
+  private heads: ContinuityCall[] = [];
+  private candidates: ContinuityCall[] = [];
+  // failed calls not yet retried, and each retried one with its retry
+  private failed: ContinuityCall[] = [];
+  private retried: [ContinuityCall, ContinuityCall][] = [];
+
+  call(event: ModelEvent): void {
+    const call: ContinuityCall = {
+      event,
+      input: event.input,
+      output: continuityAnswer(event),
+    };
+    if (call.output === null) {
+      this.failed.push(call);
+      if (this.failed.length > kOpenCalls) {
+        this.turns.set(this.failed.shift()!.event, true);
+      }
+      return;
+    }
+    if (this.failed.length > 0) {
+      const waiting: ContinuityCall[] = [];
+      for (const failed of this.failed) {
+        if (this.same(failed, call)) {
+          this.retried.push([failed, call]);
+        } else {
+          waiting.push(failed);
+        }
+      }
+      this.failed = waiting;
+    }
+    for (let i = this.heads.length - 1; i >= 0; i--) {
+      const head = this.heads[i]!;
+      if (this.continues(call, head)) {
+        this.settle(head, this.heads);
+        this.close(this.candidates);
+        this.advance(head, call);
+        return;
+      }
+    }
+    if (this.tip !== null && this.continues(call, this.tip)) {
+      this.heads.push(call);
+      if (this.heads.length > kOpenCalls) {
+        this.close([this.heads.shift()!]);
+      }
+      this.linked = true;
+      return;
+    }
+    for (let i = this.candidates.length - 1; i >= 0; i--) {
+      const candidate = this.candidates[i]!;
+      if (this.continues(call, candidate)) {
+        if (this.heads.length > 0) {
+          this.settle(this.heads[this.heads.length - 1]!, this.heads);
+        }
+        this.close(this.candidates.filter((c) => c !== candidate));
+        this.advance(candidate, call);
+        return;
+      }
+    }
+    this.candidates.push(call);
+    if (this.candidates.length > kOpenCalls) {
+      this.close([this.candidates.shift()!]);
+    }
+  }
+
+  compaction(event: CompactionEvent): void {
+    if (event.type === "summary") {
+      this.close(this.heads);
+    } else if (this.heads.length > 0) {
+      this.settle(this.heads[this.heads.length - 1]!, this.heads);
+    }
+    this.close(this.candidates);
+    this.tip = null;
+    this.heads = [];
+    this.candidates = [];
+  }
+
+  finish(): Map<ModelEvent, boolean> {
+    if (this.heads.length > 0) {
+      // the viewer has no final messages, so a fork at the end goes to the
+      // later call
+      this.settle(this.heads[this.heads.length - 1]!, this.heads);
+      this.close(this.candidates);
+    } else if (this.candidates.length > 0) {
+      this.settle(
+        this.candidates[this.candidates.length - 1]!,
+        this.candidates
+      );
+    }
+    for (const [failed, retry] of this.retried) {
+      this.turns.set(failed.event, this.turns.get(retry.event) ?? false);
+    }
+    for (const failed of this.failed) {
+      this.turns.set(failed.event, true);
+    }
+    return this.turns;
+  }
+
+  private advance(turn: ContinuityCall, call: ContinuityCall): void {
+    this.turns.set(turn.event, true);
+    this.tip = turn;
+    this.heads = [call];
+    this.candidates = [];
+    this.linked = true;
+  }
+
+  private settle(turn: ContinuityCall, calls: ContinuityCall[]): void {
+    for (const call of calls) {
+      this.turns.set(call.event, call === turn);
+    }
+  }
+
+  private close(calls: ContinuityCall[]): void {
+    for (const call of calls) {
+      this.turns.set(call.event, false);
+    }
+  }
+
+  private continues(call: ContinuityCall, earlier: ContinuityCall): boolean {
+    const at = earlier.input.length;
+    return (
+      earlier.output !== null &&
+      at < call.input.length &&
+      fingerprint(call.input[at]!) === fingerprint(earlier.output)
+    );
+  }
+
+  private same(failed: ContinuityCall, call: ContinuityCall): boolean {
+    return (
+      failed.input.length === call.input.length &&
+      (call.input.length === 0 ||
+        fingerprint(failed.input[failed.input.length - 1]!) ===
+          fingerprint(call.input[call.input.length - 1]!))
+    );
+  }
+}
+
+/**
+ * Whether each of the span's calls with no recorded origin is a turn by
+ * continuity; null where no call continues another, so the existing rules
+ * decide.
+ */
+function continuityTurns(agent: TimelineSpan): Map<ModelEvent, boolean> | null {
+  const thread = new Continuity();
+  for (const item of agent.content) {
+    if (item.type !== "event") {
+      continue;
+    }
+    if (item.event.event === "model") {
+      if (item.event.origin == null && !isWarmupCall(item.event)) {
+        thread.call(item.event);
+      }
+    } else if (item.event.event === "compaction") {
+      thread.compaction(item.event);
+    }
+  }
+  const turns = thread.finish();
+  return thread.linked ? turns : null;
+}
 
 /**
  * Extract the normalized system prompt from the first ModelEvent in span's

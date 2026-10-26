@@ -68,6 +68,7 @@ interface JsonEvent {
   completed?: string;
   model?: string;
   origin?: string | null;
+  error?: string | null;
   function?: string;
   agent?: string;
   agent_span_id?: string;
@@ -143,6 +144,9 @@ interface FixtureData {
   description: string;
   events: JsonEvent[];
   expected: ExpectedNodes;
+  // the tree with every call recorded as "agent", where continuity, which
+  // applies only to calls without an origin, changes it
+  expected_recorded_as_agent?: ExpectedNodes;
 }
 
 // =============================================================================
@@ -229,6 +233,7 @@ function createEvent(data: JsonEvent): Event | null {
         ...baseFields,
         model,
         origin: data.origin ?? null,
+        error: data.error ?? null,
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         config: data.config ?? {},
@@ -675,7 +680,8 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
   });
 
   // a call recorded as "agent" goes through the same rules as one with no
-  // origin, so a log written with origins keeps its tree
+  // origin, except continuity, which applies only where origin is not
+  // recorded ("expected_recorded_as_agent" where that changes the tree)
   it.each(fixtures.filter((name) => withoutOrigin(loadFixture(name).events)))(
     "fixture with every call recorded as agent: %s",
     (fixtureName) => {
@@ -685,7 +691,10 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
         events: recordedAsAgent(fixture.events),
       });
       const result = buildTimeline(events);
-      assertTimelineMatches(result, fixture.expected);
+      assertTimelineMatches(
+        result,
+        fixture.expected_recorded_as_agent ?? fixture.expected
+      );
     }
   );
 
