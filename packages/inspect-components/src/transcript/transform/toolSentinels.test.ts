@@ -523,45 +523,62 @@ describe("buildSentinelStep", () => {
     expect(step.audit).toBe(true);
   });
 
-  it("builds a step with tens of thousands of checks in linear time", () => {
-    // Each rule reports, is superseded, then reports again; the old builder
-    // rescanned the step per superseded event and per check (~13s here).
-    const count = 20_000;
-    const nodes: SentinelNode[] = [];
-    for (let i = 0; i < count; i++) {
-      const path = `guard/r${i}`;
+  it("builds a large step with work linear in its checks", () => {
+    // Each rule reports, is superseded, then reports again. The work is the
+    // number of event fields the builder reads: the old builder rescanned
+    // the step per superseded record and per check, so doubling the rules
+    // quadrupled it.
+    const build = (count: number) => {
+      let reads = 0;
+      const counted = (
+        id: string,
+        overrides: Partial<SentinelEvent>
+      ): SentinelNode => {
+        const event = new Proxy(testSentinelEvent(overrides), {
+          get(target, field: keyof SentinelEvent) {
+            reads += 1;
+            return target[field];
+          },
+        });
+        return new EventNode(id, event, 0);
+      };
+      const nodes: SentinelNode[] = [];
+      for (let i = 0; i < count; i++) {
+        const path = `guard/r${i}`;
+        const rule = { path, function: "decide", kind: "decision" } as const;
+        nodes.push(
+          counted(`r${i}`, { ...rule, action: "reject" }),
+          counted(`r${i}:superseded`, {
+            ...rule,
+            action: "reject",
+            status: "superseded",
+          }),
+          counted(`r${i}:final`, { ...rule, action: "proceed" })
+        );
+      }
       nodes.push(
-        sentinel(`r${i}`, { path, function: "decide", action: "reject" }),
-        sentinel(`r${i}:superseded`, {
-          path,
-          function: "decide",
-          action: "reject",
-          status: "superseded",
-        }),
-        sentinel(`r${i}:final`, { path, function: "decide", action: "proceed" })
+        counted("guard", { path: "guard", kind: "decision", action: "reject" }),
+        counted("root", { path: "", kind: "decision", action: "reject" })
       );
-    }
-    nodes.push(
-      decision("guard", "guard", "guard", "reject"),
-      decision("root", "", "concurrent", "reject")
-    );
+      reads = 0;
+      return { step: buildSentinelStep(nodes), reads };
+    };
 
-    const started = performance.now();
-    const step = buildSentinelStep(nodes);
-    const elapsed = performance.now() - started;
+    const small = build(2_000);
+    const large = build(4_000);
 
-    expect(step.rows).toHaveLength(2 + 2 * count);
+    expect(large.step.rows).toHaveLength(2 + 2 * 4_000);
     expect(
-      step.rows.slice(0, 4).map((row) => [row.node.id, row.depth])
+      large.step.rows.slice(0, 4).map((row) => [row.node.id, row.depth])
     ).toEqual([
       ["root", 0],
       ["guard", 1],
       ["r0:superseded", 2],
       ["r0:final", 2],
     ]);
-    expect(step.rows.at(-1)?.node.id).toBe(`r${count - 1}:final`);
-    expect(step.effective?.id).toBe("guard");
-    expect(elapsed).toBeLessThan(2000);
+    expect(large.step.rows.at(-1)?.node.id).toBe("r3999:final");
+    expect(large.step.effective?.id).toBe("guard");
+    expect(large.reads / small.reads).toBeLessThan(2.5);
   });
 });
 

@@ -460,6 +460,10 @@ const hostTool = (
  * inline. Each sentinel span holds one step; events outside a span group by
  * stage and step id. Steps with no tool render as one row at their span or
  * first event.
+ *
+ * The Activity view pairs the same way in `collectSentinelDecisions`
+ * (sample-activity/activityData.ts), over the flat event list; a change to
+ * these pairing rules belongs in both.
  */
 export function pairToolSentinels(
   eventNodes: EventNode[]

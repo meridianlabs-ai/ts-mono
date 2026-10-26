@@ -744,7 +744,14 @@ const didNotRun = (slot: CallSlot): boolean =>
 /** Each sentinel step counts once, by the decision that took effect —
  *  nested configurations record a decision per layer. Pairing runs in
  *  recording order within each conversation: `conversationOf` keys an
- *  event's span. */
+ *  event's span.
+ *
+ *  This pairs separately from `pairToolSentinels`, which works on the event
+ *  tree and scans tools per step; this pass also needs approvals and each
+ *  call's proposing model call, in one pass over a flat list. Keep the rules
+ *  in sync: the latest output proposing an id owns its proposals, which its
+ *  tools take in order; a `tool_call` step judges the next tool with its id,
+ *  a `tool_result` step one that ran before it. */
 const collectSentinelDecisions = (
   events: Event[],
   spans: Map<string, SpanInfo>,
