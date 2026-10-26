@@ -2089,12 +2089,17 @@ describe("sentinel decisions", () => {
   });
 
   /** A model turn on the agent that proposes one bash call. */
-  const proposes = (start: number, callId: string, cmd: string): ModelEvent => {
+  const proposes = (
+    start: number,
+    callId: string,
+    cmd: string,
+    uuid = `m-${callId}`
+  ): ModelEvent => {
     const event = modelCall({
       start,
       duration: 1,
       workingStart: start,
-      uuid: `m-${callId}`,
+      uuid,
       spanId: kAgent,
     });
     const call = testToolCall({
@@ -2397,34 +2402,205 @@ describe("sentinel decisions", () => {
     expect(data.turns[0]).toMatchObject({ rejected: 0, end: kRunStart + 1.3 });
   });
 
-  it("places the ghost on the agent's turn, not a monitor's row in the sentinel span", () => {
-    // The monitor's role-keyed call shares the sentinel span id; keying the
-    // decision on that span would hand the ghost to the monitor row.
+  it.each([
+    ["tool_call", "with a role", "monitor", 1],
+    ["tool_call", "without a role", undefined, 1],
+    ["model_output", "with a role", "monitor", 0],
+    ["model_output", "without a role", undefined, 0],
+  ] as const)(
+    "places a %s decision on the turn that produced it, past a monitor %s",
+    (stage, _, role, ghosts) => {
+      // A role-keyed monitor call would claim the sentinel span's key for
+      // its own row; a role-less one opens a turn on the agent's row.
+      const events: Event[] = [
+        agentBegin,
+        proposes(0, "c1", "curl https://example.com"),
+        sentinelSpan("s1", 1.1),
+        modelCall({
+          start: 1.2,
+          duration: 0.5,
+          workingStart: 1.2,
+          role,
+          spanId: "s1",
+          uuid: "monitor",
+        }),
+        check(
+          "s1",
+          1.8,
+          "c1",
+          "",
+          stage === "tool_call" ? "reject" : "terminate",
+          {
+            stage,
+          }
+        ),
+        // A terminated output ends the sample before any tool runs.
+        ...(stage === "tool_call"
+          ? [toolFor("c1", 1.9, rejectedByApproval)]
+          : []),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+      ).toEqual([
+        ["m-c1", ghosts, kRunStart + 1.8],
+        ["monitor", 0, kRunStart + 1.7],
+      ]);
+    }
+  );
+
+  it("keeps an earlier call's approval and failure rows when a sentinel rejects a later call with its id", () => {
     const events: Event[] = [
       agentBegin,
-      proposes(0, "c1", "curl https://example.com"),
-      sentinelSpan("s1", 1.1),
-      toolFor("c1", 1.1, rejectedByApproval),
-      modelCall({
-        start: 1.2,
-        duration: 0.5,
-        workingStart: 1.2,
-        role: "monitor",
-        spanId: "s1",
-        uuid: "monitor",
+      proposes(0, "c1", "rm -rf /", "m-1"),
+      testApprovalEvent({
+        timestamp: iso(1.05),
+        span_id: kAgent,
+        decision: "reject",
+        approver: "human",
+        call: testToolCall({
+          id: "c1",
+          function: "bash",
+          arguments: { cmd: "rm -rf /" },
+        }),
       }),
-      check("s1", 1.8, "c1", "", "reject"),
+      toolFor("c1", 1.1, { ...rejectedByApproval, uuid: "t-1" }),
+      proposes(2, "c1", "cat missing.txt", "m-2"),
+      toolFor("c1", 3.1, {
+        uuid: "t-2",
+        error: { type: "file_not_found", message: "missing.txt" },
+      }),
+      proposes(4, "c1", "curl https://example.com", "m-3"),
+      sentinelSpan("s3", 5.1),
+      check("s3", 5.2, "c1", "", "reject", { factory: "no_network" }),
+      toolFor("c1", 5.3, { ...rejectedByApproval, uuid: "t-3" }),
     ];
     const data = deriveActivityData({ events });
 
-    expect(data.agentRows.map((row) => row.id)).toEqual([
-      kAgent,
-      "role:monitor",
+    expect(data.rejectedCount).toBe(2);
+    expect(data.rows.map((r) => [rowKind(r), r.mono, r.by])).toEqual([
+      ["rejected", "bash: rm -rf /", "human"],
+      ["error", "bash", "system"],
+      ["rejected", "bash: curl https://example.com", "no_network"],
     ]);
-    expect(data.turns.map((turn) => [turn.rowId, turn.rejected])).toEqual([
-      [kAgent, 1],
-      ["role:monitor", 0],
+    expect(
+      data.turns.map((turn) => [
+        turn.model?.uuid,
+        turn.rejected,
+        turn.tools.map((tool) => tool.uuid),
+      ])
+    ).toEqual([
+      ["m-1", 1, []],
+      ["m-2", 0, ["t-2"]],
+      ["m-3", 1, []],
     ]);
+  });
+
+  it("shows the arguments of the call a sentinel rejected when a later call reuses its id", () => {
+    const events: Event[] = [
+      agentBegin,
+      proposes(0, "c1", "curl https://example.com", "m-1"),
+      sentinelSpan("s1", 1.1),
+      check("s1", 1.2, "c1", "", "reject", { factory: "no_network" }),
+      toolFor("c1", 1.3, { ...rejectedByApproval, uuid: "t-1" }),
+      proposes(2, "c1", "ls", "m-2"),
+      sentinelSpan("s2", 3.1),
+      check("s2", 3.2, "c1", "", "proceed"),
+      toolFor("c1", 3.3, { uuid: "t-2" }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.rows.map((r) => r.mono)).toEqual([
+      "bash: curl https://example.com",
+    ]);
+    expect(
+      data.turns.map((turn) => [
+        turn.rejected,
+        turn.tools.map((tool) => tool.uuid),
+      ])
+    ).toEqual([
+      [1, []],
+      [0, ["t-2"]],
+    ]);
+  });
+
+  /** One model turn proposing two bash calls that share the id `c1`. */
+  const proposesTwice = (first: string, second: string): ModelEvent => {
+    const event = proposes(0, "c1", first);
+    const calls = [first, second].map((cmd) =>
+      testToolCall({ id: "c1", function: "bash", arguments: { cmd } })
+    );
+    return {
+      ...event,
+      output: {
+        ...event.output,
+        choices: [
+          testChatCompletionChoice({
+            message: testAssistantMessage({ tool_calls: calls }),
+            stop_reason: "tool_calls",
+          }),
+        ],
+      },
+    };
+  };
+
+  it("pairs a sentinel with the call that reached it when its approval stopped an earlier one with the same id", () => {
+    const approval = (
+      at: number,
+      decision: "approve" | "reject",
+      cmd: string
+    ) =>
+      testApprovalEvent({
+        timestamp: iso(at),
+        span_id: kAgent,
+        decision,
+        approver: "human",
+        call: testToolCall({ id: "c1", function: "bash", arguments: { cmd } }),
+      });
+    const events: Event[] = [
+      agentBegin,
+      proposesTwice("rm -rf /", "curl https://example.com"),
+      approval(1.05, "reject", "rm -rf /"),
+      toolFor("c1", 1.1, { ...rejectedByApproval, uuid: "t-1" }),
+      approval(1.15, "approve", "curl https://example.com"),
+      sentinelSpan("s1", 1.2),
+      check("s1", 1.25, "c1", "", "reject", { factory: "no_network" }),
+      toolFor("c1", 1.3, { ...rejectedByApproval, uuid: "t-2" }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.rows.map((r) => [r.mono, r.by])).toEqual([
+      ["bash: rm -rf /", "human"],
+      ["bash: curl https://example.com", "no_network"],
+    ]);
+    expect(data.turns[0]).toMatchObject({ rejected: 2, tools: [] });
+  });
+
+  it("pairs a tool_result decision with the call that ran when an earlier one with the same id was stopped", () => {
+    const events: Event[] = [
+      agentBegin,
+      proposesTwice("curl https://example.com", "cat notes.txt"),
+      sentinelSpan("s1", 1.1),
+      check("s1", 1.15, "c1", "", "reject", { factory: "no_network" }),
+      toolFor("c1", 1.2, { ...rejectedByApproval, uuid: "t-1" }),
+      sentinelSpan("s2", 1.25),
+      check("s2", 1.3, "c1", "", "proceed"),
+      toolFor("c1", 1.35, { uuid: "t-2" }),
+      sentinelSpan("s3", 1.9),
+      check("s3", 2, "c1", "", "terminate", {
+        stage: "tool_result",
+        factory: "leak_check",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+      ["Tool call", "bash: curl https://example.com", "rejected"],
+      ["Tool result", "bash: cat notes.txt", "terminated"],
+    ]);
+    expect(data.turns[0]).toMatchObject({ rejected: 1 });
+    expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-2"]);
   });
 
   it("counts a call once when an approval and a sentinel both act on it", () => {

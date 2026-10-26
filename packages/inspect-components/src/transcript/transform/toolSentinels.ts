@@ -367,12 +367,15 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
 }
 
 /**
- * The steps of a flat event list, in recording order: the events of one
- * sentinel span form a step, and events outside a span group by stage and
- * step id, as `pairToolSentinels` groups a tree. A node's id is its event's
- * uuid, or `evt:<index>` in `events` without one.
+ * The steps of a flat event list, keyed by the first event each recorded, in
+ * recording order: the events of one sentinel span form a step, and events
+ * outside a span group by stage and step id, as `pairToolSentinels` groups a
+ * tree. A node's id is its event's uuid, or `evt:<index>` in `events` without
+ * one.
  */
-export function buildSentinelSteps(events: Event[]): SentinelStep[] {
+export function buildSentinelSteps(
+  events: Event[]
+): Map<SentinelEvent, SentinelStep> {
   const sentinelSpans = new Set<string>();
   for (const event of events) {
     if (event.event === SPAN_BEGIN && event.type === TYPE_SENTINEL) {
@@ -390,7 +393,12 @@ export function buildSentinelSteps(events: Event[]): SentinelStep[] {
     if (!nodes) groups.set(key, (nodes = []));
     nodes.push(new EventNode(event.uuid ?? `evt:${index}`, event, 0));
   });
-  return [...groups.values()].map((nodes) => buildSentinelStep(nodes));
+  return new Map(
+    [...groups.values()].map((nodes) => [
+      nodes[0]!.event,
+      buildSentinelStep(nodes),
+    ])
+  );
 }
 
 interface SentinelSpan {

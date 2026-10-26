@@ -938,7 +938,7 @@ describe("pairToolSentinels on a sub-agent run as a tool", () => {
 });
 
 describe("buildSentinelSteps", () => {
-  it("groups a flat list by sentinel span, else by stage and step id", () => {
+  it("groups a flat list by sentinel span, else by stage and step id, keyed by first event", () => {
     const events: Event[] = [
       testSpanBeginEvent({ id: "s1", type: "sentinel", name: "sentinel" }),
       testSentinelEvent({
@@ -960,8 +960,10 @@ describe("buildSentinelSteps", () => {
       }),
       testSentinelEvent({ step_id: "call_2", stage: "tool_result" }),
     ];
-    const steps = buildSentinelSteps(events);
+    const byFirst = buildSentinelSteps(events);
+    const steps = [...byFirst.values()];
 
+    expect([...byFirst.keys()]).toEqual([events[1], events[3], events[4]]);
     expect(steps.map((step) => step.rows.map((row) => row.node.id))).toEqual([
       ["b", "a"],
       ["evt:3"],
