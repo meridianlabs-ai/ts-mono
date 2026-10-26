@@ -1512,9 +1512,6 @@ interface ContinuityCall {
   output: ChatMessage | null;
 }
 
-// the input lengths, most recent first, at which open calls are looked up
-const kLookupLengths = 4;
-
 /**
  * The text of a message, as Python's `ChatMessage.text`: its string content,
  * or its text parts joined by newlines.
@@ -1570,36 +1567,44 @@ function continuityAnswer(event: ModelEvent): ChatMessage | null {
 /**
  * Calls a later call may continue, looked up where it would hold their
  * output: at the position of their input's length, by their output's
- * fingerprint. Every call stays open until the thread settles it; a lookup
- * probes the input lengths of the most recently opened calls, at most
- * `kLookupLengths` of them, so it costs a bounded number of fingerprints
- * however many calls are open (forks of one tip share their input). A port
- * of `_OpenCalls` in inspect_ai's `event/_timeline.py`.
+ * fingerprint. Every call stays open, and every input length among them is
+ * looked up, until the thread settles them at an advance or a compaction; a
+ * lookup's work is the number of distinct input lengths opened since. A port
+ * of `_OpenCalls` in inspect_ai's `event/_timeline.py`, which documents the
+ * costly case.
  */
 class OpenCalls {
   calls: ContinuityCall[] = [];
   // input length -> output fingerprint -> the latest such call's index
   private index = new Map<number, Map<string, number>>();
+  // the input lengths in the index, ascending
+  private lengths: number[] = [];
 
   add(call: ContinuityCall): void {
     const at = call.input.length;
-    const byOutput = this.index.get(at) ?? new Map<string, number>();
-    this.index.delete(at);
-    byOutput.set(fingerprint(call.output!), this.calls.length);
-    this.index.set(at, byOutput);
-    if (this.index.size > kLookupLengths) {
-      this.index.delete(this.index.keys().next().value!);
+    let byOutput = this.index.get(at);
+    if (byOutput === undefined) {
+      byOutput = new Map<string, number>();
+      this.index.set(at, byOutput);
+      let i = this.lengths.length;
+      while (i > 0 && this.lengths[i - 1]! > at) {
+        i--;
+      }
+      this.lengths.splice(i, 0, at);
     }
+    byOutput.set(fingerprint(call.output!), this.calls.length);
     this.calls.push(call);
   }
 
   /** The latest open call that `call` continues. */
   continuedBy(call: ContinuityCall): ContinuityCall | null {
     let best = -1;
-    for (const [at, byOutput] of this.index) {
-      if (at < call.input.length) {
-        best = Math.max(best, byOutput.get(fingerprint(call.input[at]!)) ?? -1);
+    for (const at of this.lengths) {
+      if (at >= call.input.length) {
+        break;
       }
+      const found = this.index.get(at)!.get(fingerprint(call.input[at]!));
+      best = Math.max(best, found ?? -1);
     }
     return best >= 0 ? this.calls[best]! : null;
   }
@@ -1607,6 +1612,7 @@ class OpenCalls {
   clear(): void {
     this.calls = [];
     this.index = new Map();
+    this.lengths = [];
   }
 }
 
