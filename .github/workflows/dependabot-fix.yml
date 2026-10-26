@@ -338,7 +338,7 @@ jobs:
       # own App token: `gh` here can read (advisories, PR list/view) and
       # nothing else. --add-dir lets the agent read the alert list and write
       # the PR text in its landing directory.
-      - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
+      - uses: anthropics/claude-code-action@db77d4d3c98f3f6380e7cd45ffba2342a3dbde3c # v1.0.254
         id: claude
         with:
           anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
