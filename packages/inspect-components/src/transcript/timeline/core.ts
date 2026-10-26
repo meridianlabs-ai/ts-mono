@@ -1512,10 +1512,8 @@ interface ContinuityCall {
   output: ChatMessage | null;
 }
 
-// the calls kept open for a later call to continue or retry, of each kind:
-// beyond it the oldest is settled, so each call is compared with a bounded
-// number of others
-const kOpenCalls = 4;
+// the input lengths, most recent first, at which open calls are looked up
+const kLookupLengths = 4;
 
 /**
  * The text of a message, as Python's `ChatMessage.text`: its string content,
@@ -1570,8 +1568,51 @@ function continuityAnswer(event: ModelEvent): ChatMessage | null {
 }
 
 /**
- * The continuity rule: which of a span's model calls are its conversation's
- * turns, by which calls carry on the others' output. A port of
+ * Calls a later call may continue, looked up where it would hold their
+ * output: at the position of their input's length, by their output's
+ * fingerprint. Every call stays open until the thread settles it; a lookup
+ * probes the input lengths of the most recently opened calls, at most
+ * `kLookupLengths` of them, so it costs a bounded number of fingerprints
+ * however many calls are open (forks of one tip share their input). A port
+ * of `_OpenCalls` in inspect_ai's `event/_timeline.py`.
+ */
+class OpenCalls {
+  calls: ContinuityCall[] = [];
+  // input length -> output fingerprint -> the latest such call's index
+  private index = new Map<number, Map<string, number>>();
+
+  add(call: ContinuityCall): void {
+    const at = call.input.length;
+    const byOutput = this.index.get(at) ?? new Map<string, number>();
+    this.index.delete(at);
+    byOutput.set(fingerprint(call.output!), this.calls.length);
+    this.index.set(at, byOutput);
+    if (this.index.size > kLookupLengths) {
+      this.index.delete(this.index.keys().next().value!);
+    }
+    this.calls.push(call);
+  }
+
+  /** The latest open call that `call` continues. */
+  continuedBy(call: ContinuityCall): ContinuityCall | null {
+    let best = -1;
+    for (const [at, byOutput] of this.index) {
+      if (at < call.input.length) {
+        best = Math.max(best, byOutput.get(fingerprint(call.input[at]!)) ?? -1);
+      }
+    }
+    return best >= 0 ? this.calls[best]! : null;
+  }
+
+  clear(): void {
+    this.calls = [];
+    this.index = new Map();
+  }
+}
+
+/**
+ * The continuity rule: which of a conversation's model calls in a span are
+ * its turns, by which calls carry on the others' output. A port of
  * `_Continuity` in inspect_ai's `event/_timeline.py`, which documents it;
  * the shared fixtures (`continuity_*.json`) keep the two in step.
  */
@@ -1579,11 +1620,12 @@ class Continuity {
   readonly turns = new Map<ModelEvent, boolean>();
   linked = false;
   private tip: ContinuityCall | null = null;
-  private heads: ContinuityCall[] = [];
-  private candidates: ContinuityCall[] = [];
-  // failed calls not yet retried, and each retried one with its retry
-  private failed: ContinuityCall[] = [];
-  private retried: [ContinuityCall, ContinuityCall][] = [];
+  private readonly heads = new OpenCalls();
+  private readonly candidates = new OpenCalls();
+  // failed calls not yet retried, by their input, and each retried one with
+  // its retry
+  private failed = new Map<string, ContinuityCall[]>();
+  private readonly retried: [ContinuityCall, ContinuityCall][] = [];
 
   call(event: ModelEvent): void {
     const call: ContinuityCall = {
@@ -1591,68 +1633,52 @@ class Continuity {
       input: event.input,
       output: continuityAnswer(event),
     };
+    const key = inputKey(call);
     if (call.output === null) {
-      this.failed.push(call);
-      if (this.failed.length > kOpenCalls) {
-        this.turns.set(this.failed.shift()!.event, true);
-      }
+      const waiting = this.failed.get(key) ?? [];
+      waiting.push(call);
+      this.failed.set(key, waiting);
       return;
     }
-    if (this.failed.length > 0) {
-      const waiting: ContinuityCall[] = [];
-      for (const failed of this.failed) {
-        if (this.same(failed, call)) {
-          this.retried.push([failed, call]);
-        } else {
-          waiting.push(failed);
-        }
-      }
-      this.failed = waiting;
+    for (const failed of this.failed.get(key) ?? []) {
+      this.retried.push([failed, call]);
     }
-    for (let i = this.heads.length - 1; i >= 0; i--) {
-      const head = this.heads[i]!;
-      if (this.continues(call, head)) {
-        this.settle(head, this.heads);
-        this.close(this.candidates);
-        this.advance(head, call);
-        return;
-      }
+    this.failed.delete(key);
+    const head = this.heads.continuedBy(call);
+    if (head !== null) {
+      this.settle(head, this.heads.calls);
+      this.close(this.candidates.calls);
+      this.advance(head, call);
+      return;
     }
     if (this.tip !== null && this.continues(call, this.tip)) {
-      this.heads.push(call);
-      if (this.heads.length > kOpenCalls) {
-        this.close([this.heads.shift()!]);
-      }
+      this.heads.add(call);
       this.linked = true;
       return;
     }
-    for (let i = this.candidates.length - 1; i >= 0; i--) {
-      const candidate = this.candidates[i]!;
-      if (this.continues(call, candidate)) {
-        if (this.heads.length > 0) {
-          this.settle(this.heads[this.heads.length - 1]!, this.heads);
-        }
-        this.close(this.candidates.filter((c) => c !== candidate));
-        this.advance(candidate, call);
-        return;
+    const candidate = this.candidates.continuedBy(call);
+    if (candidate !== null) {
+      const heads = this.heads.calls;
+      if (heads.length > 0) {
+        this.settle(heads[heads.length - 1]!, heads);
       }
+      this.settle(candidate, this.candidates.calls);
+      this.advance(candidate, call);
+      return;
     }
-    this.candidates.push(call);
-    if (this.candidates.length > kOpenCalls) {
-      this.close([this.candidates.shift()!]);
-    }
+    this.candidates.add(call);
   }
 
   compaction(event: CompactionEvent): void {
     if (event.type === "summary") {
-      this.close(this.heads);
-      this.close(this.candidates);
+      this.close(this.heads.calls);
+      this.close(this.candidates.calls);
     } else {
       this.end();
     }
     this.tip = null;
-    this.heads = [];
-    this.candidates = [];
+    this.heads.clear();
+    this.candidates.clear();
   }
 
   finish(): Map<ModelEvent, boolean> {
@@ -1662,8 +1688,10 @@ class Continuity {
     for (const [failed, retry] of this.retried) {
       this.turns.set(failed.event, this.turns.get(retry.event) ?? false);
     }
-    for (const failed of this.failed) {
-      this.turns.set(failed.event, true);
+    for (const waiting of this.failed.values()) {
+      for (const failed of waiting) {
+        this.turns.set(failed.event, true);
+      }
     }
     return this.turns;
   }
@@ -1673,22 +1701,22 @@ class Continuity {
    * candidate is the turn.
    */
   private end(): void {
-    if (this.heads.length > 0) {
-      this.settle(this.heads[this.heads.length - 1]!, this.heads);
-      this.close(this.candidates);
-    } else if (this.candidates.length > 0) {
-      this.settle(
-        this.candidates[this.candidates.length - 1]!,
-        this.candidates
-      );
+    const heads = this.heads.calls;
+    const candidates = this.candidates.calls;
+    if (heads.length > 0) {
+      this.settle(heads[heads.length - 1]!, heads);
+      this.close(candidates);
+    } else if (candidates.length > 0) {
+      this.settle(candidates[candidates.length - 1]!, candidates);
     }
   }
 
   private advance(turn: ContinuityCall, call: ContinuityCall): void {
     this.turns.set(turn.event, true);
     this.tip = turn;
-    this.heads = [call];
-    this.candidates = [];
+    this.heads.clear();
+    this.candidates.clear();
+    this.heads.add(call);
     this.linked = true;
   }
 
@@ -1712,15 +1740,12 @@ class Continuity {
       fingerprint(call.input[at]!) === fingerprint(earlier.output)
     );
   }
+}
 
-  private same(failed: ContinuityCall, call: ContinuityCall): boolean {
-    return (
-      failed.input.length === call.input.length &&
-      (call.input.length === 0 ||
-        fingerprint(failed.input[failed.input.length - 1]!) ===
-          fingerprint(call.input[call.input.length - 1]!))
-    );
-  }
+/** An input as a retry matches it: its length and its last message. */
+function inputKey(call: ContinuityCall): string {
+  const last = call.input[call.input.length - 1];
+  return `${call.input.length}\u0003${last === undefined ? "" : fingerprint(last)}`;
 }
 
 /**
