@@ -1646,24 +1646,19 @@ class Continuity {
     if (this.summarized.length > 0) {
       this.summarizers(call.input);
     }
-    const key = inputKey(call);
     if (call.output === null) {
+      const key = inputIdentity(call);
       const waiting = this.failed.get(key) ?? [];
       waiting.push(call);
       this.failed.set(key, waiting);
       return;
     }
-    const waiting = this.failed.get(key);
-    if (waiting !== undefined) {
-      const remaining: ContinuityCall[] = [];
-      for (const failed of waiting) {
-        if (sameInput(failed, call)) {
-          this.retried.push([failed, call]);
-        } else {
-          remaining.push(failed);
-        }
+    if (this.failed.size > 0) {
+      const key = inputIdentity(call);
+      for (const failed of this.failed.get(key) ?? []) {
+        this.retried.push([failed, call]);
       }
-      this.failed.set(key, remaining);
+      this.failed.delete(key);
     }
     const head = this.heads.continuedBy(call);
     if (head !== null) {
@@ -1805,26 +1800,11 @@ function summarizes(call: ContinuityCall, input: ChatMessage[]): boolean {
 }
 
 /**
- * Whether `call` sent the failed call's input again, message by message,
- * stopping at the first that differs. Only a call with the input key of a
- * failed call still waiting is compared.
+ * An input as a retry matches it: its messages by fingerprint. A call's
+ * identity is taken only while a failed call waits.
  */
-function sameInput(failed: ContinuityCall, call: ContinuityCall): boolean {
-  if (failed.input.length !== call.input.length) {
-    return false;
-  }
-  return failed.input.every(
-    (message, i) => fingerprint(message) === fingerprint(call.input[i]!)
-  );
-}
-
-/** Where a failed call waits for its retry: its input's length and last message. */
-function inputKey(call: ContinuityCall): string {
-  const last = call.input[call.input.length - 1];
-  return JSON.stringify([
-    call.input.length,
-    last === undefined ? null : fingerprint(last),
-  ]);
+function inputIdentity(call: ContinuityCall): string {
+  return JSON.stringify(call.input.map(fingerprint));
 }
 
 /**
