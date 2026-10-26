@@ -1646,19 +1646,34 @@ class Continuity {
   compaction(event: CompactionEvent): void {
     if (event.type === "summary") {
       this.close(this.heads);
-    } else if (this.heads.length > 0) {
-      this.settle(this.heads[this.heads.length - 1]!, this.heads);
+      this.close(this.candidates);
+    } else {
+      this.end();
     }
-    this.close(this.candidates);
     this.tip = null;
     this.heads = [];
     this.candidates = [];
   }
 
   finish(): Map<ModelEvent, boolean> {
+    // the viewer has no final messages, so a fork at the end goes to the
+    // later call
+    this.end();
+    for (const [failed, retry] of this.retried) {
+      this.turns.set(failed.event, this.turns.get(retry.event) ?? false);
+    }
+    for (const failed of this.failed) {
+      this.turns.set(failed.event, true);
+    }
+    return this.turns;
+  }
+
+  /**
+   * End the thread: a fork goes to the later head; with no head, the last
+   * candidate is the turn.
+   */
+  private end(): void {
     if (this.heads.length > 0) {
-      // the viewer has no final messages, so a fork at the end goes to the
-      // later call
       this.settle(this.heads[this.heads.length - 1]!, this.heads);
       this.close(this.candidates);
     } else if (this.candidates.length > 0) {
@@ -1667,13 +1682,6 @@ class Continuity {
         this.candidates
       );
     }
-    for (const [failed, retry] of this.retried) {
-      this.turns.set(failed.event, this.turns.get(retry.event) ?? false);
-    }
-    for (const failed of this.failed) {
-      this.turns.set(failed.event, true);
-    }
-    return this.turns;
   }
 
   private advance(turn: ContinuityCall, call: ContinuityCall): void {
