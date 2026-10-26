@@ -1534,7 +1534,10 @@ function messageText(message: ChatMessage): string {
  * it makes, by id and function. Message ids do not survive a scaffold's
  * round trip, so messages are matched by role and text, as the agent bridge
  * matches them; tool call ids do, and they tell apart turns that make calls
- * with no text. Each message is fingerprinted once.
+ * with no text. The key is the JSON of the same fields as inspect_ai's
+ * `_Fingerprint` (role, text, then each call's id and function), so no
+ * character in an id or function can make two different messages equal.
+ * Each message is fingerprinted once.
  */
 const fingerprints = new WeakMap<ChatMessage, string>();
 
@@ -1543,11 +1546,9 @@ function fingerprint(message: ChatMessage): string {
   if (found === undefined) {
     const calls =
       message.role === "assistant"
-        ? (message.tool_calls ?? []).map((c) => `${c.id}\u0001${c.function}`)
+        ? (message.tool_calls ?? []).map((c) => [c.id, c.function])
         : [];
-    found = [message.role, messageText(message), calls.join("\u0002")].join(
-      "\u0000"
-    );
+    found = JSON.stringify([message.role, messageText(message), calls]);
     fingerprints.set(message, found);
   }
   return found;
@@ -1751,7 +1752,10 @@ class Continuity {
 /** An input as a retry matches it: its length and its last message. */
 function inputKey(call: ContinuityCall): string {
   const last = call.input[call.input.length - 1];
-  return `${call.input.length}\u0003${last === undefined ? "" : fingerprint(last)}`;
+  return JSON.stringify([
+    call.input.length,
+    last === undefined ? null : fingerprint(last),
+  ]);
 }
 
 /**
