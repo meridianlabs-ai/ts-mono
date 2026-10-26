@@ -1647,10 +1647,18 @@ class Continuity {
       this.failed.set(key, waiting);
       return;
     }
-    for (const failed of this.failed.get(key) ?? []) {
-      this.retried.push([failed, call]);
+    const waiting = this.failed.get(key);
+    if (waiting !== undefined) {
+      const remaining: ContinuityCall[] = [];
+      for (const failed of waiting) {
+        if (sameInput(failed, call)) {
+          this.retried.push([failed, call]);
+        } else {
+          remaining.push(failed);
+        }
+      }
+      this.failed.set(key, remaining);
     }
-    this.failed.delete(key);
     const head = this.heads.continuedBy(call);
     if (head !== null) {
       this.settle(head, this.heads.calls);
@@ -1744,7 +1752,21 @@ class Continuity {
   }
 }
 
-/** An input as a retry matches it: its length and its last message. */
+/**
+ * Whether `call` sent the failed call's input again, message by message,
+ * stopping at the first that differs. Only a call with the input key of a
+ * failed call still waiting is compared.
+ */
+function sameInput(failed: ContinuityCall, call: ContinuityCall): boolean {
+  if (failed.input.length !== call.input.length) {
+    return false;
+  }
+  return failed.input.every(
+    (message, i) => fingerprint(message) === fingerprint(call.input[i]!)
+  );
+}
+
+/** Where a failed call waits for its retry: its input's length and last message. */
 function inputKey(call: ContinuityCall): string {
   const last = call.input[call.input.length - 1];
   return JSON.stringify([
