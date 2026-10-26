@@ -1665,10 +1665,7 @@ class Continuity {
     }
     const candidate = this.candidates.continuedBy(call);
     if (candidate !== null) {
-      const heads = this.heads.calls;
-      if (heads.length > 0) {
-        this.settle(heads[heads.length - 1]!, heads);
-      }
+      this.end();
       this.settle(candidate, this.candidates.calls);
       this.advance(candidate, call);
       return;
@@ -1689,11 +1686,12 @@ class Continuity {
   }
 
   finish(): Map<ModelEvent, boolean> {
-    // the viewer has no final messages, so a fork at the end goes to the
-    // later call
     this.end();
     for (const [failed, retry] of this.retried) {
-      this.turns.set(failed.event, this.turns.get(retry.event) ?? false);
+      const turn = this.turns.get(retry.event);
+      if (turn !== undefined) {
+        this.turns.set(failed.event, turn);
+      }
     }
     for (const waiting of this.failed.values()) {
       for (const failed of waiting) {
@@ -1704,17 +1702,14 @@ class Continuity {
   }
 
   /**
-   * End the thread: a fork goes to the later head; with no head, the last
-   * candidate is the turn.
+   * End the thread: a lone head is its last turn. The viewer has no final
+   * messages, so a fork gets no answer, nor do candidates still open: nothing
+   * showed the thread going on without them, and the existing rules decide.
    */
   private end(): void {
     const heads = this.heads.calls;
-    const candidates = this.candidates.calls;
-    if (heads.length > 0) {
-      this.settle(heads[heads.length - 1]!, heads);
-      this.close(candidates);
-    } else if (candidates.length > 0) {
-      this.settle(candidates[candidates.length - 1]!, candidates);
+    if (heads.length === 1) {
+      this.settle(heads[0]!, heads);
     }
   }
 
