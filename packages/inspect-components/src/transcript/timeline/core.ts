@@ -1752,7 +1752,7 @@ function inputKey(call: ContinuityCall): string {
  * The innermost agent span of each span, from the span tree, as inspect_ai's
  * `AgentSpans`: a model call's conversation.
  */
-class AgentSpans {
+export class AgentSpans {
   private readonly spans = new Map<
     string,
     { parentId: string | null; agent: boolean }
@@ -1771,10 +1771,13 @@ class AgentSpans {
   }
 
   of(spanId: string | null | undefined): string | null {
+    // the spans walked, in order to keep each one's answer, and as a set to
+    // stop at a parent_id cycle in constant time a step
     const walked: string[] = [];
+    const visited = new Set<string>();
     let current = spanId ?? null;
     let answer: string | null = null;
-    while (current !== null && !walked.includes(current)) {
+    while (current !== null && !visited.has(current)) {
       const known = this.found.get(current);
       if (known !== undefined) {
         answer = known;
@@ -1785,6 +1788,7 @@ class AgentSpans {
         break;
       }
       walked.push(current);
+      visited.add(current);
       if (span.agent) {
         answer = current;
         break;
