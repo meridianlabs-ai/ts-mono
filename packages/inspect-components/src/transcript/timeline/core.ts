@@ -1375,13 +1375,16 @@ function hasToolCalls(event: ModelEvent): boolean {
  * above, as a call with no `origin` does, since a bridged agent's warm-ups
  * and helper calls are recorded as "agent".
  *
- * Where calls record no `origin` and one of them continues another, the
- * continuity rule decides which of those calls are turns in place of the
- * prompt rules (`Continuity`); warm-ups stay utility.
+ * Where calls record no `origin` and one of a conversation's calls
+ * continues another, the continuity rule decides which of its calls are
+ * turns in place of the prompt rules (`Continuity`); warm-ups stay utility.
  *
  * Operates recursively on the entire span tree.
  */
-function wrapUtilityEvents(agent: TimelineSpan): void {
+function wrapUtilityEvents(
+  agent: TimelineSpan,
+  conversations: AgentSpans
+): void {
   // The primary prompt comes only from a tool-calling ModelEvent: without
   // an agentic loop there is no primary trajectory (see docstring).
   let primaryPrompt: string | null = null;
@@ -1408,7 +1411,7 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     return wrapper;
   };
 
-  const continuity = continuityTurns(agent);
+  const continuity = continuityTurns(agent, conversations);
 
   // --- Scan and wrap utility candidates ---
   const originalSpans = agent.content.filter(
@@ -1430,8 +1433,9 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
         continue;
       }
 
-      if (continuity !== null && modelEvt.origin == null) {
-        if (continuity.get(modelEvt) === false) {
+      const turn = continuity.get(modelEvt);
+      if (turn !== undefined) {
+        if (!turn) {
           newContent.push(utilityWrapper(item, index));
           continue;
         }
@@ -1453,10 +1457,10 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   // event, and re-entering it would wrap a warmup call again, forever.
   // wrapUtilityEvents(branch) recurses into the branch's own children.
   for (const item of originalSpans) {
-    wrapUtilityEvents(item);
+    wrapUtilityEvents(item, conversations);
   }
   for (const branch of agent.branches) {
-    wrapUtilityEvents(branch);
+    wrapUtilityEvents(branch, conversations);
   }
 }
 
@@ -1712,26 +1716,98 @@ class Continuity {
 }
 
 /**
- * Whether each of the span's calls with no recorded origin is a turn by
- * continuity; null where no call continues another, so the existing rules
- * decide.
+ * The innermost agent span of each span, from the span tree, as inspect_ai's
+ * `AgentSpans`: a model call's conversation.
  */
-function continuityTurns(agent: TimelineSpan): Map<ModelEvent, boolean> | null {
-  const thread = new Continuity();
+class AgentSpans {
+  private readonly spans = new Map<
+    string,
+    { parentId: string | null; agent: boolean }
+  >();
+  private readonly found = new Map<string, string | null>();
+
+  constructor(events: Event[]) {
+    for (const event of events) {
+      if (event.event === "span_begin") {
+        this.spans.set(event.id, {
+          parentId: event.parent_id ?? null,
+          agent: event.type === "agent",
+        });
+      }
+    }
+  }
+
+  of(spanId: string | null | undefined): string | null {
+    const walked: string[] = [];
+    let current = spanId ?? null;
+    let answer: string | null = null;
+    while (current !== null && !walked.includes(current)) {
+      const known = this.found.get(current);
+      if (known !== undefined) {
+        answer = known;
+        break;
+      }
+      const span = this.spans.get(current);
+      if (span === undefined) {
+        break;
+      }
+      walked.push(current);
+      if (span.agent) {
+        answer = current;
+        break;
+      }
+      current = span.parentId;
+    }
+    for (const id of walked) {
+      this.found.set(id, answer);
+    }
+    return answer;
+  }
+}
+
+/**
+ * Whether each of the span's calls with no recorded origin is a turn by
+ * continuity. The rule runs over each conversation in the span apart (a span
+ * can hold more than one, where the timeline unrolls a solver beside an
+ * agent), and a conversation in which no call continues another has no
+ * answers, so the existing rules decide its calls.
+ */
+function continuityTurns(
+  agent: TimelineSpan,
+  conversations: AgentSpans
+): Map<ModelEvent, boolean> {
+  const threads = new Map<string | null, Continuity>();
+  const thread = (spanId: string | null | undefined): Continuity => {
+    const conversation = conversations.of(spanId);
+    let found = threads.get(conversation);
+    if (found === undefined) {
+      found = new Continuity();
+      threads.set(conversation, found);
+    }
+    return found;
+  };
   for (const item of agent.content) {
     if (item.type !== "event") {
       continue;
     }
     if (item.event.event === "model") {
       if (item.event.origin == null && !isWarmupCall(item.event)) {
-        thread.call(item.event);
+        thread(item.event.span_id).call(item.event);
       }
     } else if (item.event.event === "compaction") {
-      thread.compaction(item.event);
+      thread(item.event.span_id).compaction(item.event);
     }
   }
-  const turns = thread.finish();
-  return thread.linked ? turns : null;
+  const turns = new Map<ModelEvent, boolean>();
+  for (const found of threads.values()) {
+    const verdicts = found.finish();
+    if (found.linked) {
+      for (const [event, turn] of verdicts) {
+        turns.set(event, turn);
+      }
+    }
+  }
+  return turns;
 }
 
 /**
@@ -2121,7 +2197,7 @@ export function buildTimeline(events: Event[]): Timeline {
 
     if (agentNode) {
       agentNode.name = "main";
-      wrapUtilityEvents(agentNode);
+      wrapUtilityEvents(agentNode, new AgentSpans(events));
       classifyUtilityAgents(agentNode);
       extractAgentResults(agentNode);
 
@@ -2159,7 +2235,7 @@ export function buildTimeline(events: Event[]): Timeline {
     // No phase spans - treat entire tree as agent
     const agentRoot = buildAgentFromTree(tree);
     if (agentRoot) {
-      wrapUtilityEvents(agentRoot);
+      wrapUtilityEvents(agentRoot, new AgentSpans(events));
       classifyUtilityAgents(agentRoot);
       extractAgentResults(agentRoot);
       root = agentRoot;
