@@ -41,7 +41,8 @@ overrides:
   # Reached only via eslint-plugin-react-hooks and storybook's react-docgen,
   # both of which parse with babel. Nothing here builds with babel.
   "@babel/core": ^7.29.6
-  undici: ^8.10.2 # GHSA-3wwx-pv8p-q78v, via jsdom
+  undici: ^8.12.2 # GHSA-3wwx-pv8p-q78v + GHSA-xjj6-f33q-929c + GHSA-4qv8-2p9j-2685 + GHSA-f72v-6w45-q472, via jsdom
+  zod: ^4.6.6 # GHSA-mrhx-c7xc-m3w5, via eslint-plugin-react-hooks
   # solid-js 1.9.14 (via asciinema-player) pins ~1.5; solid-js 1.9.16 already
   # ships on 1.6, so the 1.6 line is compatible. Plugins move in lockstep.
   seroval: ^1.6.3 # GHSA-p6vx-979v-rg4c + GHSA-jp82-f5mq-hwhp
