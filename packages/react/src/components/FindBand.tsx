@@ -40,7 +40,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const currentSearchTerm = useRef<string>("");
   const needsCursorRestoreRef = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<number | null>(null);
-  const focusTimeoutRef = useRef<number | null>(null);
   const searchIdRef = useRef(0);
   const cachedCount = useRef<{ term: string; version: number; count: number }>({
     term: "",
@@ -215,12 +214,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   );
 
   useMountEffect(() => {
-    focusTimeoutRef.current = window.setTimeout(() => {
+    const focusTimeout = window.setTimeout(() => {
       searchBoxRef.current?.focus();
       searchBoxRef.current?.select();
     }, 10);
-
-    const focusTimeout = focusTimeoutRef.current;
 
     return () => {
       // Read at teardown, not setup: search schedules the scroll
@@ -228,10 +225,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       if (scrollTimeoutRef.current !== null) {
         window.clearTimeout(scrollTimeoutRef.current);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (focusTimeout !== null) {
-        window.clearTimeout(focusTimeout);
-      }
+      window.clearTimeout(focusTimeout);
       setFindTarget(null);
     };
   });
