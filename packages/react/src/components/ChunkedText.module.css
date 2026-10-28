@@ -1,0 +1,29 @@
+/* `unicode-bidi` isn't inherited, and a chunk is a block: without these, a
+   `plaintext` container's chunks would lay every line out left to right. */
+.chunks {
+  display: block;
+  unicode-bidi: inherit;
+}
+
+/* The browser skips layout and paint of a chunk while it is off screen. Until
+   a chunk has rendered once, its height is estimated: one row per line, or,
+   when lines wrap, a row per line's worth of characters (half a row added per
+   line for the partly filled last row). After that the browser keeps its last
+   rendered height. */
+.chunk {
+  display: block;
+  unicode-bidi: inherit;
+  /* content-visibility clips overflow and hides it from the scroll width, so
+     a line too long for the container must wrap to stay readable. */
+  overflow-wrap: anywhere;
+  content-visibility: auto;
+  contain-intrinsic-height: auto
+    calc(
+      max(
+          var(--chunk-lines),
+          var(--chunk-chars) / var(--chunk-chars-per-line, 100) +
+            var(--chunk-lines) * 0.5
+        ) *
+        1lh
+    );
+}

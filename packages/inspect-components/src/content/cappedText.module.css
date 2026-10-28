@@ -4,3 +4,13 @@
   color: var(--bs-secondary-color);
   font-style: italic;
 }
+
+.toggle {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-style: normal;
+  color: var(--bs-link-color);
+  text-decoration: underline;
+}

@@ -11,7 +11,7 @@ import {
   type MarkdownRenderer,
 } from "@tsmono/react/components";
 
-import { cappedText } from "./cappedText";
+import { CappedText } from "./cappedText";
 import { useDisplayMode } from "./DisplayModeContext";
 
 interface RenderedTextProps {
@@ -48,19 +48,19 @@ export const RenderedText = forwardRef<
   ) => {
     const displayMode = useDisplayMode();
     const plain = usePlainText();
-    // Truncation reads only this much, so the cap never applies to it.
-    const { text, notice } = cappedText(
-      truncateAt === undefined
-        ? markdown
-        : truncationWindow(markdown, truncateAt)
-    );
-    const plainText =
-      truncateAt === undefined
-        ? text
-        : simpleMarkdownTruncate(text, truncateAt);
 
-    // forceRender overrides the display mode, never content trust.
-    const body =
+    const renderPlain = (shown: string) => (
+      <Preformatted
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
+        ref={ref as ForwardedRef<HTMLPreElement>}
+        text={shown}
+        style={style}
+        className={clsx(className, plain.className)}
+      />
+    );
+
+    const renderText = (text: string) =>
+      // forceRender overrides the display mode, never content trust.
       plain.trusted && (forceRender || displayMode === "rendered") ? (
         <MarkdownDivWithReferences
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
@@ -74,24 +74,26 @@ export const RenderedText = forwardRef<
           truncateAt={truncateAt}
         />
       ) : (
-        <Preformatted
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
-          ref={ref as ForwardedRef<HTMLPreElement>}
-          text={plain.present(plainText)}
-          style={style}
-          className={clsx(className, plain.className)}
-        />
+        renderPlain(
+          plain.present(
+            truncateAt === undefined
+              ? text
+              : simpleMarkdownTruncate(text, truncateAt)
+          )
+        )
       );
 
-    if (notice === null) {
-      return body;
-    }
-
     return (
-      <>
-        {body}
-        {notice}
-      </>
+      <CappedText
+        // Truncation reads only this much, so the cap never applies to it.
+        text={
+          truncateAt === undefined
+            ? markdown
+            : truncationWindow(markdown, truncateAt)
+        }
+        render={renderText}
+        renderPlain={renderPlain}
+      />
     );
   }
 );

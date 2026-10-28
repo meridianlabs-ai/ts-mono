@@ -129,7 +129,7 @@ describe("untrusted content rendering", () => {
   });
 
   it.each(["trusted", "untrusted"] as const)(
-    "truncates a very long %s text without a 'truncated' notice",
+    "truncates a very long %s text without the long-text notice",
     (trust) => {
       const { container } = render(
         withTrust(
