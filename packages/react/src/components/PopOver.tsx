@@ -156,8 +156,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
 
     // Add event listeners to the positionEl (the trigger element)
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (positionEl && isOpen) {
+    if (positionEl) {
       positionEl.addEventListener("mousemove", handleMouseMove);
       positionEl.addEventListener("mouseleave", handleMouseLeave);
 
@@ -478,13 +477,6 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
   }, [isOpen, shouldShowPopover, state?.placement, closeOnMouseLeave]);
 
-  // Define arrow data-* attribute based on placement
-  const getArrowDataPlacement = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state || !state.placement) return placement;
-    return state.placement;
-  };
-
   // Get the actual placement from Popper state
   const actualPlacement = state?.placement || placement;
 
@@ -555,7 +547,7 @@ export const PopOver: React.FC<PopOverProps> = ({
           <div
             ref={arrowRef}
             style={{ position: "absolute", visibility: "hidden" }}
-            data-placement={getArrowDataPlacement()}
+            data-placement={actualPlacement}
           />
 
           {/* Arrow container - positioned by Popper */}

@@ -227,10 +227,15 @@ let currentApplyTheme: (() => void) | null = null;
 let mediaListenerInstalled = false;
 let bodyClassObserverInstalled = false;
 
+// lib.dom types document.body as non-null, but it is null while the inline
+// bootstrap script runs in <head>.
+const documentBody = (): HTMLElement | null =>
+  typeof document === "undefined" ? null : document.body;
+
 const hostIsDarkFromBody = (): boolean | null => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (typeof document === "undefined" || !document.body) return null;
-  const cls = document.body.classList;
+  const body = documentBody();
+  if (!body) return null;
+  const cls = body.classList;
   // VS Code high contrast: `vscode-high-contrast` is the HC-dark theme,
   // `vscode-high-contrast-light` the HC-light. Both classes are independent
   // tokens (classList is set-based), so order doesn't matter for correctness.
@@ -248,24 +253,24 @@ const isVscodeWebview = (): boolean =>
   "acquireVsCodeApi" in window && typeof window.acquireVsCodeApi === "function";
 
 const installBodyClassObserver = (): void => {
+  const body = documentBody();
   if (
     bodyClassObserverInstalled ||
     typeof MutationObserver === "undefined" ||
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    !document.body
+    !body
   ) {
     return;
   }
 
   bodyClassObserverInstalled = true;
-  let lastClass = document.body.className;
+  let lastClass = body.className;
   new MutationObserver(() => {
-    if (document.body.className === lastClass) return;
-    lastClass = document.body.className;
+    if (body.className === lastClass) return;
+    lastClass = body.className;
     // Re-apply so `data-bs-theme`/variant follow the host theme swap; the React
     // icon updates by observing the resulting `data-bs-theme` change.
     currentApplyTheme?.();
-  }).observe(document.body, {
+  }).observe(body, {
     attributes: true,
     attributeFilter: ["class"],
   });
@@ -310,8 +315,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       if (result.hostIsDark !== null) {
         setDocumentBaseScheme(result.hostIsDark);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    } else if (result.kind === "apply") {
+    } else {
       // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
       // Splitting elements here is deliberate — keep them in lockstep.
@@ -332,8 +336,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       // Adding `vscode-light` would activate the bridge in light mode and
       // silently re-skin every `--bs-*` token.
       if (result.toggleBodyClass) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: document.body is null while parsing <head>
-        document.body?.classList.toggle("vscode-dark", result.isDark);
+        documentBody()?.classList.toggle("vscode-dark", result.isDark);
       }
     }
     // No explicit React notification needed: the resolved theme lives in

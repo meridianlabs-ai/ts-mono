@@ -10,7 +10,7 @@ import {
 
 import { useEventListener } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
-import { isEditableTarget } from "@tsmono/util";
+import { isEditableTarget, isElementShown } from "@tsmono/util";
 
 import styles from "./GoToTurnBar.module.css";
 
@@ -95,8 +95,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
         // Several transcripts can be mounted at once (e.g. one in a modal over
         // another) — only the visible bar may claim the shortcut.
         const dock = dockRef.current;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- checkVisibility is missing in jsdom and pre-17.4 Safari despite lib.dom
-        if (!dock?.isConnected || dock.checkVisibility?.() === false) return;
+        if (!dock || !isElementShown(dock)) return;
         // Use the shared editable check against activeElement so it pierces
         // shadow DOM (vscode-elements inputs) and covers <select> — matching
         // the other transcript keyboard handlers. Its own input is light-DOM,
