@@ -156,6 +156,9 @@ export interface EvidenceSelectionState {
 
 export interface SampleState {
   visiblePopover?: string;
+  /** A sample's shared terminals view is mounted: the log and sample headers
+   *  collapse to give it the height. */
+  terminalsViewOpen: boolean;
 
   collapsedEvents: Record<string, Record<string, boolean>> | null;
   collapsedIdBuckets: Record<string, Record<string, boolean>>;

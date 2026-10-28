@@ -15,10 +15,19 @@ import { Icon, IconName } from "../icons";
 
 import styles from "./ToolDropdownButton.module.css";
 
+/** A menu item with a rich label; `selected` marks the current choice. */
+export interface ToolDropdownItem {
+  key: string;
+  label: ReactNode;
+  selected?: boolean;
+  onClick: () => void;
+}
+
 interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string | ReactNode;
   icon?: IconName;
-  items: Record<string, () => void>;
+  /** Text labels mapped to actions, or items with rich labels. */
+  items: Record<string, () => void> | ToolDropdownItem[];
   /** Small uppercase heading rendered above the items. */
   heading?: string;
   /** Trailing action rendered below a divider (e.g. "Clear selection"). */
@@ -188,14 +197,18 @@ export const ToolDropdownButton = forwardRef<
                 {heading ? (
                   <div className={styles.dropdownHeading}>{heading}</div>
                 ) : null}
-                {Object.entries(items).map(([itemLabel, fn]) => (
+                {menuItems(items).map((item) => (
                   <button
-                    key={itemLabel}
+                    key={item.key}
                     type="button"
-                    className={styles.dropdownItem}
-                    onClick={() => handleItemClick(fn)}
+                    className={clsx(
+                      styles.dropdownItem,
+                      item.selected && styles.dropdownItemSelected
+                    )}
+                    aria-current={item.selected ? "true" : undefined}
+                    onClick={() => handleItemClick(item.onClick)}
                   >
-                    {itemLabel}
+                    {item.label}
                   </button>
                 ))}
                 {footer ? (
@@ -224,3 +237,14 @@ export const ToolDropdownButton = forwardRef<
 );
 
 ToolDropdownButton.displayName = "ToolDropdownButton";
+
+const menuItems = (
+  items: Record<string, () => void> | ToolDropdownItem[]
+): ToolDropdownItem[] =>
+  Array.isArray(items)
+    ? items
+    : Object.entries(items).map(([label, onClick]) => ({
+        key: label,
+        label,
+        onClick,
+      }));

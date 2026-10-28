@@ -6,6 +6,8 @@ import type { AsciinemaPlayerProps } from "./AsciinemaPlayerImpl";
 import { UntrustedContentPlaceholder } from "./ContentTrust";
 import { useContentPolicy } from "./ContentTrustContext";
 
+export type { AsciinemaPlayerHandle } from "./AsciinemaPlayerImpl";
+
 // Loaded on first trusted use, so the player never loads for untrusted content.
 const player = onDemandModule(() => import("./AsciinemaPlayerImpl"));
 

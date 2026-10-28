@@ -70,6 +70,11 @@
   background-color: var(--bs-secondary-bg);
 }
 
+.dropdownItemSelected,
+.dropdownItemSelected:hover {
+  background-color: var(--bs-primary-bg-subtle);
+}
+
 .dropdownHeading {
   padding: 0.15rem 0.75rem 0.1rem;
   font-size: 0.65rem;

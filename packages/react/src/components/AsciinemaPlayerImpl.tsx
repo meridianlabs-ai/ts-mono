@@ -4,6 +4,8 @@ import "asciinema-player/dist/bundle/asciinema-player.css";
 
 import { CSSProperties, FC, useEffect, useRef } from "react";
 
+import { useLatestRef } from "../hooks/useLatestRef";
+
 interface AsciinemaPlayerBaseProps {
   id?: string;
   rows?: number;
@@ -14,7 +16,11 @@ interface AsciinemaPlayerBaseProps {
   autoPlay?: boolean;
   loop?: boolean;
   theme?: string;
-  idleTimeLimit?: number;
+  /** Gaps longer than this play at this length (default 2s); null plays
+   *  every gap in full, even when the cast header sets `idle_time_limit`. */
+  idleTimeLimit?: number | null;
+  /** Where playback starts, in seconds on the idle-shortened timeline. */
+  startAt?: number;
   /** Frame shown before playback, e.g. `npt:12.5` for the frame at 12.5s. */
   poster?: string;
   controls?: boolean | "auto";
@@ -25,7 +31,18 @@ interface AsciinemaPlayerBaseProps {
   /** Clicking the terminal toggles play/pause (the player only reacts to
    *  clicks on its control bar by default). */
   clickToToggle?: boolean;
+  /** Receives a handle for driving the player from outside (null when the
+   *  player is disposed); a new handle follows each recreation. */
+  onPlayer?: (player: AsciinemaPlayerHandle | null) => void;
   className?: string;
+}
+
+export interface AsciinemaPlayerHandle {
+  /** Seek to seconds on the player's (idle-shortened) timeline; resolves once
+   *  the frame there has drawn, and never rejects. */
+  seek: (seconds: number) => Promise<void>;
+  /** The player's root element. */
+  element: HTMLElement;
 }
 
 // A session recorded as a `script -m advanced` input/output/timing triple.
@@ -60,11 +77,13 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   loop,
   theme,
   idleTimeLimit = 2,
+  startAt,
   poster,
   controls,
   markers,
   autoFocus,
   clickToToggle,
+  onPlayer,
   style,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +91,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   // speed) that recreates the player resumes the same recording at the same
   // point rather than starting over.
   const resumeRef = useRef<ResumePoint | null>(null);
+  const onPlayerRef = useLatestRef(onPlayer);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
@@ -111,7 +131,9 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       loop,
       theme,
       speed,
-      idleTimeLimit,
+      // The player reads the header's limit when the option is undefined.
+      idleTimeLimit: idleTimeLimit ?? Number.POSITIVE_INFINITY,
+      startAt,
       fit,
       poster,
       controls,
@@ -131,7 +153,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
 
     if (resume) {
       // getCurrentTime() is on the idle-shortened timeline, which seek() takes
-      // too (startAt would read it as original-timeline time).
+      // too.
       runPlayback(
         player
           .seek(resume.time)
@@ -146,6 +168,17 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
     if (autoFocus) {
       player.el.focus();
     }
+
+    // The same callback hears about this player's disposal.
+    const onPlayer = onPlayerRef.current;
+    onPlayer?.({
+      seek: (seconds) =>
+        player.seek(seconds).then(
+          () => undefined,
+          () => undefined
+        ),
+      element: player.el,
+    });
 
     const onClick = (e: MouseEvent) => {
       if (
@@ -170,6 +203,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       const time = player.getCurrentTime();
       resumeRef.current =
         playing || time > 0 ? { recording, time, playing } : null;
+      onPlayer?.(null);
       player.dispose();
     };
   }, [
@@ -184,12 +218,14 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
     theme,
     speed,
     idleTimeLimit,
+    startAt,
     fit,
     poster,
     controls,
     markers,
     autoFocus,
     clickToToggle,
+    onPlayerRef,
   ]);
 
   return (

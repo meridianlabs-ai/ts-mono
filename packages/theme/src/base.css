@@ -47,6 +47,14 @@
   --inspect-glass-color: #000000;
   --inspect-glass-opacity: 0.3;
 
+  /* Terminal session bodies stay dark in every theme (the recordings' ANSI
+     colors assume a dark background). */
+  --inspect-terminal-background: #2d2d2d;
+  --inspect-terminal-foreground: #cccccc;
+  /* The largest terminal text: the transcript's tool output size (0.9em of
+     the smaller size). Narrower rows fit their columns below it. */
+  --inspect-terminal-font-size: calc(var(--inspect-font-size-smaller) * 0.9);
+
   /* Tool messages — dedicated tokens so apps (and the vscode bridge) can
      re-skin tool calls/outputs/errors without patching component CSS.
      Defaults reproduce the previous hard-coded appearance. */

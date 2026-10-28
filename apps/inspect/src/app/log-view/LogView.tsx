@@ -111,6 +111,10 @@ export const LogView: FC = () => {
   });
 
   const selectedTab = useStore((state) => state.app.tabs.workspace);
+  // A sample's terminals view wants the height: the title shows collapsed
+  // while one is mounted (derived, so leaving it shows the scroll state
+  // again).
+  const onSampleTerminals = useStore((state) => state.sample.terminalsViewOpen);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
   const onSelected = (e: MouseEvent<HTMLElement>) => {
@@ -153,7 +157,7 @@ export const LogView: FC = () => {
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
           tags={selectedLogDetails?.tags}
-          collapsed={titleCollapsed}
+          collapsed={titleCollapsed || onSampleTerminals}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>
           <div className={clsx("log-detail", styles.tabContainer)}>

@@ -43,4 +43,23 @@ describe("ToolDropdownButton heading and footer", () => {
     expect(screen.getByRole("button", { name: "UUID" })).toBeDefined();
     expect(screen.queryByRole("separator")).toBeNull();
   });
+
+  it("marks the selected item of a rich item list", () => {
+    const onPick = vi.fn();
+    render(
+      <ToolDropdownButton
+        label="Agent"
+        items={[
+          { key: "a", label: "main", selected: true, onClick: vi.fn() },
+          { key: "b", label: "test-runner", onClick: onPick },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+    expect(
+      screen.getByRole("button", { name: "main" }).getAttribute("aria-current")
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "test-runner" }));
+    expect(onPick).toHaveBeenCalledOnce();
+  });
 });

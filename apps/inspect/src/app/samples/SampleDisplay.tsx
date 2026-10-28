@@ -123,7 +123,13 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
-import { storeCasts, StoreTerminalSessions } from "./StoreTerminalSessions";
+import { AgentPicker } from "./terminals/AgentPicker";
+import { storeCasts } from "./terminals/asciicast";
+import {
+  buildTerminalSample,
+  parseTerminalCasts,
+} from "./terminals/terminalModel";
+import { TerminalsView, type TerminalsResume } from "./terminals/TerminalsView";
 import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
@@ -344,7 +350,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     []
   );
 
-  const terminalSessions = sample ? storeCasts(sample.store) : [];
+  // The casts (multi-MB strings) parse once per store; a running sample's
+  // event polls only redo the join. Memoised for that identity, not speed.
+  const sampleStore = sample?.store;
+  const terminalCasts = useMemo(() => {
+    const casts = sampleStore ? storeCasts(sampleStore) : [];
+    return casts.length > 0 ? parseTerminalCasts(casts) : undefined;
+  }, [sampleStore]);
+  const terminalSample = useMemo(
+    () =>
+      terminalCasts
+        ? buildTerminalSample(terminalCasts, sampleEvents)
+        : undefined,
+    [terminalCasts, sampleEvents]
+  );
+  const [pickedTerminalAgent, setPickedTerminalAgent] = useState<string>();
+  const [terminalsFill, setTerminalsFill] = useState(false);
+  const terminalsKey = sample
+    ? sample.uuid || `${sample.id}:${sample.epoch}`
+    : undefined;
+  // Where this sample's terminals left off when the tab was last left.
+  const [terminalsResume, setTerminalsResume] = useState<{
+    key: string;
+    resume: TerminalsResume;
+  }>();
+  const terminalAgent = terminalSample
+    ? (terminalSample.agents.find(
+        (agent) => agent.id === pickedTerminalAgent
+      ) ?? terminalSample.agents[0])
+    : undefined;
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
@@ -592,6 +626,30 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   //   [tab-specific view controls] | [shared sample actions] | [Search]
   const tools: ReactNode[] = [];
 
+  const terminalAgentPicker =
+    terminalSample && terminalAgent && terminalSample.agents.length > 1 ? (
+      <AgentPicker
+        key="sample-terminals-agent"
+        agents={terminalSample.agents}
+        selected={terminalAgent}
+        onSelect={setPickedTerminalAgent}
+      />
+    ) : null;
+  if (effectiveSelectedTab === kSampleTerminalsTabId && terminalSample) {
+    if (terminalAgentPicker) tools.push(terminalAgentPicker);
+    tools.push(
+      <ToolButton
+        key="sample-terminals-fill"
+        className={styles.fullscreenTool}
+        label="Fullscreen"
+        icon="fullscreen"
+        onClick={() => setTerminalsFill(true)}
+        subtle
+        collapseLabel
+      />
+    );
+  }
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -804,6 +862,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const mountsAtDeepLink = !!(
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );
+  const onTerminalsTab =
+    effectiveSelectedTab === kSampleTerminalsTabId && !!terminalSample;
   // Shared with TranscriptPanel: while navigation owns the chrome (deep-link
   // mounts, f/h/j/k/l forces), the header's natural-scroll detection is fully
   // suppressed; a physical user gesture on the scroller hands ownership back.
@@ -822,6 +882,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
+
+  // The Terminals tab shows the header collapsed (the terminals want the
+  // height); it's derived rather than written into the header's scroll state,
+  // so leaving the tab shows that state again untouched. Leaving also ends
+  // fullscreen.
+  const sampleHeaderCollapsed = headerCollapsed || onTerminalsTab;
+  if (!onTerminalsTab && terminalsFill) setTerminalsFill(false);
 
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
   const headerHeight = useElementHeight(
@@ -941,7 +1008,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               <SampleSummaryView
                 parent_id={id}
                 sample={selectedSampleSummary}
-                collapsed={headerCollapsed}
+                collapsed={sampleHeaderCollapsed}
               />
             </div>
           </StickyScroll>
@@ -1086,7 +1153,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
-            {terminalSessions.length > 0 ? (
+            {terminalSample ? (
               <TabPanel
                 key={kSampleTerminalsTabId}
                 id={kSampleTerminalsTabId}
@@ -1096,12 +1163,31 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 href={sampleTabHref(kSampleTerminalsTabId)}
                 selected={effectiveSelectedTab === kSampleTerminalsTabId}
               >
-                <div className={clsx(styles.padded, styles.fullWidth)}>
-                  <StoreTerminalSessions
-                    id={`${baseId}-${id}-terminal-sessions`}
-                    casts={terminalSessions}
-                  />
-                </div>
+                <TerminalsView
+                  key={terminalsKey}
+                  id={`${baseId}-${id}-terminal-sessions`}
+                  sample={terminalSample}
+                  scrollRef={scrollRef}
+                  agentId={terminalAgent?.id}
+                  fill={
+                    terminalsFill
+                      ? {
+                          tools: terminalAgentPicker,
+                          onExit: () => setTerminalsFill(false),
+                        }
+                      : undefined
+                  }
+                  onFullscreen={() => setTerminalsFill(true)}
+                  resume={
+                    terminalsResume?.key === terminalsKey
+                      ? terminalsResume?.resume
+                      : undefined
+                  }
+                  onSuspend={(resume) =>
+                    terminalsKey &&
+                    setTerminalsResume({ key: terminalsKey, resume })
+                  }
+                />
               </TabPanel>
             ) : null}
             <TabPanel

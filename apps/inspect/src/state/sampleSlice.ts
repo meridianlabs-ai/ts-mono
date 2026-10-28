@@ -26,6 +26,8 @@ export interface SampleSlice {
     setVisiblePopover: (id: string) => void;
     clearVisiblePopover: () => void;
 
+    setTerminalsViewOpen: (open: boolean) => void;
+
     setSelectedOutlineId: (id: string) => void;
     clearSelectedOutlineId: () => void;
 
@@ -62,6 +64,7 @@ export const evidenceSelectionKey = (
 
 const initialState: SampleState = {
   visiblePopover: undefined,
+  terminalsViewOpen: false,
 
   collapsedEvents: null,
   collapsedMode: null,
@@ -164,6 +167,11 @@ export const createSampleSlice = (
       clearVisiblePopover: () => {
         set((state) => {
           state.sample.visiblePopover = undefined;
+        });
+      },
+      setTerminalsViewOpen: (open: boolean) => {
+        set((state) => {
+          state.sample.terminalsViewOpen = open;
         });
       },
       setSelectedOutlineId: (id: string) => {
