@@ -56,7 +56,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   // still succeed — we use this flag for the "No results" UI instead.
   const [noResults, setNoResults] = useState(false);
 
-  const handleSearch = useCallback(
+  const search = useCallback(
     async (back = false, skipKnownMiss = false) => {
       const thisSearchId = ++searchIdRef.current;
 
@@ -205,6 +205,15 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
 
+  const handleSearch = useCallback(
+    (back: boolean): void => {
+      search(back).catch((error: unknown) => {
+        console.error("Find failed:", error);
+      });
+    },
+    [search]
+  );
+
   useMountEffect(() => {
     focusTimeoutRef.current = window.setTimeout(() => {
       searchBoxRef.current?.focus();
@@ -214,7 +223,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     const focusTimeout = focusTimeoutRef.current;
 
     return () => {
-      // Read at teardown, not setup: handleSearch schedules the scroll
+      // Read at teardown, not setup: search schedules the scroll
       // timeout long after mount, so a setup-time capture is always null.
       if (scrollTimeoutRef.current !== null) {
         window.clearTimeout(scrollTimeoutRef.current);
@@ -232,11 +241,9 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       if (e.key === "Escape") {
         onClose();
       } else if (e.key === "Enter") {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
       } else if (isFindNextShortcut(e)) {
         e.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
       } else if (isFindShortcut(e)) {
         searchBoxRef.current?.focus();
@@ -247,12 +254,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   );
 
   const findPrevious = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     handleSearch(true);
   }, [handleSearch]);
 
   const findNext = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     handleSearch(false);
   }, [handleSearch]);
 
@@ -268,10 +273,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
 
   const runDebouncedSearch = useCallback(async () => {
     if (!searchBoxRef.current) return;
-    await handleSearch(false, true);
+    await search(false, true);
     // Mark for cursor restore on next keypress (keeps find highlight visible)
     needsCursorRestoreRef.current = true;
-  }, [handleSearch]);
+  }, [search]);
 
   const handleInputChange = useDebouncedCallback(
     runDebouncedSearch,
@@ -307,7 +312,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       // F3: Find next/previous
       if (e.key === "F3") {
         e.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
         return;
       }
@@ -325,7 +329,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       if (isFindNextShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
         return;
       }

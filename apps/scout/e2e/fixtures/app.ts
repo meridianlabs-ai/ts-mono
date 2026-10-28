@@ -67,7 +67,7 @@ export const test = base.extend<AppFixtures>({
   // Override page to inject SSE mock before any navigation
   page: async ({ page }, use) => {
     await page.addInitScript(MOCK_EVENT_SOURCE_SCRIPT);
-    await use(page); // eslint-disable-line react-hooks/rules-of-hooks
+    await use(page);
   },
 
   // Wire up MSW handlers via @msw/playwright

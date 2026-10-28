@@ -189,10 +189,7 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
       }
       return String(value);
     } catch {
-      // printObject already threw on this value, so String() is the
-      // non-throwing last resort here; valueAsString (JSON.stringify) could
-      // throw again on the same object.
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- printObject already threw on this value; String() is the non-throwing last resort, where JSON.stringify could throw again
       return String(value);
     }
   };

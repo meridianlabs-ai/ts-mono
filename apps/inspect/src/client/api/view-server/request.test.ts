@@ -1,5 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
+import { requestUrl } from "@tsmono/util";
+
 import { serverRequestApi } from "./request";
 
 describe("serverRequestApi customFetch", () => {
@@ -7,9 +9,7 @@ describe("serverRequestApi customFetch", () => {
     const calls: Array<{ url: string; method?: string }> = [];
     const customFetch = vi.fn(
       (input: RequestInfo | URL, init?: RequestInit) => {
-        // The test only ever calls fetch with a string URL.
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string
-        calls.push({ url: String(input), method: init?.method });
+        calls.push({ url: requestUrl(input), method: init?.method });
         return Promise.resolve(
           new Response("[]", { status: 200, statusText: "OK" })
         );

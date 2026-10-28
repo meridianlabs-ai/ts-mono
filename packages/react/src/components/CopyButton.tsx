@@ -29,35 +29,28 @@ export const CopyButton: FC<CopyButtonProps> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleClick = async (): Promise<void> => {
-    // No value blocks (?., ??, ternary) inside the try/catch — React
-    // Compiler can't lower those yet and would bail out the component.
-    try {
-      await navigator.clipboard.writeText(value);
-      setIsCopied(true);
-      if (onCopySuccess) {
-        onCopySuccess();
-      }
-
-      // Reset copy state after delay
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 1250);
-    } catch (error) {
-      if (onCopyError) {
-        onCopyError(toCopyError(error));
-      }
-    }
+  const handleClick = (): void => {
+    // Deferred so a missing clipboard (plain http on a LAN host) rejects into
+    // the .catch instead of throwing synchronously from the click handler.
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
+      .then(() => {
+        setIsCopied(true);
+        onCopySuccess?.();
+        setTimeout(() => {
+          setIsCopied(false);
+        }, 1250);
+      })
+      .catch((error: unknown) => {
+        onCopyError?.(toCopyError(error));
+      });
   };
 
   return (
     <button
       type="button"
       className={clsx("copy-button", styles.copyButton, className)}
-      onClick={() => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        handleClick();
-      }}
+      onClick={handleClick}
       aria-label={ariaLabel}
       disabled={isCopied}
       title={title}

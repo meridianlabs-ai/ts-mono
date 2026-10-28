@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { requestUrl } from "@tsmono/util";
+
 import staticHttpApi, { staticLogRoot } from "./api-static-http";
 
 // jsdom serves the "page" at http://localhost:3000/ — the base the canonical
@@ -67,9 +69,7 @@ describe("staticHttpApi identities", () => {
 
     // Each manifest fetch went to its own dir.
     const fetchMock = vi.mocked(globalThis.fetch);
-    // The test only ever calls fetch with a string URL.
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    const urls = fetchMock.mock.calls.map((call) => requestUrl(call[0]));
     expect(
       urls.some((url) => url.startsWith("https://example.com/bucket/a/"))
     ).toBe(true);

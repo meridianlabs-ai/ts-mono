@@ -22,8 +22,9 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
       type="button"
       className={clsx("btn", "btn-outline-primary", styles.downloadButton)}
       onClick={() => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        api.download_file(fileName, fileContents);
+        api.download_file(fileName, fileContents).catch((error: unknown) => {
+          console.error("Failed to download:", error);
+        });
       }}
     >
       {label}

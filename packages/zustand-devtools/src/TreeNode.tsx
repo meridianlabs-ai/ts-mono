@@ -58,11 +58,15 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     };
 
     const copy = () => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigator.clipboard.writeText(toClipboardJson(value)).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
-      });
+      navigator.clipboard
+        .writeText(toClipboardJson(value))
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to copy:", error);
+        });
     };
 
     const entries = expanded && expandable ? entriesOf(value) : [];

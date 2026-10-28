@@ -3,7 +3,7 @@ export * from "./useDebouncedCallback";
 export * from "./useAsyncDataFromQuery";
 export * from "./useDocumentTitle";
 export * from "./useScrollDirection";
-export * from "./useWhyDidYouUpdate";
+export * from "./stableEmptyObject";
 export * from "./useRequiredParams";
 export * from "./useResizeObserver";
 export * from "./useDropdownPosition";

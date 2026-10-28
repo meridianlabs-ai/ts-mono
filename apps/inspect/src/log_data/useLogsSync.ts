@@ -121,6 +121,5 @@ export const useLogsSync = (logDir: string, scope: string): ListingStatus => {
  * `ListingStatus.busy`, never awaited.
  */
 export const invalidateLogListing = (): void => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   queryClient.invalidateQueries({ queryKey: logsSyncKey });
 };
