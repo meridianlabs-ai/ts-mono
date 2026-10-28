@@ -5,8 +5,6 @@ import {
   type SetURLSearchParams,
 } from "react-router";
 
-import { navigateAndForget } from "./navigateAndForget";
-
 /**
  * Reflect an explicit turn navigation (j/k, header chevrons, go-to-turn bar)
  * in the URL via `?event=` so the position is shareable — the keyboard
@@ -49,7 +47,7 @@ export function useOpenEventFocus(): (focusRoute: string) => void {
         ? focusRoute.slice(1)
         : focusRoute;
       if (route === `${location.pathname}${location.search}`) return;
-      navigateAndForget(navigate, route);
+      navigate(route);
     },
     [navigate, location.pathname, location.search]
   );

@@ -3,7 +3,6 @@ import { FC } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { InAppLink } from "@tsmono/react/components";
-import { navigateAndForget } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 
 import { toFullUrl, useLogOrSampleRouteParams } from "../routing/url";
@@ -26,7 +25,9 @@ export const FlowButton: FC = () => {
     <div>
       <InAppLink
         href={toFullUrl(flowPath)}
-        onNavigate={() => navigateAndForget(navigateRouter, flowPath)}
+        onNavigate={() => {
+          navigateRouter(flowPath);
+        }}
         className={clsx(styles.button)}
         title="View Flow configuration for this directory"
       >

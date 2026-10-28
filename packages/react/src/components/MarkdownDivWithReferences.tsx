@@ -70,7 +70,6 @@ export const MarkdownDivWithReferences = forwardRef<
         // Code webview, which has no browser tabs).
         if (href?.startsWith("#/") && (isVscode() || !isNewTabClick(e))) {
           e.preventDefault();
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate(href.slice(1), { replace: true });
         }
       }

@@ -2,7 +2,6 @@ import { FC } from "react";
 import { useNavigate } from "react-router";
 
 import { Segment, SegmentedControl } from "@tsmono/react/components";
-import { navigateAndForget } from "@tsmono/react/hooks";
 
 import {
   logsUrl,
@@ -48,7 +47,7 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
       selectedId={selectedSegment}
       onSegmentChange={(segment) => {
         const route = routes[segment];
-        if (route) navigateAndForget(navigate, route);
+        if (route) navigate(route);
       }}
     />
   );

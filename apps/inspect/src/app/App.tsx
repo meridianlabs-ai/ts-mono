@@ -10,7 +10,7 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { FC, useCallback, useLayoutEffect, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
-import { navigateAndForget, useEventListener } from "@tsmono/react/hooks";
+import { useEventListener } from "@tsmono/react/hooks";
 import { getVscodeApi } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
@@ -93,11 +93,7 @@ export const AppContent: FC = () => {
             // dir is already seeded by the log-root resolution at startup.
             setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
-            navigateAndForget(
-              router.navigate.bind(router),
-              hostDestinationRoute(e.data),
-              { replace: true }
-            );
+            router.navigate(hostDestinationRoute(e.data), { replace: true });
           }
           break;
         }

@@ -62,7 +62,6 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useChromeNavOwnership,
   useCopyToClipboard,
   useElementHeight,
@@ -314,7 +313,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(url);
       }
     },
@@ -508,7 +506,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);
-    navigateAndForget(navigate, url);
+    navigate(url);
   };
 
   const api = getApi();

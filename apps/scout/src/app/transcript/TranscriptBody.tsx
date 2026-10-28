@@ -41,7 +41,6 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useCopyToClipboard,
   useMountEffect,
   useProperty,
@@ -195,7 +194,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );

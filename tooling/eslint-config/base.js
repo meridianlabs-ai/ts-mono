@@ -49,7 +49,22 @@ export default tseslint.config(
       // Disallow `void` as an escape hatch for floating promises — prefixing a
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.
-      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+      // react-router's navigate resolves when the router settles and rejects
+      // only for an off-origin target, a programmer error that should surface
+      // as an unhandled rejection, so its promise is safe to drop.
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          ignoreVoid: false,
+          allowForKnownSafeCalls: [
+            {
+              from: "package",
+              name: ["NavigateFunction", "navigate"],
+              package: "react-router",
+            },
+          ],
+        },
+      ],
       // A type assertion is an unchecked claim, so `as` silences exactly the
       // errors the compiler exists to catch (`as unknown as T` silences all of
       // them). This rule allows only the direction that can't lie — widening,
