@@ -244,11 +244,26 @@ const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   return true;
 };
 
+const retrievalFacts = (row: Log): LogFetchState => ({
+  preview_fetch_error: row.preview_fetch_error,
+  preview_attempts: row.preview_attempts,
+  details_fetch_error: row.details_fetch_error,
+  details_attempts: row.details_attempts,
+  details_settled_seq: row.details_settled_seq,
+});
+
 /**
  * Persist the listing identity tier and cache the resulting full row list.
- * The db write is a merge-upsert (rows keep depth/content) and the cache
- * holds the full re-read, so the full list is read back and returned for the
- * caller's continued sync logic.
+ * The db write is a merge-upsert (rows keep depth/content), so the full list
+ * is read back and returned for the caller's continued sync logic.
+ *
+ * A row the cache already holds keeps its cached content and only takes the
+ * listing's identity: keyed writes land in the cache before their
+ * transaction commits, so the read-back can predate a details or preview
+ * write the cache already has. Retrieval facts still come from the
+ * read-back: the collection's copy of them lags further (see
+ * `mergeFetchStates`), though the read-back can also predate an in-flight
+ * `writeFetchStates`.
  */
 export const writeListing = async (
   db: OpenDatabase | null | undefined,
@@ -260,12 +275,20 @@ export const writeListing = async (
     await db.markScopeSynced(logDir);
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
-      setRows(logDir, all);
+      const held = new Map(currentLogs(logDir).map((row) => [row.name, row]));
+      const listed = new Map(handles.map((handle) => [handle.name, handle]));
+      const rows = all.map((row) => {
+        const cached = held.get(row.name);
+        return cached
+          ? { ...cached, ...listed.get(row.name), ...retrievalFacts(row) }
+          : row;
+      });
+      setRows(logDir, rows);
       // Invalidate only after the re-read rows land in the cache: a listing
       // refetch scheduled between the write and setRows would run against
       // the pre-write rows and drop the newly written files from its result.
       invalidateDatabaseLogsListings();
-      return all;
+      return rows;
     }
     // A failed read-back degrades to the cache-only listing write below.
   }
