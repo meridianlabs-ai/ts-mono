@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef } from "react";
 
 /**
@@ -10,22 +6,28 @@ import { useEffect, useRef } from "react";
  */
 export const STABLE_EMPTY_OBJECT: Record<string, never> = {};
 
-export const useWhyDidYouUpdate = (componentName: string, props: any) => {
+/**
+ * Debugging aid: logs which props changed between renders. It has no callers
+ * on purpose; drop it into a component while chasing re-renders.
+ */
+export const useWhyDidYouUpdate = (
+  componentName: string,
+  props: object
+): void => {
   const previousProps = useRef(props);
 
   useEffect(() => {
     if (previousProps.current !== props) {
-      const changedProps = Object.entries(props).reduce<
-        Record<string, unknown>
-      >((diff, [key, value]) => {
-        if (previousProps.current[key] !== value) {
-          diff[key] = {
-            before: previousProps.current[key],
-            after: value,
-          };
+      const before = new Map<string, unknown>(
+        Object.entries(previousProps.current)
+      );
+      const changedProps: Record<string, { before: unknown; after: unknown }> =
+        {};
+      for (const [key, after] of Object.entries(props)) {
+        if (before.get(key) !== after) {
+          changedProps[key] = { before: before.get(key), after };
         }
-        return diff;
-      }, {});
+      }
 
       if (Object.keys(changedProps).length > 0) {
         console.log(`[${componentName}] props changed:`, changedProps);

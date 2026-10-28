@@ -13,6 +13,7 @@ import {
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
+import { useCopyToClipboard } from "@tsmono/react/hooks";
 import { IconName } from "@tsmono/react/icons";
 
 import { ScalarValue } from "../../api/api";
@@ -218,7 +219,8 @@ export const FilterBar: FC<FilterBarProps> = ({
 const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
   itemValues,
 }) => {
-  const [icon, setIcon] = useState<IconName>("copy");
+  const { copied, copy } = useCopyToClipboard();
+  const icon: IconName = copied ? "confirm" : "copy";
 
   const items: Record<string, () => void> = {};
   for (const desc of kCopyCodeDescriptors) {
@@ -227,13 +229,7 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
       if (!text) {
         return;
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigator.clipboard.writeText(text);
-      setIcon("confirm");
-      setTimeout(() => {
-        setIcon("copy");
-      }, 1250);
+      copy(text);
     };
   }
 

@@ -63,7 +63,7 @@ const ThemePreferenceSyncController: FC = () => {
       // Re-apply CSS for this tab (the bootstrap reads the freshly-written
       // value) and pull the new preference into the store.
       window.__APPLY_BROWSER_THEME__?.();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- rehydrate never rejects: zustand routes its errors to onRehydrateStorage, and its anonymous type can't be listed in allowForKnownSafeCalls
       useUserSettings.persist.rehydrate();
     }
   });

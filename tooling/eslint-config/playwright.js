@@ -26,6 +26,9 @@ export default [
         "error",
         { assertFunctionPatterns: ["^expect[A-Z]"] },
       ],
+      // Fixtures hand their value to the test with `use()`, which the hooks
+      // rule mistakes for React's `use`. These files hold no React code.
+      "react-hooks/rules-of-hooks": "off",
     },
   },
   {
