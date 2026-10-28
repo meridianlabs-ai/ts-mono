@@ -58,8 +58,10 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     };
 
     const copy = () => {
-      navigator.clipboard
-        .writeText(toClipboardJson(value))
+      // Deferred so a missing clipboard (plain http on a LAN host) rejects
+      // into the .catch instead of throwing from the click handler.
+      Promise.resolve()
+        .then(() => navigator.clipboard.writeText(toClipboardJson(value)))
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
