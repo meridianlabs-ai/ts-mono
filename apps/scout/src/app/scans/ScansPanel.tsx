@@ -1,12 +1,12 @@
 import { clsx } from "clsx";
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 
 import {
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useMountEffect } from "@tsmono/react/hooks";
 
 import { useStore } from "../../state/store";
 import { ScanRow } from "../../types/api-types";
@@ -66,11 +66,10 @@ export const ScansPanel: FC = () => {
   // Clear both scan-level and scans-level state on mount
   const clearScansState = useStore((state) => state.clearScansState);
   const clearScanState = useStore((state) => state.clearScanState);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     clearScansState();
     clearScanState();
-  }, [clearScansState, clearScanState]);
+  });
 
   return (
     <div className={clsx(styles.container)}>

@@ -40,9 +40,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/log-view/LogView.tsx": {
@@ -168,17 +165,7 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/app/samples/event/SampleEventView.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/samples/InlineSampleDisplay.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/samples/list/SampleList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -232,7 +219,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/inspect/src/app/samples/SampleSummaryView.tsx": {
@@ -692,7 +679,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/project/SettingsContent.tsx": {
@@ -760,11 +747,6 @@
       "count": 3
     }
   },
-  "apps/scout/src/app/scans/ScansPanel.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/server/useAdjacentTranscriptIds.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -798,11 +780,6 @@
     },
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "apps/scout/src/app/transcripts/TranscriptsPanel.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/scout/src/app/utils/arrow.ts": {
@@ -1264,9 +1241,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/react/src/components/MarkdownDiv.tsx": {
@@ -1439,7 +1413,7 @@
   },
   "packages/react/src/virtual/VirtualList.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 15
+      "count": 11
     }
   },
   "packages/scout-components/src/scanner-result-detail/ScannerResultDetailView.tsx": {

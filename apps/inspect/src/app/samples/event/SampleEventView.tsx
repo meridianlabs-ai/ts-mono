@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -9,14 +9,14 @@ import {
   useFocusTurnNavigation,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
-import { navigateAndForget } from "@tsmono/react/hooks";
+import { navigateAndForget, useDocumentTitleText } from "@tsmono/react/hooks";
 
 import { useAppConfig } from "../../../app_config";
 import {
   kLogViewSamplesTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { setDocumentTitle } from "../../../state/actions";
+import { documentTitle } from "../../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -60,10 +60,7 @@ export const SampleEventView: FC = () => {
   // the user sees — same title as the sample view (SampleDisplay).
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [evalSpec, sample]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // A running sample has no settled `sample` until it completes — its events
   // stream through `running` instead. Read the same source the transcript

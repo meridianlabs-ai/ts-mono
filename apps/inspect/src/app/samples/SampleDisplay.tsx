@@ -65,6 +65,7 @@ import {
   navigateAndForget,
   useChromeNavOwnership,
   useCopyToClipboard,
+  useDocumentTitleText,
   useElementHeight,
   useEventListener,
   useUnmount,
@@ -95,7 +96,7 @@ import {
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
-import { setDocumentTitle } from "../../state/actions";
+import { documentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -177,10 +178,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [sample, evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);

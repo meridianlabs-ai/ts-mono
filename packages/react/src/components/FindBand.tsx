@@ -1,16 +1,10 @@
-import {
-  FC,
-  KeyboardEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { FC, KeyboardEvent, useCallback, useRef, useState } from "react";
 
 import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { useEventListener } from "../hooks/useEventListener";
+import { useMountEffect } from "../hooks/useMountEffect";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
@@ -211,8 +205,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     focusTimeoutRef.current = window.setTimeout(() => {
       searchBoxRef.current?.focus();
       searchBoxRef.current?.select();
@@ -232,7 +225,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       }
       setFindTarget(null);
     };
-  }, [setFindTarget]);
+  });
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
