@@ -82,6 +82,20 @@ describe("throttle", () => {
     throttled(2);
     expect(fn.mock.calls).toEqual([[1], [2]]);
   });
+
+  test("a call made from inside the trailing call runs on the next trailing edge", () => {
+    const seen: number[] = [];
+    const throttled = throttle((n: number) => {
+      seen.push(n);
+      if (n === 2) throttled(102);
+    }, 100);
+
+    throttled(1);
+    throttled(2);
+    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
+    expect(seen).toEqual([1, 2, 102]);
+  });
 });
 
 describe("debounce", () => {
@@ -120,5 +134,18 @@ describe("debounce", () => {
 
     vi.advanceTimersByTime(60);
     expect(fn).toHaveBeenCalledExactlyOnceWith(2);
+  });
+
+  test("a call made from inside the trailing call runs after its own wait", () => {
+    const seen: number[] = [];
+    const debounced = debounce((n: number) => {
+      seen.push(n);
+      if (n === 1) debounced(101);
+    }, 100);
+
+    debounced(1);
+    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
+    expect(seen).toEqual([1, 101]);
   });
 });

@@ -77,4 +77,31 @@ describe("MarkdownRenderQueue", () => {
     ]);
     expect(bResult).toBe("b");
   });
+
+  it("a task cancelled while it runs never settles, and the queue moves on", async () => {
+    const queue = new MarkdownRenderQueue(1);
+
+    let releaseA!: () => void;
+    const a = queue.enqueue(
+      () =>
+        new Promise<string>((resolve) => {
+          releaseA = () => resolve("a");
+        })
+    );
+    const b = queue.enqueue(() => "b");
+
+    a.cancel();
+    releaseA();
+
+    const pending = Symbol("pending");
+    const aResult = await Promise.race([
+      a.promise.then(
+        () => "settled",
+        () => "settled"
+      ),
+      new Promise((resolve) => setTimeout(() => resolve(pending), 50)),
+    ]);
+    expect(aResult).toBe(pending);
+    await expect(b.promise).resolves.toBe("b");
+  });
 });
