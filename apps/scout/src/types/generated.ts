@@ -1355,7 +1355,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -4265,6 +4265,8 @@ export interface components {
             message_count?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -4334,6 +4336,8 @@ export interface components {
             limit?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
