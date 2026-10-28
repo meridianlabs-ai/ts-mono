@@ -97,6 +97,7 @@ export const ScansPanel: FC = () => {
           <ScansGrid
             scans={scans}
             resultsDir={scanDir}
+            scansDir={resolvedScansDir}
             loading={isFetching && scans.length === 0}
             className={styles.grid}
             onScrollNearEnd={handleScrollNearEnd}
