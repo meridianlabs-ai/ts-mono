@@ -1,10 +1,10 @@
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 import { Navigate } from "react-router";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useDocumentTitleText, useProperty } from "@tsmono/react/hooks";
 import { directoryRelativeUrl, join } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
@@ -13,7 +13,7 @@ import {
   type LogListingRow,
   type LogsOverview,
 } from "../../log_data";
-import { setDocumentTitle } from "../../state/actions";
+import { documentTitle } from "../../state/actions";
 import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -93,12 +93,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
 
   const flowData = useFlowQuery(logPath || "").data;
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({
-      logDir: logDir,
-    });
-  }, [logDir]);
+  useDocumentTitleText(documentTitle({ logDir }));
 
   const itemView: FileLogItemView = useMemo(
     () => ({ mode, logDir, currentDir, showRetriedLogs }),

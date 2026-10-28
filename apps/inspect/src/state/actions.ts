@@ -43,8 +43,8 @@ export interface TitleContext {
   sample?: EvalSample;
 }
 
-/** Set the document title from a log/sample context. */
-export const setDocumentTitle = (context: TitleContext) => {
+/** The document title for a log/sample context. */
+export const documentTitle = (context: TitleContext): string => {
   const title: string[] = [];
 
   if (context.sample) {
@@ -63,5 +63,5 @@ export const setDocumentTitle = (context: TitleContext) => {
     title.push("Inspect View");
   }
 
-  document.title = title.join(" - ");
+  return title.join(" - ");
 };

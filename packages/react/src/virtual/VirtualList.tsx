@@ -19,6 +19,8 @@ import {
 import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
+import { useEventListener } from "../hooks/useEventListener";
+import { useLatestRef } from "../hooks/useLatestRef";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
 import { useRafThrottle } from "../hooks/useRafThrottle";
@@ -193,6 +195,7 @@ export function VirtualList<T>({
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [externalScrollRef, measureScrollMargin]);
+  const scrollTarget = externalScrollEl ?? scrollParent ?? internalScrollRef;
   const getScrollElement = useCallback(
     () => externalScrollEl ?? scrollParent ?? internalScrollRef.current,
     [externalScrollEl, scrollParent]
@@ -350,13 +353,9 @@ export function VirtualList<T>({
   );
   // Read (not depend on) followOutput below: the finish effect flips it, and
   // a dependency would make the cleanup cancel the timer it just scheduled.
-  const followOutputRef = useRef(followOutput);
-  // Mirror BEFORE the finish effect below: effects run in declaration order,
-  // so the finish effect always reads the value from its own commit.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    followOutputRef.current = followOutput;
-  }, [followOutput]);
+  // A layout-effect mirror, so the finish effect always reads the value from
+  // its own commit.
+  const followOutputRef = useLatestRef(followOutput);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scrollToTopOnFinish && !live && prevLive && followOutputRef.current) {
@@ -381,7 +380,14 @@ export function VirtualList<T>({
         finishScrollTimerRef.current = null;
       }
     };
-  }, [live, prevLive, scrollToTopOnFinish, getScrollElement, setFollowOutput]);
+  }, [
+    live,
+    prevLive,
+    scrollToTopOnFinish,
+    getScrollElement,
+    setFollowOutput,
+    followOutputRef,
+  ]);
 
   const handleScroll = useRafThrottle(() => {
     if (!live) return;
@@ -403,45 +409,31 @@ export function VirtualList<T>({
     }
   });
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [getScrollElement, handleScroll]);
+  useEventListener(scrollTarget, "scroll", handleScroll);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    const onWheel = () => noteUserInteraction();
-    const onTouchMove = () => noteUserInteraction();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
-    };
-    const onPointerDown = () => {
+  useEventListener(scrollTarget, "wheel", noteUserInteraction, {
+    passive: true,
+  });
+  useEventListener(scrollTarget, "touchmove", noteUserInteraction, {
+    passive: true,
+  });
+  useEventListener(scrollTarget, "keydown", (e) => {
+    if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
+  });
+  useEventListener(
+    scrollTarget,
+    "pointerdown",
+    () => {
       pointerDownRef.current = true;
       noteUserInteraction();
-    };
-    const onPointerUp = () => {
-      pointerDownRef.current = false;
-    };
-    el.addEventListener("wheel", onWheel, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    el.addEventListener("keydown", onKeyDown);
-    el.addEventListener("pointerdown", onPointerDown, { passive: true });
-    window.addEventListener("pointerup", onPointerUp, { passive: true });
-    window.addEventListener("pointercancel", onPointerUp, { passive: true });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("keydown", onKeyDown);
-      el.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
-    };
-  }, [getScrollElement, noteUserInteraction]);
+    },
+    { passive: true }
+  );
+  const onPointerUp = () => {
+    pointerDownRef.current = false;
+  };
+  useEventListener(window, "pointerup", onPointerUp, { passive: true });
+  useEventListener(window, "pointercancel", onPointerUp, { passive: true });
 
   const contentTotal = virtualizer.getTotalSize();
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -766,13 +758,7 @@ export function VirtualList<T>({
     }, PERSIST_DEBOUNCE_MS);
   });
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    el.addEventListener("scroll", persistOnScroll);
-    return () => el.removeEventListener("scroll", persistOnScroll);
-  }, [getScrollElement, persistOnScroll]);
+  useEventListener(scrollTarget, "scroll", persistOnScroll);
 
   // FLUSH (not cancel) a pending debounced save on key change/unmount, with
   // the scroll-time snapshot: cancelling loses a tab-flip inside the debounce
