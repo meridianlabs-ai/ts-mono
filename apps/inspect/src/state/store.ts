@@ -10,11 +10,7 @@ import { Capabilities, ClientStorage } from "../client/api/types";
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
-import {
-  createSampleSlice,
-  initializeSampleSlice,
-  SampleSlice,
-} from "./sampleSlice";
+import { createSampleSlice, SampleSlice } from "./sampleSlice";
 import { createSearchSlice, SearchSlice } from "./searchSlice";
 
 const log = createLogger("store");
@@ -88,7 +84,6 @@ export const initializeStore = (
             initializeAppSlice(set, capabilities);
             initializeLogsSlice(set);
             initalializeLogSlice(set);
-            initializeSampleSlice(set);
           },
 
           // Create the slices and merge them in

@@ -232,14 +232,3 @@ export const createSampleSlice = (
 
   return slice;
 };
-
-export const initializeSampleSlice = (
-  set: (fn: (state: StoreState) => void) => void
-) => {
-  set((state) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.sample) {
-      state.sample = initialState;
-    }
-  });
-};

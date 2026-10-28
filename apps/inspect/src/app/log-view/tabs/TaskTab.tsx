@@ -75,8 +75,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
+    const revisionKey = `${toTitleCase(revision.type)} Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
       ? { _html: <a href={commitUrl}>{revision.commit}</a> }

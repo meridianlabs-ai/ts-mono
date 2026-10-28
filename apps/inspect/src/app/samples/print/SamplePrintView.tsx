@@ -261,8 +261,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
+  if (Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
         <CardHeader label="Usage" />

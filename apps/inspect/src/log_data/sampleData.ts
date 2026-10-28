@@ -185,8 +185,7 @@ export const deriveSampleData = ({
   const loading = chunked.loading || query.loading;
   return {
     sample: undefined,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    status: loading ? "loading" : query.error ? "error" : "ok",
+    status: loading ? "loading" : "error",
     error: loading ? undefined : query.error,
     running: kNoRunningEvents,
     eventsCleared: false,

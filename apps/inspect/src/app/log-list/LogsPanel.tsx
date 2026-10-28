@@ -78,18 +78,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // Folders at the root are distinct scopes, so toggling between them
   // restores each side's state instead of clearing. Folder drill-down is
   // a different scope (different dir), so each folder also remembers its
-  // own state. `undefined` until logDir hydrates so we never write under
-  // a half-initialized scope.
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
+  // own state.
+  const scopeKey = `${mode}::${currentDir}`;
 
   // Cache identity of the row universe: the listing/overview queries depend
   // on everything the view mapping reads, so it carries the display toggle
   // along with the view scope.
-  const universe =
-    scopeKey === undefined
-      ? undefined
-      : `${scopeKey}::retried=${showRetriedLogs}`;
+  const universe = `${scopeKey}::retried=${showRetriedLogs}`;
 
   const flowData = useFlowQuery(logPath || "").data;
 
@@ -224,7 +219,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   const hasFilter = filteredFields.length > 0;
 
   const handleResetFilters = useCallback(() => {
-    if (scopeKey) patchGridState(scopeKey, { columnFilters: {} });
+    patchGridState(scopeKey, { columnFilters: {} });
   }, [scopeKey, patchGridState]);
 
   // The popover only sees `pickerColumns` (the active view mode) and emits a
@@ -241,15 +236,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         )
       );
       if (Object.keys(changed).length === 0) return;
-      if (scopeKey) {
-        const cf = gridStateByScope[scopeKey]?.columnFilters;
-        if (cf) {
-          const next = Object.fromEntries(
-            Object.entries(cf).filter(([id]) => changed[id] !== false)
-          );
-          if (Object.keys(next).length !== Object.keys(cf).length) {
-            patchGridState(scopeKey, { columnFilters: next });
-          }
+      const cf = gridStateByScope[scopeKey]?.columnFilters;
+      if (cf) {
+        const next = Object.fromEntries(
+          Object.entries(cf).filter(([id]) => changed[id] !== false)
+        );
+        if (Object.keys(next).length !== Object.keys(cf).length) {
+          patchGridState(scopeKey, { columnFilters: next });
         }
       }
       setColumnVisibility({ ...currentColumnVisibility, ...changed });
@@ -357,7 +350,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
                 wholesale — scroll, selection, and the find band's state
                 (term + matches) belong to one scope and reset together. */}
             <LogListGrid
-              key={scopeKey ?? "pending"}
+              key={scopeKey}
               rows={listData.rows}
               totalRowCount={totalRowCount}
               sorting={listData.sorting}

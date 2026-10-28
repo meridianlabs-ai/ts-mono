@@ -34,11 +34,6 @@ export const objectScoreDescriptor = (
       return 0;
     },
     render: (score) => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (score === null || score === undefined) {
-        return "[null]";
-      }
-
       const scores: JSX.Element[] = [];
       const keys = Object.keys(score);
       keys.forEach((key) => {
