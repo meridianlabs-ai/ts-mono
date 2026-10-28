@@ -58,7 +58,6 @@ from inspect_ai.model import (
 from inspect_ai.tool import ToolCall, ToolInfo, ToolParam, ToolParams
 
 
-
 def default_data_dir() -> Path | None:
     """The design brief's data when run from an inspect_ai checkout."""
     parents = Path(__file__).resolve().parents
