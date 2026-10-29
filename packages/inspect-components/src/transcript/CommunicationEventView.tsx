@@ -172,9 +172,25 @@ const readSummary = (event: CommunicationEvent): string => {
 const jsonArray = (value: JsonValue | undefined): JsonValue[] | undefined =>
   Array.isArray(value) ? value : undefined;
 
+// Not trimStart(), which also drops leading controls the content policy
+// reveals, and not a regex, whose alternation overflows the stack on
+// megabytes of padding.
+const skipBlankPrefix = (text: string): number => {
+  let start = 0;
+  for (;;) {
+    const char = text[start];
+    if (char === " " || char === "\t" || char === "\n") {
+      start += 1;
+    } else if (char === "\r" && text[start + 1] === "\n") {
+      start += 2;
+    } else {
+      return start;
+    }
+  }
+};
+
 const firstLine = (text: string): string => {
-  // Not trimStart(): it would also drop leading controls the content policy reveals.
-  const line = text.replace(/^(?:[ \t]|\r?\n)+/, "").split(/\r?\n/, 1)[0] ?? "";
+  const line = text.slice(skipBlankPrefix(text)).split(/\r?\n/, 1)[0] ?? "";
   return line.length > kMaxPreviewLength
     ? `${line.slice(0, kMaxPreviewLength)}…`
     : line;

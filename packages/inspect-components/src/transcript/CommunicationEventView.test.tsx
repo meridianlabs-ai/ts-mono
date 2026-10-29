@@ -253,6 +253,25 @@ describe("CommunicationEventView", () => {
   );
 
   it.each([
+    ["spaces", " "],
+    ["tabs", "\t"],
+    ["LFs", "\n"],
+    ["CRLFs", "\r\n"],
+  ])(
+    "skips ten million leading %s in content and refusal reasons",
+    (_name, padding) => {
+      const value = `${padding.repeat(10_000_000)}hello`;
+
+      renderView(sent({ content: value }));
+      expect(line()).toBe("→ shared_memory: create (w-1) hello");
+
+      cleanup();
+      renderView(sent({ content: "spam" }, { control: "rate", reason: value }));
+      expect(line()).toBe("→ shared_memory: create (w-1) refused (rate) hello");
+    }
+  );
+
+  it.each([
     ["a later line", { content: "first line\nneedle" }, undefined],
     [
       "text past the preview",
