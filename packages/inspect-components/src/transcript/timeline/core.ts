@@ -428,16 +428,17 @@ function convertServerSpan(
 // =============================================================================
 
 /**
- * Rebuild `target` as a standalone (unbranched) Timeline: what a run of its
- * lineage without the other branches would have produced.
+ * Rebuild `target` as a standalone Timeline that follows its branch path
+ * instead of the sibling branches.
  *
- * Each span on the branch path contributes its content up to the
- * `AnchorEvent` the next span forks from (nothing, for a restart), then
- * `target` contributes all of its content. Child spans are kept whole, and
- * events lose the per-segment `:{span_id}` suffix so span begin/end pairs
- * match across segments. A result made only of events comes from a producer
- * that records structure as inline span events (Petri), so it is rebuilt
- * with `buildTimeline`.
+ * The path starts at the span holding `target`'s branch tree, so content
+ * outside that span is left out. Each span on the path contributes its
+ * content up to the `AnchorEvent` the next span forks from (nothing, for a
+ * restart), then `target` contributes all of its content. Child spans are
+ * kept whole, with their own branches, and events lose the per-segment
+ * `:{span_id}` suffix so span begin/end pairs match across segments. A result
+ * made only of events is rebuilt with `buildTimeline`, which recovers the
+ * structure producers like Petri record as inline span events.
  *
  * Returns null when `canSplice` is false.
  */
