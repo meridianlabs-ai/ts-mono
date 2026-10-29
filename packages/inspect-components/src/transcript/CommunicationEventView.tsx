@@ -14,6 +14,7 @@ import { isRecord } from "@tsmono/util";
 
 import styles from "./CommunicationEventView.module.css";
 import { EventRow } from "./event/EventRow";
+import { eventPayload } from "./eventText";
 import { EventNode } from "./types";
 
 interface CommunicationEventViewProps {
@@ -26,7 +27,7 @@ const kMaxPreviewLength = 200;
 
 /**
  * Renders a CommunicationEvent as one line (who, which channel, what);
- * clicking the line shows the whole event as JSON. Event strings are model or
+ * clicking the line shows its fields as JSON, the text search indexes. Event strings are model or
  * producer text, so they render through the content trust policy as plain
  * text, never Markdown.
  */
@@ -50,7 +51,7 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
   const expanded = !collapsed || findOpen;
   const details = (
     <div ref={detailsRef} hidden={!expanded}>
-      <JSONPanel data={event} />
+      <JSONPanel data={eventPayload(event)} />
     </div>
   );
 

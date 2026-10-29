@@ -1124,15 +1124,19 @@ describe("communication and swarm events: search and copy", () => {
   const events: Event[] = [sentEvent, delivered, waited, read, swarm];
   const rows = new Map(events.map((event) => [event.uuid ?? "", "row"]));
 
-  test("each event is one payload field: its own fields as plain JSON", () => {
+  test("each event is one payload field: its own fields as plain JSON, printed as the views print it", () => {
     expect(extractEventFields(swarm)).toEqual([
       [
         "payload",
-        JSON.stringify({
-          kind: "final",
-          data: { version: 1, reason: "unique evidence", artifact },
-          member: "counter-5",
-        }),
+        JSON.stringify(
+          {
+            kind: "final",
+            data: { version: 1, reason: "unique evidence", artifact },
+            member: "counter-5",
+          },
+          null,
+          2
+        ),
       ],
     ]);
   });
@@ -1144,7 +1148,7 @@ describe("communication and swarm events: search and copy", () => {
     ["wait-channel", "waited"],
     ["UNIQUE_FILE", "read"],
     ["unique evidence", "swarm"],
-    ['"member":"counter-5"', "swarm"],
+    ['"member": "counter-5"', "swarm"],
   ])("finds %s in its event", (term, eventId) => {
     const matches = findAllMatches(events, term, rows);
     expect(matches.map((match) => [match.eventId, match.fieldKey])).toEqual([
@@ -1166,16 +1170,20 @@ describe("communication and swarm events: search and copy", () => {
   });
 
   test("text and Markdown copy keep the payload as one JSON block", () => {
-    const json = JSON.stringify({
-      kind: "read",
-      source: "test-source",
-      agent: "test-agent",
-      nested: false,
-      channel: "test-channel",
-      record_ids: ["w-1"],
-      data: read.data,
-    });
-    expect(eventsToStr([read])).toBe(`[communication]\npayload: ${json}`);
+    const json = JSON.stringify(
+      {
+        kind: "read",
+        source: "test-source",
+        agent: "test-agent",
+        nested: false,
+        channel: "test-channel",
+        record_ids: ["w-1"],
+        data: read.data,
+      },
+      null,
+      2
+    );
+    expect(eventsToStr([read])).toBe(`[communication]\npayload:\n${json}`);
     expect(eventsToMarkdown([read])).toBe(
       `## Communication: read\n\n**Payload**\n\n\`\`\`\n${json}\n\`\`\``
     );

@@ -20,6 +20,7 @@ import {
 } from "@tsmono/react/testing";
 
 import { CommunicationEventView } from "./CommunicationEventView";
+import { findAllMatches } from "./search/sampleSearch";
 import { EventNode } from "./types";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
@@ -255,5 +256,22 @@ describe("CommunicationEventView", () => {
 
     find(null);
     expect(expanded()).toBe("false");
+  });
+
+  it.each([
+    ['"content": "needle"', 1, "true"],
+    ['"content":"needle"', 0, "false"],
+  ])("search and find agree on %s", (term, count, opened) => {
+    const event = {
+      ...sent({ content: "needle" }, { control: "rate", reason: "too many" }),
+      uuid: "u-1",
+    };
+    expect(
+      findAllMatches([event], term, new Map([["u-1", "row"]]))
+    ).toHaveLength(count);
+
+    const { find } = renderView(event);
+    find({ term, eventId: "u-1" });
+    expect(expanded()).toBe(opened);
   });
 });

@@ -9,6 +9,7 @@ import {
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
+import { eventPayload } from "./eventText";
 import styles from "./SwarmEventView.module.css";
 import { EventNode } from "./types";
 
@@ -18,8 +19,9 @@ interface SwarmEventViewProps {
 }
 
 /**
- * Renders a SwarmEvent: its kind and member over its data. The swarm owns the
- * kinds and the format of `data`, so no kind is interpreted here.
+ * Renders a SwarmEvent: its kind and member over its fields as JSON, the text
+ * search indexes. The swarm owns the kinds and the format of `data`, so no
+ * kind is interpreted here.
  */
 export const SwarmEventView: FC<SwarmEventViewProps> = ({
   eventNode,
@@ -47,7 +49,7 @@ export const SwarmEventView: FC<SwarmEventViewProps> = ({
       icon="info"
     >
       <ExpandablePanel id={`${eventNode.id}-swarm`} collapse={true}>
-        <JSONPanel data={event.data} className={styles.panel} />
+        <JSONPanel data={eventPayload(event)} className={styles.panel} />
       </ExpandablePanel>
     </EventPanel>
   );

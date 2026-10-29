@@ -382,8 +382,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
     case "communication":
     case "swarm":
       // Model and producer text, so one JSON block, as InfoEvent.data was;
-      // plain JSON, since `data` is opaque and never Content.
-      fields.push(["payload", JSON.stringify(eventPayload(event))]);
+      // plain JSON, since `data` is opaque and never Content. Printed as the
+      // views' JSONPanel prints it, so find reveals what search counts.
+      fields.push(["payload", JSON.stringify(eventPayload(event), null, 2)]);
       break;
 
     case "sentinel": {
@@ -535,7 +536,8 @@ const kBaseEventFields: ReadonlySet<string> = new Set([
   "pending",
 ]);
 
-const eventPayload = (event: object): Record<string, unknown> =>
+/** An event's own fields, without those every event carries. */
+export const eventPayload = (event: object): Record<string, unknown> =>
   Object.fromEntries(
     Object.entries(event).filter(([key]) => !kBaseEventFields.has(key))
   );
