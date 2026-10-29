@@ -164,6 +164,26 @@ describe("spliceToTimeline", () => {
     expect(spanNames(spliced)).toEqual(["before", "inside"]);
   });
 
+  it("rebuilds inline agent spans alongside child spans", () => {
+    const before = agent("before", [info("s1")]);
+    const retryBegin = testSpanBeginEvent({
+      id: "retry",
+      name: "retry",
+      type: "agent",
+      parent_id: null,
+      timestamp: kTimestamp,
+      span_id: "retry",
+      uuid: "sb-retry",
+    });
+    const branch = agent("B", [retryBegin, info("b1"), spanEnd("retry")], {
+      branchedFrom: "F",
+    });
+    const root = agent("R", [before, anchor("F")], { branches: [branch] });
+    const spliced = splice(root, branch).root;
+    expect(spanNames(spliced)).toEqual(["before", "retry"]);
+    expect(eventIds(spliced)).toContain("b1");
+  });
+
   it("returns null when target is not reachable", () => {
     const root = ts("R", null, []);
     const orphan = ts("O", null, []);

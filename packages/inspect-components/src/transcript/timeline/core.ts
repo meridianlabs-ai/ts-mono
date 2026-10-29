@@ -436,9 +436,10 @@ function convertServerSpan(
  * content up to the `AnchorEvent` the next span forks from (nothing, for a
  * restart), then `target` contributes all of its content. Child spans are
  * kept whole, with their own branches, and events lose the per-segment
- * `:{span_id}` suffix so span begin/end pairs match across segments. A result
- * made only of events is rebuilt with `buildTimeline`, which recovers the
- * structure producers like Petri record as inline span events.
+ * `:{span_id}` suffix so span begin/end pairs match across segments. Events
+ * are rebuilt with `buildTimeline`, which recovers the structure producers
+ * like Petri record as inline span events: the whole result when it is only
+ * events, otherwise each run of events between child spans.
  *
  * Returns null when `canSplice` is false.
  */
@@ -476,9 +477,30 @@ export function spliceToTimeline(
       id: host.id,
       name: host.name,
       spanType: host.spanType,
-      content,
+      content: rebuildEventRuns(content),
     }),
   };
+}
+
+function rebuildEventRuns(
+  content: (TimelineEvent | TimelineSpan)[]
+): (TimelineEvent | TimelineSpan)[] {
+  const result: (TimelineEvent | TimelineSpan)[] = [];
+  let run: Event[] = [];
+  const flush = () => {
+    if (run.length > 0) result.push(...buildTimeline(run).root.content);
+    run = [];
+  };
+  for (const item of content) {
+    if (item.type === "event") {
+      run.push(item.event);
+    } else {
+      flush();
+      result.push(item);
+    }
+  }
+  flush();
+  return result;
 }
 
 /**
