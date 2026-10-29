@@ -379,6 +379,39 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       break;
     }
 
+    case "communication": {
+      fields.push(["agent", event.agent]);
+      if (event.channel) {
+        fields.push(["channel", event.channel]);
+      }
+      if (event.record_ids.length > 0) {
+        fields.push(["record_ids", event.record_ids.join(", ")]);
+      }
+      const record = event.send?.record;
+      if (record && record.to.length > 0) {
+        fields.push(["to", record.to.join(", ")]);
+      }
+      if (record?.content) {
+        fields.push(["content", record.content]);
+      }
+      const rejected = event.send?.rejected;
+      if (rejected) {
+        fields.push(["refused", rejected.control]);
+        fields.push(["reason", rejected.reason]);
+      }
+      if (event.wait) {
+        fields.push(["outcome", event.wait.outcome]);
+      }
+      break;
+    }
+
+    case "swarm":
+      fields.push(["kind", event.kind]);
+      if (event.member) {
+        fields.push(["member", event.member]);
+      }
+      break;
+
     case "sentinel": {
       const sentinelEvent = event;
       fields.push(["kind", sentinelEvent.kind]);

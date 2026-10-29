@@ -11,6 +11,7 @@ import {
   forkNavToBranchPointProps,
 } from "./BranchPoint";
 import { CheckpointEventView } from "./CheckpointEventView";
+import { CommunicationEventView } from "./CommunicationEventView";
 import { CompactionEventView } from "./CompactionEventView";
 import { EmptyBranchView } from "./EmptyBranchView";
 import { ErrorEventView } from "./ErrorEventView";
@@ -29,6 +30,7 @@ import { SentinelEventView, SentinelStepRow } from "./SentinelEventView";
 import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
+import { SwarmEventView } from "./SwarmEventView";
 import { isForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { ToolEventView } from "./ToolEventView";
@@ -299,6 +301,22 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           eventNode={eventNodeOf(node, "sentinel")}
           step={context?.standaloneSentinels?.get(node.id)}
           context={context}
+          className={className}
+        />
+      );
+
+    case "communication":
+      return (
+        <CommunicationEventView
+          eventNode={eventNodeOf(node, "communication")}
+          className={className}
+        />
+      );
+
+    case "swarm":
+      return (
+        <SwarmEventView
+          eventNode={eventNodeOf(node, "swarm")}
           className={className}
         />
       );

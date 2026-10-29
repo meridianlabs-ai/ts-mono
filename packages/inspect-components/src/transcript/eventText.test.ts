@@ -4,6 +4,7 @@ import {
   testApprovalEvent,
   testAssistantMessage,
   testChatCompletionChoice,
+  testCommunicationEvent,
   testCompactionEvent,
   testErrorEvent,
   testEvalError,
@@ -27,6 +28,7 @@ import {
   testStepEvent,
   testStoreEvent,
   testSubtaskEvent,
+  testSwarmEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -1062,6 +1064,47 @@ describe("eventSearchText", () => {
       )
     );
     expect(texts).toContain("agent");
+  });
+
+  test("communication: includes a send's content and its refusal", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testCommunicationEvent({
+          kind: "sent",
+          agent: "counter-6",
+          channel: "shared_memory",
+          record_ids: ["w-1"],
+          send: {
+            record: {
+              id: "w-1",
+              kind: "create",
+              sender: "counter-6",
+              to: [],
+              recipients: [],
+              content: "the plan",
+            },
+            rejected: { control: "rate", reason: "too many writes" },
+          },
+        })
+      )
+    );
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        "counter-6",
+        "shared_memory",
+        "w-1",
+        "the plan",
+        "rate",
+        "too many writes",
+      ])
+    );
+  });
+
+  test("swarm: includes kind and member", () => {
+    const texts = eventSearchText(
+      makeNode(testSwarmEvent({ kind: "member_result", member: "counter-5" }))
+    );
+    expect(texts).toEqual(["member_result", "counter-5"]);
   });
 
   test("unknown event: returns empty array", () => {
