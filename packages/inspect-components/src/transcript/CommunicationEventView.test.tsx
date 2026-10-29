@@ -7,7 +7,12 @@ import type {
   CommunicationEvent,
   CommunicationRecord,
 } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  FindTargetProvider,
+  untrustedText,
+  type FindTarget,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeReactiveStateHooks,
@@ -42,14 +47,26 @@ const sent = (
     send: { record: record(overrides), rejected },
   });
 
-const renderView = (event: CommunicationEvent) =>
-  render(
-    <ComponentStateProvider hooks={makeReactiveStateHooks()}>
+const renderView = (event: CommunicationEvent) => {
+  const hooks = makeReactiveStateHooks();
+  const node = new EventNode("comm-1", event, 0);
+  const tree = (target: FindTarget | null) => (
+    <ComponentStateProvider hooks={hooks}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <CommunicationEventView eventNode={new EventNode("comm-1", event, 0)} />
+        <FindTargetProvider value={target}>
+          <CommunicationEventView eventNode={node} />
+        </FindTargetProvider>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
+  const view = render(tree(null));
+  return {
+    ...view,
+    find: (target: FindTarget | null) => view.rerender(tree(target)),
+  };
+};
+
+const expanded = () => screen.getByRole("button").getAttribute("aria-expanded");
 
 // The line after the agent's name.
 const line = () => screen.getByRole("button").textContent;
@@ -159,5 +176,59 @@ describe("CommunicationEventView", () => {
 
     expect(button.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText(/"sender": "counter-6"/)).toBeDefined();
+  });
+
+  it("reveals hidden characters in content and refusal reasons", () => {
+    const hostile = "safe\u202Espoof\u200B";
+    renderView(
+      sent({ content: hostile }, { control: "rate", reason: hostile })
+    );
+    expect(line()).not.toMatch(/[\u202E\u200B]/);
+    expect(line()).toBe(
+      `→ shared_memory: create (w-1) refused (rate) ${untrustedText(hostile)}`
+    );
+
+    cleanup();
+    renderView(sent({ content: hostile }));
+    expect(line()).toBe(
+      `→ shared_memory: create (w-1) ${untrustedText(hostile)}`
+    );
+  });
+
+  it.each([
+    ["a later line", { content: "first line\nneedle" }, undefined],
+    [
+      "text past the preview",
+      { content: `${"x".repeat(250)}needle` },
+      undefined,
+    ],
+    [
+      "a refused content",
+      { content: "needle" },
+      { control: "rate", reason: "too many" },
+    ],
+  ])("opens when find lands on %s", (_, overrides, rejected) => {
+    const { find } = renderView(sent(overrides, rejected));
+    find({ term: "NEEDLE", eventId: "comm-1" });
+    expect(expanded()).toBe("true");
+    expect(screen.getByText(/needle/)).toBeDefined();
+  });
+
+  it("follows find targets that arrive after mount, keeping the stored state", () => {
+    const event = { ...sent({ content: "first\nneedle" }), uuid: "u-1" };
+    const { find } = renderView(event);
+    expect(expanded()).toBe("false");
+
+    find({ term: "needle", eventId: "u-1" });
+    expect(expanded()).toBe("true");
+
+    find({ term: "counter-6", eventId: "u-1" });
+    expect(expanded()).toBe("false");
+
+    find({ term: "needle", eventId: "another-event" });
+    expect(expanded()).toBe("false");
+
+    find(null);
+    expect(expanded()).toBe("false");
   });
 });

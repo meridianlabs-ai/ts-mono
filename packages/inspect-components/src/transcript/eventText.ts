@@ -558,13 +558,17 @@ const kProseFields: ReadonlySet<string> = new Set([
   "title",
 ]);
 
+// Also communication model text (`content`, `reason`), kept literal so the
+// export never turns it into links or images.
 const kCodeLikeFields: ReadonlySet<string> = new Set([
   "arguments",
   "cmd",
+  "content",
   "file",
   "filename",
   "function",
   "path",
+  "reason",
 ]);
 
 const looksLikeJson = (value: string): boolean =>

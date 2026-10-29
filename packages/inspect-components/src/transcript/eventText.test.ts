@@ -150,6 +150,30 @@ describe("eventsToMarkdown", () => {
     expect(out).toContain("## Tool: Bash: a b\n");
   });
 
+  it("keeps communication content and refusal reasons literal", () => {
+    const out = eventsToMarkdown([
+      testCommunicationEvent({
+        kind: "sent",
+        record_ids: ["w-1"],
+        send: {
+          record: {
+            id: "w-1",
+            kind: "message",
+            sender: "test-agent",
+            to: [],
+            recipients: [],
+            content: "![payload](https://example.com/remote.png)",
+          },
+          rejected: { control: "rate", reason: "see `[link](https://x.y)`" },
+        },
+      }),
+    ]);
+    expect(out).toContain(
+      "**Content:** `![payload](https://example.com/remote.png)`"
+    );
+    expect(out).toContain("**Reason:** `` see `[link](https://x.y)` ``");
+  });
+
   it("extends the fence past backtick runs inside the value", () => {
     const out = eventsToMarkdown([
       testToolEvent({ function: "bash", result: "line\n```\nnested\n```" }),

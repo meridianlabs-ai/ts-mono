@@ -138,6 +138,17 @@ const normalizeJsonChanges = (raw: unknown): unknown[] => {
 };
 
 /**
+ * Fill the given list fields (`default_factory=list` upstream) on a raw
+ * record. Non-records pass through; identity-preserving when complete.
+ */
+const fillLists = (raw: unknown, fields: readonly string[]): unknown => {
+  if (!isRecord(raw)) return raw;
+  const missing = fields.filter((field) => !Array.isArray(raw[field]));
+  if (missing.length === 0) return raw;
+  return { ...raw, ...Object.fromEntries(missing.map((field) => [field, []])) };
+};
+
+/**
  * Per-event-type defaults for required fields pydantic defaults at read
  * time. Returns undefined when nothing needs filling (the hot path for
  * current-format logs — no allocation).
@@ -250,6 +261,22 @@ const eventFixes = (
       break;
     case "span_end":
       if (typeof raw["id"] !== "string") fix("id", "");
+      break;
+    case "communication":
+      if (typeof raw["nested"] !== "boolean") fix("nested", false);
+      if (!Array.isArray(raw["record_ids"])) fix("record_ids", []);
+      if (!isRecord(raw["data"])) fix("data", {});
+      {
+        const send = raw["send"];
+        if (isRecord(send)) {
+          const record = fillLists(send["record"], ["to", "recipients"]);
+          if (record !== send["record"]) fix("send", { ...send, record });
+        }
+        const delivery = fillLists(raw["delivery"], ["recipients"]);
+        if (delivery !== raw["delivery"]) fix("delivery", delivery);
+        const wait = fillLists(raw["wait"], ["channels"]);
+        if (wait !== raw["wait"]) fix("wait", wait);
+      }
       break;
     case "sentinel":
       // Logs written before the "continue" action was renamed "proceed".
