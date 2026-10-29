@@ -214,7 +214,7 @@ describe("CommunicationEventView", () => {
     );
 
     cleanup();
-    renderView(sent({ content: "hello\r\nworld" }));
+    renderView(sent({ content: "\r\n \thello\r\nworld" }));
     expect(line()).toBe("→ shared_memory: create (w-1) hello");
   });
 
@@ -225,6 +225,32 @@ describe("CommunicationEventView", () => {
       `→ shared_memory: create (w-1) ${untrustedText("hello\rworld")}`
     );
   });
+
+  it.each([
+    ["CR", "\r"],
+    ["U+000B", "\v"],
+    ["U+000C", "\f"],
+    ["U+2028", " "],
+    ["U+2029", " "],
+    ["U+FEFF", "﻿"],
+  ])(
+    "keeps the marker for a leading %s in content and refusal reasons",
+    (_name, hidden) => {
+      const value = `${hidden}hello`;
+      expect(untrustedText(value)).not.toBe(value);
+
+      renderView(sent({ content: value }));
+      expect(line()).toBe(
+        `→ shared_memory: create (w-1) ${untrustedText(value)}`
+      );
+
+      cleanup();
+      renderView(sent({ content: "spam" }, { control: "rate", reason: value }));
+      expect(line()).toBe(
+        `→ shared_memory: create (w-1) refused (rate) ${untrustedText(value)}`
+      );
+    }
+  );
 
   it.each([
     ["a later line", { content: "first line\nneedle" }, undefined],

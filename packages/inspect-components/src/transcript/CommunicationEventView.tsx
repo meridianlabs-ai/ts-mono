@@ -173,7 +173,8 @@ const jsonArray = (value: JsonValue | undefined): JsonValue[] | undefined =>
   Array.isArray(value) ? value : undefined;
 
 const firstLine = (text: string): string => {
-  const line = text.trimStart().split(/\r?\n/, 1)[0] ?? "";
+  // Not trimStart(): it would also drop leading controls the content policy reveals.
+  const line = text.replace(/^(?:[ \t]|\r?\n)+/, "").split(/\r?\n/, 1)[0] ?? "";
   return line.length > kMaxPreviewLength
     ? `${line.slice(0, kMaxPreviewLength)}…`
     : line;
