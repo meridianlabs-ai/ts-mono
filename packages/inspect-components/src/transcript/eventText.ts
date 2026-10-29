@@ -379,6 +379,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       break;
     }
 
+    case "communication":
+    case "swarm":
+      // Model and producer text, so one JSON block, as InfoEvent.data was;
+      // plain JSON, since `data` is opaque and never Content. Printed as the
+      // views' JSONPanel prints it, so find reveals what search counts.
+      fields.push(["payload", JSON.stringify(eventPayload(event), null, 2)]);
+      break;
+
     case "sentinel": {
       const sentinelEvent = event;
       fields.push(["kind", sentinelEvent.kind]);
@@ -516,6 +524,23 @@ export const eventsToMarkdown = (events: readonly EventType[]): string => {
 
 const titleCase = (value: string): string =>
   toTitleCase(value.replace(/_/g, " "));
+
+// Fields every event carries; the rest is what the event itself records.
+const kBaseEventFields: ReadonlySet<string> = new Set([
+  "event",
+  "uuid",
+  "span_id",
+  "timestamp",
+  "working_start",
+  "metadata",
+  "pending",
+]);
+
+/** An event's own fields, without those every event carries. */
+export const eventPayload = (event: object): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(event).filter(([key]) => !kBaseEventFields.has(key))
+  );
 
 const kProseFields: ReadonlySet<string> = new Set([
   "answer",

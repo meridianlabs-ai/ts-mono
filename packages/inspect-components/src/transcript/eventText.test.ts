@@ -4,6 +4,7 @@ import {
   testApprovalEvent,
   testAssistantMessage,
   testChatCompletionChoice,
+  testCommunicationEvent,
   testCompactionEvent,
   testErrorEvent,
   testEvalError,
@@ -27,6 +28,7 @@ import {
   testStepEvent,
   testStoreEvent,
   testSubtaskEvent,
+  testSwarmEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -48,6 +50,7 @@ import {
   eventsToStr,
   extractEventFields,
 } from "./eventText";
+import { findAllMatches } from "./search/sampleSearch";
 import { EventNode } from "./types";
 
 const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
@@ -1067,5 +1070,129 @@ describe("eventSearchText", () => {
   test("unknown event: returns empty array", () => {
     const texts = eventSearchText(makeNode(testSpanEndEvent()));
     expect(texts).toEqual([]);
+  });
+});
+
+describe("communication and swarm events: search and copy", () => {
+  // A Content-looking dictionary must stay as written: `data` is opaque.
+  const artifact = { type: "image", image: "UNIQUE_IMAGE", note: "kept" };
+  const sentEvent = testCommunicationEvent({
+    uuid: "sent",
+    kind: "sent",
+    agent: "counter-6",
+    record_ids: ["w-1"],
+    send: {
+      record: {
+        id: "w-1",
+        kind: "create",
+        sender: "counter-6",
+        to: [],
+        recipients: [],
+        content: "![payload](https://example.com/remote.png)\r\rafter",
+      },
+      rejected: { control: "rate", reason: "too many" },
+    },
+    data: { artifact },
+  });
+  const delivered = testCommunicationEvent({
+    uuid: "delivered",
+    kind: "delivered",
+    record_ids: ["w-1"],
+    delivery: { recipients: ["worker-b"], seq: 7 },
+  });
+  const waited = testCommunicationEvent({
+    uuid: "waited",
+    kind: "waited",
+    channel: null,
+    wait: { channels: ["wait-channel"], outcome: "news", duration: 4.2 },
+  });
+  const read = testCommunicationEvent({
+    uuid: "read",
+    record_ids: ["w-1"],
+    data: {
+      files: [
+        { file: "UNIQUE_FILE", version: 1, lines: "3-8", deleted: false },
+      ],
+    },
+  });
+  const swarm = testSwarmEvent({
+    uuid: "swarm",
+    kind: "final",
+    member: "counter-5",
+    data: { version: 1, reason: "unique evidence", artifact },
+  });
+  const events: Event[] = [sentEvent, delivered, waited, read, swarm];
+  const rows = new Map(events.map((event) => [event.uuid ?? "", "row"]));
+
+  test("each event is one payload field: its own fields as plain JSON, printed as the views print it", () => {
+    expect(extractEventFields(swarm)).toEqual([
+      [
+        "payload",
+        JSON.stringify(
+          {
+            kind: "final",
+            data: { version: 1, reason: "unique evidence", artifact },
+            member: "counter-5",
+          },
+          null,
+          2
+        ),
+      ],
+    ]);
+  });
+
+  test.each([
+    ["remote.png", "sent"],
+    ["too many", "sent"],
+    ["worker-b", "delivered"],
+    ["wait-channel", "waited"],
+    ["UNIQUE_FILE", "read"],
+    ["unique evidence", "swarm"],
+    ['"member": "counter-5"', "swarm"],
+  ])("finds %s in its event", (term, eventId) => {
+    const matches = findAllMatches(events, term, rows);
+    expect(matches.map((match) => [match.eventId, match.fieldKey])).toEqual([
+      [eventId, "payload"],
+    ]);
+  });
+
+  test("finds data that looks like Content at the root and nested", () => {
+    const root = testSwarmEvent({ uuid: "root", data: artifact });
+    const matches = findAllMatches(
+      [root, sentEvent],
+      "unique_image",
+      new Map([
+        ["root", "row"],
+        ["sent", "row"],
+      ])
+    );
+    expect(matches.map((match) => match.eventId)).toEqual(["root", "sent"]);
+  });
+
+  test("text and Markdown copy keep the payload as one JSON block", () => {
+    const json = JSON.stringify(
+      {
+        kind: "read",
+        source: "test-source",
+        agent: "test-agent",
+        nested: false,
+        channel: "test-channel",
+        record_ids: ["w-1"],
+        data: read.data,
+      },
+      null,
+      2
+    );
+    expect(eventsToStr([read])).toBe(`[communication]\npayload:\n${json}`);
+    expect(eventsToMarkdown([read])).toBe(
+      `## Communication: read\n\n**Payload**\n\n\`\`\`\n${json}\n\`\`\``
+    );
+
+    const markdown = eventsToMarkdown([sentEvent]);
+    const fence = "```";
+    expect(markdown.split(fence)).toHaveLength(3);
+    expect(markdown.split(fence)[1]).toContain(
+      "![payload](https://example.com/remote.png)\\r\\rafter"
+    );
   });
 });

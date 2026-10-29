@@ -1,0 +1,23 @@
+/* Agent names keep their case; the row title is otherwise uppercased. */
+.agent {
+  text-transform: none;
+  cursor: pointer;
+}
+
+.line {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.refused {
+  color: var(--bs-danger);
+}

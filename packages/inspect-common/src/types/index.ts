@@ -50,6 +50,12 @@ export type ReviewEvent = S["ReviewEvent"];
 export type SentinelEvent = S["SentinelEvent"];
 export type BranchEvent = S["BranchEvent"];
 export type CheckpointEvent = S["CheckpointEvent"];
+export type CommunicationEvent = S["CommunicationEvent"];
+export type CommunicationRecord = S["CommunicationRecord"];
+export type CommunicationRejection = S["CommunicationRejection"];
+export type CommunicationSend = S["CommunicationSend"];
+export type CommunicationDelivery = S["CommunicationDelivery"];
+export type CommunicationWait = S["CommunicationWait"];
 export type CompactionEvent = S["CompactionEvent"];
 export type ErrorEvent = S["ErrorEvent"];
 export type InfoEvent = S["InfoEvent"];
@@ -68,6 +74,7 @@ export type StateEvent = S["StateEvent"];
 export type StepEvent = S["StepEvent"];
 export type StoreEvent = S["StoreEvent"];
 export type SubtaskEvent = S["SubtaskEvent"];
+export type SwarmEvent = S["SwarmEvent"];
 export type ToolEvent = S["ToolEvent"];
 
 // Chat message types

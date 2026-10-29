@@ -3,6 +3,7 @@ import type {
   ApprovalEvent,
   BranchEvent,
   CheckpointEvent,
+  CommunicationEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -24,6 +25,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -89,6 +91,8 @@ export type EventType =
   | ApprovalEvent
   | ReviewEvent
   | SentinelEvent
+  | CommunicationEvent
+  | SwarmEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -117,6 +121,8 @@ export const eventTypeValues = [
   "approval",
   "review",
   "sentinel",
+  "communication",
+  "swarm",
   "branch",
   "checkpoint",
   "compaction",

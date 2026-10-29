@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   testApprovalEvent,
+  testCommunicationEvent,
   testErrorEvent,
   testInfoEvent,
   testInputEvent,
@@ -14,14 +15,17 @@ import {
   testSpanBeginEvent,
   testStateEvent,
   testStoreEvent,
+  testSwarmEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import { isRecord } from "@tsmono/util";
 
 import { eventNode } from "../testHelpers";
 import { kSandboxSignalName } from "../transform/fixups";
+import { flatTree } from "../transform/flatten";
 import { EventNode, EventType } from "../types";
 
+import { makeTurns, outlineFilterVisitors } from "./tree-visitors";
 import { buildOutlineNodeList, useOutlineNodes } from "./useOutlineNodes";
 
 // =============================================================================
@@ -33,6 +37,8 @@ import { buildOutlineNodeList, useOutlineNodes } from "./useOutlineNodes";
 const kRemovedEventBuilders = {
   logger: testLoggerEvent,
   info: testInfoEvent,
+  communication: testCommunicationEvent,
+  swarm: testSwarmEvent,
   state: testStateEvent,
   store: testStoreEvent,
   approval: testApprovalEvent,
@@ -67,6 +73,8 @@ describe("buildOutlineNodeList", () => {
   const removedEventTypes = [
     "logger",
     "info",
+    "communication",
+    "swarm",
     "state",
     "store",
     "approval",
@@ -120,6 +128,26 @@ describe("buildOutlineNodeList", () => {
     expect(turns.event.event).toBe("span_begin");
     expect(readStringField(turns, "type")).toBe("turns");
     expect(readStringField(turns, "name")).toBe("1 turn");
+  });
+
+  it("keeps communication and swarm events out of a model/tool turn", () => {
+    const nodes = [
+      modelNode(),
+      eventNode(testCommunicationEvent()),
+      eventNode(testSwarmEvent()),
+      eventNode(testToolEvent()),
+    ];
+    const turns = makeTurns(flatTree(nodes, {}, outlineFilterVisitors()));
+    expect(turns).toHaveLength(1);
+    expect(turns[0]!.children.map((n) => n.event.event)).toEqual([
+      "model",
+      "tool",
+    ]);
+    expect(
+      buildOutlineNodeList(nodes, {}).map((n) => readStringField(n, "name"))
+    ).toEqual(["1 turn"]);
+    // Unfiltered, they pass through the turn as info events do.
+    expect(makeTurns(nodes)).toHaveLength(1);
   });
 
   it("counts consecutive turns", () => {
