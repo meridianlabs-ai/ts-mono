@@ -14,7 +14,6 @@ import {
   isEventsInput,
   isMessageInput,
   isMessagesInput,
-  isTranscriptInput,
   ScanResultData,
 } from "../types";
 
@@ -47,7 +46,7 @@ export const ScannerResultHeader: FC<ScannerResultHeaderProps> = ({
   onShowAllScores,
 }) => {
   if (collapsed) {
-    if (!inputData || !isTranscriptInput(inputData) || !resultData) return null;
+    if (resultData?.inputType !== "transcript") return null;
 
     const sourceUri = resultData.transcriptSourceUri;
     let resolvedSourceUrl = sourceUri;
@@ -143,9 +142,11 @@ const headingsForResult = (
   resultData?: ScanResultData,
   status?: Status
 ): HeadingValue[] | undefined => {
-  if (!inputData) return [];
-  if (isTranscriptInput(inputData))
+  // Transcript headings come from the row, so they show while the input is
+  // loading, failed, or stored by reference.
+  if (resultData?.inputType === "transcript")
     return transcriptHeadings(appConfig, resultData, status);
+  if (!inputData) return [];
   if (isMessageInput(inputData))
     return messageHeadings(inputData.input, status);
   if (isMessagesInput(inputData)) return messagesHeadings(inputData.input);

@@ -149,10 +149,12 @@ export const scanDataframeDetailQuery = (
   params: ScanDataframeDetailParams | typeof skipToken
 ) =>
   queryOptions({
+    // No topic tag: a written row never changes, and re-fetching it would
+    // re-resolve a by-reference input on every scans tick.
     queryKey:
       params === skipToken
         ? kSkipped
-        : (["scanDataframeDetail", params, topicTag("scans")] as const),
+        : (["scanDataframeDetail", params] as const),
     queryFn:
       params === skipToken
         ? skipToken
@@ -163,8 +165,17 @@ export const scanDataframeDetailQuery = (
               params.scanner,
               params.uuid
             ),
-    staleTime: Infinity,
+    // A failed reference resolution (e.g. a source read timeout) may succeed
+    // later, so only a response without input_error stays fresh.
+    staleTime: (query) => (query.state.data?.inputError ? 0 : Infinity),
   });
+
+/** Shown detail queries whose input failed to resolve: what Retry refetches. */
+export const unresolvedScanDataframeDetails: QueryFilters = {
+  queryKey: ["scanDataframeDetail"],
+  type: "active",
+  stale: true,
+};
 
 export type ColumnValuesParams = {
   location: string;

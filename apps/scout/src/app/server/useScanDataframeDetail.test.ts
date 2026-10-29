@@ -9,7 +9,13 @@ import { encodeBase64Url, isRecord } from "@tsmono/util";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { Transcript } from "../../types/api-types";
-import { isTranscriptInput } from "../types";
+import {
+  isEventInput,
+  isEventsInput,
+  isMessageInput,
+  isMessagesInput,
+  isTranscriptInput,
+} from "../types";
 
 import { useScanDataframeDetail } from "./useScanDataframeDetail";
 
@@ -197,6 +203,41 @@ it("normalizes legacy scan_events and transcript-input events (#555)", async () 
   }
 });
 
+it("loads a row whose input is null without matching any input type guard", async () => {
+  // A row whose input is stored by reference has a NULL input column.
+  server.use(
+    http.get(detailUrl, () =>
+      HttpResponse.json({
+        input: null,
+        input_type: "transcript",
+        input_data: null,
+        scan_events: [],
+      })
+    )
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  const input = result.current.data?.input;
+  if (!input) throw new Error("expected detail input");
+  for (const guard of [
+    isTranscriptInput,
+    isMessageInput,
+    isMessagesInput,
+    isEventInput,
+    isEventsInput,
+  ]) {
+    expect(guard(input)).toBe(false);
+  }
+});
+
 it("does not make a request when skipToken is passed", async () => {
   let requested = false;
   server.use(
@@ -212,4 +253,66 @@ it("does not make a request when skipToken is passed", async () => {
 
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(requested).toBe(false);
+});
+
+it("requests input_storage and maps an unresolved reference row", async () => {
+  let columns: string[] = [];
+  server.use(
+    http.get(detailUrl, ({ request }) => {
+      columns = new URL(request.url).searchParams.getAll("column");
+      return HttpResponse.json({
+        input: null,
+        input_type: "transcript",
+        input_data: null,
+        input_storage: "reference",
+        scan_events: legacyDetailResponse.scan_events,
+        input_error: {
+          reason: "too_large",
+          message:
+            "The sample is 412.0 MiB, over this server's 16.0 MiB limit for referenced inputs.",
+        },
+      });
+    })
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  expect(columns).toContain("input_storage");
+  expect(result.current.data).toMatchObject({
+    input: { input_type: "transcript", input: null },
+    inputStorage: "reference",
+    inputError: {
+      reason: "too_large",
+      message:
+        "The sample is 412.0 MiB, over this server's 16.0 MiB limit for referenced inputs.",
+    },
+  });
+  expect(result.current.data?.scanEvents).toHaveLength(2);
+});
+
+it("leaves inputStorage unset for scans that predate the column", async () => {
+  server.use(
+    http.get(detailUrl, () =>
+      HttpResponse.json({ ...legacyDetailResponse, input_storage: null })
+    )
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  expect(result.current.data?.inputStorage).toBeUndefined();
+  expect(result.current.data?.inputError).toBeUndefined();
 });

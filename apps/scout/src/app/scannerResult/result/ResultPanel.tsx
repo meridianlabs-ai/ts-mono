@@ -1,7 +1,10 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ScannerInput } from "../../../types/api-types";
+import { ErrorPanel, NoContentsPanel } from "@tsmono/react/components";
+import { AsyncData } from "@tsmono/util";
+
+import { ScanResultDetail } from "../../../api/api";
 import { ScanResultData } from "../../types";
 
 import { ResultBody } from "./ResultBody";
@@ -10,19 +13,28 @@ import { ResultSidebar } from "./ResultSidebar";
 
 interface ResultPanelProps {
   resultData: ScanResultData;
-  inputData: ScannerInput | undefined;
+  detail: AsyncData<ScanResultDetail>;
 }
 
-export const ResultPanel: FC<ResultPanelProps> = ({
-  resultData,
-  inputData,
-}) => (
+export const ResultPanel: FC<ResultPanelProps> = ({ resultData, detail }) => (
   <div className={clsx(styles.container, "text-size-base")}>
-    <ResultSidebar inputData={inputData} resultData={resultData} />
-    {inputData ? (
-      <ResultBody resultData={resultData} inputData={inputData} />
+    <ResultSidebar inputData={detail.data?.input} resultData={resultData} />
+    {detail.error ? (
+      <ErrorPanel
+        title="Error Loading Input"
+        error={{ message: detail.error.message }}
+      />
+    ) : !resultData.uuid ? (
+      <NoContentsPanel text="No input for this result" />
+    ) : detail.loading ? (
+      <NoContentsPanel text="Loading input" busy />
     ) : (
-      <div>No Input Available</div>
+      <ResultBody
+        resultData={resultData}
+        inputData={detail.data.input}
+        inputStorage={detail.data.inputStorage}
+        inputError={detail.data.inputError}
+      />
     )}
   </div>
 );

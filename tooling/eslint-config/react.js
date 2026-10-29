@@ -85,6 +85,7 @@ const DYNAMIC_LINK_FILES = [
   "apps/inspect/src/app/log-view/tabs/TaskTab.tsx",
   "apps/inspect/src/app/samples/transcript/search/SearchScoutUnavailable.tsx",
   "apps/inspect/src/app/shared/data-grid/DataGrid.tsx",
+  "apps/scout/src/app/scannerResult/result/InputReferenceNotice.tsx",
 ];
 
 const requireMediaPermission = {

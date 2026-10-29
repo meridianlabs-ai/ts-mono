@@ -34,6 +34,7 @@ import {
 } from "../types/api-types";
 
 import {
+  InputReferenceError,
   NoPersistence,
   ScalarValue,
   ScanResultDetail,
@@ -322,10 +323,14 @@ export const apiScoutServer = (
     ): Promise<ScanResultDetail> => {
       const { raw } = await requestApi.fetchString(
         "GET",
-        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
+        `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=input_storage&column=scan_events`
       );
       const parsed = await asyncJsonParse<
-        ScannerInputResponse & { scan_events?: unknown }
+        ScannerInputResponse & {
+          scan_events?: unknown;
+          input_storage?: "inline" | "reference" | null;
+          input_error?: InputReferenceError;
+        }
       >(raw);
 
       return {
@@ -340,6 +345,8 @@ export const apiScoutServer = (
         // Boundary normalization (#555): scan events are written by many
         // inspect_scout versions and can omit required-with-default fields.
         scanEvents: normalizeEvents(parsed.scan_events),
+        inputStorage: parsed.input_storage ?? undefined,
+        inputError: parsed.input_error,
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
