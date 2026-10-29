@@ -141,6 +141,8 @@ export interface TimelineSwimLanesProps {
   highlightedKeys?: ReadonlyMap<string, number>;
   /** Drill into a branch row as a standalone spliced timeline. */
   onPunchDown?: (rowKey: string, label: string) => void;
+  /** Rows offering `onPunchDown`. */
+  canPunchDown?: (rowKey: string) => boolean;
 }
 
 // =============================================================================
@@ -159,6 +161,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   defaultCollapsed: defaultCollapsedProp,
   highlightedKeys,
   onPunchDown,
+  canPunchDown,
 }) => {
   const { selected, select: onSelect, clearSelection } = timeline;
 
@@ -402,7 +405,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
         onPunchDown={
-          layout.branch && onPunchDown
+          onPunchDown && canPunchDown?.(layout.key)
             ? () => onPunchDown(layout.key, layout.name)
             : undefined
         }

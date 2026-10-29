@@ -424,71 +424,97 @@ function convertServerSpan(
 }
 
 // =============================================================================
-// Splice — reconstruct a branch's full event stream
+// Splice — rebuild a branch as a standalone timeline
 // =============================================================================
 
 /**
- * Reconstruct `target`'s full event stream by concatenating ancestor prefixes.
+ * Rebuild `target` as a standalone (unbranched) Timeline: what a run of its
+ * lineage without the other branches would have produced.
  *
- * For each ancestor, take events up to the `AnchorEvent` matching the next
- * child's `branchedFrom`, strip the `:{span_id}` suffix from span IDs, and
- * concatenate. The result is what a standalone unbranched run of `target`'s
- * lineage would have produced.
+ * Each span on the branch path contributes its content up to the
+ * `AnchorEvent` the next span forks from (nothing, for a restart), then
+ * `target` contributes all of its content. Child spans are kept whole, and
+ * events lose the per-segment `:{span_id}` suffix so span begin/end pairs
+ * match across segments. A result made only of events comes from a producer
+ * that records structure as inline span events (Petri), so it is rebuilt
+ * with `buildTimeline`.
+ *
+ * Returns null when `canSplice` is false.
  */
-export function splice(root: TimelineSpan, target: TimelineSpan): Event[] {
-  const chain = ancestorChain(root, target);
-  const out: Event[] = [];
-  for (let i = 0; i < chain.length; i++) {
-    const node = chain[i]!;
-    let events = node.content
-      .filter((it): it is TimelineEvent => it.type === "event")
-      .map((it) => it.event);
-    if (i + 1 < chain.length) {
-      const anchor = chain[i + 1]!.branchedFrom;
-      if (!anchor) {
-        out.length = 0;
-        continue;
-      }
-      const cut = events.findIndex(
-        (e) => e.event === "anchor" && e.anchor_id === anchor
-      );
-      if (cut < 0) {
-        throw new Error(
-          `splice: anchor ${anchor} not found in ${node.name} (${node.id})`
-        );
-      }
-      events = events.slice(0, cut + 1);
-    }
-    const suffix = `:${node.id}`;
-    for (const e of events) out.push(stripSuffix(e, suffix, node.id));
-  }
-  return out;
-}
-
-/** Splice `target` and rebuild it as a standalone (unbranched) Timeline. */
 export function spliceToTimeline(
   root: TimelineSpan,
   target: TimelineSpan
-): Timeline {
-  return buildTimeline(splice(root, target));
+): Timeline | null {
+  const path = branchPath(root, target);
+  if (!path) return null;
+  let content: (TimelineEvent | TimelineSpan)[] = [];
+  path.forEach((node, i) => {
+    const next = path[i + 1];
+    if (next && !next.branchedFrom) {
+      content = [];
+      return;
+    }
+    const items = next?.branchedFrom
+      ? node.content.slice(0, forkIndex(node, next.branchedFrom) + 1)
+      : node.content;
+    for (const item of items) {
+      content.push(
+        item.type === "event"
+          ? new TimelineEvent(stripSuffix(item.event, `:${node.id}`, node.id))
+          : item
+      );
+    }
+  });
+  const events = content.flatMap((c) => (c.type === "event" ? [c.event] : []));
+  if (events.length === content.length) return buildTimeline(events);
+  const host = path[0]!;
+  return {
+    name: host.name,
+    description: "",
+    root: new TimelineSpan({
+      id: host.id,
+      name: host.name,
+      spanType: host.spanType,
+      content,
+    }),
+  };
 }
 
-function ancestorChain(
-  root: TimelineSpan,
+/**
+ * True when `target` is in `root`'s tree and every fork point on its branch
+ * path has a matching `AnchorEvent` in the parent's content.
+ */
+export function canSplice(root: TimelineSpan, target: TimelineSpan): boolean {
+  return branchPath(root, target) !== null;
+}
+
+function forkIndex(node: TimelineSpan, anchorId: string): number {
+  return node.content.findIndex(
+    (it) => it.type === "event" && it.matchesForkPoint(anchorId)
+  );
+}
+
+/**
+ * The spans from the one holding `target`'s branch tree (the root, or an
+ * agent span nested in it) down to `target`, matching the transcript's
+ * branch path. Null when `target` isn't found or a fork point doesn't
+ * resolve.
+ */
+function branchPath(
+  node: TimelineSpan,
   target: TimelineSpan
-): TimelineSpan[] {
-  const path: TimelineSpan[] = [];
-  function walk(node: TimelineSpan): boolean {
-    path.push(node);
-    if (node === target || node.id === target.id) return true;
-    for (const child of node.branches) if (walk(child)) return true;
-    path.pop();
-    return false;
+): TimelineSpan[] | null {
+  if (node === target || node.id === target.id) return [node];
+  for (const child of [...node.branches, ...node.content]) {
+    if (child.type !== "span") continue;
+    const rest = branchPath(child, target);
+    if (!rest) continue;
+    if (rest[0] !== child || !node.branches.includes(child)) return rest;
+    const forks =
+      !child.branchedFrom || forkIndex(node, child.branchedFrom) >= 0;
+    return forks ? [node, ...rest] : null;
   }
-  if (!walk(root)) {
-    throw new Error(`TimelineSpan ${target.id} not reachable from root`);
-  }
-  return path;
+  return null;
 }
 
 export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
