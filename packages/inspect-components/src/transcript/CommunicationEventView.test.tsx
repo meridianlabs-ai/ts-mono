@@ -202,6 +202,30 @@ describe("CommunicationEventView", () => {
     );
   });
 
+  it("ends the preview at a CRLF line break in content and refusal reasons", () => {
+    renderView(
+      sent(
+        { content: "hello\r\nworld" },
+        { control: "rate", reason: "too many\r\nwrites" }
+      )
+    );
+    expect(line()).toBe(
+      "→ shared_memory: create (w-1) refused (rate) too many"
+    );
+
+    cleanup();
+    renderView(sent({ content: "hello\r\nworld" }));
+    expect(line()).toBe("→ shared_memory: create (w-1) hello");
+  });
+
+  it("keeps the marker for a lone CR in the preview", () => {
+    renderView(sent({ content: "hello\rworld" }));
+    expect(untrustedText("hello\rworld")).not.toBe("hello\rworld");
+    expect(line()).toBe(
+      `→ shared_memory: create (w-1) ${untrustedText("hello\rworld")}`
+    );
+  });
+
   it.each([
     ["a later line", { content: "first line\nneedle" }, undefined],
     [
