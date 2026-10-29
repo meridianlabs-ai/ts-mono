@@ -9,7 +9,13 @@ import { encodeBase64Url, isRecord } from "@tsmono/util";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { Transcript } from "../../types/api-types";
-import { isTranscriptInput } from "../types";
+import {
+  isEventInput,
+  isEventsInput,
+  isMessageInput,
+  isMessagesInput,
+  isTranscriptInput,
+} from "../types";
 
 import { useScanDataframeDetail } from "./useScanDataframeDetail";
 
@@ -194,6 +200,41 @@ it("normalizes legacy scan_events and transcript-input events (#555)", async () 
     for (const nested of tool.events) {
       expectNormalized(nested);
     }
+  }
+});
+
+it("loads a row whose input is null without matching any input type guard", async () => {
+  // A row whose input is stored by reference has a NULL input column.
+  server.use(
+    http.get(detailUrl, () =>
+      HttpResponse.json({
+        input: null,
+        input_type: "transcript",
+        input_data: null,
+        scan_events: [],
+      })
+    )
+  );
+
+  const { result } = renderHook(
+    () => useScanDataframeDetail({ scansDir, scanPath, scanner, uuid }),
+    { wrapper: createTestWrapper() }
+  );
+
+  await waitFor(() => {
+    expect(result.current.data).toBeDefined();
+  });
+
+  const input = result.current.data?.input;
+  if (!input) throw new Error("expected detail input");
+  for (const guard of [
+    isTranscriptInput,
+    isMessageInput,
+    isMessagesInput,
+    isEventInput,
+    isEventsInput,
+  ]) {
+    expect(guard(input)).toBe(false);
   }
 });
 
