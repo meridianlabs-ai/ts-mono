@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useRef } from "react";
 
 import type {
   CommunicationEvent,
@@ -7,14 +7,13 @@ import type {
 import {
   ContentText,
   JSONPanel,
-  useFindTarget,
+  useContainsFindTarget,
 } from "@tsmono/react/components";
 import { useCollapsedState } from "@tsmono/react/hooks";
 import { isRecord } from "@tsmono/util";
 
 import styles from "./CommunicationEventView.module.css";
 import { EventRow } from "./event/EventRow";
-import { extractEventFields } from "./eventText";
 import { EventNode } from "./types";
 
 interface CommunicationEventViewProps {
@@ -44,20 +43,16 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
   const refused = !!event.send?.rejected;
   const agent = `${event.agent}${event.nested ? " (subagent)" : ""}`;
   const parts = communicationLine(event);
-  // Find opens a matching row, since the line shows only part of the event,
-  // without changing the stored preference. An empty eventId is FindBand's
-  // term-only target, which applies to every event.
-  const findTarget = useFindTarget();
-  const term = findTarget?.term.toLowerCase();
-  const findOpen =
-    !!term &&
-    (findTarget?.eventId === "" ||
-      findTarget?.eventId === event.uuid ||
-      findTarget?.eventId === eventNode.id) &&
-    extractEventFields(event).some(([, value]) =>
-      value.toLowerCase().includes(term)
-    );
+  // The JSON stays mounted (hidden while collapsed) so find can open the row
+  // on any field, as ExpandablePanel does, without changing the stored state.
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const findOpen = useContainsFindTarget(detailsRef);
   const expanded = !collapsed || findOpen;
+  const details = (
+    <div ref={detailsRef} hidden={!expanded}>
+      <JSONPanel data={event} />
+    </div>
+  );
 
   return (
     <EventRow
@@ -72,7 +67,7 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
       icon={refused ? "approvalReject" : "info"}
       iconClassName={refused ? styles.refused : undefined}
       className={className}
-      below={expanded ? <JSONPanel data={event} /> : undefined}
+      below={expanded ? details : undefined}
     >
       <button
         type="button"
@@ -95,6 +90,7 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
           </span>
         ))}
       </button>
+      {expanded ? null : details}
     </EventRow>
   );
 };

@@ -151,30 +151,6 @@ describe("eventsToMarkdown", () => {
     expect(out).toContain("## Tool: Bash: a b\n");
   });
 
-  it("keeps communication content and refusal reasons literal", () => {
-    const out = eventsToMarkdown([
-      testCommunicationEvent({
-        kind: "sent",
-        record_ids: ["w-1"],
-        send: {
-          record: {
-            id: "w-1",
-            kind: "message",
-            sender: "test-agent",
-            to: [],
-            recipients: [],
-            content: "![payload](https://example.com/remote.png)",
-          },
-          rejected: { control: "rate", reason: "see `[link](https://x.y)`" },
-        },
-      }),
-    ]);
-    expect(out).toContain(
-      "**Content:** `![payload](https://example.com/remote.png)`"
-    );
-    expect(out).toContain("**Reason:** `` see `[link](https://x.y)` ``");
-  });
-
   it("extends the fence past backtick runs inside the value", () => {
     const out = eventsToMarkdown([
       testToolEvent({ function: "bash", result: "line\n```\nnested\n```" }),
@@ -1091,47 +1067,6 @@ describe("eventSearchText", () => {
     expect(texts).toContain("agent");
   });
 
-  test("communication: includes a send's content and its refusal", () => {
-    const texts = eventSearchText(
-      makeNode(
-        testCommunicationEvent({
-          kind: "sent",
-          agent: "counter-6",
-          channel: "shared_memory",
-          record_ids: ["w-1"],
-          send: {
-            record: {
-              id: "w-1",
-              kind: "create",
-              sender: "counter-6",
-              to: [],
-              recipients: [],
-              content: "the plan",
-            },
-            rejected: { control: "rate", reason: "too many writes" },
-          },
-        })
-      )
-    );
-    expect(texts).toEqual(
-      expect.arrayContaining([
-        "counter-6",
-        "shared_memory",
-        "w-1",
-        "the plan",
-        "rate",
-        "too many writes",
-      ])
-    );
-  });
-
-  test("swarm: includes kind and member", () => {
-    const texts = eventSearchText(
-      makeNode(testSwarmEvent({ kind: "member_result", member: "counter-5" }))
-    );
-    expect(texts).toEqual(["member_result", "counter-5", '{"version":1}']);
-  });
-
   test("unknown event: returns empty array", () => {
     const texts = eventSearchText(makeNode(testSpanEndEvent()));
     expect(texts).toEqual([]);
@@ -1139,6 +1074,26 @@ describe("eventSearchText", () => {
 });
 
 describe("communication and swarm events: search and copy", () => {
+  // A Content-looking dictionary must stay as written: `data` is opaque.
+  const artifact = { type: "image", image: "UNIQUE_IMAGE", note: "kept" };
+  const sentEvent = testCommunicationEvent({
+    uuid: "sent",
+    kind: "sent",
+    agent: "counter-6",
+    record_ids: ["w-1"],
+    send: {
+      record: {
+        id: "w-1",
+        kind: "create",
+        sender: "counter-6",
+        to: [],
+        recipients: [],
+        content: "![payload](https://example.com/remote.png)\r\rafter",
+      },
+      rejected: { control: "rate", reason: "too many" },
+    },
+    data: { artifact },
+  });
   const delivered = testCommunicationEvent({
     uuid: "delivered",
     kind: "delivered",
@@ -1163,81 +1118,73 @@ describe("communication and swarm events: search and copy", () => {
   const swarm = testSwarmEvent({
     uuid: "swarm",
     kind: "final",
-    data: { version: 1, reason: "unique evidence" },
+    member: "counter-5",
+    data: { version: 1, reason: "unique evidence", artifact },
   });
-  const events: Event[] = [delivered, waited, read, swarm];
+  const events: Event[] = [sentEvent, delivered, waited, read, swarm];
   const rows = new Map(events.map((event) => [event.uuid ?? "", "row"]));
 
+  test("each event is one payload field: its own fields as plain JSON", () => {
+    expect(extractEventFields(swarm)).toEqual([
+      [
+        "payload",
+        JSON.stringify({
+          kind: "final",
+          data: { version: 1, reason: "unique evidence", artifact },
+          member: "counter-5",
+        }),
+      ],
+    ]);
+  });
+
   test.each([
-    ["worker-b", "delivered", "recipients"],
-    ["7", "delivered", "seq"],
-    ["wait-channel", "waited", "channels"],
-    ["4.2s", "waited", "duration"],
-    ["UNIQUE_FILE", "read", "data"],
-    ["unique evidence", "swarm", "data"],
-  ])("finds %s in its event", (term, eventId, fieldKey) => {
+    ["remote.png", "sent"],
+    ["too many", "sent"],
+    ["worker-b", "delivered"],
+    ["wait-channel", "waited"],
+    ["UNIQUE_FILE", "read"],
+    ["unique evidence", "swarm"],
+    ['"member":"counter-5"', "swarm"],
+  ])("finds %s in its event", (term, eventId) => {
     const matches = findAllMatches(events, term, rows);
     expect(matches.map((match) => [match.eventId, match.fieldKey])).toEqual([
-      [eventId, fieldKey],
+      [eventId, "payload"],
     ]);
   });
 
-  test("text copy keeps the shown fields and the data", () => {
-    const out = eventsToStr(events);
-    expect(out).toContain("recipients: worker-b");
-    expect(out).toContain("seq: 7");
-    expect(out).toContain("channels: wait-channel");
-    expect(out).toContain("duration: 4.2s");
-    expect(out).toContain('"file":"UNIQUE_FILE"');
-    expect(out).toContain('"reason":"unique evidence"');
+  test("finds data that looks like Content at the root and nested", () => {
+    const root = testSwarmEvent({ uuid: "root", data: artifact });
+    const matches = findAllMatches(
+      [root, sentEvent],
+      "unique_image",
+      new Map([
+        ["root", "row"],
+        ["sent", "row"],
+      ])
+    );
+    expect(matches.map((match) => match.eventId)).toEqual(["root", "sent"]);
   });
 
-  test("Markdown copy keeps the data fenced", () => {
-    const out = eventsToMarkdown([read, swarm]);
-    expect(out).toContain('**Data**\n\n```\n{"files":[{"file":"UNIQUE_FILE"');
-    expect(out).toContain('```\n{"version":1,"reason":"unique evidence"}\n```');
-  });
+  test("text and Markdown copy keep the payload as one JSON block", () => {
+    const json = JSON.stringify({
+      kind: "read",
+      source: "test-source",
+      agent: "test-agent",
+      nested: false,
+      channel: "test-channel",
+      record_ids: ["w-1"],
+      data: read.data,
+    });
+    expect(eventsToStr([read])).toBe(`[communication]\npayload: ${json}`);
+    expect(eventsToMarkdown([read])).toBe(
+      `## Communication: read\n\n**Payload**\n\n\`\`\`\n${json}\n\`\`\``
+    );
 
-  test("Markdown copy keeps every communication and swarm string literal", () => {
-    const image = "![payload](https://example.com/remote.png)";
-    const out = eventsToMarkdown([
-      testCommunicationEvent({
-        kind: "sent",
-        agent: image,
-        channel: image,
-        record_ids: [image],
-        send: {
-          record: {
-            kind: image,
-            sender: image,
-            to: [image],
-            recipients: [image],
-          },
-          rejected: { control: image, reason: "r" },
-        },
-      }),
-      testCommunicationEvent({
-        kind: "waited",
-        channel: null,
-        wait: { channels: [image], outcome: image, duration: 1 },
-      }),
-      testSwarmEvent({ kind: image, member: image }),
-    ]);
-    expect(out).toContain(`## Swarm: \`${image}\``);
-    for (const key of [
-      "Agent",
-      "Channel",
-      "Record Ids",
-      "Record Kind",
-      "To",
-      "Refused",
-      "Channels",
-      "Outcome",
-      "Kind",
-      "Member",
-    ]) {
-      expect(out).toContain(`**${key}:** \`${image}\``);
-    }
-    expect(out.replaceAll(`\`${image}\``, "")).not.toContain(image);
+    const markdown = eventsToMarkdown([sentEvent]);
+    const fence = "```";
+    expect(markdown.split(fence)).toHaveLength(3);
+    expect(markdown.split(fence)[1]).toContain(
+      "![payload](https://example.com/remote.png)\\r\\rafter"
+    );
   });
 });

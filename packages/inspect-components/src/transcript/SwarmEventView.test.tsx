@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testSwarmEvent } from "@tsmono/inspect-common/testing";
 import type { SwarmEvent } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  untrustedText,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
@@ -35,8 +38,18 @@ describe("SwarmEventView", () => {
         data: { version: 7, note: "**not markdown**" },
       })
     );
-    expect(screen.getByText("Swarm: not_a_known_kind")).toBeDefined();
+    expect(screen.getByText("Swarm:")).toBeDefined();
+    expect(screen.getByText("not_a_known_kind")).toBeDefined();
     expect(screen.getByText("counter-5")).toBeDefined();
     expect(screen.getByText(/"note": "\*\*not markdown\*\*"/)).toBeDefined();
+  });
+
+  it("reveals hidden characters in kind and member", () => {
+    const { container } = renderView(
+      testSwarmEvent({ kind: "kind-\u202E", member: "member-\u200B" })
+    );
+    expect(screen.getByText(untrustedText("kind-\u202E"))).toBeDefined();
+    expect(screen.getByText(untrustedText("member-\u200B"))).toBeDefined();
+    expect(container.textContent).not.toMatch(/[\u202E\u200B]/);
   });
 });

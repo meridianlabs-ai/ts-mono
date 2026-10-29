@@ -68,6 +68,11 @@ const renderView = (event: CommunicationEvent) => {
 
 const expanded = () => screen.getByRole("button").getAttribute("aria-expanded");
 
+// The event's JSON, mounted (hidden while collapsed) so find can see it.
+const jsonElement = () => screen.getByText(/"agent": /);
+const json = () => jsonElement().textContent;
+const jsonShown = () => jsonElement().closest("[hidden]") === null;
+
 // The line after the agent's name.
 const line = () => screen.getByRole("button").textContent;
 
@@ -170,12 +175,13 @@ describe("CommunicationEventView", () => {
     renderView(sent({ content: "hello" }, { control: "rate", reason: "why" }));
     const button = screen.getByRole("button");
     expect(button.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText(/"sender"/)).toBeNull();
+    expect(jsonShown()).toBe(false);
 
     fireEvent.click(button);
 
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText(/"sender": "counter-6"/)).toBeDefined();
+    expect(jsonShown()).toBe(true);
+    expect(json()).toContain('"sender": "counter-6"');
   });
 
   it("reveals hidden characters in content and refusal reasons", () => {
@@ -194,9 +200,6 @@ describe("CommunicationEventView", () => {
       `→ shared_memory: create (w-1) ${untrustedText(hostile)}`
     );
   });
-
-  // The expanded JSON, where every field of the event is shown.
-  const json = () => screen.getByText(/"content": /).textContent;
 
   it.each([
     ["a later line", { content: "first line\nneedle" }, undefined],
@@ -223,23 +226,32 @@ describe("CommunicationEventView", () => {
     expect(json()).toContain(JSON.stringify(event.send?.record.content));
   });
 
-  it("stays open from the event target to FindBand's term-only target, keeping the stored state", () => {
-    const event = { ...sent({ content: "first\nneedle" }), uuid: "u-1" };
-    const { find } = renderView(event);
+  it.each([
+    ["the event's target", "comm-1"],
+    ["FindBand's term-only target", ""],
+  ])("opens on a quoted term for %s", (_, eventId) => {
+    const { find } = renderView(
+      sent({ content: "needle" }, { control: "rate", reason: "too many" })
+    );
+    find({ term: '"needle"', eventId });
+    expect(expanded()).toBe("true");
+    expect(jsonShown()).toBe(true);
+  });
+
+  it("follows find from the event target to the term-only target, keeping the stored state", () => {
+    const { find } = renderView(sent({ content: "first\nneedle" }));
     expect(expanded()).toBe("false");
 
-    find({ term: "needle", eventId: "u-1" });
+    find({ term: "needle", eventId: "comm-1" });
     expect(expanded()).toBe("true");
+    expect(jsonShown()).toBe(true);
 
     find({ term: "needle", eventId: "" });
     expect(expanded()).toBe("true");
-    expect(json()).toContain("needle");
-
-    find({ term: "needle", eventId: "another-event" });
-    expect(expanded()).toBe("false");
 
     find({ term: "no match", eventId: "" });
     expect(expanded()).toBe("false");
+    expect(jsonShown()).toBe(false);
 
     find(null);
     expect(expanded()).toBe("false");

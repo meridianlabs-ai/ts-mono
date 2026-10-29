@@ -1,7 +1,11 @@
 import { FC } from "react";
 
 import type { SwarmEvent } from "@tsmono/inspect-common/types";
-import { ExpandablePanel, JSONPanel } from "@tsmono/react/components";
+import {
+  ContentText,
+  ExpandablePanel,
+  JSONPanel,
+} from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
@@ -25,11 +29,16 @@ export const SwarmEventView: FC<SwarmEventViewProps> = ({
   return (
     <EventPanel
       eventNodeId={eventNode.id}
-      title={`Swarm: ${event.kind}`}
+      title="Swarm:"
       headerExtra={
-        event.member ? (
-          <span className={styles.member}>{event.member}</span>
-        ) : undefined
+        <>
+          <ContentText text={event.kind} />
+          {event.member ? (
+            <span className={styles.member}>
+              <ContentText text={event.member} />
+            </span>
+          ) : null}
+        </>
       }
       className={className}
       subTitle={
