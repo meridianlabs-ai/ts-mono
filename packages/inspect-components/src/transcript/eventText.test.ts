@@ -50,6 +50,7 @@ import {
   eventsToStr,
   extractEventFields,
 } from "./eventText";
+import { findAllMatches } from "./search/sampleSearch";
 import { EventNode } from "./types";
 
 const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
@@ -1128,11 +1129,115 @@ describe("eventSearchText", () => {
     const texts = eventSearchText(
       makeNode(testSwarmEvent({ kind: "member_result", member: "counter-5" }))
     );
-    expect(texts).toEqual(["member_result", "counter-5"]);
+    expect(texts).toEqual(["member_result", "counter-5", '{"version":1}']);
   });
 
   test("unknown event: returns empty array", () => {
     const texts = eventSearchText(makeNode(testSpanEndEvent()));
     expect(texts).toEqual([]);
+  });
+});
+
+describe("communication and swarm events: search and copy", () => {
+  const delivered = testCommunicationEvent({
+    uuid: "delivered",
+    kind: "delivered",
+    record_ids: ["w-1"],
+    delivery: { recipients: ["worker-b"], seq: 7 },
+  });
+  const waited = testCommunicationEvent({
+    uuid: "waited",
+    kind: "waited",
+    channel: null,
+    wait: { channels: ["wait-channel"], outcome: "news", duration: 4.2 },
+  });
+  const read = testCommunicationEvent({
+    uuid: "read",
+    record_ids: ["w-1"],
+    data: {
+      files: [
+        { file: "UNIQUE_FILE", version: 1, lines: "3-8", deleted: false },
+      ],
+    },
+  });
+  const swarm = testSwarmEvent({
+    uuid: "swarm",
+    kind: "final",
+    data: { version: 1, reason: "unique evidence" },
+  });
+  const events: Event[] = [delivered, waited, read, swarm];
+  const rows = new Map(events.map((event) => [event.uuid ?? "", "row"]));
+
+  test.each([
+    ["worker-b", "delivered", "recipients"],
+    ["7", "delivered", "seq"],
+    ["wait-channel", "waited", "channels"],
+    ["4.2s", "waited", "duration"],
+    ["UNIQUE_FILE", "read", "data"],
+    ["unique evidence", "swarm", "data"],
+  ])("finds %s in its event", (term, eventId, fieldKey) => {
+    const matches = findAllMatches(events, term, rows);
+    expect(matches.map((match) => [match.eventId, match.fieldKey])).toEqual([
+      [eventId, fieldKey],
+    ]);
+  });
+
+  test("text copy keeps the shown fields and the data", () => {
+    const out = eventsToStr(events);
+    expect(out).toContain("recipients: worker-b");
+    expect(out).toContain("seq: 7");
+    expect(out).toContain("channels: wait-channel");
+    expect(out).toContain("duration: 4.2s");
+    expect(out).toContain('"file":"UNIQUE_FILE"');
+    expect(out).toContain('"reason":"unique evidence"');
+  });
+
+  test("Markdown copy keeps the data fenced", () => {
+    const out = eventsToMarkdown([read, swarm]);
+    expect(out).toContain('**Data**\n\n```\n{"files":[{"file":"UNIQUE_FILE"');
+    expect(out).toContain('```\n{"version":1,"reason":"unique evidence"}\n```');
+  });
+
+  test("Markdown copy keeps every communication and swarm string literal", () => {
+    const image = "![payload](https://example.com/remote.png)";
+    const out = eventsToMarkdown([
+      testCommunicationEvent({
+        kind: "sent",
+        agent: image,
+        channel: image,
+        record_ids: [image],
+        send: {
+          record: {
+            kind: image,
+            sender: image,
+            to: [image],
+            recipients: [image],
+          },
+          rejected: { control: image, reason: "r" },
+        },
+      }),
+      testCommunicationEvent({
+        kind: "waited",
+        channel: null,
+        wait: { channels: [image], outcome: image, duration: 1 },
+      }),
+      testSwarmEvent({ kind: image, member: image }),
+    ]);
+    expect(out).toContain(`## Swarm: \`${image}\``);
+    for (const key of [
+      "Agent",
+      "Channel",
+      "Record Ids",
+      "Record Kind",
+      "To",
+      "Refused",
+      "Channels",
+      "Outcome",
+      "Kind",
+      "Member",
+    ]) {
+      expect(out).toContain(`**${key}:** \`${image}\``);
+    }
+    expect(out.replaceAll(`\`${image}\``, "")).not.toContain(image);
   });
 });

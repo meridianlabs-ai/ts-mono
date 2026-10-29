@@ -44,21 +44,20 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
   const refused = !!event.send?.rejected;
   const agent = `${event.agent}${event.nested ? " (subagent)" : ""}`;
   const parts = communicationLine(event);
-  // Find opens the row (without changing the stored preference) when it lands
-  // on text the line leaves out: later lines, a long tail, a refused content.
+  // Find opens a matching row, since the line shows only part of the event,
+  // without changing the stored preference. An empty eventId is FindBand's
+  // term-only target, which applies to every event.
   const findTarget = useFindTarget();
   const term = findTarget?.term.toLowerCase();
-  const findHidden =
+  const findOpen =
     !!term &&
-    (findTarget?.eventId === event.uuid ||
+    (findTarget?.eventId === "" ||
+      findTarget?.eventId === event.uuid ||
       findTarget?.eventId === eventNode.id) &&
-    !`${agent} ${parts.map((part) => part.text).join("")}`
-      .toLowerCase()
-      .includes(term) &&
     extractEventFields(event).some(([, value]) =>
       value.toLowerCase().includes(term)
     );
-  const expanded = !collapsed || findHidden;
+  const expanded = !collapsed || findOpen;
 
   return (
     <EventRow

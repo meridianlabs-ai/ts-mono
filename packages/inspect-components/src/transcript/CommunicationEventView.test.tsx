@@ -195,6 +195,9 @@ describe("CommunicationEventView", () => {
     );
   });
 
+  // The expanded JSON, where every field of the event is shown.
+  const json = () => screen.getByText(/"content": /).textContent;
+
   it.each([
     ["a later line", { content: "first line\nneedle" }, undefined],
     [
@@ -203,18 +206,24 @@ describe("CommunicationEventView", () => {
       undefined,
     ],
     [
-      "a refused content",
+      "a second occurrence",
+      { content: "needle first\nneedle second" },
+      undefined,
+    ],
+    [
+      "refused content whose reason also matches",
       { content: "needle" },
-      { control: "rate", reason: "too many" },
+      { control: "rate", reason: "too many needles" },
     ],
   ])("opens when find lands on %s", (_, overrides, rejected) => {
-    const { find } = renderView(sent(overrides, rejected));
+    const event = sent(overrides, rejected);
+    const { find } = renderView(event);
     find({ term: "NEEDLE", eventId: "comm-1" });
     expect(expanded()).toBe("true");
-    expect(screen.getByText(/needle/)).toBeDefined();
+    expect(json()).toContain(JSON.stringify(event.send?.record.content));
   });
 
-  it("follows find targets that arrive after mount, keeping the stored state", () => {
+  it("stays open from the event target to FindBand's term-only target, keeping the stored state", () => {
     const event = { ...sent({ content: "first\nneedle" }), uuid: "u-1" };
     const { find } = renderView(event);
     expect(expanded()).toBe("false");
@@ -222,10 +231,14 @@ describe("CommunicationEventView", () => {
     find({ term: "needle", eventId: "u-1" });
     expect(expanded()).toBe("true");
 
-    find({ term: "counter-6", eventId: "u-1" });
-    expect(expanded()).toBe("false");
+    find({ term: "needle", eventId: "" });
+    expect(expanded()).toBe("true");
+    expect(json()).toContain("needle");
 
     find({ term: "needle", eventId: "another-event" });
+    expect(expanded()).toBe("false");
+
+    find({ term: "no match", eventId: "" });
     expect(expanded()).toBe("false");
 
     find(null);

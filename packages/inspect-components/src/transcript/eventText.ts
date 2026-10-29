@@ -388,19 +388,39 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["record_ids", event.record_ids.join(", ")]);
       }
       const record = event.send?.record;
-      if (record && record.to.length > 0) {
-        fields.push(["to", record.to.join(", ")]);
-      }
-      if (record?.content) {
-        fields.push(["content", record.content]);
+      if (record) {
+        fields.push(["record_kind", record.kind]);
+        if (record.to.length > 0) {
+          fields.push(["to", record.to.join(", ")]);
+        }
+        if (record.content) {
+          fields.push(["content", record.content]);
+        }
       }
       const rejected = event.send?.rejected;
       if (rejected) {
         fields.push(["refused", rejected.control]);
         fields.push(["reason", rejected.reason]);
       }
-      if (event.wait) {
-        fields.push(["outcome", event.wait.outcome]);
+      const delivery = event.delivery;
+      if (delivery) {
+        if (delivery.recipients.length > 0) {
+          fields.push(["recipients", delivery.recipients.join(", ")]);
+        }
+        if (delivery.seq !== null && delivery.seq !== undefined) {
+          fields.push(["seq", String(delivery.seq)]);
+        }
+      }
+      const wait = event.wait;
+      if (wait) {
+        if (wait.channels.length > 0) {
+          fields.push(["channels", wait.channels.join(", ")]);
+        }
+        fields.push(["duration", `${wait.duration.toFixed(1)}s`]);
+        fields.push(["outcome", wait.outcome]);
+      }
+      if (Object.keys(event.data).length > 0) {
+        fields.push(["data", sanitizeStringify(event.data)]);
       }
       break;
     }
@@ -409,6 +429,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       fields.push(["kind", event.kind]);
       if (event.member) {
         fields.push(["member", event.member]);
+      }
+      if (Object.keys(event.data).length > 0) {
+        fields.push(["data", sanitizeStringify(event.data)]);
       }
       break;
 
@@ -520,11 +543,8 @@ export const eventsToMarkdown = (events: readonly EventType[]): string => {
   return events
     .map((event) => {
       const fields = extractEventFields(event);
-      // Tool titles interpolate raw arguments, which may span lines.
-      const title = (eventTitle(event) || titleCase(event.event)).replace(
-        /\s+/g,
-        " "
-      );
+      const literal = kLiteralEventTypes.has(event.event);
+      const title = markdownTitle(event);
       // A selected event with nothing to extract still gets its heading so the
       // export never silently shortens (or empties) the selection.
       if (fields.length === 0) return `## ${title}`;
@@ -538,7 +558,8 @@ export const eventsToMarkdown = (events: readonly EventType[]): string => {
           if (!prose && looksLikeJson(value)) {
             return `**${label}**\n\n${fenced(value)}`;
           }
-          const text = kCodeLikeFields.has(key) ? inlineCode(value) : value;
+          const text =
+            literal || kCodeLikeFields.has(key) ? inlineCode(value) : value;
           return `**${label}:** ${text}`;
         })
         .join("\n\n");
@@ -550,6 +571,21 @@ export const eventsToMarkdown = (events: readonly EventType[]): string => {
 const titleCase = (value: string): string =>
   toTitleCase(value.replace(/_/g, " "));
 
+// Every string of these events is model or producer text, so the export
+// keeps all their fields literal, not just the code-like ones.
+const kLiteralEventTypes: ReadonlySet<string> = new Set([
+  "communication",
+  "swarm",
+]);
+
+// Tool titles interpolate raw arguments, which may span lines.
+const oneLine = (value: string): string => value.replace(/\s+/g, " ");
+
+const markdownTitle = (event: EventType): string =>
+  event.event === "swarm"
+    ? `Swarm: ${inlineCode(oneLine(event.kind))}`
+    : oneLine(eventTitle(event) || titleCase(event.event));
+
 const kProseFields: ReadonlySet<string> = new Set([
   "answer",
   "explanation",
@@ -558,17 +594,13 @@ const kProseFields: ReadonlySet<string> = new Set([
   "title",
 ]);
 
-// Also communication model text (`content`, `reason`), kept literal so the
-// export never turns it into links or images.
 const kCodeLikeFields: ReadonlySet<string> = new Set([
   "arguments",
   "cmd",
-  "content",
   "file",
   "filename",
   "function",
   "path",
-  "reason",
 ]);
 
 const looksLikeJson = (value: string): boolean =>
