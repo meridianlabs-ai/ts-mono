@@ -7,7 +7,7 @@ import "./App.css";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-import { FC, useCallback, useLayoutEffect, useState } from "react";
+import { FC, useCallback, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import { useEventListener } from "@tsmono/react/hooks";
@@ -39,25 +39,14 @@ import {
 } from "./routing/hostNavigation";
 
 /**
- * Keep the applied theme in lockstep with the persisted preference. The inline
- * bootstrap sets the theme before first paint from localStorage; here we
- * re-apply whenever the in-app picker changes it, and pull cross-tab writes
+ * Keep the applied theme in lockstep with other tabs' preference writes. The
+ * inline bootstrap sets the theme before first paint from localStorage, and
+ * setThemePreference re-applies on in-tab picks; this pulls cross-tab writes
  * back into zustand (persist doesn't listen for `storage` events itself).
  *
- * A render-null controller at the composition root — an irreducible effect
- * (DOM/theme + storage-event bridging), not data.
+ * A render-null controller at the composition root.
  */
 const ThemePreferenceSyncController: FC = () => {
-  const themePreference = useUserSettings((s) => s.themePreference);
-  // useLayoutEffect (not useEffect): apply before the browser paints so an
-  // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
-  // post-paint effect the icon updates a frame before the colors, flashing the
-  // old theme. (The old bespoke hook applied synchronously on write.)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useLayoutEffect(() => {
-    window.__APPLY_BROWSER_THEME__?.();
-  }, [themePreference]);
-
   useEventListener(window, "storage", (e) => {
     if (e.key === SETTINGS_STORAGE_KEY) {
       // Re-apply CSS for this tab (the bootstrap reads the freshly-written

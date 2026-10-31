@@ -37,6 +37,9 @@ export const useUserSettings = create<UserSettingsState>()(
       },
       setThemePreference: (themePreference: ThemePreference) => {
         set({ themePreference });
+        // persist has already written localStorage, which the bootstrap's
+        // apply reads, so the CSS flips before the toggle re-renders.
+        window.__APPLY_BROWSER_THEME__?.();
       },
       recordSearchModel: (model: string) => {
         const trimmedModel = model.trim();
