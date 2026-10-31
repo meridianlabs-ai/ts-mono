@@ -1,5 +1,7 @@
 import { FC, useEffect } from "react";
 
+import { useLatestRef } from "@tsmono/react/hooks";
+
 import { useLogDir } from "../../../app_config";
 import { kLogViewInfoTabId } from "../../../constants";
 import {
@@ -38,26 +40,28 @@ export const LogLoadController: FC = () => {
     (state) => state.logActions.clearSelectedScores
   );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
+  // Read through a ref so only a settled-seq bump refires the effect, not
+  // every poll-tick merge into the details cache.
+  const detailDataRef = useLatestRef(detail.data);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    if (
-      !selectedLogFile ||
-      detail.data === undefined ||
-      settledSeq === undefined
-    ) {
+    const details = detailDataRef.current;
+    if (!selectedLogFile || details === undefined || settledSeq === undefined) {
       return;
     }
-    const details = detail.data;
     clearSelectedScores();
     if (details.status !== "started" && details.sampleCount === 0) {
       // If there are no samples, use the info tab by default
       setWorkspaceTab(kLogViewInfoTabId);
     }
-    // detail.data is intentionally excluded: only a settled-seq bump should
-    // refire this effect, not every poll-tick merge into the details cache.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settledSeq, selectedLogFile, clearSelectedScores, setWorkspaceTab]);
+  }, [
+    settledSeq,
+    selectedLogFile,
+    clearSelectedScores,
+    setWorkspaceTab,
+    detailDataRef,
+  ]);
 
   return null;
 };

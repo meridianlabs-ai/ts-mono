@@ -48,7 +48,6 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
     (state) => state.setSelectedResultsTab
   );
 
-  const selectedScanner = useStore((state) => state.selectedScanner);
   const visibleScannerResults = useStore(
     (state) => state.visibleScannerResults
   );
@@ -155,9 +154,7 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
       options.push("model");
     }
     return options;
-    // TODO: lint react-hooks/exhaustive-deps - refactor to avoid the lint
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedScanner, visibleScannerResults]);
+  }, [visibleScannerResults]);
 
   const tools: ReactNode[] = [];
   if (selectedTab === kTabIdScans || selectedTab === undefined) {

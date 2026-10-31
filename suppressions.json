@@ -2,9 +2,6 @@
   "apps/inspect/src/app/App.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
@@ -14,7 +11,7 @@
   },
   "apps/inspect/src/app/log-list/grid/LogListGrid.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
@@ -73,10 +70,6 @@
     }
   },
   "apps/inspect/src/app/routing/loaders/LogLoadController.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -398,9 +391,6 @@
   "apps/scout/src/App.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/scout/src/app/components/AddFilterButton.tsx": {
@@ -455,12 +445,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/components/TranscriptsNavbar.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/hooks/useEnsureVisibleScannerResults.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -503,21 +487,9 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/scan/scanners/list/ScannerResultsHeader.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 5
-    }
-  },
-  "apps/scout/src/app/scan/scanners/results/ScannerResultsSearch.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
@@ -526,10 +498,6 @@
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -885,12 +853,6 @@
   "packages/inspect-components/src/transcript/timeline/timelineEventNodes.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/ToolEventView.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
