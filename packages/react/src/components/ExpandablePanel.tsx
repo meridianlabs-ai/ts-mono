@@ -5,6 +5,7 @@ import {
   FC,
   memo,
   ReactNode,
+  RefObject,
   useCallback,
   useContext,
   useEffect,
@@ -16,6 +17,7 @@ import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
 import { useFindTarget } from "./FindTargetContext";
+import { prepareSearchTerm } from "./prepareSearchTerm";
 
 // Toggle bar height (20px, see `.moreToggle`) plus a gap. A nested toggle
 // lifts its sticky `bottom` by this per ancestor toggle on the same side, and
@@ -56,6 +58,54 @@ interface ExpandablePanelProps {
   className?: string | string[];
   togglePosition?: "inline-right" | "block-left";
 }
+
+/**
+ * Whether the active find term, in any of the variants the search counter
+ * matches, is in the element's text: a panel uses it to show content it
+ * otherwise hides. The element's text may be hidden but must be mounted.
+ */
+export const useContainsFindTarget = (
+  contentRef: RefObject<HTMLElement | null>
+): boolean => {
+  const findTarget = useFindTarget();
+  // Initialize optimistically: if there's an active find target when we
+  // mount, assume our subtree contains it and render expanded immediately.
+  // The post-render effect below will collapse us back if the term isn't
+  // actually present. This swaps a "collapsed→expanded" flash on remount
+  // (which the user sees on every search step as the virtual list re-renders) for
+  // a much rarer "expanded→collapsed" flash on panels that don't match.
+  const [containsFindTarget, setContainsFindTarget] = useState(
+    () => findTarget !== null
+  );
+
+  // No dep array: intentionally re-runs after every render so that changes
+  // in children text (e.g. lazily loaded content) are picked up without an
+  // additional mechanism.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, tsmono/no-raw-use-effect -- intentional: re-run after every render to track subtree text changes
+  useEffect(() => {
+    if (!findTarget) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible
+      setContainsFindTarget(false);
+      return;
+    }
+    const root = contentRef.current;
+    if (!root) {
+      setContainsFindTarget(false);
+      return;
+    }
+    const text = root.textContent.toLowerCase();
+    const { simple, unquoted, jsonEscaped } = prepareSearchTerm(
+      findTarget.term
+    );
+    setContainsFindTarget(
+      [simple, unquoted, jsonEscaped].some(
+        (variant) => !!variant && text.includes(variant)
+      )
+    );
+  });
+
+  return containsFindTarget;
+};
 
 export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
   ({
@@ -115,35 +165,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     );
     const contentRef = useResizeObserver(checkOverflow);
 
-    const findTarget = useFindTarget();
-    // Initialize optimistically: if there's an active find target when we
-    // mount, assume our subtree contains it and render expanded immediately.
-    // The post-render effect below will collapse us back if the term isn't
-    // actually present. This swaps a "collapsed→expanded" flash on remount
-    // (which the user sees on every search step as the virtual list re-renders) for
-    // a much rarer "expanded→collapsed" flash on panels that don't match.
-    const [containsFindTarget, setContainsFindTarget] = useState(
-      () => findTarget !== null
-    );
-
-    // No dep array: intentionally re-runs after every render so that changes
-    // in children text (e.g. lazily loaded content) are picked up without an
-    // additional mechanism.
-    // eslint-disable-next-line react-hooks/exhaustive-deps, tsmono/no-raw-use-effect -- intentional: re-run after every render to track subtree text changes
-    useEffect(() => {
-      if (!findTarget) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible
-        setContainsFindTarget(false);
-        return;
-      }
-      const root = contentRef.current;
-      if (!root) {
-        setContainsFindTarget(false);
-        return;
-      }
-      const text = root.textContent.toLowerCase();
-      setContainsFindTarget(text.includes(findTarget.term.toLowerCase()));
-    });
+    const containsFindTarget = useContainsFindTarget(contentRef);
 
     const effectiveCollapsed = containsFindTarget ? false : collapsed;
 

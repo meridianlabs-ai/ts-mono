@@ -4,6 +4,7 @@ import {
   ApprovalEvent,
   AttachmentData,
   BranchEvent,
+  CommunicationEvent,
   CompactionEvent,
   ContentDocument,
   ContentImage,
@@ -24,6 +25,7 @@ import {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
@@ -187,6 +189,8 @@ export type Event =
   | ApprovalEvent
   | ReviewEvent
   | SentinelEvent
+  | CommunicationEvent
+  | SwarmEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

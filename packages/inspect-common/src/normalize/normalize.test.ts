@@ -584,6 +584,87 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  // Current inspect_ai accepts each of these with the defaulted fields omitted.
+  const communication = {
+    ...base,
+    event: "communication",
+    source: "test",
+    agent: "a",
+  };
+
+  it("communication: fills the defaults of each kind", () => {
+    expect(
+      normalizeEvent({ ...communication, kind: "read", channel: "c" })
+    ).toMatchObject({ nested: false, record_ids: [], data: {} });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "sent",
+        channel: "c",
+        send: { record: { kind: "message", sender: "a" } },
+      })
+    ).toMatchObject({
+      record_ids: [],
+      send: { record: { kind: "message", to: [], recipients: [] } },
+    });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "delivered",
+        channel: "c",
+        delivery: { seq: 1 },
+      })
+    ).toMatchObject({ delivery: { seq: 1, recipients: [] } });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news", duration: 1 },
+      })
+    ).toMatchObject({
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: [] },
+    });
+  });
+
+  it("communication: keeps a complete event's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "waited",
+      nested: false,
+      record_ids: [],
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: ["c"] },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: fills defaults on events nested in tool and subtask events", () => {
+    const nested = { ...communication, kind: "read", channel: "c" };
+    const filled = { event: "communication", record_ids: [], data: {} };
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "tool",
+        id: "call1",
+        function: "agent",
+        arguments: {},
+        result: "",
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "subtask",
+        name: "calc",
+        input: {},
+        result: null,
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+  });
+
   it("span_begin / span_end: fill ids and names", () => {
     expect(normalizeEvent({ ...base, event: "span_begin" })).toMatchObject({
       id: "",
