@@ -42,7 +42,6 @@ export const listingKeyUniverse = (queryKey: readonly unknown[]): unknown =>
  */
 export const invalidateDatabaseLogsListings = throttle(
   () => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     queryClient.invalidateQueries({
       queryKey: databaseLogsListingKeyRoot,
     });

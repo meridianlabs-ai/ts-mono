@@ -182,16 +182,19 @@ export class AppDatabase extends Dexie {
  * Best-effort: `indexedDB.databases()` is not universally available and a
  * database held open by another (older) tab may survive until it closes.
  */
-export const deleteLegacyDatabases = async (): Promise<void> => {
-  try {
-    const databases = await indexedDB.databases();
-    await Promise.all(
-      databases
-        .map((info) => info.name)
-        .filter((name): name is string => !!name?.startsWith(`${DB_NAME}_`))
-        .map((name) => Dexie.delete(name).catch(() => {}))
-    );
-  } catch {
-    // Enumeration unavailable or failed — legacy databases linger, harmless.
-  }
+export const deleteLegacyDatabases = (): void => {
+  // Deferred so a missing `indexedDB.databases` rejects into the .catch.
+  Promise.resolve()
+    .then(() => indexedDB.databases())
+    .then((databases) =>
+      Promise.all(
+        databases
+          .map((info) => info.name)
+          .filter((name): name is string => !!name?.startsWith(`${DB_NAME}_`))
+          .map((name) => Dexie.delete(name).catch(() => {}))
+      )
+    )
+    .catch(() => {
+      // Enumeration unavailable or failed — legacy databases linger, harmless.
+    });
 };

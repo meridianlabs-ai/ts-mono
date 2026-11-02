@@ -77,7 +77,6 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
   const focusedFieldIdRef = useRef<string | null>(null);
-  const saveRef = useRef<() => void>(() => {});
   // Track the etag from our own saves to skip re-initialization
   const lastSavedEtagRef = useRef<string | null>(null);
 
@@ -109,25 +108,6 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   const api = useApi();
   const { loading, error, data } = useProjectConfig();
   const mutation = useUpdateProjectConfig();
-
-  // Ctrl/Cmd+S keyboard shortcut to save
-  // Always handle since project panel is the only active UI when visible
-  useEventListener(window, "keydown", (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-      e.preventDefault();
-      // Guard against double-save during pending mutation
-      if (!mutation.isPending) {
-        // Capture focused element ID for restoration after save
-        const el = document.activeElement;
-        if (el instanceof HTMLElement && el !== document.body && el.id) {
-          focusedFieldIdRef.current = el.id;
-        } else {
-          focusedFieldIdRef.current = null;
-        }
-        saveRef.current();
-      }
-    }
-  });
 
   const [editedConfig, setEditedConfig] =
     useState<Partial<ProjectConfigInput> | null>(null);
@@ -242,11 +222,23 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     );
   };
 
-  // Keep saveRef updated for the keyboard shortcut (latest-ref pattern: no
-  // deps, so the ref tracks the current render's handleSave)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    saveRef.current = () => handleSave(false);
+  // Ctrl/Cmd+S keyboard shortcut to save
+  // Always handle since project panel is the only active UI when visible
+  useEventListener(window, "keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      e.preventDefault();
+      // Guard against double-save during pending mutation
+      if (!mutation.isPending) {
+        // Capture focused element ID for restoration after save
+        const el = document.activeElement;
+        if (el instanceof HTMLElement && el !== document.body && el.id) {
+          focusedFieldIdRef.current = el.id;
+        } else {
+          focusedFieldIdRef.current = null;
+        }
+        handleSave(false);
+      }
+    }
   });
 
   const handleSaveAndNavigate = () => {

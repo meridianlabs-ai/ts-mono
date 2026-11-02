@@ -5,6 +5,7 @@ import type {
   AttachmentData,
   BranchEvent,
   CallPoolData,
+  CommunicationEvent,
   CompactionEvent,
   ConfigUpdate,
   ErrorEvent,
@@ -42,6 +43,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -185,6 +187,8 @@ export interface EventData {
     | ApprovalEvent
     | ReviewEvent
     | SentinelEvent
+    | CommunicationEvent
+    | SwarmEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent

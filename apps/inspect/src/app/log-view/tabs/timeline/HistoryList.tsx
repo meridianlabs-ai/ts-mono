@@ -235,10 +235,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                     </span>
                     {/* A knob first set to null is a plain transition —
                         matching limitLifted and changeText. */}
-                    {change.value === null &&
-                    change.previous !== null &&
-                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                    change.previous !== undefined ? (
+                    {change.value === null && change.previous !== null ? (
                       <span className={styles.muted}> (limit lifted)</span>
                     ) : null}
                   </Fragment>

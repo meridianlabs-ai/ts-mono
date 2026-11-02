@@ -1,9 +1,9 @@
 import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 
 import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useMountEffect } from "@tsmono/react/hooks";
 
 import { useStore } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
@@ -38,10 +38,9 @@ export const TranscriptsPanel: FC = () => {
 
   // Clear detail state
   const clearTranscriptState = useStore((state) => state.clearTranscriptState);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     clearTranscriptState();
-  }, [clearTranscriptState]);
+  });
 
   const {
     filterCodeValues,

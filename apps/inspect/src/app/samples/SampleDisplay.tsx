@@ -62,9 +62,9 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useChromeNavOwnership,
   useCopyToClipboard,
+  useDocumentTitleText,
   useElementHeight,
   useEventListener,
   useUnmount,
@@ -95,7 +95,7 @@ import {
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
-import { setDocumentTitle } from "../../state/actions";
+import { documentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -177,10 +177,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [sample, evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);
@@ -314,7 +311,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(url);
       }
     },
@@ -508,7 +504,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);
-    navigateAndForget(navigate, url);
+    navigate(url);
   };
 
   const api = getApi();

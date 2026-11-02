@@ -58,6 +58,14 @@ function toHttpMethod(method: string): HttpProxyRequest["method"] {
   throw new Error(`Unsupported HTTP method: ${method}`);
 }
 
+/** The URL a `fetch` input refers to. */
+export const requestUrl = (input: RequestInfo | URL): string =>
+  typeof input === "string"
+    ? input
+    : input instanceof Request
+      ? input.url
+      : input.toString();
+
 /**
  * Creates a fetch function that proxies requests through JSON-RPC.
  * Used in VS Code webview to route HTTP requests through the extension host.
@@ -67,13 +75,7 @@ export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> => {
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof Request
-          ? input.url
-          : input.toString();
-    const urlObj = new URL(url, window.location.origin);
+    const urlObj = new URL(requestUrl(input), window.location.origin);
     const path = urlObj.pathname + urlObj.search;
 
     const method = toHttpMethod(init?.method ?? "GET");
