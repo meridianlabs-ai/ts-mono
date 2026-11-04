@@ -888,6 +888,7 @@ const collectSentinelDecisions = (
       if (proposal?.call) {
         taken.add(proposal);
         callOfStep.set(step, proposal.call);
+        if (proposal.producer) producerOfStep.set(step, proposal.producer);
       }
       continue;
     }

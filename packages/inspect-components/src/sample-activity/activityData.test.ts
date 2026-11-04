@@ -3011,6 +3011,36 @@ describe("sentinel decisions", () => {
       ]);
     });
 
+    it("counts an unpaired bridge call rejection on the bridge turn that proposed it, past a reviewer's call", () => {
+      const events: Event[] = [
+        agentBegin,
+        {
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "client",
+        },
+        bridgeSpan("s1", 1.1),
+        modelCall({
+          start: 1.2,
+          duration: 0.5,
+          workingStart: 1.2,
+          spanId: "s1",
+          uuid: "reviewer",
+        }),
+        check("s1", 1.8, "tok1", "", "reject", { factory: "bridge_check" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+      ).toEqual([
+        ["m-tok1", 1, kRunStart + 1.8],
+        ["reviewer", 0, kRunStart + 1.7],
+      ]);
+    });
+
     it("never names an unpaired bridge call check from a native proposal under its id", () => {
       const data = deriveActivityData({
         events: ownCallRejected(
