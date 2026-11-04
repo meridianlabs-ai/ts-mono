@@ -743,6 +743,10 @@ const didNotRun = (slot: CallSlot): boolean =>
   (toolFailed(slot.tool) &&
     (slot.stopped === true || slot.tool.error?.type === "parsing"));
 
+/** A call a bridge ran on the host, which only the bridge's checks judge. */
+const ranOnHost = (slot: CallSlot): boolean =>
+  !!slot.tool && isBridgeTool(slot.tool);
+
 /** A `tool_call` step that kept its call from running. */
 const stopsCall = (step: SentinelStep): boolean =>
   !!step.effective && step.verdict !== "proceed" && step.verdict !== "modify";
@@ -758,7 +762,8 @@ const stopsCall = (step: SentinelStep): boolean =>
  *  in sync: the latest output proposing an id owns its proposals, which its
  *  tools take in order; a `tool_call` step judges the next tool with its id,
  *  a `tool_result` step one that ran before it; an agent bridge's check
- *  judges only a call the bridge ran on the host. */
+ *  judges only a call the bridge ran on the host, and a native check never
+ *  does. */
 const collectSentinelDecisions = (
   events: Event[],
   spans: Map<string, SpanInfo>,
@@ -830,14 +835,25 @@ const collectSentinelDecisions = (
       } else if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, step.stepId);
-        const slot = takeSlot(chain, "checks", (slot) => slot.stopped === true);
+        const slot = takeSlot(
+          chain,
+          "checks",
+          (slot) => slot.stopped === true || ranOnHost(slot)
+        );
         slotOfStep.set(step, slot);
         if (stopsCall(step)) slot.stopped = true;
       } else if (step.stage === "tool_result") {
         // Only a call that ran has a result to judge, though the run may
         // have failed.
         const chain = chainFor(event.span_id, step.stepId);
-        slotOfStep.set(step, takeSlot(chain, "results", didNotRun));
+        slotOfStep.set(
+          step,
+          takeSlot(
+            chain,
+            "results",
+            (slot) => didNotRun(slot) || ranOnHost(slot)
+          )
+        );
       } else {
         const producer = latestModel.get(conversationOf(event.span_id));
         if (producer) producerOfStep.set(step, producer);
@@ -855,8 +871,7 @@ const collectSentinelDecisions = (
     bridgeTaken.set(step.stage, taken);
     const slot = chain.slots.find(
       (s) =>
-        !!s.tool &&
-        isBridgeTool(s.tool) &&
+        ranOnHost(s) &&
         !taken.has(s) &&
         (step.stage === "tool_call" || !didNotRun(s))
     );

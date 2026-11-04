@@ -2940,6 +2940,55 @@ describe("sentinel decisions", () => {
       ]);
     });
 
+    it("keeps a native call check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        { ...proposes(0, "c1", "cat host.txt"), requested_model: "client" },
+        bridgeSpan("s1", 1.05),
+        check("s1", 1.1, "c1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("c1", 1.3, { uuid: "t-host" }),
+        sentinelSpan("s2", 1.85),
+        check("s2", 1.9, "c1", "", "reject", { factory: "native_check" }),
+        toolFor("c1", 2, {
+          uuid: "t-native",
+          function: "native",
+          arguments: { cmd: "native-cmd" },
+          ...rejectedByApproval,
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "native: native-cmd", "rejected"],
+      ]);
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-host"]);
+    });
+
+    it("keeps a native result check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat host.txt", "cat notes.txt"),
+        hostToolFor("c1", 1.1, { uuid: "t-host" }),
+        bridgeSpan("s1", 1.65),
+        check("s1", 1.7, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+        toolFor("c1", 1.8, { uuid: "t-native" }),
+        sentinelSpan("s2", 2.35),
+        check("s2", 2.4, "c1", "", "reject", {
+          stage: "tool_result",
+          factory: "native_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat host.txt", "terminated"],
+        ["Tool result", "bash: cat notes.txt", "rejected"],
+      ]);
+    });
+
     /** A bridge's rejection of a call its scaffold would run itself, which
      *  records no ToolEvent. */
     const ownCallRejected = (proposal: ModelEvent): Event[] => [
