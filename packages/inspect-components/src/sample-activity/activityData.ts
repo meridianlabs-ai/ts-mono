@@ -849,6 +849,7 @@ const collectSentinelDecisions = (
   // so these pair once every tool has its slot. Without a host call under
   // its id, the step pairs with nothing rather than with a native call.
   const bridgeTaken = new Map<SentinelStep["stage"], Set<CallSlot>>();
+  const callOfStep = new Map<SentinelStep, ToolCall>();
   for (const { step, chain } of bridgeChecks) {
     const taken = bridgeTaken.get(step.stage) ?? new Set<CallSlot>();
     bridgeTaken.set(step.stage, taken);
@@ -859,7 +860,22 @@ const collectSentinelDecisions = (
         !taken.has(s) &&
         (step.stage === "tool_call" || !didNotRun(s))
     );
-    if (!slot) continue;
+    if (!slot) {
+      // A bridge's own call runs in its scaffold, with no ToolEvent, under
+      // an id the bridge issued. Only bridge generations set
+      // `requested_model`, so a native proposal under the id never names it.
+      const proposal =
+        step.stage === "tool_call"
+          ? chain.slots.find(
+              (s) => !s.tool && !!s.producer?.requested_model && !taken.has(s)
+            )
+          : undefined;
+      if (proposal?.call) {
+        taken.add(proposal);
+        callOfStep.set(step, proposal.call);
+      }
+      continue;
+    }
     taken.add(slot);
     slotOfStep.set(step, slot);
     if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
@@ -881,7 +897,7 @@ const collectSentinelDecisions = (
     byOutcome.set(outcome.event, {
       step,
       decider,
-      call: slot ? (slot.call ?? tool) : undefined,
+      call: slot ? (slot.call ?? tool) : callOfStep.get(step),
       producer: slot ? slot.producer : producerOfStep.get(step),
       ghost,
     });

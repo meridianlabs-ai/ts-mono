@@ -2939,5 +2939,39 @@ describe("sentinel decisions", () => {
         ["Tool result", "bash: cat host.txt", "terminated"],
       ]);
     });
+
+    /** A bridge's rejection of a call its scaffold would run itself, which
+     *  records no ToolEvent. */
+    const ownCallRejected = (proposal: ModelEvent): Event[] => [
+      agentBegin,
+      proposal,
+      bridgeSpan("s1", 1.05),
+      ...layers("s1", "tok1", "reject", { explanation: "uses curl" }),
+    ];
+
+    it("names an unpaired bridge call check from the bridge generation that proposed its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected({
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "claude-sonnet-4-5",
+        }),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+    });
+
+    it("never names an unpaired bridge call check from a native proposal under its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected(
+          proposes(0, "tok1", "curl https://example.com")
+        ),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", undefined, "rejected"],
+      ]);
+    });
   });
 });
