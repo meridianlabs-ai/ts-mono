@@ -15,6 +15,8 @@ import { nullProtoRecord } from "@tsmono/util";
 import {
   buildSentinelSteps,
   instanceLabel,
+  isBridgeTool,
+  kBridgeCheckSpan,
 } from "../transcript/transform/toolSentinels";
 import type {
   SentinelNode,
@@ -741,6 +743,10 @@ const didNotRun = (slot: CallSlot): boolean =>
   (toolFailed(slot.tool) &&
     (slot.stopped === true || slot.tool.error?.type === "parsing"));
 
+/** A `tool_call` step that kept its call from running. */
+const stopsCall = (step: SentinelStep): boolean =>
+  !!step.effective && step.verdict !== "proceed" && step.verdict !== "modify";
+
 /** Each sentinel step counts once, by the decision that took effect —
  *  nested configurations record a decision per layer. Pairing runs in
  *  recording order within each conversation: `conversationOf` keys an
@@ -751,7 +757,8 @@ const didNotRun = (slot: CallSlot): boolean =>
  *  call's proposing model call, in one pass over a flat list. Keep the rules
  *  in sync: the latest output proposing an id owns its proposals, which its
  *  tools take in order; a `tool_call` step judges the next tool with its id,
- *  a `tool_result` step one that ran before it. */
+ *  a `tool_result` step one that ran before it; an agent bridge's check
+ *  judges only a call the bridge ran on the host. */
 const collectSentinelDecisions = (
   events: Event[],
   spans: Map<string, SpanInfo>,
@@ -779,6 +786,11 @@ const collectSentinelDecisions = (
   const producerOfStep = new Map<SentinelStep, ModelEvent>();
   const overruledApprovals = new Set<ApprovalEvent>();
   const blockedTools = new Set<ToolEvent>();
+  const bridgeChecks: { step: SentinelStep; chain: CallChain }[] = [];
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
 
   for (const event of events) {
     if (event.event === "model") {
@@ -808,18 +820,19 @@ const collectSentinelDecisions = (
     } else if (event.event === "sentinel") {
       const step = steps.get(event);
       if (!step) continue;
-      if (step.stage === "tool_call") {
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      if (toolStage && isBridgeCheck(event)) {
+        bridgeChecks.push({
+          step,
+          chain: chainFor(event.span_id, step.stepId),
+        });
+      } else if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, step.stepId);
         const slot = takeSlot(chain, "checks", (slot) => slot.stopped === true);
         slotOfStep.set(step, slot);
-        if (
-          step.effective &&
-          step.verdict !== "proceed" &&
-          step.verdict !== "modify"
-        ) {
-          slot.stopped = true;
-        }
+        if (stopsCall(step)) slot.stopped = true;
       } else if (step.stage === "tool_result") {
         // Only a call that ran has a result to judge, though the run may
         // have failed.
@@ -830,6 +843,26 @@ const collectSentinelDecisions = (
         if (producer) producerOfStep.set(step, producer);
       }
     }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<CallSlot>>();
+  for (const { step, chain } of bridgeChecks) {
+    const taken = bridgeTaken.get(step.stage) ?? new Set<CallSlot>();
+    bridgeTaken.set(step.stage, taken);
+    const slot = chain.slots.find(
+      (s) =>
+        !!s.tool &&
+        isBridgeTool(s.tool) &&
+        !taken.has(s) &&
+        (step.stage === "tool_call" || !didNotRun(s))
+    );
+    if (!slot) continue;
+    taken.add(slot);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
   }
 
   const byOutcome = new Map<SentinelEvent, SentinelDecision>();

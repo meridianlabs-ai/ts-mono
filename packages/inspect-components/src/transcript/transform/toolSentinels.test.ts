@@ -838,6 +838,111 @@ describe("pairToolSentinels with sentinel spans", () => {
   });
 });
 
+describe("pairToolSentinels with an agent bridge's checks", () => {
+  const nativeTool = (id: string) =>
+    new EventNode(
+      id,
+      testToolEvent({ id: "shared", function: "addition", result: "2" }),
+      0
+    );
+  const hostTool = (id: string) =>
+    new EventNode(
+      id,
+      testToolEvent({
+        id: "shared",
+        function: "read_file",
+        result: "contents",
+        metadata: {
+          bridge: {
+            server: "host",
+            tool: "read_file",
+            function: "mcp__host__read_file",
+            proposal_id: "shared",
+            grant: "consumed",
+          },
+        },
+      }),
+      0
+    );
+  const checkSpan = (
+    id: string,
+    name: "sentinel" | "sentinel_bridge",
+    children: EventNode[]
+  ) => {
+    const span = new EventNode(
+      id,
+      testSpanBeginEvent({ id, name, type: "sentinel" }),
+      0
+    );
+    span.children = children;
+    return span;
+  };
+  const resultCheck = (
+    id: string,
+    path: string,
+    action: NonNullable<SentinelEvent["action"]>,
+    explanation: string
+  ) =>
+    sentinel(id, {
+      step_id: "shared",
+      stage: "tool_result",
+      path,
+      factory: path,
+      function: "after",
+      action,
+      explanation,
+    });
+  const orphanChecks = () => [
+    resultCheck("human", "human", "proceed", "orphan approval"),
+    resultCheck("stop", "terminate_orphan", "terminate", "stop orphan"),
+  ];
+
+  it("shows a bridge's check of a result under a native call's id as its own row", () => {
+    const result = pairToolSentinels([
+      nativeTool("native"),
+      checkSpan("bridge-span", "sentinel_bridge", orphanChecks()),
+      checkSpan("native-span", "sentinel", []),
+    ]);
+
+    expect(result.toolSentinels.has("native")).toBe(false);
+    const standalone = result.standaloneSentinels.get("bridge-span");
+    expect(standalone && rowIds(standalone)).toEqual(["human", "stop"]);
+    expect(result.sentinelScrollRedirects.get("human")).toBe("bridge-span");
+  });
+
+  it("pairs a bridge's call and result checks with the host call it ran, past native calls under the same id", () => {
+    const result = pairToolSentinels([
+      checkSpan("call-span", "sentinel_bridge", [
+        sentinel("call", { step_id: "shared", action: "proceed" }),
+      ]),
+      nativeTool("native-1"),
+      hostTool("host"),
+      nativeTool("native-2"),
+      checkSpan("result-span", "sentinel_bridge", orphanChecks()),
+    ]);
+
+    const paired = result.toolSentinels.get("host");
+    expect(paired?.before && rowIds(paired.before)).toEqual(["call"]);
+    expect(paired?.after && rowIds(paired.after)).toEqual(["human", "stop"]);
+    expect(result.toolSentinels.has("native-1")).toBe(false);
+    expect(result.toolSentinels.has("native-2")).toBe(false);
+  });
+
+  it("pairs a native check with the native call when a bridge also checked its id", () => {
+    const result = pairToolSentinels([
+      nativeTool("native"),
+      checkSpan("bridge-span", "sentinel_bridge", orphanChecks()),
+      checkSpan("native-span", "sentinel", [
+        resultCheck("own", "", "proceed", "native result"),
+      ]),
+    ]);
+
+    const after = result.toolSentinels.get("native")?.after;
+    expect(after && rowIds(after)).toEqual(["own"]);
+    expect(result.standaloneSentinels.has("bridge-span")).toBe(true);
+  });
+});
+
 describe("formatSuspicion", () => {
   it("rounds a single score and lists dimensions", () => {
     expect(formatSuspicion(0.123456)).toBe("0.12");
