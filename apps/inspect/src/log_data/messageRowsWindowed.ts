@@ -77,6 +77,11 @@ class LazyRowIndex {
           this.conversation.messageCount
         );
         const batch = await this.conversation.getMessagesRaw(this.scanPos, end);
+        if (batch.length !== end - this.scanPos) {
+          throw new Error(
+            "Unexpected end of conversation while scanning messages"
+          );
+        }
         batch.forEach((message, i) => {
           this.scanner.next(message, this.scanPos + i);
         });
@@ -186,10 +191,13 @@ export const windowedMessageRows = (
       // reproduce the whole-conversation text exactly
       const count = conversation.messageCount;
       for (let pos = 0; pos < count; pos += kExportBatchMessages) {
-        const batch = await conversation.getMessages(
-          pos,
-          Math.min(pos + kExportBatchMessages, count)
-        );
+        const end = Math.min(pos + kExportBatchMessages, count);
+        const batch = await conversation.getMessages(pos, end);
+        if (batch.length !== end - pos) {
+          throw new Error(
+            "Unexpected end of conversation while exporting messages"
+          );
+        }
         const part = messagesToStr(batch);
         yield pos === 0 ? part : `\n${part}`;
       }

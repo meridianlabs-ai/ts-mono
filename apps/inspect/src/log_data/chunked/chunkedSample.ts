@@ -30,6 +30,11 @@ import type {
   EventStats,
   SampleSkeleton,
 } from "./types";
+import {
+  validateEventStats,
+  validateMessageRefs,
+  validateSkeleton,
+} from "./validation";
 
 export interface ChunkedSample {
   shell: ChunkedSampleShell;
@@ -88,16 +93,12 @@ export const openChunkedSample = async (
     readJson<EventStats>(source, statsEntryName(id, epoch)),
   ]);
 
-  // the exact events count: sequence counts are not persisted, but the
-  // stats sidecar's per-chunk type counts sum to it. Deliberately stats,
-  // not skeleton.counts.events: stats is the events-side sidecar (one
-  // entry per chunk), the skeleton a derived UI artifact — corpus tests
-  // assert the two agree
-  const eventsCount = stats.chunks.reduce(
-    (n, chunk) =>
-      n + Object.values(chunk.type_counts).reduce((a, b) => a + b, 0),
-    0
+  validateMessageRefs(shell.message_refs);
+  const eventsCount = validateEventStats(
+    stats,
+    sequenceChunkStarts(entryNames, id, epoch, "events")
   );
+  validateSkeleton(skeleton, eventsCount);
 
   const bytes = new ChunkByteStore(source, byteBudget);
   const reader = <T>(
@@ -110,6 +111,17 @@ export const openChunkedSample = async (
       sequenceChunkStarts(entryNames, id, epoch, sequence),
       count
     );
+
+  const messages = reader<ChatMessage>("messages");
+  // Only the final chunk is needed to bound refs; event chunks and the rest
+  // of the conversation remain lazy.
+  const lastMessageStart = messages.starts.at(-1);
+  const messageCount =
+    lastMessageStart === undefined
+      ? 0
+      : lastMessageStart +
+        (await messages.loadChunk(messages.starts.length - 1)).length;
+  validateMessageRefs(shell.message_refs, messageCount);
 
   const uuidsEntry = uuidsEntryName(id, epoch);
   let uuidOrdinals: Promise<Map<string, number>> | undefined;
@@ -146,7 +158,7 @@ export const openChunkedSample = async (
     skel: new SkeletonIndex(skeleton),
     stats: stats.chunks,
     events: reader<ChunkedEvent>("events", eventsCount),
-    messages: reader<ChatMessage>("messages"),
+    messages,
     calls: reader<unknown>("calls"),
     attachments: reader<string>("attachments"),
     uuidToOrdinal,
