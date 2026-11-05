@@ -45,8 +45,9 @@ overrides:
   zod: ^4.6.6 # GHSA-mrhx-c7xc-m3w5, via eslint-plugin-react-hooks
   # solid-js 1.9.14 (via asciinema-player) pins ~1.5; solid-js 1.9.16 already
   # ships on 1.6, so the 1.6 line is compatible. Plugins move in lockstep.
-  seroval: ^1.6.3 # GHSA-p6vx-979v-rg4c + GHSA-jp82-f5mq-hwhp
-  seroval-plugins: ^1.6.3
+  # Tilde, not caret: solid-js itself still asks for ~1.6, so don't float to 1.7.
+  seroval: ~1.6.11 # GHSA-p6vx-979v-rg4c + GHSA-jp82-f5mq-hwhp + GHSA-9wx9-5pv9-3349 + GHSA-f86p-h4j2-7qgj
+  seroval-plugins: ~1.6.11
   source-map-js: ^1.2.2 # GHSA-68fv-2mgg-jv7q, via @eslint/css-tree
   postcss-selector-parser: ^7.1.6 # GHSA-rj75-hqrm-r3gf
 
@@ -58,6 +59,11 @@ overrides:
   "minimatch@3": ^5.1.9
   "brace-expansion@2": ^2.1.7
   "brace-expansion@5": ^5.0.12
+  # Patched only on glob 14; its one consumer (storybook's react-docgen
+  # plugin) calls just globSync, which 14 kept. minimatch 10 can't follow
+  # to 11 the same way: eslint-plugin-import-x imports makeRe, which 11
+  # removed.
+  "glob@13": ^14.0.2 # GHSA-3g3m-2fjr-6pw4
 
 # All false = same behavior as pnpm 10, which ignored these build scripts (no
 # approvals were configured anywhere). Flip one to true only if something
