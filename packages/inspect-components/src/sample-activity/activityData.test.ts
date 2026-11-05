@@ -2851,4 +2851,206 @@ describe("sentinel decisions", () => {
       ["monitor", kRunStart + 1.95],
     ]);
   });
+
+  describe("an agent bridge's checks", () => {
+    const bridgeSpan = (id: string, at: number) =>
+      testSpanBeginEvent({
+        id,
+        name: "sentinel_bridge",
+        type: "sentinel",
+        parent_id: kAgent,
+        timestamp: iso(at),
+      });
+    const hostToolFor = (
+      callId: string,
+      at: number,
+      overrides: Partial<ToolEvent> = {}
+    ): ToolEvent =>
+      toolFor(callId, at, {
+        metadata: {
+          bridge: {
+            server: "host",
+            tool: "bash",
+            function: "mcp__host__bash",
+            proposal_id: callId,
+            grant: "consumed",
+          },
+        },
+        ...overrides,
+      });
+
+    it("keeps a bridge's result check off a native call under the same id, which the native check keeps", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposes(0, "c1", "cat notes.txt"),
+        toolFor("c1", 1.1),
+        bridgeSpan("s1", 1.6),
+        check("s1", 1.7, "c1", "", "reject", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+        sentinelSpan("s2", 1.8),
+        check("s2", 1.9, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "leak_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", undefined, "rejected"],
+        ["Tool result", "bash: cat notes.txt", "terminated"],
+      ]);
+    });
+
+    it("pairs a bridge's call check with the host call it ran, past a native call under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat notes.txt", "cat host.txt"),
+        bridgeSpan("s1", 1.05),
+        ...layers("s1", "c1", "reject", { explanation: "host read" }),
+        toolFor("c1", 1.5, { uuid: "t-1" }),
+        hostToolFor("c1", 1.6, { uuid: "t-2", ...rejectedByApproval }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: cat host.txt", "rejected"],
+      ]);
+      expect(data.turns[0]).toMatchObject({ rejected: 1 });
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-1"]);
+    });
+
+    it("pairs a bridge's result check with the host call it ran, past a native call under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat notes.txt", "cat host.txt"),
+        toolFor("c1", 1.1, { uuid: "t-1" }),
+        hostToolFor("c1", 1.3, { uuid: "t-2" }),
+        bridgeSpan("s1", 1.8),
+        check("s1", 1.9, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "leak_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat host.txt", "terminated"],
+      ]);
+    });
+
+    it("keeps a native call check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        { ...proposes(0, "c1", "cat host.txt"), requested_model: "client" },
+        bridgeSpan("s1", 1.05),
+        check("s1", 1.1, "c1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("c1", 1.3, { uuid: "t-host" }),
+        sentinelSpan("s2", 1.85),
+        check("s2", 1.9, "c1", "", "reject", { factory: "native_check" }),
+        toolFor("c1", 2, {
+          uuid: "t-native",
+          function: "native",
+          arguments: { cmd: "native-cmd" },
+          ...rejectedByApproval,
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "native: native-cmd", "rejected"],
+      ]);
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-host"]);
+    });
+
+    it("keeps a native result check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat host.txt", "cat notes.txt"),
+        hostToolFor("c1", 1.1, { uuid: "t-host" }),
+        bridgeSpan("s1", 1.65),
+        check("s1", 1.7, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+        toolFor("c1", 1.8, { uuid: "t-native" }),
+        sentinelSpan("s2", 2.35),
+        check("s2", 2.4, "c1", "", "reject", {
+          stage: "tool_result",
+          factory: "native_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat host.txt", "terminated"],
+        ["Tool result", "bash: cat notes.txt", "rejected"],
+      ]);
+    });
+
+    /** A bridge's rejection of a call its scaffold would run itself, which
+     *  records no ToolEvent. */
+    const ownCallRejected = (proposal: ModelEvent): Event[] => [
+      agentBegin,
+      proposal,
+      bridgeSpan("s1", 1.05),
+      ...layers("s1", "tok1", "reject", { explanation: "uses curl" }),
+    ];
+
+    it("names an unpaired bridge call check from the bridge generation that proposed its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected({
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "claude-sonnet-4-5",
+        }),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+    });
+
+    it("counts an unpaired bridge call rejection on the bridge turn that proposed it, past a reviewer's call", () => {
+      const events: Event[] = [
+        agentBegin,
+        {
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "client",
+        },
+        bridgeSpan("s1", 1.1),
+        modelCall({
+          start: 1.2,
+          duration: 0.5,
+          workingStart: 1.2,
+          spanId: "s1",
+          uuid: "reviewer",
+        }),
+        check("s1", 1.8, "tok1", "", "reject", { factory: "bridge_check" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+      ).toEqual([
+        ["m-tok1", 1, kRunStart + 1.8],
+        ["reviewer", 0, kRunStart + 1.7],
+      ]);
+    });
+
+    it("never names an unpaired bridge call check from a native proposal under its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected(
+          proposes(0, "tok1", "curl https://example.com")
+        ),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", undefined, "rejected"],
+      ]);
+    });
+  });
 });

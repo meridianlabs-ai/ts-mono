@@ -17,6 +17,13 @@ export type SentinelNode = EventNode<SentinelEvent>;
 export const isSentinelSpan = (node: EventNode): boolean =>
   node.event.event === SPAN_BEGIN && node.event.type === TYPE_SENTINEL;
 
+/** The name of the sentinel spans an agent bridge records its tool checks in (inspect_ai#5765); native checks record in spans named `sentinel`. */
+export const kBridgeCheckSpan = "sentinel_bridge";
+
+/** Whether a sandbox agent bridge ran the call on the host, which records it with `metadata.bridge`. */
+export const isBridgeTool = (event: ToolEvent): boolean =>
+  event.metadata != null && "bridge" in event.metadata;
+
 export interface SentinelRow {
   node: SentinelNode;
   /** Depth in the check tree: the number of recorded ancestors above the row. */
@@ -436,17 +443,21 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
  * The ToolEvent a tool-stage step judged: the first one with the step's id
  * recorded after a `tool_call` step (none when no such tool follows), the last
  * one before a `tool_result` step, skipping tools that already host a step of
- * the same stage.
+ * the same stage. A bridge's check judges only a call the bridge ran on the
+ * host: a native call under the same id (one the bridged agent inherited, for
+ * example) is not the one it checked.
  */
 const hostTool = (
   tools: ToolEntry[],
   step: SentinelStep,
   order: number,
-  claimed: Set<string>
+  claimed: Set<string>,
+  bridge: boolean
 ): ToolEntry | undefined => {
   const candidates = tools.filter(
     (t) =>
       t.node.event.id === step.stepId &&
+      (!bridge || isBridgeTool(t.node.event)) &&
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
   const after = candidates.find((t) => t.order > order);
@@ -532,8 +543,11 @@ export function pairToolSentinels(
   const ordered = [...steps.values()].sort((a, b) => a.order - b.order);
   for (const { nodes, order: at, span } of ordered) {
     const step = buildSentinelStep(nodes, span?.modelCalls);
+    const bridge =
+      span?.node.event.event === SPAN_BEGIN &&
+      span.node.event.name === kBridgeCheckSpan;
     const tool = kToolStages.has(step.stage)
-      ? hostTool(tools, step, at, claimed)
+      ? hostTool(tools, step, at, claimed, bridge)
       : undefined;
     const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
     if (tool) {
