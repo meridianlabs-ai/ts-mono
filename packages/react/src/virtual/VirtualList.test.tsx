@@ -467,6 +467,8 @@ describe("VirtualList embedded in a shared scroll container", () => {
         return new DOMRect();
       }
     );
+    // TanStack sizes the viewport from clientHeight, and rows from offsetHeight.
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
 
@@ -499,6 +501,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
         return new DOMRect();
       }
     );
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
 

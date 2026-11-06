@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router";
 
-import { navigateAndForget } from "@tsmono/react/hooks";
-
 import { useLogDir } from "../../app_config";
 
 import { useCurrentLogFile } from "./currentSelection";
@@ -17,7 +15,7 @@ export const useLogNavigationAction = () => {
   return {
     selectTab: (tabId: string) => {
       const url = getTabUrl(tabId);
-      if (url) navigateAndForget(navigate, url);
+      if (url) navigate(url);
     },
     getTabUrl,
   };

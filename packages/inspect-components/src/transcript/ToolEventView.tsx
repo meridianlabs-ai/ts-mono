@@ -223,7 +223,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     />
   );
 
-  const toolLabel = toolLabels.messageLabels?.[event.id];
+  const toolLabel = getOwn(toolLabels.messageLabels, event.id);
 
   return (
     <EventPanel

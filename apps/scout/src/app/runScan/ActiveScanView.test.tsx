@@ -38,3 +38,15 @@ it("updates elapsed, remaining and batch age each second and stops on unmount", 
   unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+// A plain-object summary, as React Query's structural sharing hands back.
+it("shows a not-yet-started scanner named after an Object.prototype member", () => {
+  const info = createActiveScanInfo({
+    scan_id: "proto-names",
+    scanner_names: ["constructor"],
+    summary: { complete: false, scanners: {} },
+  });
+  vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
+  render(<ActiveScanView scanId={info.scan_id} />);
+  expect(screen.getByText("constructor")).toBeTruthy();
+});

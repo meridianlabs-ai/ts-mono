@@ -142,7 +142,7 @@ export function formatNumber(num: number): string {
  * Formats a number to a string without trailing zeroes after the decimal point.
  */
 export function formatDateTime(date: Date): string {
-  const options = {
+  const options: Intl.DateTimeFormatOptions = {
     year: "2-digit",
     month: "2-digit",
     day: "2-digit",
@@ -153,7 +153,6 @@ export function formatDateTime(date: Date): string {
   };
 
   // Use the default system locale and timezone
-  // @ts-expect-error options as passed is correct
   return new Intl.DateTimeFormat(undefined, options).format(date);
 }
 

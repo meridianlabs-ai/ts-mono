@@ -1,7 +1,7 @@
 import { FC, useMemo } from "react";
 import { useNavigate } from "react-router";
 
-import { navigateAndForget, useUnmount } from "@tsmono/react/hooks";
+import { useUnmount } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useAppConfig, useLogDir } from "../../app_config";
@@ -84,10 +84,10 @@ export const SampleDetailView: FC = () => {
   const previousRoute = siblingRoute(-1);
   const nextRoute = siblingRoute(1);
   const handlePrevious = () => {
-    if (previousRoute) navigateAndForget(navigate, previousRoute);
+    if (previousRoute) navigate(previousRoute);
   };
   const handleNext = () => {
-    if (nextRoute) navigateAndForget(navigate, nextRoute);
+    if (nextRoute) navigate(nextRoute);
   };
 
   useUnmount(clearSampleTab);

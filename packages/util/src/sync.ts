@@ -26,17 +26,13 @@ export function throttle<A extends unknown[], R>(
     timeout = null;
     // `throttled` records args before it ever arms this timer, and the leading
     // edge clears the timer before nulling them — so null here means there is
-    // no pending call to make, not a call to make with no arguments.
-    if (args !== null) {
-      result = func(...args);
-    }
-    // TODO: eslint thinks that the conditional is unnecessary, but it seems that
-    // the call to func could have a side effect of mutating timeout if it makes
-    // a call to throttled below
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!timeout) {
-      args = null;
+    // no pending call to make, not a call to make with no arguments. Taken
+    // before calling func, so a call func makes back into `throttled` records
+    // its own args for the timer it arms.
+    const pending = args;
+    args = null;
+    if (pending !== null) {
+      result = func(...pending);
     }
   };
 
@@ -87,7 +83,7 @@ export function debounce<A extends unknown[], R>(
   options: { leading?: boolean; trailing?: boolean } = {}
 ): (...args: A) => R {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-  let args: A;
+  let args: A | null = null;
   let result: R;
   let lastCallTime: number | null = null;
 
@@ -99,14 +95,12 @@ export function debounce<A extends unknown[], R>(
     } else {
       timeout = null;
       if (!options.leading) {
-        result = func(...args);
-        // TODO: eslint thinks that the conditional is unnecessary, but it seems
-        // that the call to func could have a side effect of mutating timeout if
-        // it makes a call to debounced below
-
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!timeout) {
-          args = null!;
+        // Taken before calling func, so a call func makes back into
+        // `debounced` records its own args for the timer it arms.
+        const pending = args;
+        args = null;
+        if (pending !== null) {
+          result = func(...pending);
         }
       }
     }
@@ -123,9 +117,8 @@ export function debounce<A extends unknown[], R>(
     }
 
     if (callNow) {
-      result = func(...args);
-
-      args = null!;
+      result = func(...callArgs);
+      args = null;
     }
 
     return result;

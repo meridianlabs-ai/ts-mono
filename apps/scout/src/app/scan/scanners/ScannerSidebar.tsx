@@ -6,7 +6,7 @@ import { LabeledValue } from "@tsmono/react/components";
 import { IconName } from "@tsmono/react/icons";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { formatPercent, formatPrettyDecimal } from "@tsmono/util";
+import { formatPercent, formatPrettyDecimal, getOwn } from "@tsmono/util";
 
 import { updateScannerParam } from "../../../router/url";
 import { useStore } from "../../../state/store";
@@ -142,7 +142,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     const summary = scanners[scanner];
 
     // The configuration
-    const scanInfo = status.spec.scanners[scanner];
+    const scanInfo = getOwn(status.spec.scanners, scanner);
 
     const formattedParams: string[] = [];
     if (scanInfo) {

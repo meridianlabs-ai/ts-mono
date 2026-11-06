@@ -93,9 +93,16 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     return recentInputMessages(event.input, {
       agentResultsFiltered,
       hasToolEvents: context?.hasToolEvents,
-      toolEventIds: context?.toolEventIds,
+      toolEventIds: context?.inputShownElsewhere
+        ? undefined
+        : context?.toolEventIds,
     });
-  }, [event, context?.hasToolEvents, context?.toolEventIds]);
+  }, [
+    event,
+    context?.hasToolEvents,
+    context?.toolEventIds,
+    context?.inputShownElsewhere,
+  ]);
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);

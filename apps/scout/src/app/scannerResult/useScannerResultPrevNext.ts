@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import { navigateAndForget } from "@tsmono/react/hooks";
-
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../router/url";
 import { useScanRoute } from "../../router/useScanRoute";
@@ -49,8 +47,7 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
     }
     const previousResult = visibleScannerResults[currentIndex - 1];
     return () => {
-      navigateAndForget(
-        navigate,
+      navigate(
         scanResultRoute(
           scansDir,
           scanPath,
@@ -75,8 +72,7 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
     }
     const nextResult = visibleScannerResults[currentIndex + 1];
     return () => {
-      navigateAndForget(
-        navigate,
+      navigate(
         scanResultRoute(
           scansDir,
           scanPath,

@@ -129,8 +129,7 @@ export const Modal: FC<ModalProps> = ({
     }, 0);
     return () => {
       window.clearTimeout(timer);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: activeElement cast hides null/non-HTMLElement; .focus may be absent
-      previouslyFocused?.focus?.();
+      previouslyFocused?.focus();
     };
   }, [show]);
 

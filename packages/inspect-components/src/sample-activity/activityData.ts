@@ -1,7 +1,10 @@
 import type {
+  ApprovalEvent,
   Event,
   ModelEvent,
   ScoreEvent,
+  SentinelEvent,
+  ToolCall,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
@@ -9,6 +12,17 @@ import { nullProtoRecord } from "@tsmono/util";
 
 // Direct file imports keep this module React-free (the usage barrel pulls
 // in component modules).
+import {
+  buildSentinelSteps,
+  instanceLabel,
+  isBridgeTool,
+  kBridgeCheckSpan,
+} from "../transcript/transform/toolSentinels";
+import type {
+  SentinelNode,
+  SentinelStep,
+} from "../transcript/transform/toolSentinels";
+import { TYPE_SENTINEL } from "../transcript/transform/utils";
 import { fmtCompactDuration } from "../usage/timeFormat";
 import { usageTotal } from "../usage/tokenTotals";
 
@@ -253,7 +267,8 @@ export interface TurnColumn {
   modelWork: number;
   /** Working seconds spent in tool calls (likewise unread by the chart). */
   toolWork: number;
-  /** Non-approve approval decisions inside the turn (ghost slots). */
+  /** Calls from the turn that an approval or sentinel decision acted on
+   *  (ghost slots). */
   rejected: number;
 }
 
@@ -282,9 +297,9 @@ export interface ActivityHistoryRow {
   mono?: string;
   tail?: string;
   detail?: string;
-  /** Right-aligned By column ("system", approver, "user"). */
+  /** Right-aligned By column ("system", approver, sentinel path, "user"). */
   by: string;
-  /** Muted suffix after `by` ("approver" for approval-policy names). */
+  /** Muted suffix after `by` ("approver" or "sentinel"). */
   byRole?: string;
 }
 
@@ -320,7 +335,8 @@ export interface ActivityData {
   turns: TurnColumn[];
   markers: ActivityMarker[];
   rows: ActivityHistoryRow[];
-  /** Non-approve approval decisions (the activity headline's "N rejected"). */
+  /** Non-approve approval decisions plus sentinel steps that acted (the
+   *  activity headline's "N rejected"). */
   rejectedCount: number;
   /** Any open-ended span (running sample). */
   pending: boolean;
@@ -501,6 +517,15 @@ const decisionWord = (decision: unknown): string => {
   );
 };
 
+/** What a sentinel step acted on, by stage. The stage is log-authored, so
+ *  a Map lookup with a fallback, as for decision words. */
+const kSentinelStageLead = new Map<string, string>([
+  ["tool_call", "Tool call"],
+  ["tool_result", "Tool result"],
+  ["model_input", "Model input"],
+  ["model_output", "Model output"],
+]);
+
 const valueText = (value: unknown): string =>
   typeof value === "string" ? value : JSON.stringify(value);
 
@@ -538,6 +563,9 @@ const resultSize = (result: ToolEvent["result"]): number => {
   }
   return size;
 };
+
+const toolFailed = (event: ToolEvent): boolean =>
+  event.error != null || event.failed === true;
 
 /** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
 const completedEpoch = (event: Event): number | undefined =>
@@ -634,6 +662,265 @@ interface Conversation {
   span?: SpanInfo;
 }
 
+/** A sentinel step whose decision took effect. */
+interface SentinelDecision {
+  step: SentinelStep;
+  /** The check that made the decision: it names the row and links it. */
+  decider: SentinelNode;
+  /** The call a tool-stage step judged, as the model proposed it. */
+  call?: Pick<ToolCall, "function" | "arguments">;
+  /** The agent's model call whose output the step judged (for a tool stage,
+   *  the one that proposed the call): the decision belongs to its turn. */
+  producer?: ModelEvent;
+  /** The call never ran, so it takes a ghost slot in its turn. */
+  ghost: boolean;
+}
+
+interface SentinelDecisions {
+  /** Keyed by the step's returned decision, where the pass emits the row. */
+  byOutcome: Map<SentinelEvent, SentinelDecision>;
+  /** Approvals of calls a sentinel then acted on; they would count the call
+   *  twice. */
+  overruledApprovals: Set<ApprovalEvent>;
+  /** Inspect still records a ToolEvent, failed, for each call a sentinel
+   *  stopped; the decision's ghost and row stand in for it. */
+  blockedTools: Set<ToolEvent>;
+}
+
+/** The decisions that count as rejections. An action a newer or odd log
+ *  records is left out rather than guessed at. */
+const kCountedVerdicts = new Set<SentinelStep["verdict"]>([
+  "reject",
+  "modify",
+  "terminate",
+  "escalate",
+]);
+
+/** One proposed call and the events recorded for it. */
+interface CallSlot {
+  call?: ToolCall;
+  producer?: ModelEvent;
+  approval?: ApprovalEvent;
+  tool?: ToolEvent;
+  /** An approval or a `tool_call` decision stopped the call before it ran. */
+  stopped?: boolean;
+}
+
+/** The calls under one id in one conversation, from the latest model output
+ *  that proposed it. Ids can repeat across turns, so each stage takes the
+ *  slots in order, as `pairToolSentinels` hands tools their proposals. */
+interface CallChain {
+  slots: CallSlot[];
+  approvals: number;
+  checks: number;
+  tools: number;
+  results: number;
+}
+
+type ChainStage = "approvals" | "checks" | "tools" | "results";
+
+/** The next slot `stage` has not taken, past those `skip` says never reached
+ *  it; a stage with no proposal left takes a fresh slot. */
+const takeSlot = (
+  chain: CallChain,
+  stage: ChainStage,
+  skip?: (slot: CallSlot) => boolean
+): CallSlot => {
+  let slot = chain.slots[chain[stage]];
+  while (slot && skip?.(slot)) slot = chain.slots[++chain[stage]];
+  if (!slot) chain.slots.push((slot = {}));
+  chain[stage] += 1;
+  return slot;
+};
+
+const approvalStopped = (approval: ApprovalEvent): boolean =>
+  approval.decision !== "approve" && approval.decision !== "modify";
+
+/** A call stopped before it ran, or whose arguments never parsed, has no
+ *  result; an escalation older builds let through ran despite its step. */
+const didNotRun = (slot: CallSlot): boolean =>
+  !slot.tool ||
+  (toolFailed(slot.tool) &&
+    (slot.stopped === true || slot.tool.error?.type === "parsing"));
+
+/** A call a bridge ran on the host, which only the bridge's checks judge. */
+const ranOnHost = (slot: CallSlot): boolean =>
+  !!slot.tool && isBridgeTool(slot.tool);
+
+/** A `tool_call` step that kept its call from running. */
+const stopsCall = (step: SentinelStep): boolean =>
+  !!step.effective && step.verdict !== "proceed" && step.verdict !== "modify";
+
+/** Each sentinel step counts once, by the decision that took effect —
+ *  nested configurations record a decision per layer. Pairing runs in
+ *  recording order within each conversation: `conversationOf` keys an
+ *  event's span.
+ *
+ *  This pairs separately from `pairToolSentinels`, which works on the event
+ *  tree and scans tools per step; this pass also needs approvals and each
+ *  call's proposing model call, in one pass over a flat list. Keep the rules
+ *  in sync: the latest output proposing an id owns its proposals, which its
+ *  tools take in order; a `tool_call` step judges the next tool with its id,
+ *  a `tool_result` step one that ran before it; an agent bridge's check
+ *  judges only a call the bridge ran on the host, and a native check never
+ *  does. */
+const collectSentinelDecisions = (
+  events: Event[],
+  spans: Map<string, SpanInfo>,
+  conversationOf: (spanId: string | null | undefined) => string
+): SentinelDecisions => {
+  const steps = buildSentinelSteps(events);
+  const chains = new Map<string, CallChain>();
+  const chainKey = (spanId: string | null | undefined, id: string) =>
+    `${conversationOf(spanId)}\u0000${id}`;
+  const newChain = (slots: CallSlot[]): CallChain => ({
+    slots,
+    approvals: 0,
+    checks: 0,
+    tools: 0,
+    results: 0,
+  });
+  const chainFor = (spanId: string | null | undefined, id: string) => {
+    const key = chainKey(spanId, id);
+    let chain = chains.get(key);
+    if (!chain) chains.set(key, (chain = newChain([])));
+    return chain;
+  };
+  const latestModel = new Map<string, ModelEvent>();
+  const slotOfStep = new Map<SentinelStep, CallSlot>();
+  const producerOfStep = new Map<SentinelStep, ModelEvent>();
+  const overruledApprovals = new Set<ApprovalEvent>();
+  const blockedTools = new Set<ToolEvent>();
+  const bridgeChecks: { step: SentinelStep; chain: CallChain }[] = [];
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
+
+  for (const event of events) {
+    if (event.event === "model") {
+      // Monitors' own calls run inside the sentinel span.
+      if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
+      latestModel.set(conversationOf(event.span_id), event);
+      const fresh = new Map<string, CallSlot[]>();
+      for (const choice of event.output.choices) {
+        for (const call of choice.message.tool_calls ?? []) {
+          let slots = fresh.get(call.id);
+          if (!slots) fresh.set(call.id, (slots = []));
+          slots.push({ call, producer: event });
+        }
+      }
+      for (const [id, slots] of fresh) {
+        chains.set(chainKey(event.span_id, id), newChain(slots));
+      }
+    } else if (event.event === "approval") {
+      const slot = takeSlot(
+        chainFor(event.span_id, event.call.id),
+        "approvals"
+      );
+      slot.approval = event;
+      if (approvalStopped(event)) slot.stopped = true;
+    } else if (event.event === "tool") {
+      takeSlot(chainFor(event.span_id, event.id), "tools").tool = event;
+    } else if (event.event === "sentinel") {
+      const step = steps.get(event);
+      if (!step) continue;
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      if (toolStage && isBridgeCheck(event)) {
+        bridgeChecks.push({
+          step,
+          chain: chainFor(event.span_id, step.stepId),
+        });
+      } else if (step.stage === "tool_call") {
+        // A call its approval stopped never reached the sentinel.
+        const chain = chainFor(event.span_id, step.stepId);
+        const slot = takeSlot(
+          chain,
+          "checks",
+          (slot) => slot.stopped === true || ranOnHost(slot)
+        );
+        slotOfStep.set(step, slot);
+        if (stopsCall(step)) slot.stopped = true;
+      } else if (step.stage === "tool_result") {
+        // Only a call that ran has a result to judge, though the run may
+        // have failed.
+        const chain = chainFor(event.span_id, step.stepId);
+        slotOfStep.set(
+          step,
+          takeSlot(
+            chain,
+            "results",
+            (slot) => didNotRun(slot) || ranOnHost(slot)
+          )
+        );
+      } else {
+        const producer = latestModel.get(conversationOf(event.span_id));
+        if (producer) producerOfStep.set(step, producer);
+      }
+    }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<CallSlot>>();
+  const callOfStep = new Map<SentinelStep, ToolCall>();
+  for (const { step, chain } of bridgeChecks) {
+    const taken = bridgeTaken.get(step.stage) ?? new Set<CallSlot>();
+    bridgeTaken.set(step.stage, taken);
+    const slot = chain.slots.find(
+      (s) =>
+        ranOnHost(s) &&
+        !taken.has(s) &&
+        (step.stage === "tool_call" || !didNotRun(s))
+    );
+    if (!slot) {
+      // A bridge's own call runs in its scaffold, with no ToolEvent, under
+      // an id the bridge issued. Only bridge generations set
+      // `requested_model`, so a native proposal under the id never names it.
+      const proposal =
+        step.stage === "tool_call"
+          ? chain.slots.find(
+              (s) => !s.tool && !!s.producer?.requested_model && !taken.has(s)
+            )
+          : undefined;
+      if (proposal?.call) {
+        taken.add(proposal);
+        callOfStep.set(step, proposal.call);
+        if (proposal.producer) producerOfStep.set(step, proposal.producer);
+      }
+      continue;
+    }
+    taken.add(slot);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
+  }
+
+  const byOutcome = new Map<SentinelEvent, SentinelDecision>();
+  for (const step of steps.values()) {
+    const { effective: decider, outcome } = step;
+    if (!decider || !outcome || !kCountedVerdicts.has(step.verdict)) continue;
+    const slot = slotOfStep.get(step);
+    const tool = slot?.tool;
+    // A modified call ran (as its replacement) and draws its own span.
+    const ghost =
+      step.stage === "tool_call" &&
+      step.verdict !== "modify" &&
+      (!tool || toolFailed(tool));
+    if (slot?.approval) overruledApprovals.add(slot.approval);
+    if (ghost && tool) blockedTools.add(tool);
+    byOutcome.set(outcome.event, {
+      step,
+      decider,
+      call: slot ? (slot.call ?? tool) : callOfStep.get(step),
+      producer: slot ? slot.producer : producerOfStep.get(step),
+      ghost,
+    });
+  }
+  return { byOutcome, overruledApprovals, blockedTools };
+};
+
 export interface ActivityInputs {
   events: Event[];
   startedAt?: string | null;
@@ -710,6 +997,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
    *  by identity — pre-uuid logs have no other handle. */
   const turnOfPoint = new Map<TokenPoint | ContextPoint, TurnColumn>();
   const turnOfDrop = new Map<CompactionDrop, TurnColumn>();
+  const turnOfModel = new Map<ModelEvent, TurnColumn>();
 
   let minTime = Infinity;
   let maxTime = -Infinity;
@@ -834,6 +1122,27 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   ): Conversation =>
     currentConversationBySpan.get(spanKey(spanId)) ??
     conversationForSpan(spanId);
+  /** The span a sentinel's dispatch ran under. Its own span also holds its
+   *  monitors' model calls, and a role-keyed one would claim the span key
+   *  for a stray row. */
+  const outsideSentinelSpans = (
+    spanId: string | null | undefined
+  ): string | null | undefined => {
+    let id = spanId;
+    let span = id ? spans.get(id) : undefined;
+    const visited = new Set<string>();
+    while (span?.type === TYPE_SENTINEL && !visited.has(span.id)) {
+      visited.add(span.id);
+      id = span.parentId;
+      span = id ? spans.get(id) : undefined;
+    }
+    return id;
+  };
+  const sentinelDecisions = collectSentinelDecisions(
+    events,
+    spans,
+    (spanId) => conversationForSpan(outsideSentinelSpans(spanId)).id
+  );
 
   const rowFor = (conversation: Conversation): AgentRow => {
     let row = rowsById.get(conversation.id);
@@ -944,6 +1253,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         };
         row.spans.push(span);
         const turn = newTurn(row.id, t, end);
+        turnOfModel.set(event, turn);
         turn.model = span;
         turn.modelWork = span.working;
         if ((event.retries ?? 0) > 0) {
@@ -983,7 +1293,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         break;
       }
       case "tool": {
-        const failed = event.error != null || event.failed === true;
+        const failed = toolFailed(event);
+        if (sentinelDecisions.blockedTools.has(event)) break;
         const isPending = event.pending === true && completed === undefined;
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
@@ -1082,6 +1393,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       }
       case "approval": {
         if (event.decision === "approve") break;
+        // The sentinel runs after approval, so its decision is the call's last.
+        if (sentinelDecisions.overruledApprovals.has(event)) break;
         rejectedCount += 1;
         const word = decisionWord(event.decision);
         const args = callArgsText(event.call.arguments);
@@ -1114,6 +1427,56 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
             : undefined,
           by: event.approver,
           byRole: "approver",
+        });
+        break;
+      }
+      case "sentinel": {
+        const decision = sentinelDecisions.byOutcome.get(event);
+        if (!decision) break;
+        const { step, decider, call, producer, ghost } = decision;
+        rejectedCount += 1;
+        const word = decisionWord(step.verdict);
+        const lead = kSentinelStageLead.get(step.stage) ?? "Sentinel step";
+        const args = call ? callArgsText(call.arguments) : "";
+        // A model_input step judged the next turn's request, which the
+        // marker snaps forward to; every other stage judged what an earlier
+        // turn produced. A monitor's call since may be the row's latest turn.
+        if (step.stage !== "model_input") {
+          const turn =
+            (producer && turnOfModel.get(producer)) ??
+            currentTurnByRow.get(
+              conversationForEvent(outsideSentinelSpans(event.span_id)).id
+            );
+          if (turn) {
+            if (ghost) turn.rejected += 1;
+            turn.end = Math.max(turn.end, t);
+          }
+        }
+        const reason =
+          step.reason ?? (decider.event.message?.trim() || undefined);
+        markers.push({
+          time: t,
+          category: "approval",
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          label: `${lead}${call ? ` ${call.function}` : ""} ${word}`,
+        });
+        rows.push({
+          time: t,
+          category: "approval",
+          kind: word,
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          lead,
+          mono: call
+            ? args
+              ? `${call.function}: ${args}`
+              : call.function
+            : undefined,
+          tail: word,
+          detail: reason ? `“${truncate(reason)}”` : undefined,
+          by: instanceLabel(decider.event),
+          byRole: "sentinel",
         });
         break;
       }

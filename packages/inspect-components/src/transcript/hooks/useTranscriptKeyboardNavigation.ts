@@ -5,7 +5,7 @@ import {
   useListKeyboardNavigation,
 } from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { isEditableTarget } from "@tsmono/util";
+import { isEditableTarget, isElementShown } from "@tsmono/util";
 
 interface TranscriptKeyboardNavigationOptions {
   listHandle: RefObject<VirtualListHandle | null>;
@@ -68,11 +68,7 @@ export function useTranscriptKeyboardNavigation({
       // window-capture keys — otherwise a hidden/offscreen instance swallows
       // them via stopImmediatePropagation. Mirrors GoToTurnBar's gate.
       const container = scrollRef?.current;
-      if (
-        container &&
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
-        (!container.isConnected || container.checkVisibility?.() === false)
-      ) {
+      if (container && !isElementShown(container)) {
         return;
       }
       const hasModifier = event.metaKey || event.ctrlKey || event.altKey;

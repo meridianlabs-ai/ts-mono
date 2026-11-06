@@ -63,8 +63,7 @@ export const Value: FC<ValueProps> = ({
         options={options}
       />
     );
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (isNumberValue(input) && input.value !== null) {
+  } else if (isNumberValue(input)) {
     return formatPrettyDecimal(input.value);
   } else if (isBooleanValue(input)) {
     return (

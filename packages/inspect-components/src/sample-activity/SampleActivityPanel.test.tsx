@@ -125,6 +125,9 @@ const mountPanelWith = (
 
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
+  // jsdom has no layout; the history list's virtualizer sizes its viewport
+  // from clientHeight.
+  vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
   // jsdom has no scrollTo; VirtualList calls it during mount.
   Element.prototype.scrollTo = function () {};
 });
@@ -132,6 +135,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("SampleActivityPanel band chips", () => {

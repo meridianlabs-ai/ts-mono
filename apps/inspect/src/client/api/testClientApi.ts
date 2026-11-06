@@ -28,7 +28,6 @@ export const testClientAPI = (
   get_logs: notImplemented("get_logs"),
   get_eval_set: notImplemented("get_eval_set"),
   get_flow: notImplemented("get_flow"),
-  get_log_summaries: notImplemented("get_log_summaries"),
   get_log_summaries_settled: notImplemented("get_log_summaries_settled"),
   get_log_details: notImplemented("get_log_details"),
   get_log_info: notImplemented("get_log_info"),

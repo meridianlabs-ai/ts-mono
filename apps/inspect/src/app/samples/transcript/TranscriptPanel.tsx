@@ -25,7 +25,6 @@ import {
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import {
-  navigateAndForget,
   useChromeNavOwnership,
   useOpenEventFocus,
   useReflectEventNavigationInUrl,
@@ -405,7 +404,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );

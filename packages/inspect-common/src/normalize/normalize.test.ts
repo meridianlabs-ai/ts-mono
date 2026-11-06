@@ -108,6 +108,16 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     ]);
   });
 
+  it("keeps a metric named __proto__ as an ordinary entry", () => {
+    const raw: unknown = JSON.parse(
+      '[{"name": "s", "metrics": {"__proto__": {"name": "m", "value": 1}}}]'
+    );
+    const results = normalizeEvalResults({ scores: raw })!;
+    expect(Object.entries(results.scores[0]!.metrics)).toEqual([
+      ["__proto__", testEvalMetric({ name: "m", value: 1 })],
+    ]);
+  });
+
   it("returns null results for in-progress logs", () => {
     expect(normalizeEvalResults(undefined)).toBeNull();
     expect(normalizeEvalResults(null)).toBeNull();
@@ -672,13 +682,111 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  const pathless = {
+    ...base,
+    event: "sentinel",
+    kind: "decision",
+    step_id: "call_1",
+    conversation: "agent",
+  };
+  const sentinel = { ...pathless, factory: "guard", path: "guard/rules" };
+
   it("sentinel: reads an old log's continue action as proceed", () => {
-    const event = { ...base, event: "sentinel", kind: "decision" };
-    expect(normalizeEvent({ ...event, action: "continue" })).toMatchObject({
+    expect(normalizeEvent({ ...sentinel, action: "continue" })).toMatchObject({
       action: "proceed",
     });
-    const current = { ...event, action: "proceed" };
+    const current = { ...sentinel, action: "proceed" };
     expect(normalizeEvent(current)).toBe(current);
+  });
+
+  it("sentinel: fills the required strings a crafted record omits", () => {
+    expect(normalizeEvent({ ...pathless, action: "reject" })).toMatchObject({
+      path: "",
+      factory: "",
+      step_id: "call_1",
+      conversation: "agent",
+    });
+  });
+
+  // Current inspect_ai accepts each of these with the defaulted fields omitted.
+  const communication = {
+    ...base,
+    event: "communication",
+    source: "test",
+    agent: "a",
+  };
+
+  it("communication: fills the defaults of each kind", () => {
+    expect(
+      normalizeEvent({ ...communication, kind: "read", channel: "c" })
+    ).toMatchObject({ nested: false, record_ids: [], data: {} });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "sent",
+        channel: "c",
+        send: { record: { kind: "message", sender: "a" } },
+      })
+    ).toMatchObject({
+      record_ids: [],
+      send: { record: { kind: "message", to: [], recipients: [] } },
+    });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "delivered",
+        channel: "c",
+        delivery: { seq: 1 },
+      })
+    ).toMatchObject({ delivery: { seq: 1, recipients: [] } });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news", duration: 1 },
+      })
+    ).toMatchObject({
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: [] },
+    });
+  });
+
+  it("communication: keeps a complete event's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "waited",
+      nested: false,
+      record_ids: [],
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: ["c"] },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: fills defaults on events nested in tool and subtask events", () => {
+    const nested = { ...communication, kind: "read", channel: "c" };
+    const filled = { event: "communication", record_ids: [], data: {} };
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "tool",
+        id: "call1",
+        function: "agent",
+        arguments: {},
+        result: "",
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "subtask",
+        name: "calc",
+        input: {},
+        result: null,
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
   });
 
   it("span_begin / span_end: fill ids and names", () => {

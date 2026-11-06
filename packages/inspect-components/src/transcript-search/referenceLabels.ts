@@ -26,8 +26,7 @@ export const deriveSearchReferenceLabels = (
     if (!ref.cite) continue;
     if (ref.type === "message") {
       messageLabels[ref.id] = ref.cite;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    } else if (ref.type === "event") {
+    } else {
       eventLabels[ref.id] = ref.cite;
     }
   }

@@ -1,4 +1,4 @@
-import { isRecord } from "@tsmono/util";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 import type {
   ConfigUpdate,
@@ -77,7 +77,7 @@ const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
   if (!isRecord(raw)) {
     return {};
   }
-  const metrics: Record<string, EvalMetric> = {};
+  const metrics = new Map<string, EvalMetric>();
   for (const [name, entry] of Object.entries(raw)) {
     if (!isRecord(entry)) continue;
     const filled = {
@@ -85,9 +85,9 @@ const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
       name: typeof entry["name"] === "string" ? entry["name"] : name,
       params: isRecord(entry["params"]) ? entry["params"] : {},
     };
-    if (isEvalMetric(filled)) metrics[name] = filled;
+    if (isEvalMetric(filled)) metrics.set(name, filled);
   }
-  return metrics;
+  return nullProtoRecord(metrics);
 };
 
 /**
