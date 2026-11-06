@@ -8,6 +8,7 @@ import {
   testSentinelEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
+  testSubtaskEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -19,6 +20,7 @@ import type {
 
 import { EventNode } from "../types";
 
+import { flatTree } from "./flatten";
 import {
   buildLoneSentinelStep,
   buildSentinelStep,
@@ -1003,19 +1005,20 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
     expect(paired?.proposed).toEqual(proposedCall);
   });
 
-  describe("with two routed sub-agents sharing a call id", () => {
+  describe("with checks of sub-agents' calls", () => {
     // Independent bridges keep the model's ids, and cache hits reuse them. The
     // tree walks each sub-agent's span whole, while the outer agent's check
-    // spans follow completion order.
-    const readFile = (path: string) =>
-      testToolCall({
-        id: "shared",
-        function: "read_file",
-        arguments: { path },
-      });
+    // spans follow completion order, so only timestamps place a check among
+    // a sub-agent's generations.
+    const readFile = (path: string, id = "shared") =>
+      testToolCall({ id, function: "read_file", arguments: { path } });
     const subAgent = (id: string): Event =>
       testSpanBeginEvent({ id, uuid: id, type: "agent", parent_id: "outer" });
-    const propose = (agent: string, call: ToolCall, turn = ""): Event =>
+    const propose = (
+      agent: string,
+      calls: ToolCall | ToolCall[],
+      turn = ""
+    ): Event =>
       testModelEvent({
         uuid: `model-${agent}${turn}`,
         span_id: agent,
@@ -1023,25 +1026,42 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
         output: testModelOutput({
           choices: [
             testChatCompletionChoice({
-              message: testAssistantMessage({ tool_calls: [call] }),
+              message: testAssistantMessage({
+                tool_calls: Array.isArray(calls) ? calls : [calls],
+              }),
             }),
           ],
         }),
       });
-    const check = (agent: string, turn = ""): Event[] => [
+    const check = (
+      agent: string,
+      turn = "",
+      {
+        action = "modify",
+        parent = "outer",
+        stepId = "shared",
+        stage = "tool_call",
+      }: {
+        action?: SentinelEvent["action"];
+        stage?: SentinelEvent["stage"];
+        parent?: string;
+        stepId?: string;
+      } = {}
+    ): Event[] => [
       testSpanBeginEvent({
         id: `span-${agent}${turn}`,
         uuid: `span-${agent}${turn}`,
         name: "sentinel_bridge",
         type: "sentinel",
-        parent_id: "outer",
+        parent_id: parent,
       }),
       testSentinelEvent({
         uuid: `decision-${agent}${turn}`,
         span_id: `span-${agent}${turn}`,
-        step_id: "shared",
+        step_id: stepId,
         conversation: agent,
-        action: "modify",
+        action,
+        stage,
       }),
       testSpanEndEvent({
         id: `span-${agent}${turn}`,
@@ -1056,6 +1076,12 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
         function: "read_file",
         metadata: { bridge: { proposal_id: "shared", grant: "consumed" } },
       });
+    /** Stamps events a second apart, as a log records them. */
+    const recorded = (events: Event[]): Event[] =>
+      events.map((event, index) => ({
+        ...event,
+        timestamp: new Date(Date.UTC(2026, 10, 5, 0, 0, index)).toISOString(),
+      }));
 
     it("pairs each check with its own conversation's host call, though they complete in reverse", () => {
       const events: Event[] = [
@@ -1112,7 +1138,7 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
     });
 
     it("pairs a conversation's checks with its host calls under a repeated id in recording order", () => {
-      const events: Event[] = [
+      const events = recorded([
         testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
         subAgent("A"),
         propose("A", readFile("one.txt"), "1"),
@@ -1121,7 +1147,7 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
         propose("A", readFile("two.txt"), "2"),
         ...check("A", "2"),
         host("A", "2"),
-      ];
+      ]);
 
       const result = pairToolSentinels(treeifyEvents(events, 0));
 
@@ -1136,6 +1162,181 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
         expect(paired?.proposed).toEqual(readFile(path));
       }
     });
+
+    // The bridge retries a generation a check rejected without running its
+    // calls, and the retry can reuse the id: no host call ran for the
+    // rejected attempt.
+    const rejectThenRetry = (parent: string) =>
+      recorded([
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        propose("A", readFile("blocked.txt"), "1"),
+        ...check("A", "1", { action: "reject", parent }),
+        propose("A", readFile("allowed.txt"), "2"),
+        ...check("A", "2", { action: "proceed", parent }),
+        host("A", "2"),
+      ]);
+
+    it.each([
+      ["a routed sub-agent's tree", "outer", false],
+      ["a routed sub-agent's flat list", "outer", true],
+      ["the sub-agent's own tree", "A", false],
+      ["the sub-agent's own flat list", "A", true],
+    ])(
+      "leaves a rejected attempt's check standalone and pairs the retry's check with its host call, in %s",
+      (_, parent, flat) => {
+        const tree = treeifyEvents(rejectThenRetry(parent), 0);
+
+        const result = pairToolSentinels(flat ? flatTree(tree, null) : tree);
+
+        const paired = result.toolSentinels.get("host-A2");
+        expect(paired?.before && rowIds(paired.before)).toEqual([
+          "decision-A2",
+        ]);
+        expect(paired?.proposed).toEqual(readFile("allowed.txt"));
+        expect(result.toolSentinels.size).toBe(1);
+        const rejected = result.standaloneSentinels.get("span-A1");
+        expect(rejected && rowIds(rejected)).toEqual(["decision-A1"]);
+        expect(result.sentinelScrollRedirects.get("decision-A1")).toBe(
+          "span-A1"
+        );
+        expect(result.sentinelScrollRedirects.get("decision-A2")).toBe(
+          "host-A2"
+        );
+      }
+    );
+
+    it("pairs result checks with the host calls they judged when they record after a later attempt reused the id", () => {
+      const resultCheck = (turn: string) =>
+        check("A", turn, { stage: "tool_result" });
+      const events = recorded([
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        propose("A", readFile("one.txt"), "1"),
+        ...check("A", "1"),
+        host("A", "1"),
+        propose("A", readFile("two.txt"), "2"),
+        ...check("A", "2"),
+        host("A", "2"),
+        ...resultCheck("r1"),
+        ...resultCheck("r2"),
+      ]);
+
+      const result = pairToolSentinels(treeifyEvents(events, 0));
+
+      for (const turn of ["1", "2"]) {
+        const paired = result.toolSentinels.get(`host-A${turn}`);
+        expect(paired?.before && rowIds(paired.before)).toEqual([
+          `decision-A${turn}`,
+        ]);
+        expect(paired?.after && rowIds(paired.after)).toEqual([
+          `decision-Ar${turn}`,
+        ]);
+      }
+      expect(result.standaloneSentinels.size).toBe(0);
+    });
+
+    it("leaves a check standalone that let its call through in an attempt another call's check rejected", () => {
+      const events = recorded([
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        propose(
+          "A",
+          [readFile("notes.txt"), readFile("blocked.txt", "other")],
+          "1"
+        ),
+        ...check("A", "1", { action: "proceed" }),
+        ...check("A", "1b", { action: "reject", stepId: "other" }),
+        propose("A", readFile("notes.txt"), "2"),
+        ...check("A", "2", { action: "proceed" }),
+        host("A", "2"),
+      ]);
+
+      const result = pairToolSentinels(treeifyEvents(events, 0));
+
+      const paired = result.toolSentinels.get("host-A2");
+      expect(paired?.before && rowIds(paired.before)).toEqual(["decision-A2"]);
+      const unrun = result.standaloneSentinels.get("span-A1");
+      expect(unrun && rowIds(unrun)).toEqual(["decision-A1"]);
+    });
+  });
+
+  it("pairs a bridge's check under a public subtask, which records the outer agent, with the subtask's host call, not the outer agent's", () => {
+    // `@subtask` opens a subtask span but leaves the agent span, which a
+    // bridge's check records as its conversation, unchanged.
+    const readFile = (path: string) =>
+      testToolCall({ id: "tok1", function: "read_file", arguments: { path } });
+    const generation = (uuid: string, span: string, call: ToolCall) =>
+      testModelEvent({
+        uuid,
+        span_id: span,
+        requested_model: "client",
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ tool_calls: [call] }),
+            }),
+          ],
+        }),
+      });
+    const hostCall = (uuid: string, span: string) =>
+      testToolEvent({
+        uuid,
+        span_id: span,
+        id: "tok1",
+        function: "read_file",
+        metadata: { bridge: { proposal_id: "tok1", grant: "consumed" } },
+      });
+    const call = readFile("notes.txt");
+    // With its SubtaskEvent the tree lifts the subtask's span; without one
+    // the span stays in place.
+    const events = (subtaskEvent: Event[]): Event[] => [
+      testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+      generation("m-outer", "outer", readFile("earlier.txt")),
+      hostCall("earlier", "outer"),
+      testSpanBeginEvent({
+        id: "task",
+        uuid: "task",
+        name: "research",
+        type: "subtask",
+        parent_id: "outer",
+      }),
+      ...subtaskEvent,
+      generation("m-task", "task", call),
+      testSpanBeginEvent({
+        id: "bridge-span",
+        uuid: "bridge-span",
+        name: "sentinel_bridge",
+        type: "sentinel",
+        parent_id: "task",
+      }),
+      testSentinelEvent({
+        uuid: "decision",
+        span_id: "bridge-span",
+        step_id: "tok1",
+        conversation: "outer",
+        action: "modify",
+      }),
+      testSpanEndEvent({ id: "bridge-span", uuid: "bridge-span-end" }),
+      hostCall("host", "task"),
+    ];
+
+    for (const recorded of [
+      events([testSubtaskEvent({ uuid: "subtask-event", span_id: "task" })]),
+      events([]),
+    ]) {
+      for (const nodes of [
+        treeifyEvents(recorded, 0),
+        flatTree(treeifyEvents(recorded, 0), null),
+      ]) {
+        const result = pairToolSentinels(nodes);
+
+        const paired = result.toolSentinels.get("host");
+        expect(paired?.before && rowIds(paired.before)).toEqual(["decision"]);
+        expect(paired?.proposed).toEqual(call);
+        expect(result.toolSentinels.has("earlier")).toBe(false);
+      }
+    }
   });
 });
 
