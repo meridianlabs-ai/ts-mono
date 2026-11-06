@@ -749,16 +749,27 @@ const didNotRun = (slot: CallSlot): boolean =>
 const ranOnHost = (slot: CallSlot): boolean =>
   !!slot.tool && isBridgeTool(slot.tool);
 
-/** The span an agent bridge's check belongs to: the agent span it recorded
- *  as its conversation, since a model event sink's `on_start` can run the
- *  bridged generation in a sub-agent while the check's own span stays under
- *  the outer agent. A conversation that names no span (the sample's uuid)
- *  falls back to the check's span. */
+/** The span an agent bridge's check belongs to. The conversation it records
+ *  is the nearest agent span, while rows key on the nearest agent, subtask
+ *  or solver span, so it only settles which agent the check belongs to when
+ *  the check's own span is outside that agent: a model event sink's
+ *  `on_start` can run the bridged generation in a sub-agent while the
+ *  check's span stays under the outer agent. Inside it (a subtask under the
+ *  agent), or when the conversation names no span (the sample's uuid), the
+ *  check's span decides. */
 const bridgeConversationSpan = (
   event: SentinelEvent,
   spans: Map<string, SpanInfo>
-): string | null | undefined =>
-  spans.has(event.conversation) ? event.conversation : event.span_id;
+): string | null | undefined => {
+  if (!spans.has(event.conversation)) return event.span_id;
+  const visited = new Set<string>();
+  for (let id = event.span_id; id && !visited.has(id);) {
+    if (id === event.conversation) return event.span_id;
+    visited.add(id);
+    id = spans.get(id)?.parentId;
+  }
+  return event.conversation;
+};
 
 /** A `tool_call` step that kept its call from running. */
 const stopsCall = (step: SentinelStep): boolean =>
@@ -777,7 +788,8 @@ const stopsCall = (step: SentinelStep): boolean =>
  *  tools take in order; a `tool_call` step judges the next tool with its id,
  *  a `tool_result` step one that ran before it; an agent bridge's check
  *  judges only a call the bridge ran on the host, and a native check never
- *  does. */
+ *  does; a bridge's check judges the call of the latest output proposing
+ *  its id before it, which a retry after a rejection replaces. */
 const collectSentinelDecisions = (
   events: Event[],
   spans: Map<string, SpanInfo>,

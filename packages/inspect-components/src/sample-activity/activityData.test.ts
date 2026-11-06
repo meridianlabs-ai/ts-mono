@@ -17,6 +17,7 @@ import {
   testSentinelEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
+  testSubtaskEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -3195,6 +3196,117 @@ describe("sentinel decisions", () => {
           ["Tool result", "bash: cat host.txt", "terminated"],
         ]);
       });
+    });
+
+    describe("under a public subtask", () => {
+      // `@subtask` opens a subtask span but leaves the agent span, which the
+      // bridge's check records as its conversation, unchanged.
+      const kTask = "task";
+      const taskBegin = testSpanBeginEvent({
+        id: kTask,
+        name: "research",
+        type: "subtask",
+        parent_id: kAgent,
+        timestamp: iso(0.5),
+      });
+      const subtaskEvent = testSubtaskEvent({
+        span_id: kTask,
+        timestamp: iso(0.6),
+      });
+      const outerTurn = modelCall({
+        start: 0,
+        duration: 0.4,
+        workingStart: 0,
+        spanId: kAgent,
+        uuid: "outer",
+      });
+      const taskGeneration: ModelEvent = {
+        ...proposes(1, "tok1", "cat blocked.txt", "m-task", kTask),
+        requested_model: "client",
+      };
+      const taskCheck = (action: NonNullable<SentinelEvent["action"]>) => [
+        { ...bridgeSpan("s1", 2.1), parent_id: kTask },
+        check("s1", 2.2, "tok1", "", action, {
+          factory: "bridge_check",
+          conversation: kAgent,
+        }),
+      ];
+      const turnSummary = (data: ReturnType<typeof deriveActivityData>) =>
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end]);
+
+      it("names the subtask's rejected call and counts it on the subtask's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          taskBegin,
+          subtaskEvent,
+          taskGeneration,
+          ...taskCheck("reject"),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat blocked.txt", "rejected"],
+        ]);
+        expect(turnSummary(data)).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-task", 1, kRunStart + 2.2],
+        ]);
+      });
+
+      it("names the subtask's host call its check modified and keeps it on the subtask's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          taskBegin,
+          subtaskEvent,
+          taskGeneration,
+          ...taskCheck("modify"),
+          hostToolFor("tok1", 2.3, { uuid: "t-host", span_id: kTask }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat blocked.txt", "modified"],
+        ]);
+        expect(turnSummary(data)).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-task", 0, kRunStart + 2.8],
+        ]);
+      });
+    });
+
+    it("names a rejected attempt's call and counts it on that attempt's turn, not the retry's", () => {
+      // The bridge retries the generation without running the rejected
+      // attempt's calls, and the retry can reuse the id.
+      const retry: ModelEvent = {
+        ...proposes(3, "tok1", "cat allowed.txt", "m-retry"),
+        requested_model: "client",
+      };
+      const events: Event[] = [
+        agentBegin,
+        {
+          ...proposes(0, "tok1", "cat blocked.txt"),
+          requested_model: "client",
+        },
+        bridgeSpan("s1", 1.1),
+        check("s1", 1.2, "tok1", "", "reject", { factory: "bridge_check" }),
+        retry,
+        bridgeSpan("s2", 4.1),
+        check("s2", 4.2, "tok1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("tok1", 4.3, { uuid: "t-host" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: cat blocked.txt", "rejected"],
+      ]);
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected])
+      ).toEqual([
+        ["m-tok1", 1],
+        ["m-retry", 0],
+      ]);
     });
   });
 });
