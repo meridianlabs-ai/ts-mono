@@ -941,6 +941,67 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
     expect(after && rowIds(after)).toEqual(["own"]);
     expect(result.standaloneSentinels.has("bridge-span")).toBe(true);
   });
+
+  it("pairs a bridge's check with the host call a sub-agent's generation proposed, though the check's span is under the outer agent", () => {
+    // A model event sink's `on_start` can run the bridged generation, and so
+    // its host calls, in a sub-agent's span.
+    const proposedCall = testToolCall({
+      id: "tok1",
+      function: "read_file",
+      arguments: { path: "secrets.txt" },
+    });
+    const events: Event[] = [
+      testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+      testSpanBeginEvent({
+        id: "sub",
+        uuid: "sub",
+        type: "agent",
+        parent_id: "outer",
+      }),
+      testModelEvent({
+        uuid: "m-sub",
+        span_id: "sub",
+        requested_model: "client",
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ tool_calls: [proposedCall] }),
+            }),
+          ],
+        }),
+      }),
+      testSpanEndEvent({ id: "sub", uuid: "sub-end" }),
+      testSpanBeginEvent({
+        id: "bridge-span",
+        uuid: "bridge-span",
+        name: "sentinel_bridge",
+        type: "sentinel",
+        parent_id: "outer",
+      }),
+      testSentinelEvent({
+        uuid: "call",
+        span_id: "bridge-span",
+        step_id: "tok1",
+        conversation: "sub",
+        action: "modify",
+      }),
+      testSpanEndEvent({ id: "bridge-span", uuid: "bridge-span-end" }),
+      testToolEvent({
+        uuid: "host",
+        span_id: "sub",
+        id: "tok1",
+        function: "read_file",
+        metadata: { bridge: { proposal_id: "tok1", grant: "consumed" } },
+      }),
+      testSpanEndEvent({ id: "outer", uuid: "outer-end" }),
+    ];
+
+    const result = pairToolSentinels(treeifyEvents(events, 0));
+
+    const paired = result.toolSentinels.get("host");
+    expect(paired?.before && rowIds(paired.before)).toEqual(["call"]);
+    expect(paired?.proposed).toEqual(proposedCall);
+  });
 });
 
 describe("formatSuspicion", () => {

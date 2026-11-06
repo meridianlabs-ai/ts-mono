@@ -674,6 +674,8 @@ interface SentinelDecision {
   producer?: ModelEvent;
   /** The call never ran, so it takes a ghost slot in its turn. */
   ghost: boolean;
+  /** The span whose conversation the step belongs to. */
+  spanId: string | null | undefined;
 }
 
 interface SentinelDecisions {
@@ -747,6 +749,17 @@ const didNotRun = (slot: CallSlot): boolean =>
 const ranOnHost = (slot: CallSlot): boolean =>
   !!slot.tool && isBridgeTool(slot.tool);
 
+/** The span an agent bridge's check belongs to: the agent span it recorded
+ *  as its conversation, since a model event sink's `on_start` can run the
+ *  bridged generation in a sub-agent while the check's own span stays under
+ *  the outer agent. A conversation that names no span (the sample's uuid)
+ *  falls back to the check's span. */
+const bridgeConversationSpan = (
+  event: SentinelEvent,
+  spans: Map<string, SpanInfo>
+): string | null | undefined =>
+  spans.has(event.conversation) ? event.conversation : event.span_id;
+
 /** A `tool_call` step that kept its call from running. */
 const stopsCall = (step: SentinelStep): boolean =>
   !!step.effective && step.verdict !== "proceed" && step.verdict !== "modify";
@@ -754,7 +767,8 @@ const stopsCall = (step: SentinelStep): boolean =>
 /** Each sentinel step counts once, by the decision that took effect —
  *  nested configurations record a decision per layer. Pairing runs in
  *  recording order within each conversation: `conversationOf` keys an
- *  event's span.
+ *  event's span, or for an agent bridge's check the conversation it
+ *  recorded (`bridgeConversationSpan`).
  *
  *  This pairs separately from `pairToolSentinels`, which works on the event
  *  tree and scans tools per step; this pass also needs approvals and each
@@ -792,6 +806,7 @@ const collectSentinelDecisions = (
   const overruledApprovals = new Set<ApprovalEvent>();
   const blockedTools = new Set<ToolEvent>();
   const bridgeChecks: { step: SentinelStep; chain: CallChain }[] = [];
+  const spanOfBridgeStep = new Map<SentinelStep, string | null | undefined>();
   const isBridgeCheck = (event: SentinelEvent): boolean => {
     const span = spans.get(event.span_id ?? "");
     return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
@@ -828,10 +843,9 @@ const collectSentinelDecisions = (
       const toolStage =
         step.stage === "tool_call" || step.stage === "tool_result";
       if (toolStage && isBridgeCheck(event)) {
-        bridgeChecks.push({
-          step,
-          chain: chainFor(event.span_id, step.stepId),
-        });
+        const spanId = bridgeConversationSpan(event, spans);
+        spanOfBridgeStep.set(step, spanId);
+        bridgeChecks.push({ step, chain: chainFor(spanId, step.stepId) });
       } else if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, step.stepId);
@@ -916,6 +930,9 @@ const collectSentinelDecisions = (
       call: slot ? (slot.call ?? tool) : callOfStep.get(step),
       producer: slot ? slot.producer : producerOfStep.get(step),
       ghost,
+      spanId: spanOfBridgeStep.has(step)
+        ? spanOfBridgeStep.get(step)
+        : outcome.event.span_id,
     });
   }
   return { byOutcome, overruledApprovals, blockedTools };
@@ -1433,7 +1450,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       case "sentinel": {
         const decision = sentinelDecisions.byOutcome.get(event);
         if (!decision) break;
-        const { step, decider, call, producer, ghost } = decision;
+        const { step, decider, call, producer, ghost, spanId } = decision;
         rejectedCount += 1;
         const word = decisionWord(step.verdict);
         const lead = kSentinelStageLead.get(step.stage) ?? "Sentinel step";
@@ -1445,7 +1462,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           const turn =
             (producer && turnOfModel.get(producer)) ??
             currentTurnByRow.get(
-              conversationForEvent(outsideSentinelSpans(event.span_id)).id
+              conversationForEvent(outsideSentinelSpans(spanId)).id
             );
           if (turn) {
             if (ghost) turn.rejected += 1;

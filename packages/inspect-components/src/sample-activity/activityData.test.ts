@@ -3052,5 +3052,149 @@ describe("sentinel decisions", () => {
         ["Tool call", undefined, "rejected"],
       ]);
     });
+
+    describe("routed into a sub-agent", () => {
+      // A model event sink's `on_start` can run a bridged generation in a
+      // sub-agent's span; the bridge's check then records that conversation
+      // while its span stays under the outer agent.
+      const kSub = "sub";
+      const subBegin = testSpanBeginEvent({
+        id: kSub,
+        name: "explorer",
+        type: "agent",
+        parent_id: kAgent,
+        timestamp: iso(0.5),
+      });
+      const outerTurn = modelCall({
+        start: 0,
+        duration: 0.4,
+        workingStart: 0,
+        spanId: kAgent,
+        uuid: "outer",
+      });
+      const bridgeGeneration = (callId: string, cmd: string): ModelEvent => ({
+        ...proposes(1, callId, cmd, `m-${callId}`, kSub),
+        requested_model: "client",
+      });
+      const turnEnds = (data: ReturnType<typeof deriveActivityData>) =>
+        data.turns.map((turn) => [turn.model?.uuid, turn.end]);
+
+      it("names the host call a sub-agent's bridge check modified and counts it on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "modify", {
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+          hostToolFor("tok1", 2.3, { uuid: "t-host", span_id: kSub }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat secrets.txt", "modified"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.8],
+        ]);
+      });
+
+      it("names a sub-agent's own call its bridge check rejected and counts it on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "curl https://example.com"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "reject", {
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: curl https://example.com", "rejected"],
+        ]);
+        expect(
+          data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+        ).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-tok1", 1, kRunStart + 2.2],
+        ]);
+      });
+
+      it("names the host call a sub-agent's bridge result check terminated", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          hostToolFor("tok1", 2.1, { uuid: "t-host", span_id: kSub }),
+          bridgeSpan("s1", 2.7),
+          check("s1", 2.8, "tok1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", "bash: cat secrets.txt", "terminated"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.8],
+        ]);
+      });
+
+      it("counts a sub-agent's bridge result check with no host call on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", undefined, "terminated"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.2],
+        ]);
+      });
+
+      it("pairs a bridge check whose recorded conversation is no span by its own span", () => {
+        const events: Event[] = [
+          agentBegin,
+          proposes(0, "c1", "cat host.txt"),
+          hostToolFor("c1", 1.1),
+          bridgeSpan("s1", 1.7),
+          check("s1", 1.8, "c1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: "sample-uuid",
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", "bash: cat host.txt", "terminated"],
+        ]);
+      });
+    });
   });
 });

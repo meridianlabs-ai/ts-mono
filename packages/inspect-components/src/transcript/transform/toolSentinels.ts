@@ -445,7 +445,8 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
  * one before a `tool_result` step, skipping tools that already host a step of
  * the same stage. A bridge's check judges only a call the bridge ran on the
  * host: a native call under the same id (one the bridged agent inherited, for
- * example) is not the one it checked.
+ * example) is not the one it checked. A bridge's `tool_call` step with no such
+ * call after it takes the first one before it.
  */
 const hostTool = (
   tools: ToolEntry[],
@@ -461,7 +462,11 @@ const hostTool = (
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
   const after = candidates.find((t) => t.order > order);
-  if (step.stage === "tool_call") return after;
+  // A bridged generation, and so its host calls, can run in a sub-agent's
+  // span while the check's span stays under the outer agent; the tree then
+  // walks the host call before the check that preceded it.
+  if (step.stage === "tool_call")
+    return bridge ? (after ?? candidates[0]) : after;
   return candidates.findLast((t) => t.order < order) ?? after;
 };
 
