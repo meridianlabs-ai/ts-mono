@@ -9,7 +9,13 @@ import type {
 
 import { EventNode, eventNodeOf } from "../types";
 
-import { SPAN_BEGIN, TYPE_SENTINEL } from "./utils";
+import {
+  SPAN_BEGIN,
+  TYPE_AGENT,
+  TYPE_SENTINEL,
+  TYPE_SOLVER,
+  TYPE_SUBTASK,
+} from "./utils";
 
 export type SentinelNode = EventNode<SentinelEvent>;
 
@@ -426,13 +432,82 @@ interface StepEvents {
   /** Position of the step's span, or of its first event, in recording order. */
   order: number;
   span?: SentinelSpan;
+  /** The step's first event's span ids, nearest first (`SpanPath`). */
+  spans: string[];
 }
 
 interface ToolEntry {
   node: EventNode<ToolEvent>;
   order: number;
   proposed?: ToolCall;
+  /** The tool's span ids, nearest first (`SpanPath`). */
+  spans: string[];
 }
+
+/** span_begin types that open a conversation, as the Activity view keys its rows. */
+const kConversationSpanTypes: ReadonlySet<string> = new Set([
+  TYPE_AGENT,
+  TYPE_SUBTASK,
+  TYPE_SOLVER,
+]);
+
+/**
+ * The span ids enclosing an event, nearest first: its `span_id` and that
+ * span's recorded parents, then the spans enclosing its node in the tree. The
+ * tree's transforms drop some span nodes (a solver's lone agent, same-named
+ * nested agents), so neither source alone is complete.
+ */
+type SpanPath = string[];
+
+interface SpanBegin {
+  parentId?: string | null;
+  type?: string | null;
+}
+
+/**
+ * Which conversation each event belongs to, as `collectSentinelDecisions`
+ * (sample-activity/activityData.ts) keys them: the nearest enclosing
+ * agent, subtask or solver span, or the root ("") outside any.
+ */
+const conversations = (spanBegins: Map<string, SpanBegin>) => {
+  const path = (spanId: string | null | undefined, tree: string[]) => {
+    const ids: string[] = [];
+    for (let id = spanId; id && !ids.includes(id);) {
+      ids.push(id);
+      id = spanBegins.get(id)?.parentId;
+    }
+    return [...ids, ...tree];
+  };
+  const isConversation = (id: string) => {
+    const type = spanBegins.get(id)?.type;
+    return type != null && kConversationSpanTypes.has(type);
+  };
+  const known = new Set(spanBegins.keys());
+  const keyOf = (spans: SpanPath): string => spans.find(isConversation) ?? "";
+  return {
+    path,
+    remember: (spans: SpanPath) => {
+      for (const id of spans) known.add(id);
+    },
+    /** A bridge's check belongs to the conversation it recorded when that
+     *  names a span; a model event sink's `on_start` can run the bridged
+     *  generation in a sub-agent while the check's own span stays under the
+     *  outer agent. Otherwise (the sample's uuid) its span decides. */
+    ofBridgeCheck: (event: SentinelEvent, spans: SpanPath): string =>
+      known.has(event.conversation) ? event.conversation : keyOf(spans),
+    keyOf,
+    /** Whether `spans` reach `conversation` before any other conversation. */
+    contains: (conversation: string, spans: SpanPath): boolean => {
+      for (const id of spans) {
+        if (id === conversation) return true;
+        if (isConversation(id)) return false;
+      }
+      return conversation === "";
+    },
+  };
+};
+
+type Conversations = ReturnType<typeof conversations>;
 
 const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
   "tool_call",
@@ -443,30 +518,34 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
  * The ToolEvent a tool-stage step judged: the first one with the step's id
  * recorded after a `tool_call` step (none when no such tool follows), the last
  * one before a `tool_result` step, skipping tools that already host a step of
- * the same stage. A bridge's check judges only a call the bridge ran on the
- * host: a native call under the same id (one the bridged agent inherited, for
- * example) is not the one it checked. A bridge's `tool_call` step with no such
- * call after it takes the first one before it.
+ * the same stage.
+ *
+ * A bridge's check judges only a call the bridge ran on the host, in the
+ * conversation the check recorded: a native call under the same id (one the
+ * bridged agent inherited, for example) is not the one it checked, and nor is
+ * another bridge's call, which can share the id. When that conversation runs
+ * outside the check's own (a routed sub-agent), the tree walks its calls apart
+ * from the checks, so its checks take its host calls in recording order.
  */
 const hostTool = (
   tools: ToolEntry[],
   step: SentinelStep,
   order: number,
   claimed: Set<string>,
-  bridge: boolean
+  bridge: { conversation: string; routed: boolean } | undefined,
+  conversation: Conversations
 ): ToolEntry | undefined => {
   const candidates = tools.filter(
     (t) =>
       t.node.event.id === step.stepId &&
-      (!bridge || isBridgeTool(t.node.event)) &&
+      (!bridge ||
+        (isBridgeTool(t.node.event) &&
+          conversation.contains(bridge.conversation, t.spans))) &&
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
+  if (bridge?.routed) return candidates[0];
   const after = candidates.find((t) => t.order > order);
-  // A bridged generation, and so its host calls, can run in a sub-agent's
-  // span while the check's span stays under the outer agent; the tree then
-  // walks the host call before the check that preceded it.
-  if (step.stage === "tool_call")
-    return bridge ? (after ?? candidates[0]) : after;
+  if (step.stage === "tool_call") return after;
   return candidates.findLast((t) => t.order < order) ?? after;
 };
 
@@ -489,9 +568,20 @@ export function pairToolSentinels(
   // sentinel spans) that proposed it, which its tools take in order.
   const proposals = new Map<string, ToolCall[]>();
   const steps = new Map<string, StepEvents>();
+  const spanBegins = new Map<string, SpanBegin>();
+  // Resolved once every span_begin is known: the tree may walk an event
+  // before the span it names.
+  const spanPaths = new Map<
+    ToolEntry | StepEvents,
+    [string | null, string[]]
+  >();
   const seen = new Set<string>();
   let order = 0;
-  const walk = (nodes: EventNode[], span: SentinelSpan | undefined) => {
+  const walk = (
+    nodes: EventNode[],
+    span: SentinelSpan | undefined,
+    ancestors: string[]
+  ) => {
     for (const n of nodes) {
       // Flat lists repeat descendants alongside their ancestors.
       if (seen.has(n.id)) continue;
@@ -499,20 +589,23 @@ export function pairToolSentinels(
       const at = order++;
       span?.members.push(n);
       if (n.event.event === "tool") {
-        tools.push({
+        const entry: ToolEntry = {
           node: eventNodeOf(n, "tool"),
           order: at,
           proposed: proposals.get(n.event.id)?.shift(),
-        });
+          spans: [],
+        };
+        tools.push(entry);
+        spanPaths.set(entry, [n.event.span_id ?? null, ancestors]);
       } else if (n.event.event === "sentinel") {
         const key = span
           ? span.node.id
           : `${n.event.stage}\u0000${n.event.step_id}`;
-        const step = steps.get(key) ?? {
-          nodes: [],
-          order: span?.order ?? at,
-          span,
-        };
+        let step = steps.get(key);
+        if (!step) {
+          step = { nodes: [], order: span?.order ?? at, span, spans: [] };
+          spanPaths.set(step, [n.event.span_id ?? null, ancestors]);
+        }
         step.nodes.push(eventNodeOf(n, "sentinel"));
         steps.set(key, step);
       } else if (n.event.event === "model") {
@@ -534,10 +627,24 @@ export function pairToolSentinels(
       if (isSentinelSpan(n)) {
         inner = { node: n, members: [], modelCalls: [], order: at };
       }
-      if (n.children.length) walk(n.children, inner);
+      let within = ancestors;
+      if (n.event.event === SPAN_BEGIN) {
+        spanBegins.set(n.event.id, {
+          parentId: n.event.parent_id,
+          type: n.event.type,
+        });
+        within = [n.event.id, ...ancestors];
+      }
+      if (n.children.length) walk(n.children, inner, within);
     }
   };
-  walk(eventNodes, undefined);
+  walk(eventNodes, undefined, []);
+
+  const conversation = conversations(spanBegins);
+  for (const [entry, [spanId, tree]] of spanPaths) {
+    entry.spans = conversation.path(spanId, tree);
+    conversation.remember(entry.spans);
+  }
 
   const toolSentinels = new Map<string, ToolSentinels>();
   const standaloneSentinels = new Map<string, SentinelStep>();
@@ -546,13 +653,22 @@ export function pairToolSentinels(
   const claimed = new Set<string>();
 
   const ordered = [...steps.values()].sort((a, b) => a.order - b.order);
-  for (const { nodes, order: at, span } of ordered) {
+  for (const { nodes, order: at, span, spans } of ordered) {
     const step = buildSentinelStep(nodes, span?.modelCalls);
-    const bridge =
+    let bridge: { conversation: string; routed: boolean } | undefined;
+    if (
       span?.node.event.event === SPAN_BEGIN &&
-      span.node.event.name === kBridgeCheckSpan;
+      span.node.event.name === kBridgeCheckSpan &&
+      nodes[0]
+    ) {
+      const recorded = conversation.ofBridgeCheck(nodes[0].event, spans);
+      bridge = {
+        conversation: recorded,
+        routed: recorded !== conversation.keyOf(spans),
+      };
+    }
     const tool = kToolStages.has(step.stage)
-      ? hostTool(tools, step, at, claimed, bridge)
+      ? hostTool(tools, step, at, claimed, bridge, conversation)
       : undefined;
     const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
     if (tool) {

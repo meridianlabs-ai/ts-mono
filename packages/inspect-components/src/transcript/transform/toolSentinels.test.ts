@@ -1002,6 +1002,141 @@ describe("pairToolSentinels with an agent bridge's checks", () => {
     expect(paired?.before && rowIds(paired.before)).toEqual(["call"]);
     expect(paired?.proposed).toEqual(proposedCall);
   });
+
+  describe("with two routed sub-agents sharing a call id", () => {
+    // Independent bridges keep the model's ids, and cache hits reuse them. The
+    // tree walks each sub-agent's span whole, while the outer agent's check
+    // spans follow completion order.
+    const readFile = (path: string) =>
+      testToolCall({
+        id: "shared",
+        function: "read_file",
+        arguments: { path },
+      });
+    const subAgent = (id: string): Event =>
+      testSpanBeginEvent({ id, uuid: id, type: "agent", parent_id: "outer" });
+    const propose = (agent: string, call: ToolCall, turn = ""): Event =>
+      testModelEvent({
+        uuid: `model-${agent}${turn}`,
+        span_id: agent,
+        requested_model: "client",
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ tool_calls: [call] }),
+            }),
+          ],
+        }),
+      });
+    const check = (agent: string, turn = ""): Event[] => [
+      testSpanBeginEvent({
+        id: `span-${agent}${turn}`,
+        uuid: `span-${agent}${turn}`,
+        name: "sentinel_bridge",
+        type: "sentinel",
+        parent_id: "outer",
+      }),
+      testSentinelEvent({
+        uuid: `decision-${agent}${turn}`,
+        span_id: `span-${agent}${turn}`,
+        step_id: "shared",
+        conversation: agent,
+        action: "modify",
+      }),
+      testSpanEndEvent({
+        id: `span-${agent}${turn}`,
+        uuid: `span-${agent}${turn}-end`,
+      }),
+    ];
+    const host = (agent: string, turn = ""): Event =>
+      testToolEvent({
+        uuid: `host-${agent}${turn}`,
+        span_id: agent,
+        id: "shared",
+        function: "read_file",
+        metadata: { bridge: { proposal_id: "shared", grant: "consumed" } },
+      });
+
+    it("pairs each check with its own conversation's host call, though they complete in reverse", () => {
+      const events: Event[] = [
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        subAgent("B"),
+        propose("B", readFile("B.txt")),
+        ...check("B"),
+        host("B"),
+        propose("A", readFile("A.txt")),
+        ...check("A"),
+        host("A"),
+      ];
+
+      const result = pairToolSentinels(treeifyEvents(events, 0));
+
+      for (const agent of ["A", "B"]) {
+        const paired = result.toolSentinels.get(`host-${agent}`);
+        expect(paired?.before && rowIds(paired.before)).toEqual([
+          `decision-${agent}`,
+        ]);
+        expect(paired?.proposed).toEqual(readFile(`${agent}.txt`));
+        expect(result.sentinelScrollRedirects.get(`decision-${agent}`)).toBe(
+          `host-${agent}`
+        );
+        expect(result.sentinelScrollRedirects.get(`span-${agent}`)).toBe(
+          `host-${agent}`
+        );
+      }
+      expect(result.standaloneSentinels.size).toBe(0);
+    });
+
+    it("leaves a check standalone when only another conversation ran a host call under its id", () => {
+      // B's call ran in its scaffold, with no host ToolEvent.
+      const events: Event[] = [
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        subAgent("B"),
+        propose("B", readFile("B.txt")),
+        ...check("B"),
+        propose("A", readFile("A.txt")),
+        ...check("A"),
+        host("A"),
+      ];
+
+      const result = pairToolSentinels(treeifyEvents(events, 0));
+
+      const standalone = result.standaloneSentinels.get("span-B");
+      expect(standalone && rowIds(standalone)).toEqual(["decision-B"]);
+      expect(result.sentinelScrollRedirects.get("decision-B")).toBe("span-B");
+      const paired = result.toolSentinels.get("host-A");
+      expect(paired?.before && rowIds(paired.before)).toEqual(["decision-A"]);
+      expect(result.sentinelScrollRedirects.get("decision-A")).toBe("host-A");
+    });
+
+    it("pairs a conversation's checks with its host calls under a repeated id in recording order", () => {
+      const events: Event[] = [
+        testSpanBeginEvent({ id: "outer", uuid: "outer", type: "agent" }),
+        subAgent("A"),
+        propose("A", readFile("one.txt"), "1"),
+        ...check("A", "1"),
+        host("A", "1"),
+        propose("A", readFile("two.txt"), "2"),
+        ...check("A", "2"),
+        host("A", "2"),
+      ];
+
+      const result = pairToolSentinels(treeifyEvents(events, 0));
+
+      for (const [turn, path] of [
+        ["1", "one.txt"],
+        ["2", "two.txt"],
+      ] as const) {
+        const paired = result.toolSentinels.get(`host-A${turn}`);
+        expect(paired?.before && rowIds(paired.before)).toEqual([
+          `decision-A${turn}`,
+        ]);
+        expect(paired?.proposed).toEqual(readFile(path));
+      }
+    });
+  });
 });
 
 describe("formatSuspicion", () => {
