@@ -53,12 +53,24 @@ const MATHJAX_ATTRS = [
 
 const URL_ATTRIBUTES = new Set([
   "action",
-  "background",
   "formaction",
   "href",
   "poster",
   "src",
   "xlink:href",
+]);
+
+// SVG presentation attributes whose CSS value can fetch a resource (url(),
+// image-set()). Log content reaches them too (\color, mathbackground).
+const PAINT_ATTRIBUTES = new Set([
+  "clip-path",
+  "fill",
+  "filter",
+  "marker-end",
+  "marker-mid",
+  "marker-start",
+  "mask",
+  "stroke",
 ]);
 
 // Browsers enumerate a parsed shorthand as its longhands (jsdom lists both),
@@ -138,8 +150,10 @@ const PURIFY_CONFIG: Config = {
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
   // `overflow` is SVG's presentation attribute; `visible` lets a 1x1 SVG paint
-  // its shapes anywhere. MathJax sets overflow through CSS only.
-  FORBID_ATTR: ["overflow", "srcdoc", "srcset"],
+  // its shapes anywhere. MathJax sets overflow through CSS only. `background`
+  // fetches its image on table elements as soon as they render, and the
+  // dangerous value is an ordinary https URL, so no URL check would help.
+  FORBID_ATTR: ["background", "overflow", "srcdoc", "srcset"],
   FORBID_TAGS: FORBIDDEN_TAGS,
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
@@ -192,8 +206,11 @@ const installHooks = (purify: DOMPurifyInstance): void => {
       return;
     }
 
-    if (hookEvent.attrName === "src" && isImgElement(node)) {
-      const canonical = safeImgSrc(hookEvent.attrValue);
+    // Any other element that keeps a src (MathML's mglyph) may fetch it.
+    if (hookEvent.attrName === "src") {
+      const canonical = isImgElement(node)
+        ? safeImgSrc(hookEvent.attrValue)
+        : undefined;
       if (canonical === undefined) {
         hookEvent.keepAttr = false;
         node.removeAttribute(hookEvent.attrName);
@@ -203,9 +220,24 @@ const installHooks = (purify: DOMPurifyInstance): void => {
       return;
     }
 
+    // A link fetches its href only on a click. An SVG reference (pattern,
+    // gradient, textPath) can fetch as soon as it renders, so it must point
+    // into the document.
     if (
-      URL_ATTRIBUTES.has(hookEvent.attrName) &&
-      !isSafeUrlAttribute(hookEvent.attrValue)
+      (hookEvent.attrName === "href" || hookEvent.attrName === "xlink:href") &&
+      node.localName !== "a" &&
+      !hookEvent.attrValue.trim().startsWith("#")
+    ) {
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
+      return;
+    }
+
+    if (
+      (URL_ATTRIBUTES.has(hookEvent.attrName) &&
+        !isSafeUrlAttribute(hookEvent.attrValue)) ||
+      (PAINT_ATTRIBUTES.has(hookEvent.attrName) &&
+        !isSafePaintValue(hookEvent.attrName, hookEvent.attrValue))
     ) {
       hookEvent.keepAttr = false;
       node.removeAttribute(hookEvent.attrName);
@@ -265,6 +297,12 @@ const safeImgSrc = (value: string): string | undefined => {
   }
   return canonicalImageSource(value);
 };
+
+const LOCAL_URL_REFERENCE = /url\(\s*(['"]?)#[-\w]*\1\s*\)/gi;
+
+/** Inline styles' allowlist, plus same-document `url(#id)` references. */
+const isSafePaintValue = (attribute: string, value: string): boolean =>
+  isSafeStyleValue(attribute, value.replace(LOCAL_URL_REFERENCE, ""));
 
 const isSafeUrlAttribute = (value: string): boolean => {
   const trimmed = value.trim();

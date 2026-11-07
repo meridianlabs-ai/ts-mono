@@ -1,12 +1,9 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "../fixtures/app";
 import { serveEvalLog } from "../fixtures/serve-log";
 
 import {
   canaryLog,
-  kBrokenPngDataUri,
-  kProbeHost,
+  kCanaryFormulaCount,
   kTerminalText,
   mainLog,
 } from "./cspLogs";
@@ -144,73 +141,19 @@ test("the theme bootstrap applies the system theme before the body parses", asyn
   );
 });
 
-test.describe("rendering canary", () => {
-  test.use({ allowCspViolations: true });
+// The cspViolations fixture fails the test if any vector fetches, runs a
+// handler, or leaves one for the sanitizer to parse (Chromium 156+ reports
+// that too). Fetches start at style and paint time, so the test waits for
+// two frames after the formulas render.
+test("rendering vectors cause no CSP report", async ({ page, network }) => {
+  serveEvalLog(network, canaryLog, "csp-canary.json");
+  await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
 
-  // Known gap, pinned so it flips when fixed: the sanitizer still admits
-  // `<table background>` (fixed separately), so the policy has to block, and
-  // report, that one fetch. Any other report means another vector got past
-  // the sanitizer, except script-src-attr: Chromium 156+ reports a handler
-  // when DOMPurify parses it into its inert document, before stripping it, so
-  // handlers are checked in the rendered DOM instead. Once the sanitizer
-  // strips the table, expect no other report.
-  test("only <table background> gets past the sanitizer", async ({
-    page,
-    network,
-    cspViolations,
-  }) => {
-    serveEvalLog(network, canaryLog, "csp-canary.json");
-    await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
-    await openVectors(page);
-
-    await expect
-      .poll(() => cspViolations)
-      .toContainEqual(expect.stringContaining(`${kProbeHost}/table`));
-    const reports = cspViolations.filter(
-      (violation) => !violation.startsWith("script-src-attr ")
-    );
-    for (const violation of reports) {
-      expect(violation).toContain(`${kProbeHost}/table`);
-    }
-    expect(await inlineHandlers(page)).toEqual([]);
-  });
+  await expect(page.locator("mjx-container")).toHaveCount(kCanaryFormulaCount);
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      )
+  );
 });
-
-/** `element attribute` for each inline event handler in the page. */
-const inlineHandlers = (page: Page): Promise<string[]> =>
-  page.evaluate(() =>
-    Array.from(document.querySelectorAll("*")).flatMap((element) =>
-      element
-        .getAttributeNames()
-        .filter((name) => name.toLowerCase().startsWith("on"))
-        .map((name) => `${element.localName} ${name}`)
-    )
-  );
-
-/** Wait for the breakout markup, then trigger its interactive vectors. */
-const openVectors = async (page: Page) => {
-  // Elements, not text: the escaped source would contain the same words if
-  // the breakout stopped producing markup. They land inside MathJax's
-  // clipped SVG, so exist rather than show.
-  const jsLink = page.locator("a", { hasText: /^js link$/ });
-  const cssUrl = page.locator("div", { hasText: /^css url$/ });
-  await expect(jsLink).toHaveCount(1);
-  await expect(cssUrl).toHaveCount(1);
-  await expect(page.locator(`table[background*="${kProbeHost}"]`)).toHaveCount(
-    1
-  );
-  // The onerror vector's image has failed to decode, so its handler, if the
-  // sanitizer let one through, has run.
-  await expect
-    .poll(() =>
-      page
-        .locator(`img[src="${kBrokenPngDataUri}"]`)
-        .evaluate(
-          (image: HTMLImageElement) =>
-            image.complete && image.naturalWidth === 0
-        )
-    )
-    .toBe(true);
-  await jsLink.dispatchEvent("click");
-  await cssUrl.dispatchEvent("mouseover");
-};

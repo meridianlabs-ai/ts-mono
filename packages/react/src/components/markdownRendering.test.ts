@@ -1,5 +1,5 @@
 import type { MarkdownIt } from "markdown-it";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   protectMarkdown,
@@ -7,28 +7,48 @@ import {
   restoreBackslashesForLatex,
 } from "./markdownRendering";
 
+/** A stand-in for MathJax's lite parser, whose escaping the plugin load patches. */
+class LiteParser {
+  static CDATA_ATTR = { href: true };
+  static PCDATA = { title: true };
+}
+
+// Stub the multi-MB mathjax module: the contracts under test are the
+// import-retry logic and the serializer patch, and the real module's
+// parse/eval blows the 5s timeout under parallel turbo CPU load.
+const stubMathjax = (load: () => void) => {
+  vi.resetModules();
+  vi.doMock("markdown-it-mathjax3", () => {
+    load();
+    return {
+      default: (md: MarkdownIt) => {
+        md.renderer.rules.text = (tokens, idx) =>
+          `<mjx-container>${md.utils.escapeHtml(tokens[idx]?.content ?? "")}</mjx-container>`;
+      },
+    };
+  });
+};
+
 describe("lazy mathjax loading", () => {
+  afterEach(() => {
+    vi.doUnmock("markdown-it-mathjax3");
+    vi.unstubAllGlobals();
+  });
+
   // Extended timeout: importing markdownRendering's module graph (markdown-it
   // + @tsmono/util) still measured ~3s under heavy CPU contention.
   it(
     "retries the mathjax import after a failed chunk load",
     { timeout: 10_000 },
     async () => {
-      vi.resetModules();
       let failImport = true;
-      // Stub the multi-MB mathjax module: the contract under test is the
-      // import-retry logic, and the real module's parse/eval blows the 5s
-      // timeout under parallel turbo CPU load.
-      vi.doMock("markdown-it-mathjax3", () => {
+      stubMathjax(() => {
         if (failImport) {
           throw new Error("chunk load failed");
         }
-        return {
-          default: (md: MarkdownIt) => {
-            md.renderer.rules.text = (tokens, idx) =>
-              `<mjx-container>${md.utils.escapeHtml(tokens[idx]?.content ?? "")}</mjx-container>`;
-          },
-        };
+        vi.stubGlobal("MathJax", {
+          startup: { adaptor: { parser: new LiteParser() } },
+        });
       });
 
       const { renderMarkdown } = await import("./markdownRendering");
@@ -39,8 +59,24 @@ describe("lazy mathjax loading", () => {
       failImport = false;
       const rendered = await renderMarkdown("$\\frac{1}{2}$");
       expect(rendered).toContain("mjx-container");
+      expect(LiteParser.CDATA_ATTR).toEqual({});
+      expect(LiteParser.PCDATA).toEqual({});
+    }
+  );
 
-      vi.doUnmock("markdown-it-mathjax3");
+  it(
+    "renders no math when MathJax's serializer cannot be made to escape",
+    { timeout: 10_000 },
+    async () => {
+      stubMathjax(() => {
+        vi.stubGlobal("MathJax", { startup: { adaptor: {} } });
+      });
+
+      const { renderMarkdown } = await import("./markdownRendering");
+
+      expect(await renderMarkdown("$\\frac{1}{2}$")).not.toContain(
+        "mjx-container"
+      );
     }
   );
 });
