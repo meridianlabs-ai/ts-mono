@@ -83,6 +83,9 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     (name) => summary.scanners[name]?.metrics !== null
   );
   const metricLabel = hasMetrics ? getMetricLabel(summary.scanners) : "";
+  const hasUnscored = info.scanner_names.some(
+    (name) => (summary.scanners[name]?.unscored ?? 0) > 0
+  );
 
   // Calculate scanner stats (iterate over scanner_names to show all rows from start)
   const scannerStats = info.scanner_names.map((name) => {
@@ -173,6 +176,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
                   <th className={styles.numeric}>validation</th>
                 )}
                 <th className={styles.numeric}>results</th>
+                {hasUnscored && <th className={styles.numeric}>unscored</th>}
                 <th className={styles.numeric}>errors</th>
                 <th className={styles.numeric}>tokens/scan</th>
                 <th className={styles.numeric}>tokens</th>
@@ -209,6 +213,11 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
                     <td className={styles.numeric}>
                       {scanner?.results || "-"}
                     </td>
+                    {hasUnscored && (
+                      <td className={styles.numeric}>
+                        {scanner?.unscored || "-"}
+                      </td>
+                    )}
                     <td className={styles.numeric}>{scanner?.errors || "-"}</td>
                     <td className={styles.numeric}>
                       {tokensPerScan ? tokensPerScan.toLocaleString() : "-"}

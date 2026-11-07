@@ -89,6 +89,16 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
         {entry.results}
       </LabeledValue>
 
+      {entry.unscored > 0 && (
+        <LabeledValue
+          label="Unscored"
+          layout="row"
+          className={clsx("text-size-smallest", styles.contents)}
+        >
+          {entry.unscored}
+        </LabeledValue>
+      )}
+
       {Object.keys(entry.metrics).length > 0 && (
         <MetricsDisplay metrics={entry.metrics} scannerName={entry.title} />
       )}
@@ -124,6 +134,7 @@ interface ScanResultsOutlineEntry {
   title: string;
   tokens?: number;
   results: number;
+  unscored: number;
   scans: number;
   validations?: Record<string, number>;
   errors?: number;
@@ -170,6 +181,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
       icon: ApplicationIcons.scorer,
       title: scanner,
       results: summary?.results || 0,
+      unscored: summary?.unscored ?? 0,
       scans: summary?.scans || 0,
       tokens: summary?.tokens,
       errors: summary?.errors,
