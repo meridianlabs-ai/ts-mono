@@ -2048,6 +2048,8 @@ export interface components {
             options?: {
                 [key: string]: unknown;
             } | null;
+            /** Score Name */
+            score_name?: string | null;
         };
         /** EvalSet */
         EvalSet: {
