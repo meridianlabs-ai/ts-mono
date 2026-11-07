@@ -20,6 +20,26 @@ const normalizeToolUse = (item: unknown): unknown => {
     : { ...item, arguments: args, result };
 };
 
+// Runs on every message and model output of every sample, and clean input is
+// the common case, so the copy is made only once an item changes.
+const mapIfChanged = (
+  items: readonly unknown[],
+  fn: (item: unknown) => unknown
+): readonly unknown[] => {
+  let out: unknown[] | undefined;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const next = fn(item);
+    if (out) {
+      out.push(next);
+    } else if (next !== item) {
+      out = items.slice(0, i);
+      out.push(next);
+    }
+  }
+  return out ?? items;
+};
+
 /** A raw chat message with its content items normalized (see above).
  *  Identity-preserving on clean input. */
 export const normalizeMessageContent = (message: unknown): unknown => {
@@ -27,19 +47,11 @@ export const normalizeMessageContent = (message: unknown): unknown => {
     return message;
   }
   const items = message["content"] as unknown[];
-  const normalized = items.map(normalizeToolUse);
-  return normalized.every((item, i) => item === items[i])
-    ? message
-    : { ...message, content: normalized };
+  const content = mapIfChanged(items, normalizeToolUse);
+  return content === items ? message : { ...message, content };
 };
 
 /** `normalizeMessageContent` over a raw message list; anything that isn't a
  *  list passes through. Identity-preserving on clean input. */
-export const normalizeMessagesContent = (raw: unknown): unknown => {
-  if (!Array.isArray(raw)) return raw;
-  const messages = raw as unknown[];
-  const normalized = messages.map(normalizeMessageContent);
-  return normalized.every((message, i) => message === messages[i])
-    ? raw
-    : normalized;
-};
+export const normalizeMessagesContent = (raw: unknown): unknown =>
+  Array.isArray(raw) ? mapIfChanged(raw, normalizeMessageContent) : raw;

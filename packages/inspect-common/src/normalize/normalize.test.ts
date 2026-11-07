@@ -254,6 +254,47 @@ describe("legacy shape migrations", () => {
     expect(event.output.choices[0]).toBe(eventChoice);
   });
 
+  it("keeps the clean neighbours of a legacy tool use in place", () => {
+    const before = { type: "text", text: "before" };
+    const after = { type: "text", text: "after" };
+    const legacy = {
+      role: "assistant",
+      content: [
+        before,
+        {
+          type: "tool_use",
+          id: "t",
+          name: "n",
+          arguments: { q: 1 },
+          result: 2,
+        },
+        after,
+      ],
+    };
+    const first = { role: "user", content: "first" };
+    const last = { role: "user", content: "last" };
+    const messages = normalizeChatMessages([first, legacy, last]);
+
+    expect(messages).toHaveLength(3);
+    expect(messages[0]).toBe(first);
+    expect(messages[2]).toBe(last);
+    const content = messages[1]?.content;
+    const items = Array.isArray(content) ? content : [];
+    expect(items).toEqual([
+      before,
+      {
+        type: "tool_use",
+        id: "t",
+        name: "n",
+        arguments: '{"q":1}',
+        result: "2",
+      },
+      after,
+    ]);
+    expect(items[0]).toBe(before);
+    expect(items[2]).toBe(after);
+  });
+
   it("normalizes a raw message list from a source that skips the sample", () => {
     const legacy = {
       role: "assistant",
