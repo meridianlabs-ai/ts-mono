@@ -3,6 +3,7 @@ import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Modal } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
 import { AppConfig } from "../../../types/api-types";
@@ -119,25 +120,17 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   }, [isOpen]);
 
   // Close on click outside (check both container and dropdown since dropdown is in portal)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target instanceof Node ? e.target : null;
-      const isOutsideContainer =
-        containerRef.current && !containerRef.current.contains(target);
-      const isOutsideDropdown =
-        dropdownRef.current && !dropdownRef.current.contains(target);
+  useEventListener(isOpen ? document : null, "mousedown", (e) => {
+    const target = e.target instanceof Node ? e.target : null;
+    const isOutsideContainer =
+      containerRef.current && !containerRef.current.contains(target);
+    const isOutsideDropdown =
+      dropdownRef.current && !dropdownRef.current.contains(target);
 
-      if (isOutsideContainer && isOutsideDropdown) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+    if (isOutsideContainer && isOutsideDropdown) {
+      setIsOpen(false);
     }
-  }, [isOpen]);
+  });
 
   const handleSelect = (uri: string) => {
     if (uri === "__create_new__") {

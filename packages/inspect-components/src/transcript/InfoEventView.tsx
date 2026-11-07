@@ -7,7 +7,6 @@ import { ExpandablePanel, JSONPanel } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import styles from "./InfoEventView.module.css";
 import { EventNode } from "./types";
 
@@ -39,7 +38,7 @@ export const InfoEventView: FC<InfoEventViewProps> = ({
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
-      icon={TranscriptIcons.info}
+      icon="info"
     >
       <ExpandablePanel id={`${eventNode.id}-info`} collapse={true}>
         {panel}

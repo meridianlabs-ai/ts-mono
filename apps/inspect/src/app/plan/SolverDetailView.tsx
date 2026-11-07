@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
+import { Icon } from "@tsmono/react/icons";
+
 import { EvalPlanSteps } from "../../@types/extraInspect";
-import { ApplicationIcons } from "../appearance/icons";
 
 import { DetailStep } from "./DetailStep";
 import styles from "./SolverDetailView.module.css";
@@ -14,7 +15,7 @@ interface SolversDetailViewProps {
 export const SolversDetailView: FC<SolversDetailViewProps> = ({ steps }) => {
   const separator = (
     <div className={clsx(styles.item, "text-size-small", styles.separator)}>
-      <i className={ApplicationIcons.arrows.right} />
+      <Icon name="arrowRight" />
     </div>
   );
 

@@ -3,6 +3,7 @@ import { FC, ReactNode } from "react";
 
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { isNewTabClick, PulsingDots } from "@tsmono/react/components";
+import { Icon, IconName } from "@tsmono/react/icons";
 import {
   formatDateTime,
   formatTime,
@@ -10,7 +11,6 @@ import {
   parsePackageName,
 } from "@tsmono/util";
 
-import { TranscriptIcons } from "../icons";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";
 
@@ -97,9 +97,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
               setCollapsed?.(node.id, !collapsed);
             }}
           >
-            {toggle ? (
-              <i className={clsx(toggle)} aria-hidden="true" />
-            ) : undefined}
+            {toggle ? <Icon name={toggle} /> : undefined}
           </button>
         ) : (
           <div className={styles.toggle} />
@@ -111,7 +109,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         >
           {icon && (
             <span className={styles.iconSlot}>
-              <i className={clsx(icon)} />
+              <Icon name={icon} />
             </span>
           )}
           {eventUrl ? (
@@ -160,35 +158,35 @@ export const OutlineLoadingRow: FC = () => (
 const toggleIcon = (
   node: EventNode,
   collapsed: boolean
-): string | undefined => {
+): IconName | undefined => {
   if (node.children.length > 0) {
-    return collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down";
+    return collapsed ? "chevronRight" : "chevronDown";
   }
 };
 
-export const iconForNode = (node: EventNode): string | undefined => {
+export const iconForNode = (node: EventNode): IconName | undefined => {
   if (node.sourceSpan?.spanType === "agent") {
-    return TranscriptIcons.agent;
+    return "agent";
   }
   if (node.sourceSpan?.spanType === "branch") {
-    return TranscriptIcons.fork;
+    return "fork";
   }
   if (node.event.event === "span_begin" && node.event.type === "fork_nav") {
-    return TranscriptIcons.fork;
+    return "fork";
   }
 
   switch (node.event.event) {
     case "sample_limit":
-      return TranscriptIcons.limits.custom;
+      return "limitCustom";
 
     case "score":
-      return TranscriptIcons.scorer;
+      return "scorer";
 
     case "error":
-      return TranscriptIcons.error;
+      return "error";
 
     case "compaction":
-      return TranscriptIcons.compaction;
+      return "compaction";
   }
 };
 

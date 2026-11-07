@@ -236,43 +236,34 @@ export class MarkdownRenderQueue {
     promise: Promise<T>;
     cancel: () => void;
   } {
-    let cancelled = false;
     let queueTask: QueueTask | undefined;
 
     const promise = new Promise<T>((resolve, reject) => {
-      const wrappedTask = async () => {
-        // Skip if cancelled before execution
-        if (cancelled) {
-          return;
-        }
-
-        try {
-          const result = await task();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (!cancelled) {
-            resolve(result);
-          }
-        } catch (error) {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (!cancelled) {
-            reject(error instanceof Error ? error : new Error(String(error)));
-          }
-        }
-      };
-
-      queueTask = {
-        task: wrappedTask,
+      // processQueue skips an entry cancelled before it runs; one cancelled
+      // mid-run finishes but never settles the promise.
+      const entry: QueueTask = {
         cancelled: false,
+        task: async () => {
+          try {
+            const result = await task();
+            if (!entry.cancelled) {
+              resolve(result);
+            }
+          } catch (error) {
+            if (!entry.cancelled) {
+              reject(error instanceof Error ? error : new Error(String(error)));
+            }
+          }
+        },
       };
+      queueTask = entry;
 
-      this.queue.push(queueTask);
+      this.queue.push(entry);
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.processQueue();
     });
 
     const cancel = () => {
-      cancelled = true;
-      // Mark our own task so processQueue skips it without running it
       if (queueTask) {
         queueTask.cancelled = true;
       }

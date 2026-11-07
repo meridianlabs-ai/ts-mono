@@ -1,87 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
 
-import type { VSCodeApi } from "@tsmono/util";
-import { isRecord } from "@tsmono/util";
-
 import { apiVscode, createVscodeProxyFetch } from "./api-vscode";
-
-type ProxyRequest = {
-  method: string;
-  path: string;
-  headers?: Record<string, string>;
-  body?: string;
-};
-type ProxyResponse = {
-  status: number;
-  headers: Record<string, string>;
-  body: string | null;
-  bodyEncoding: "utf8" | "base64";
-};
-
-// Simulates the extension host end-to-end: receives the JSON-RPC `http_request`
-// messages the viewer posts, runs `handler` to produce an HttpProxyResponse, and
-// delivers it back as a JSON-RPC `result` via a window 'message' event — the same
-// round trip the real webview <-> extension transport performs. This exercises
-// the full viewer-side wire (postMessage out, id correlation, response decode,
-// view-server parse) that the isolated unit tests stub out.
-function connectFakeExtension(handler: (req: ProxyRequest) => ProxyResponse): {
-  vscode: VSCodeApi;
-  received: Array<{ method: string; params: unknown }>;
-} {
-  const asJsonRpcCall = (
-    data: unknown
-  ): { id: number; method: string; params: unknown[] } => {
-    if (
-      !isRecord(data) ||
-      typeof data["id"] !== "number" ||
-      typeof data["method"] !== "string" ||
-      !Array.isArray(data["params"])
-    ) {
-      throw new Error(`not a JSON-RPC call: ${JSON.stringify(data)}`);
-    }
-    return {
-      id: data["id"],
-      method: data["method"],
-      params: data["params"],
-    };
-  };
-
-  const asProxyRequest = (value: unknown): ProxyRequest => {
-    if (!isRecord(value) || typeof value["method"] !== "string") {
-      throw new Error(`not a ProxyRequest: ${JSON.stringify(value)}`);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the client under test builds this payload; the check above is the part worth asserting on
-    return value as ProxyRequest;
-  };
-
-  const received: Array<{ method: string; params: unknown }> = [];
-  const vscode: VSCodeApi = {
-    postMessage: (data: unknown) => {
-      const req = asJsonRpcCall(data);
-      received.push({ method: req.method, params: req.params });
-      const result = handler(asProxyRequest(req.params[0]));
-      // Deliver asynchronously, mirroring the real cross-process hop.
-      queueMicrotask(() => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: { jsonrpc: "2.0", id: req.id, result },
-          })
-        );
-      });
-    },
-    getState: () => undefined,
-    setState: () => {},
-  };
-  return { vscode, received };
-}
-
-const okJson = (body: unknown): ProxyResponse => ({
-  status: 200,
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify(body),
-  bodyEncoding: "utf8",
-});
+import {
+  connectFakeExtension,
+  okJson,
+  type ProxyRequest,
+} from "./testExtensionHost";
 
 describe("apiVscode end-to-end over postMessage", () => {
   test("get_log_bytes round-trips binary via base64", async () => {

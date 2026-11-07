@@ -6,16 +6,27 @@ burn, context size with compaction drops, merged model+tool activity), with
 a filterable virtualized history list beneath. Companion rename: the
 log-level workspace tab with id `timeline` is now labeled **Activity**.
 
-## Reaching it
+## Sub-features
+
+- Stacked bands on one wall-clock axis: model & tool activity, context size
+  (with compaction drops), token burn, the marker rail, and the opt-in
+  working-time band (waiting gaps and stall brackets).
+- X-axis toggle between Wall clock and Turns.
+- Agent gutter: one row per conversation, each with a show/hide checkbox,
+  for samples with more than one conversation.
+- Hover cards with an `open in transcript →` footer.
+- Filterable, virtualized history list beneath the chart.
+
+## How to get to it (user POV)
 
 - Deep link: `/#/logs/<enc(file)>/samples/sample/<enc(id)>/<epoch>/activity`
   (sample ids can contain `/` — encodeURIComponent them).
 - Or open any sample and click the `Activity` tab (`getByRole("tab",
 { name: "Activity" })`), a peer of Transcript / Messages / Scoring.
-- The tab is HIDDEN for logs whose events carry no timestamps (old logs)
-  and for chunked samples — its absence on such logs is correct behavior.
 
-## Fixture
+## Driving it with Playwright
+
+### Fixture
 
 The mocked e2e suite (`apps/inspect/e2e/sample-activity.spec.ts`) covers
 the tab against synthetic events. For a real-density proof, generate an
@@ -35,7 +46,7 @@ to run the no-error test instead, pin a non-flaky `ascii_art_python` log
 with `VERIFY_ACTIVITY_LOG=<filename in VERIFY_LOG_DIR>`. When the default fixture dir grows a suitable log, fold
 an Activity test into the standing spec.
 
-## Selectors
+### Selectors
 
 - Band chips, in order: `getByRole("button", { name: "Model & tool activity"
 | "Context size" | "Token burn" | "Markers" | "Working time" })` —
@@ -94,7 +105,7 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
 - History rows: `role=button`; each row with an event uuid carries an
   `open in transcript →` button.
 
-## Observable proof
+### Observable proof
 
 - Default bands render with a right-aligned mono headline
   (`<N> model turns · <M> tool calls[ · K rejected]`, `peak <N>k`,
@@ -127,3 +138,24 @@ hh:mm:ss`, or `turns a–b · hh:mm:ss` in Turns mode, where the strip
   a spawned agent runs, per-conversation context lines and token burn as
   stacked areas; unchecking a row removes it from every band and the
   headline appends `a of b shown`.
+
+## Code landmarks
+
+- Tab host: `apps/inspect/src/app/samples/SampleDisplay.tsx` mounts
+  `SampleActivityPanel`.
+- Panel, chart, tooltip and history list:
+  `packages/inspect-components/src/sample-activity/` (`SampleActivityPanel.tsx`,
+  `ActivityChart.tsx`, `ActivityTooltip.tsx`, `ActivityHistoryList.tsx`).
+- Data shaping (bands, turns grid, bins, headlines):
+  `packages/inspect-components/src/sample-activity/activityData.ts`.
+- Regression coverage: `activityData.test.ts`, `ActivityChart.test.tsx`,
+  `SampleActivityPanel.test.tsx`, and `apps/inspect/e2e/sample-activity.spec.ts`.
+
+## Gotchas
+
+- The tab is HIDDEN for logs whose events carry no timestamps (old logs)
+  and for chunked samples — its absence on such logs is correct behavior.
+- Band labels are uppercase SVG text and the chips share their names; use
+  `exact: true` or a scoped locator.
+- Drive hover cards with stepped `mouse.move`s. A direct locator click skips
+  the pointer travel that keeps the card open.

@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
@@ -11,16 +11,10 @@ import { LogDetails, SampleSummary } from "../client/api/types";
 import { DB_NAME, OpenDatabase } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
+import { acquireDatabase, releaseDatabase } from "./databaseInstance";
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
 import { useSamplesListing } from "./samplesListing";
 import { testLogDetails, testSampleSummary } from "./testFixtures";
-
-// The module-under-test reads Dexie through the shared instance; route it to
-// this test's real (fake-indexeddb-backed) service.
-const holder = vi.hoisted(() => ({ service: null as OpenDatabase | null }));
-vi.mock("./databaseInstance", () => ({
-  currentDatabase: () => holder.service,
-}));
 
 const LOG_DIR = "/logs";
 const FILE_A = "/logs/2026-01-01T00-00-00_task-a_A.eval";
@@ -62,16 +56,14 @@ const wrapper = ({ children }: { children: ReactNode }) =>
 let db: OpenDatabase;
 
 beforeEach(async () => {
-  db = await OpenDatabase.open();
-  holder.service = db;
+  db = await acquireDatabase();
 });
 
 afterEach(async () => {
-  db.close();
+  await releaseDatabase();
   // The database name is a constant — cross-test isolation comes from
   // deleting it outright.
   await Dexie.delete(DB_NAME);
-  holder.service = null;
   queryClient.clear();
 });
 
@@ -221,7 +213,7 @@ describe("useSamplesListing", () => {
     // Boot race: the samples listing mounts while the database open is still
     // in flight, so the read sees no open handle and settles empty
     // (staleTime: Infinity — it will never refetch on its own).
-    holder.service = null;
+    await releaseDatabase();
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
       { wrapper }
@@ -232,7 +224,7 @@ describe("useSamplesListing", () => {
     // Activation completes: the db is open and the engine seeds the session
     // (FetchEngine.start → sink.seedRows). A warm no-change boot performs no
     // writes after this, so seeding itself must refresh the listing.
-    holder.service = db;
+    db = await acquireDatabase();
     const rows = await db.readLogs({ prefix: LOG_DIR });
     createLogsContentSink(db, LOG_DIR).seedRows(rows ?? []);
 
@@ -240,7 +232,7 @@ describe("useSamplesListing", () => {
   });
 
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {
-    holder.service = null;
+    await releaseDatabase();
 
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { file: FILE_A } }),

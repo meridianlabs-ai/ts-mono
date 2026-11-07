@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import {
   testEvalMetric,
@@ -6,32 +6,31 @@ import {
   testEvalScore,
   testEvalSpec,
   testEvalStats,
+  testModelUsage,
+  testScore,
 } from "@tsmono/inspect-common/testing";
 
-import { testSampleSummary } from "../api/testClientApi";
+import { testLogHeader, testSampleSummary } from "../api/testClientApi";
 import { LogHeader, SampleSummary } from "../api/types";
 
 import { deriveLogFields, deriveSampleFields } from "./derive";
 
-const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader => ({
-  version: 1,
-  status: "success",
-  eval: testEvalSpec({
-    eval_id: "eval-1",
-    run_id: "run-1",
-    created: "2024-01-01T00:00:00Z",
-    task: "test-task",
-    task_id: "task-1",
-    model: "gpt-4",
-  }),
-  results: null,
-  stats: undefined,
-  error: null,
-  sampleCount: 0,
-  sampleErrorCount: 0,
-  sampleLimits: [],
-  ...overrides,
-});
+const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader =>
+  testLogHeader({
+    version: 1,
+    status: "success",
+    eval: testEvalSpec({
+      eval_id: "eval-1",
+      run_id: "run-1",
+      created: "2024-01-01T00:00:00Z",
+      task: "test-task",
+      task_id: "task-1",
+      model: "gpt-4",
+    }),
+    results: null,
+    error: null,
+    ...overrides,
+  });
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
   testSampleSummary({
@@ -49,16 +48,16 @@ describe("deriveLogFields", () => {
         started_at: "2024-01-01T00:00:00Z",
         completed_at: "2024-01-01T01:00:00Z",
         model_usage: {
-          "openai/gpt-4": {
+          "openai/gpt-4": testModelUsage({
             input_tokens: 10,
             output_tokens: 5,
             total_tokens: 15,
-          },
-          "anthropic/claude": {
+          }),
+          "anthropic/claude": testModelUsage({
             input_tokens: 20,
             output_tokens: 10,
             total_tokens: 30,
-          },
+          }),
         },
       }),
     });
@@ -139,12 +138,8 @@ describe("deriveLogFields", () => {
   });
 });
 
-const priced = (total_tokens: number, total_cost: number) => ({
-  input_tokens: total_tokens,
-  output_tokens: 0,
-  total_tokens,
-  total_cost,
-});
+const priced = (total_tokens: number, total_cost: number) =>
+  testModelUsage({ input_tokens: total_tokens, total_tokens, total_cost });
 
 describe("deriveSampleFields", () => {
   test("derives text, tokens, fallbacks, and scores", () => {
@@ -152,11 +147,11 @@ describe("deriveSampleFields", () => {
       input: "what is 2+2?",
       target: ["4", "four"],
       model_usage: {
-        "openai/gpt-4": {
+        "openai/gpt-4": testModelUsage({
           input_tokens: 10,
           output_tokens: 5,
           total_tokens: 15,
-        },
+        }),
       },
       model_fallbacks: [{ model: "a", fallback_model: "b", count: 2 }],
       scores: {
@@ -204,15 +199,67 @@ describe("deriveSampleFields", () => {
       makeSummary({
         model_usage: {
           "openai/gpt-4": priced(15, 0.5),
-          "mockllm/model": {
+          "mockllm/model": testModelUsage({
             input_tokens: 10,
             output_tokens: 5,
             total_tokens: 15,
-          },
+          }),
         },
       })
     );
     expect(derived.tokens).toBe(30);
     expect(derived.cost).toBeUndefined();
+  });
+});
+
+describe("prototype safety", () => {
+  const prototypeKeys = new Set(Object.getOwnPropertyNames(Object.prototype));
+  const objectStatics = new Set(Object.getOwnPropertyNames(Object));
+  const objectKeys = Object.keys;
+
+  afterEach(() => {
+    for (const key of Object.getOwnPropertyNames(Object.prototype)) {
+      if (!prototypeKeys.has(key))
+        Reflect.deleteProperty(Object.prototype, key);
+    }
+    for (const key of Object.getOwnPropertyNames(Object)) {
+      if (!objectStatics.has(key)) Reflect.deleteProperty(Object, key);
+    }
+    Object.keys = objectKeys;
+  });
+
+  const headerWithScore = (name: string, metric: string) =>
+    makeHeader({
+      results: testEvalResults({
+        scores: [
+          testEvalScore({
+            name,
+            metrics: { [metric]: testEvalMetric({ name: metric, value: 1 }) },
+          }),
+        ],
+      }),
+    });
+
+  test.each([
+    ["__proto__", "planted"],
+    ["constructor", "keys"],
+  ])("keeps a scorer named %s as an ordinary entry", (name, metric) => {
+    const scores = deriveLogFields(headerWithScore(name, metric)).scores;
+
+    expect(Object.hasOwn(Object.prototype, "planted")).toBe(false);
+    expect(Object.keys).toBe(objectKeys);
+    expect(scores && Object.entries(scores)).toEqual([[name, { [metric]: 1 }]]);
+  });
+
+  test("keeps a sample score named __proto__ as an ordinary entry", () => {
+    const derived = deriveSampleFields(
+      makeSummary({
+        scores: { ["__proto__"]: testScore({ value: { planted: 1 } }) },
+      })
+    );
+
+    expect(derived.scores && Object.entries(derived.scores)).toEqual([
+      ["__proto__", { planted: 1 }],
+    ]);
   });
 });

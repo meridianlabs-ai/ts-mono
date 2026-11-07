@@ -52,10 +52,10 @@ queryClient.setQueryData(options.queryKey, scanRowData);
 
 ## Query Options Factory Pattern
 
-Define query options in a centralized file for reuse:
+Define query options in a centralized file for reuse (see `src/app/server/queries.ts`
+and `src/app/hooks/scanResultQueries.ts`). For example:
 
 ```typescript
-// src/app/server/scanQueries.ts
 import { queryOptions } from "@tanstack/react-query";
 
 export const scansListOptions = (api: ScanApi, scansDir: string) =>

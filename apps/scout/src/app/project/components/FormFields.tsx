@@ -264,24 +264,21 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
   // Use local state to allow free typing without losing input
   const [text, setText] = useState(() => objectToKeyValueLines(value));
 
-  // Sync local state when value changes externally (e.g., after save)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  // Sync local state when value changes externally (e.g., after save).
+  // Uses the "adjust state during render" pattern to avoid an effect cycle.
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
     const currentParsed = parseKeyValueLines(text, allowPath);
-    if (isMidEditText(text, currentParsed)) {
-      return;
+    if (!isMidEditText(text, currentParsed)) {
+      const configText = objectToKeyValueLines(value);
+      // Only sync if parsed values differ (avoids cursor jump while typing)
+      const valueParsed = parseKeyValueLines(configText, allowPath);
+      if (!sameParsedValue(currentParsed, valueParsed)) {
+        setText(configText);
+      }
     }
-    const configText = objectToKeyValueLines(value);
-    // Only sync if parsed values differ (avoids cursor jump while typing)
-    const valueParsed = parseKeyValueLines(configText, allowPath);
-    if (!sameParsedValue(currentParsed, valueParsed)) {
-      // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setText(configText);
-    }
-    // TODO: lint react-hooks/exhaustive-deps - review this
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }
 
   const handleInput = (newText: string) => {
     setText(newText);

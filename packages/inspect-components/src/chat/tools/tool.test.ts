@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   codexToolMarkdown,
   formatSubagentNotifications,
+  iconForTool,
   parseToolSearchCatalog,
   resolveToolInput,
 } from "./tool";
@@ -346,5 +347,19 @@ describe("parseToolSearchCatalog", () => {
     expect(
       parseToolSearchCatalog(JSON.stringify({ not: "an array" }))
     ).toBeUndefined();
+  });
+});
+
+describe("iconForTool", () => {
+  it("maps known tools and falls back by client/server", () => {
+    expect(iconForTool("bash")).toBe("terminal");
+    expect(iconForTool("browser_click")).toBe("window");
+    expect(iconForTool("my_tool")).toBe("tools");
+    expect(iconForTool("my_tool", { server: true })).toBe("globe");
+  });
+
+  it("treats Object.prototype keys as unknown tools", () => {
+    expect(iconForTool("constructor")).toBe("tools");
+    expect(iconForTool("toString")).toBe("tools");
   });
 });

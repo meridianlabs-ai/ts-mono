@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 
 import { PopOver } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import { getColumnsParam, updateColumnsParam } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
@@ -322,7 +323,7 @@ const InlinePresets: FC<{
               onClick={(e) => handleDelete(index, e)}
               title={`Delete "${preset.name}"`}
             >
-              <i className="bi bi-x-circle" />
+              <Icon name="cancel" />
             </button>
           </span>
         </Fragment>

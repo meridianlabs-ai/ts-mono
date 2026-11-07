@@ -1,12 +1,14 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import styles from "./ToolBlock.module.css";
 
 interface ToolBlockProps {
   id?: string;
-  /** Bootstrap icon class for the tool kind (terminal = client, globe = server). */
-  icon: string;
+  /** Icon for the tool kind (terminal = client, globe = server). */
+  icon: IconName;
   /** Tool name, rendered in monospace with the tool accent color. */
   title: string;
   /** Single-line args summary; ellipsized, never wraps. */
@@ -17,6 +19,9 @@ interface ToolBlockProps {
    * border of their own — the turn container frames them. */
   flush?: boolean;
   className?: string | string[];
+  /** Optional leading element rendered before the tool icon (e.g. a
+   *  selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
   children?: ReactNode;
 }
 
@@ -33,6 +38,7 @@ export const ToolBlock: FC<ToolBlockProps> = ({
   pill,
   flush,
   className,
+  headerLeading,
   children,
 }) => {
   return (
@@ -45,7 +51,8 @@ export const ToolBlock: FC<ToolBlockProps> = ({
       )}
     >
       <div className={styles.header}>
-        <i className={clsx("bi", icon, styles.icon)} />
+        {headerLeading}
+        <Icon name={icon} className={styles.icon} />
         <span className={styles.title}>{title}</span>
         {summary ? <span className={styles.summary}>{summary}</span> : null}
         {pill ? <span className={styles.pill}>{pill}</span> : null}

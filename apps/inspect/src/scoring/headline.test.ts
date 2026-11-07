@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  testEvalMetric,
+  testEvalResults,
+  testEvalScore,
+} from "@tsmono/inspect-common/testing";
+import {
   EvalMetric,
   EvalResults,
   EvalScore,
@@ -8,35 +13,33 @@ import {
 
 import { headlineMetric, leadWith } from "./headline";
 
-const metric = (name: string, value: number): EvalMetric => ({
-  name,
-  value,
-  params: {},
-});
+const metric = (name: string, value: number): EvalMetric =>
+  testEvalMetric({ name, value });
 
 const score = (
   name: string,
   metrics: Record<string, number>,
   reducer?: string | null
-): EvalScore => ({
-  name,
-  scorer: name,
-  reducer,
-  params: {},
-  metrics: Object.fromEntries(
-    Object.entries(metrics).map(([k, v]) => [k, metric(k, v)])
-  ),
-});
+): EvalScore =>
+  testEvalScore({
+    name,
+    scorer: name,
+    reducer,
+    metrics: Object.fromEntries(
+      Object.entries(metrics).map(([k, v]) => [k, metric(k, v)])
+    ),
+  });
 
 const results = (
   scores: EvalScore[],
   headline?: EvalResults["headline"]
-): EvalResults => ({
-  total_samples: 1,
-  completed_samples: 1,
-  scores,
-  headline,
-});
+): EvalResults =>
+  testEvalResults({
+    total_samples: 1,
+    completed_samples: 1,
+    scores,
+    headline,
+  });
 
 describe("headlineMetric", () => {
   test("uses the headline resolved at scoring time", () => {
@@ -86,13 +89,27 @@ describe("headlineMetric", () => {
     expect(headlineMetric(evalResults)?.name).toBe("stderr");
   });
 
+  test.each(["constructor", "toString", "__proto__"])(
+    "treats a headline metric named %s as absent unless the score has it",
+    (name) => {
+      const evalResults = results([score("includes", { stderr: 0.1 })], {
+        scorer: "includes",
+        score: "includes",
+        metric: name,
+        reducer: null,
+      });
+      expect(headlineMetric(evalResults)?.name).toBe("stderr");
+      expect(headlineMetric(evalResults)?.value).toBe(0.1);
+    }
+  );
+
   test("distinguishes dict-valued scorers that share a score name", () => {
-    const shared = (scorer: string, value: number): EvalScore => ({
-      name: "quality",
-      scorer,
-      params: {},
-      metrics: { mean: metric("mean", value) },
-    });
+    const shared = (scorer: string, value: number): EvalScore =>
+      testEvalScore({
+        name: "quality",
+        scorer,
+        metrics: { mean: metric("mean", value) },
+      });
     const evalResults = results(
       [shared("grader_a", 0.1), shared("grader_b", 0.9)],
       {

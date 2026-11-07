@@ -360,15 +360,3 @@ export const updateColumnsParam = (
   }
   return newParams;
 };
-
-/**
- * Opens a route in a new browser tab.
- * Handles the hash router URL format.
- */
-export const openRouteInNewTab = (route: string): void => {
-  const newWin = window.open(`${window.location.pathname}#${route}`, "_blank");
-  if (newWin) {
-    newWin.blur();
-  }
-  window.focus();
-};

@@ -301,12 +301,12 @@ export const createSamplesDescriptor = (
         Math.max(shape.targetSize, arrayToString(sample.target).length),
         300
       );
-      if (selectedScores.length > 0) {
+      const [firstScore] = selectedScores;
+      if (firstScore !== undefined) {
         shape.answerSize = Math.min(
           Math.max(
             shape.answerSize,
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            evalDescriptor.scoreAnswer(sample, selectedScores[0])?.length ?? 0
+            evalDescriptor.scoreAnswer(sample, firstScore)?.length ?? 0
           ),
           300
         );

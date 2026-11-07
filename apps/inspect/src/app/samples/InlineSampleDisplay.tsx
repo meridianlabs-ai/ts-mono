@@ -2,7 +2,11 @@ import clsx from "clsx";
 import { FC, RefObject, useEffect, useRef } from "react";
 
 import { ErrorPanel } from "@tsmono/react/components";
-import { useStatefulScrollPosition, useVisitId } from "@tsmono/react/hooks";
+import {
+  useLatestRef,
+  useStatefulScrollPosition,
+  useVisitId,
+} from "@tsmono/react/hooks";
 
 import { kSampleMessagesTabId, kSampleTranscriptTabId } from "../../constants";
 import { useSelectedEvalSampleData } from "../../state/hooks";
@@ -67,11 +71,7 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   const mountsAtDeepLink = !!(
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );
-  const deepLinkRef = useRef(mountsAtDeepLink);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    deepLinkRef.current = mountsAtDeepLink;
-  }, [mountsAtDeepLink]);
+  const deepLinkRef = useLatestRef(mountsAtDeepLink);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Stand down for virtualized tabs: VirtualList owns scrollTop there (its
@@ -80,7 +80,7 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
     if (!deepLinkRef.current && !isVirtualizedTab) {
       scrollRef.current?.scrollTo({ top: 0 });
     }
-  }, [visitId, scrollRef, isVirtualizedTab]);
+  }, [visitId, scrollRef, isVirtualizedTab, deepLinkRef]);
 
   return (
     <div className={clsx(className, styles.container)}>

@@ -79,8 +79,7 @@ describe("DataGrid column resizing", () => {
 
   test("body cells follow a width change that keeps the total width", () => {
     // jsdom has no layout; give the virtualizer a viewport so rows render.
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(500);
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(500);
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(500);
     const cellWidths = (role: string) =>
       screen
         .getAllByRole(role)
@@ -108,8 +107,7 @@ describe("DataGrid column resizing", () => {
   });
 
   test("body cells follow new column defs at unchanged widths", () => {
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(500);
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(500);
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(500);
     // e.g. toggling heat-map colours rebuilds defs with a new cellStyle.
     const colored = makeAbcColumns().map((c) => ({
       ...c,

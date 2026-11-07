@@ -2,8 +2,9 @@ import { VscodeButton, VscodeCheckbox } from "@vscode-elements/react-elements";
 import { CSSProperties, FC, useCallback, useMemo, useState } from "react";
 
 import { Modal } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
+import { getOwn } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { useTranscriptsByIds } from "../../server/useTranscriptsByIds";
@@ -172,17 +173,17 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
 
   // Get selected cases (full case data for copy/move operations)
   const selectedCases = useMemo(() => {
-    return filteredCases.filter((c) => selection[getCaseKey(c.id)]);
+    return filteredCases.filter((c) => getOwn(selection, getCaseKey(c.id)));
   }, [filteredCases, selection]);
 
   // Check if all filtered cases are selected
   const allSelected =
     filteredCaseKeys.length > 0 &&
-    filteredCaseKeys.every((key) => selection[key]);
+    filteredCaseKeys.every((key) => getOwn(selection, key));
 
   // Check if some (but not all) filtered cases are selected
   const someSelected =
-    filteredCaseKeys.some((key) => selection[key]) && !allSelected;
+    filteredCaseKeys.some((key) => getOwn(selection, key)) && !allSelected;
 
   // Handle select all / deselect all
   const handleSelectAllChange = () => {
@@ -264,7 +265,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Assign Split"
                 >
-                  <i className={ApplicationIcons.fork} />
+                  <Icon name="fork" />
                   <span className={styles.buttonText}>Assign Split</span>
                 </VscodeButton>
                 <VscodeButton
@@ -273,7 +274,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Copy"
                 >
-                  <i className={ApplicationIcons.copy} />
+                  <Icon name="copy" />
                   <span className={styles.buttonText}>Copy</span>
                 </VscodeButton>
                 <VscodeButton
@@ -282,7 +283,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Move"
                 >
-                  <i className={ApplicationIcons.move} />
+                  <Icon name="move" />
                   <span className={styles.buttonText}>Move</span>
                 </VscodeButton>
                 <VscodeButton
@@ -291,7 +292,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   className={styles.bulkButton}
                   title="Delete"
                 >
-                  <i className={ApplicationIcons.trash} />
+                  <Icon name="trash" />
                   <span className={styles.buttonText}>Delete</span>
                 </VscodeButton>
               </span>
@@ -327,7 +328,7 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
                   transcript={transcript}
                   transcriptsDir={transcriptsDir}
                   validationSetUri={sourceUri}
-                  isSelected={selection[caseKey] ?? false}
+                  isSelected={getOwn(selection, caseKey) ?? false}
                   onSelectionChange={() => toggleSelection(caseKey)}
                   existingSplits={existingSplits}
                   onSplitChange={

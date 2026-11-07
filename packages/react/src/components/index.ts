@@ -3,7 +3,6 @@ export * from "./AutocompleteInput";
 export * from "./AnsiDisplay";
 export * from "./AppErrorBoundary";
 export * from "./Card";
-export * from "./ComponentIconContext";
 export * from "./CopyButton";
 export * from "./AsciinemaPlayer";
 export * from "./ConfirmationDialog";

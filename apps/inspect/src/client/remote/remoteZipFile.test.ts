@@ -3,11 +3,16 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { logFetchInit } from "@tsmono/util";
 
+import { installNodeWorker } from "../../test/nodeWorker";
+
 import {
   fetchSize,
   openRemoteZipFile,
   openZipFileFromBuffer,
 } from "./remoteZipFile";
+
+// The overreported-size case declares 1 GiB, which takes the worker path.
+installNodeWorker();
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -232,7 +237,7 @@ test.each([
   );
 });
 
-test("reads deflate data spanning multiple worker input chunks", async () => {
+test("reads deflate data spanning multiple input chunks", async () => {
   const expected = new Uint8Array(32 * 1024);
   let state = 1;
   for (let index = 0; index < expected.length; index++) {

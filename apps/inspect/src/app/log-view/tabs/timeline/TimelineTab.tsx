@@ -25,6 +25,7 @@ import {
 } from "@tsmono/inspect-components/usage";
 import { ErrorPanel } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import type { SampleSummary } from "../../../../client/api/types";
@@ -629,7 +630,7 @@ const BandChip: FC<BandChipProps> = ({ label, note, title, on, onToggle }) => (
     onClick={onToggle}
     title={title}
   >
-    {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
+    {on ? <Icon name="confirm" /> : null}
     {label}
     {note && <span className={styles.bandChipNote}>· {note}</span>}
   </button>

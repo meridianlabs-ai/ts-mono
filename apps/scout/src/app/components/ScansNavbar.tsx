@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router";
 import { dirname } from "@tsmono/util";
 
 import { AppModeContext } from "../../App";
-import { ApplicationIcons } from "../../icons";
 import { scanRoute, scansRoute } from "../../router/url";
 import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
@@ -59,7 +58,7 @@ export const ScansNavbar: FC<ScansNavbarProps> = ({
     if (backUrl) {
       buttons.push({
         title: "Back",
-        icon: ApplicationIcons.navbar.back,
+        icon: "navBack",
         route: backUrl,
         enabled: !!scanPath,
       });
@@ -68,7 +67,7 @@ export const ScansNavbar: FC<ScansNavbarProps> = ({
     if (!singleFileMode && resolvedScansDir) {
       buttons.push({
         title: "Home",
-        icon: ApplicationIcons.navbar.home,
+        icon: "navHome",
         route: scansRoute(resolvedScansDir),
         enabled: !!scanPath,
       });
@@ -96,9 +95,7 @@ export const ScansNavbar: FC<ScansNavbarProps> = ({
           <EditablePath
             path={scansDir}
             label="Scans"
-            icon={
-              scansDirSource === "cli" ? ApplicationIcons.terminal : undefined
-            }
+            icon={scansDirSource === "cli" ? "terminal" : undefined}
             title={
               scansDirSource === "cli"
                 ? "Scans directory set via command line"

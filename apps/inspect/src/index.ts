@@ -8,6 +8,8 @@
  * at any time and adapt accordingly.
  */
 
+import "./client/jsonParseWorker";
+
 // Main React App Component
 export { App } from "./app/App";
 

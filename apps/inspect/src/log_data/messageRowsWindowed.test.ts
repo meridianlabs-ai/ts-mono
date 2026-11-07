@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testSystemMessage,
+  testToolCall,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import { ChatMessage } from "@tsmono/inspect-common/types";
 import { messagesToStr } from "@tsmono/inspect-components/chat";
 import {
@@ -19,23 +26,22 @@ import {
 import { windowedMessageRows } from "./messageRowsWindowed";
 
 const trailingToolRun: ChatMessage[] = [
-  { role: "user", content: "go" },
-  {
-    role: "assistant",
+  testUserMessage({ content: "go" }),
+  testAssistantMessage({
     content: "",
-    tool_calls: [
-      { id: "c-9", function: "bash", arguments: {}, type: "function" },
-    ],
-  },
-  { role: "tool", content: "part 1", tool_call_id: "c-9" },
-  { role: "tool", content: "part 2", tool_call_id: "c-9" },
+    tool_calls: [testToolCall({ id: "c-9", function: "bash" })],
+  }),
+  testToolMessage({ content: "part 1", tool_call_id: "c-9" }),
+  testToolMessage({ content: "part 2", tool_call_id: "c-9" }),
 ];
 
 const plainConversation = (count: number): ChatMessage[] =>
-  Array.from({ length: count }, (_, i): ChatMessage => ({
-    role: i % 2 === 0 ? "user" : "assistant",
-    content: `message ${i}`,
-  }));
+  Array.from({ length: count }, (_, i): ChatMessage => {
+    const content = `message ${i}`;
+    return i % 2 === 0
+      ? testUserMessage({ content })
+      : testAssistantMessage({ content });
+  });
 
 const drain = async (
   source: SampleMessagesData,
@@ -239,8 +245,8 @@ describe("windowedMessageRows late-system discovery", () => {
     // a merged row 0; once discovered, fresh reads include it
     const messages: ChatMessage[] = [
       ...plainConversation(600),
-      { role: "system", content: "late system" },
-      { role: "user", content: "tail" },
+      testSystemMessage({ content: "late system" }),
+      testUserMessage({ content: "tail" }),
     ];
     const source = windowedMessageRows(inMemoryConversation(messages));
 

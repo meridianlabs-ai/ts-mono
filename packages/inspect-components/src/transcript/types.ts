@@ -3,6 +3,7 @@ import type {
   ApprovalEvent,
   BranchEvent,
   CheckpointEvent,
+  CommunicationEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -24,6 +25,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -89,6 +91,8 @@ export type EventType =
   | ApprovalEvent
   | ReviewEvent
   | SentinelEvent
+  | CommunicationEvent
+  | SwarmEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -117,6 +121,8 @@ export const eventTypeValues = [
   "approval",
   "review",
   "sentinel",
+  "communication",
+  "swarm",
   "branch",
   "checkpoint",
   "compaction",
@@ -275,6 +281,10 @@ export interface EventNodeContext {
    *  these events show; when unset, `hasToolEvents` and the next node
    *  decide for all of them. */
   toolEventIds?: ReadonlySet<string>;
+  /** The events that showed a model event's input tool messages are not in
+   *  this list (a focused turn starts at its model event), so the summary
+   *  hides them all and `toolEventIds` applies to the model's own calls only. */
+  inputShownElsewhere?: boolean;
   turnInfo?: { turnNumber: number; totalTurns: number };
   /** True for the turn's first flattened event (its "capstone"). Only the
    *  capstone's header shows the turn-nav cluster while unstuck; other headers

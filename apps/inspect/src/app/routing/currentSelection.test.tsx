@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { data } from "@tsmono/util";
-
-import { testSampleSummary } from "../../client/api/testClientApi";
-import { highlightSample } from "../../state/actions";
+import {
+  testClientAPI,
+  testLogDetails,
+  testSampleSummary,
+} from "../../client/api/testClientApi";
+import { storeImplementation } from "../../state/store";
+import { startTestApp, stopTestApp, TestApp } from "../../test/testApp";
 
 import {
   currentSample,
@@ -17,23 +20,28 @@ import {
 } from "./currentSelection";
 import { selectionRouteParams } from "./routeParams";
 
-vi.mock("../../app_config", () => ({
-  useLogDir: () => "file:///logs",
-  resolveRouteLogFile: (path: string) => new URL(path, "file:///logs/").href,
-}));
-vi.mock("../../state/actions", () => ({ highlightSample: vi.fn() }));
-vi.mock("../../log_data", () => ({
-  useSampleSummaries: (_dir: string, file: string | undefined) =>
-    data(
-      file?.endsWith("single.eval")
-        ? [testSampleSummary({ id: "only", epoch: 1 })]
-        : []
-    ),
-}));
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
+beforeEach(() => {
+  // A log named single.eval holds one sample; every other log is empty.
+  startTestApp({
+    logDir: "file:///logs",
+    api: testClientAPI({
+      get_log_details: (file) =>
+        Promise.resolve(
+          testLogDetails({
+            sampleSummaries: file.endsWith("single.eval")
+              ? [testSampleSummary({ id: "only", epoch: 1 })]
+              : [],
+          })
+        ),
+    }),
+  });
 });
+afterEach(async () => {
+  cleanup();
+  await stopTestApp();
+});
+
+const highlighted = () => storeImplementation?.getState().log.highlightedSample;
 
 function Probe() {
   const file = useCurrentLogFile();
@@ -54,7 +62,11 @@ function open(path: string) {
     ],
     { initialEntries: [path] }
   );
-  render(<RouterProvider router={router} />);
+  render(
+    <TestApp>
+      <RouterProvider router={router} />
+    </TestApp>
+  );
   return router;
 }
 
@@ -75,11 +87,11 @@ describe("route-owned selection", () => {
         },
       })
     );
-    expect(highlightSample).toHaveBeenLastCalledWith(
-      "ascii/bike",
-      2,
-      "file:///logs/run.eval"
-    );
+    expect(highlighted()).toMatchObject({
+      id: "ascii/bike",
+      epoch: 2,
+      logFile: "file:///logs/run.eval",
+    });
   });
   it("changes both identities on navigation and Back, and releases them on the list", async () => {
     const router = open("/logs/run.eval/samples/sample/one/1");
@@ -96,15 +108,18 @@ describe("route-owned selection", () => {
     });
     expect(screen.getByRole("status").textContent).toBe("{}");
     // Leaving detail preserves historical highlighting without keeping it active.
-    expect(highlightSample).toHaveBeenLastCalledWith(
-      "one",
-      1,
-      "file:///logs/run.eval"
-    );
+    expect(highlighted()).toMatchObject({
+      id: "one",
+      epoch: 1,
+      logFile: "file:///logs/run.eval",
+    });
   });
-  it("derives an inline single sample from summaries", () => {
+  it("derives an inline single sample from summaries", async () => {
     open("/logs/single.eval/samples/messages");
-    expect(screen.getByRole("status").textContent).toContain('"id":"only"');
+    // The summaries arrive through the engine's details fetch.
+    expect(
+      await screen.findByText(/"id":"only"/, { selector: "output" })
+    ).toBeInTheDocument();
   });
   it.each(["/logs/team", "/samples/archive.eval", "/logs/workflow.yaml", "/"])(
     "does not treat collection/flow route %s as a log",

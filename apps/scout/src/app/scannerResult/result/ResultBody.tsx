@@ -1,10 +1,10 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
-import { useChromeNavOwnership } from "@tsmono/react/hooks";
+import { useChromeNavOwnership, useLatestRef } from "@tsmono/react/hooks";
 
 import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";
@@ -39,11 +39,7 @@ export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
   // chrome (this surface's keyboard nav already stands down for find — see
   // TimelineEventsView's keyboardNavDisabled).
   const showFind = useStore((state) => state.showFind) ?? false;
-  const findActiveRef = useRef(showFind);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    findActiveRef.current = showFind;
-  }, [showFind]);
+  const findActiveRef = useLatestRef(showFind);
 
   // Nav-owned chrome with the ownership contract shared with the transcript
   // page (see useChromeNavOwnership); the single chrome signal re-expands

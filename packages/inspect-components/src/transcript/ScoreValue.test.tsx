@@ -3,12 +3,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import { ScoreValue } from "./ScoreValue";
 
@@ -21,16 +18,14 @@ const renderScore = (
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <ScoreValue
-            score={score}
-            className={["score", "preview"]}
-            maxRows={maxRows}
-            expandable={expandable}
-          />
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <ScoreValue
+          score={score}
+          className={["score", "preview"]}
+          maxRows={maxRows}
+          expandable={expandable}
+        />
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

@@ -1,7 +1,9 @@
 /**
  * A link may propose a log location but not set one (#615). The browser-hosted
- * viewer must not contact an origin named only by `?log_dir=` / `?log_file=`, a
- * hash route, or a window message until the user has approved it.
+ * viewer refuses an origin named only by `?log_dir=` / `?log_file=`, a hash
+ * route, or a window message. A request to that origin would be blocked by the
+ * viewer's CSP before MSW sees it, so these specs don't count requests there;
+ * the `cspViolations` fixture fails them on the blocked request instead.
  */
 import type { NetworkFixture } from "@msw/playwright";
 import { http, HttpResponse } from "msw";
@@ -10,21 +12,6 @@ import { expect, test } from "./fixtures/app";
 
 const FOREIGN_ORIGIN = "https://bucket.example";
 const FOREIGN_DIR = `${FOREIGN_ORIGIN}/team/logs`;
-
-/** Serve an empty static log dir at the foreign origin and count every request
- *  the viewer makes to that origin. */
-const serveForeignDir = (network: NetworkFixture) => {
-  const hits: string[] = [];
-  network.use(
-    http.get(`${FOREIGN_ORIGIN}/*`, ({ request }) => {
-      hits.push(request.url);
-      return request.url.endsWith("/listing.json")
-        ? HttpResponse.json({})
-        : new HttpResponse(null, { status: 404 });
-    })
-  );
-  return hits;
-};
 
 /** An empty same-origin static log dir under the dev server. */
 const serveLocalDir = (network: NetworkFixture) => {
@@ -38,49 +25,23 @@ const serveLocalDir = (network: NetworkFixture) => {
   return hits;
 };
 
-test("a cross-origin ?log_dir= waits for approval before anything is fetched", async ({
+test("a cross-origin ?log_dir= is refused, and continuing drops it", async ({
   page,
-  network,
 }) => {
-  const hits = serveForeignDir(network);
-
   await page.goto(`/?log_dir=${encodeURIComponent(FOREIGN_DIR)}`);
 
   const gate = page.getByTestId("log-location-gate");
-  await expect(gate).toBeVisible();
   await expect(
-    gate.getByRole("heading", { name: `Open logs from ${FOREIGN_ORIGIN}?` })
+    gate.getByRole("heading", {
+      name: `Can't open logs from ${FOREIGN_ORIGIN}`,
+    })
   ).toBeVisible();
   await expect(gate.getByText(FOREIGN_DIR, { exact: true })).toBeVisible();
-  await page.waitForTimeout(300);
-  expect(hits).toEqual([]);
 
-  await gate.getByRole("button", { name: "Open", exact: true }).click();
+  await gate.getByRole("button", { name: "Continue without it" }).click();
 
+  await expect(page).not.toHaveURL(/log_dir=/);
   await expect(gate).toBeHidden();
-  await expect.poll(() => hits).toContain(`${FOREIGN_DIR}/listing.json`);
-});
-
-test("declining strips the proposal from the URL without contacting it", async ({
-  page,
-  network,
-}) => {
-  const hits = serveForeignDir(network);
-
-  await page.goto(
-    `/?log_file=${encodeURIComponent(`${FOREIGN_DIR}/run.eval`)}`
-  );
-  const gate = page.getByTestId("log-location-gate");
-  await expect(gate).toBeVisible();
-
-  await gate.getByRole("button", { name: "Don't open" }).click();
-
-  await expect(page).not.toHaveURL(/log_file=/);
-  await expect(gate).toBeHidden();
-  // The dev server has no view server, so the page settles on the config
-  // error; what matters is that the foreign origin was never contacted.
-  await page.waitForTimeout(300);
-  expect(hits).toEqual([]);
 });
 
 test("a same-origin ?log_dir= is the page's own scope and loads unprompted", async ({
@@ -95,12 +56,11 @@ test("a same-origin ?log_dir= is the page's own scope and loads unprompted", asy
   await expect(page.getByTestId("log-location-gate")).toBeHidden();
 });
 
-test("a hash route naming another origin is refused, not fetched", async ({
+test("a hash route naming another origin is refused", async ({
   page,
   network,
 }) => {
   serveLocalDir(network);
-  const foreignHits = serveForeignDir(network);
 
   await page.goto(
     `/?log_dir=logs#/logs/${encodeURIComponent(`${FOREIGN_DIR}/run.eval`)}`
@@ -111,14 +71,12 @@ test("a hash route naming another origin is refused, not fetched", async ({
   await expect(errorPanel).toContainText(
     "outside the configured log directory"
   );
-  expect(foreignHits).toEqual([]);
 });
 
 test("a window updateState message is ignored outside VS Code", async ({
   page,
   network,
 }) => {
-  const foreignHits = serveForeignDir(network);
   const logFileRequests: string[] = [];
   network.use(
     // get_log_root — the dir-mode gate blocks on this.
@@ -138,7 +96,6 @@ test("a window updateState message is ignored outside VS Code", async ({
   }, `${FOREIGN_DIR}/run.eval`);
   await page.waitForTimeout(300);
 
-  expect(foreignHits).toEqual([]);
   expect(
     logFileRequests
       .slice(requestsBefore)

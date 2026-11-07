@@ -8,14 +8,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import {
-  ClientAPI,
   LogDetails,
   PendingSampleResponse,
   SampleSummary,
 } from "../client/api/types";
-import { DB_NAME, OpenDatabase } from "../client/database";
+import { DB_NAME } from "../client/database";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
+import { acquireDatabase, releaseDatabase } from "./databaseInstance";
 import { fetchEngine } from "./fetchEngine";
 import { pendingSamplesKey } from "./pendingSamples";
 import {
@@ -28,25 +29,6 @@ import {
   testLogDetails,
   testSampleSummary,
 } from "./testFixtures";
-
-const holder = vi.hoisted(() => ({
-  service: null as OpenDatabase | null,
-  api: null as ClientAPI | null,
-}));
-vi.mock("./databaseInstance", () => ({
-  acquireDatabase: () =>
-    holder.service
-      ? Promise.resolve(holder.service)
-      : Promise.reject(new Error("test service not initialized")),
-  currentDatabase: () => holder.service,
-}));
-vi.mock("../app_config", () => ({
-  getApi: () => {
-    if (!holder.api) throw new Error("test api not initialized");
-    return holder.api;
-  },
-  getAppConfig: () => ({ singleFileMode: false }),
-}));
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
@@ -157,34 +139,22 @@ describe("useSampleSummaries during a running eval", () => {
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
-  let db: OpenDatabase;
-
   beforeEach(async () => {
-    db = await OpenDatabase.open();
-    holder.service = db;
-    holder.api = api;
-    // What <FetchEngineController> does below the gate: start the engine
-    // from a config snapshot (acquisition paths only await readiness).
-    activateFetchEngine({
-      api,
-      singleFileMode: false,
-      loader: "replicator",
-      inspect_version: "test",
-      scout_version: null,
-      logDir: LOG_DIR,
-    });
+    await acquireDatabase();
+    // What <AppConfigGate> and <FetchEngineController> do: resolve the
+    // config, then start the engine from it (acquisition paths only await
+    // readiness).
+    activateFetchEngine(
+      startTestApp({ api, logDir: LOG_DIR, singleFileMode: false })
+    );
   });
 
   afterEach(async () => {
-    // Unmount first: a hook re-rendering during teardown would otherwise
-    // read the api after the holder is reset.
     cleanup();
     deactivateFetchEngine();
     fetchEngine.stop();
-    db.close();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
-    holder.service = null;
-    holder.api = null;
     queryClient.clear();
     vi.clearAllMocks();
   });

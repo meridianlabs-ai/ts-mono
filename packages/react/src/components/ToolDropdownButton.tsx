@@ -4,27 +4,39 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 
-import { useComponentIcons } from "./ComponentIconContext";
+import { useEventListener } from "../hooks/useEventListener";
+import { Icon, IconName } from "../icons";
+
 import styles from "./ToolDropdownButton.module.css";
+
+/** A menu item with a rich label; `selected` marks the current choice. */
+export interface ToolDropdownItem {
+  key: string;
+  label: ReactNode;
+  selected?: boolean;
+  onClick: () => void;
+}
 
 interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string | ReactNode;
-  icon?: string;
-  items: Record<string, () => void>;
+  icon?: IconName;
+  /** Text labels mapped to actions, or items with rich labels. */
+  items: Record<string, () => void> | ToolDropdownItem[];
   /** Small uppercase heading rendered above the items. */
   heading?: string;
   /** Trailing action rendered below a divider (e.g. "Clear selection"). */
-  footer?: { label: string; icon?: string; onClick: () => void };
+  footer?: { label: string; icon?: IconName; onClick: () => void };
   dropdownAlign?: "left" | "right";
   dropdownClassName?: string | string[];
   subtle?: boolean;
+  /** Visually hide the label (icon only) at narrow viewport widths. */
+  collapseLabel?: boolean;
 }
 
 export const ToolDropdownButton = forwardRef<
@@ -42,11 +54,12 @@ export const ToolDropdownButton = forwardRef<
       dropdownAlign = "left",
       dropdownClassName,
       subtle,
+      collapseLabel,
+      title,
       ...rest
     },
     ref
   ) => {
-    const icons = useComponentIcons();
     const [isOpen, setIsOpen] = useState(false);
     const buttonRef = useRef<HTMLButtonElement | null>(null);
     const [menuPosition, setMenuPosition] = useState<{
@@ -92,26 +105,20 @@ export const ToolDropdownButton = forwardRef<
     }, [isOpen, computePosition]);
 
     // Re-compute on resize/scroll so the menu stays anchored to the button.
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (!isOpen) return;
-      const handler = () => computePosition();
-      window.addEventListener("resize", handler);
-      window.addEventListener("scroll", handler, true);
-      return () => {
-        window.removeEventListener("resize", handler);
-        window.removeEventListener("scroll", handler, true);
-      };
-    }, [isOpen, computePosition]);
+    const repositionTarget = isOpen ? window : null;
+    useEventListener(repositionTarget, "resize", () => computePosition());
+    useEventListener(repositionTarget, "scroll", () => computePosition(), {
+      capture: true,
+    });
 
     // The menu is portaled, so "is focus inside the menu" has to be asked of
     // the menu node itself rather than a wrapper around the trigger.
     const menuRef = useRef<HTMLDivElement | null>(null);
 
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (!isOpen) return;
-      const handleKeyDown = (e: KeyboardEvent) => {
+    useEventListener(
+      isOpen ? document : null,
+      "keydown",
+      (e) => {
         if (e.key !== "Escape") return;
         // This Escape closes the menu and nothing else: stop it here (the
         // capture-phase registration below runs first) so an enclosing
@@ -124,10 +131,9 @@ export const ToolDropdownButton = forwardRef<
           menuRef.current?.contains(document.activeElement) ?? false;
         setIsOpen(false);
         if (refocus) buttonRef.current?.focus();
-      };
-      document.addEventListener("keydown", handleKeyDown, true);
-      return () => document.removeEventListener("keydown", handleKeyDown, true);
-    }, [isOpen]);
+      },
+      { capture: true }
+    );
 
     const handleItemClick = (fn: () => void) => {
       fn();
@@ -149,14 +155,24 @@ export const ToolDropdownButton = forwardRef<
           onClick={() => setIsOpen(!isOpen)}
           aria-haspopup="menu"
           aria-expanded={isOpen}
+          title={
+            title ??
+            (collapseLabel && typeof label === "string" ? label : undefined)
+          }
           {...rest}
         >
-          {icon && <i className={`${icon}`} aria-hidden="true" />}
-          {label}
-          <i
-            className={clsx(icons.chevronDown, styles.chevron)}
-            aria-hidden="true"
-          />
+          {icon && (
+            <Icon
+              name={icon}
+              className={collapseLabel ? styles.noMargin : undefined}
+            />
+          )}
+          {collapseLabel ? (
+            <span className={styles.collapsibleLabel}>{label}</span>
+          ) : (
+            label
+          )}
+          <Icon name="chevronDown" className={styles.chevron} />
         </button>
         {isOpen &&
           menuPosition &&
@@ -181,14 +197,18 @@ export const ToolDropdownButton = forwardRef<
                 {heading ? (
                   <div className={styles.dropdownHeading}>{heading}</div>
                 ) : null}
-                {Object.entries(items).map(([itemLabel, fn]) => (
+                {menuItems(items).map((item) => (
                   <button
-                    key={itemLabel}
+                    key={item.key}
                     type="button"
-                    className={styles.dropdownItem}
-                    onClick={() => handleItemClick(fn)}
+                    className={clsx(
+                      styles.dropdownItem,
+                      item.selected && styles.dropdownItemSelected
+                    )}
+                    aria-current={item.selected ? "true" : undefined}
+                    onClick={() => handleItemClick(item.onClick)}
                   >
-                    {itemLabel}
+                    {item.label}
                   </button>
                 ))}
                 {footer ? (
@@ -202,7 +222,7 @@ export const ToolDropdownButton = forwardRef<
                       )}
                       onClick={() => handleItemClick(footer.onClick)}
                     >
-                      {footer.icon ? <i className={footer.icon} /> : null}
+                      {footer.icon ? <Icon name={footer.icon} /> : null}
                       {footer.label}
                     </button>
                   </>
@@ -217,3 +237,14 @@ export const ToolDropdownButton = forwardRef<
 );
 
 ToolDropdownButton.displayName = "ToolDropdownButton";
+
+const menuItems = (
+  items: Record<string, () => void> | ToolDropdownItem[]
+): ToolDropdownItem[] =>
+  Array.isArray(items)
+    ? items
+    : Object.entries(items).map(([label, onClick]) => ({
+        key: label,
+        label,
+        onClick,
+      }));

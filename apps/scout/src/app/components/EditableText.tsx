@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./EditableText.module.css";
 
@@ -16,7 +17,7 @@ interface EditableTextProps {
   label?: string;
   title?: string;
 
-  icon?: string;
+  icon?: IconName;
   placeholder?: string;
 
   editable?: boolean;
@@ -208,7 +209,7 @@ export const EditableText: FC<EditableTextProps> = ({
     <>
       <div ref={containerRef} className={clsx(styles.container, className)}>
         <div className={clsx(styles.labelContainer)} title={title}>
-          {icon && <i className={`${icon} ${styles.icon}`} />}
+          {icon && <Icon name={icon} className={styles.icon} />}
           {label}
         </div>
         <span

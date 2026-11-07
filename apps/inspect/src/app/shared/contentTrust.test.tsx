@@ -1,129 +1,127 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { FC, ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 import { useHasAllContentPermissions } from "@tsmono/react/components";
 
-import {
-  SelectedSampleContentTrustProvider,
-  SelectionContentTrustProvider,
-} from "./contentTrust";
+import { useLogDir } from "../../app_config";
+import { testClientAPI, testLogDetails } from "../../client/api/testClientApi";
+import { LogDetails } from "../../client/api/types";
+import { useLogHeader } from "../../log_data";
+import { startTestApp, stopTestApp, TestApp } from "../../test/testApp";
+import { useCurrentLogFile } from "../routing/currentSelection";
 
-interface Header {
-  eval: { viewer?: { trust_content?: boolean } };
-}
+import { SelectionContentTrustProvider } from "./contentTrust";
 
-interface MockState {
-  selectedLogFile?: string;
-  sampleLogFile?: string;
-  // A file absent from `headers` is still loading.
-  headers: Record<string, Header>;
-}
+// Logs served by the api: trusted.eval has no viewer setting,
+// untrusted.eval sets trust_content=false, and loading.eval's details
+// never arrive.
+const logs: Record<string, LogDetails> = {
+  "/logs/trusted.eval": testLogDetails({ eval: testEvalSpec() }),
+  "/logs/untrusted.eval": testLogDetails({
+    eval: testEvalSpec({
+      viewer: { trust_content: false, scanner_result_view: {} },
+    }),
+  }),
+};
 
-const mocks = vi.hoisted(() => {
-  const state: MockState = { headers: {} };
-  return state;
+const requested: string[] = [];
+
+beforeEach(() => {
+  requested.length = 0;
+  startTestApp({
+    api: testClientAPI({
+      get_log_details: (file) => {
+        requested.push(file);
+        const details = logs[file];
+        return details ? Promise.resolve(details) : new Promise(() => {});
+      },
+    }),
+  });
 });
 
-vi.mock("../routing/currentSelection", () => ({
-  useCurrentLogFile: () => mocks.selectedLogFile,
-  useCurrentSampleHandle: () =>
-    mocks.sampleLogFile
-      ? { id: 1, epoch: 1, logFile: mocks.sampleLogFile }
-      : undefined,
-}));
-
-vi.mock("../../app_config", () => ({ useLogDir: () => "dir" }));
-
-vi.mock("../../log_data", () => ({
-  useLogHeader: (_dir: string, file: string | undefined) =>
-    file !== undefined && file in mocks.headers
-      ? { loading: false, data: mocks.headers[file] }
-      : { loading: file !== undefined, data: undefined },
-}));
-
-const TRUSTED: Header = { eval: {} };
-const UNTRUSTED: Header = { eval: { viewer: { trust_content: false } } };
-
-const TrustProbe = () => (
-  <span>{useHasAllContentPermissions() ? "trusted" : "untrusted"}</span>
-);
-const selectionTrust = () =>
-  render(
-    <SelectionContentTrustProvider>
-      <TrustProbe />
-    </SelectionContentTrustProvider>
-  ).container.textContent;
-
-const sampleTrust = () =>
-  render(
-    <SelectedSampleContentTrustProvider>
-      <TrustProbe />
-    </SelectedSampleContentTrustProvider>
-  ).container.textContent;
-
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  mocks.selectedLogFile = undefined;
-  mocks.sampleLogFile = undefined;
-  mocks.headers = {};
+  await stopTestApp();
 });
+
+// Renders the trust beside whether the selected log's header has settled,
+// so a test can wait for the header to land and read the trust it produced
+// in the same render.
+const TrustProbe = () => {
+  const trusted = useHasAllContentPermissions();
+  const header = useLogHeader(useLogDir(), useCurrentLogFile(), {
+    demand: "passive",
+  });
+  return (
+    <output>
+      {`${trusted ? "trusted" : "untrusted"} ${header.loading ? "loading" : "settled"}`}
+    </output>
+  );
+};
+
+const renderAt = (path: string, Provider: FC<{ children: ReactNode }>) =>
+  render(
+    <TestApp path={path}>
+      <Provider>
+        <TrustProbe />
+      </Provider>
+    </TestApp>
+  );
+
+const trust = () => screen.getByRole("status").textContent;
+// Headers arrive through the engine's details fetch.
+const settled = (text: string) =>
+  screen.findByText(text, { selector: "output" });
 
 describe("SelectionContentTrustProvider", () => {
   it("is untrusted with nothing selected", () => {
-    expect(selectionTrust()).toBe("untrusted");
+    renderAt("/logs", SelectionContentTrustProvider);
+    expect(trust()).toBe("untrusted settled");
   });
 
-  it("is untrusted while the selected log's header loads", () => {
-    mocks.selectedLogFile = "a.eval";
-    expect(selectionTrust()).toBe("untrusted");
+  it("is untrusted while the selected log's header loads", async () => {
+    renderAt("/logs/loading.eval", SelectionContentTrustProvider);
+    await waitFor(() => expect(requested).toContain("/logs/loading.eval"));
+    expect(trust()).toBe("untrusted loading");
   });
 
-  it("is trusted for a loaded log without the setting", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.headers = { "a.eval": TRUSTED };
-    expect(selectionTrust()).toBe("trusted");
+  it("is trusted for a loaded log without the setting", async () => {
+    renderAt("/logs/trusted.eval", SelectionContentTrustProvider);
+    expect(await settled("trusted settled")).toBeInTheDocument();
   });
 
-  it("is untrusted for a log that sets trust_content=false", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.headers = { "a.eval": UNTRUSTED };
-    expect(selectionTrust()).toBe("untrusted");
-  });
-
-  it("ignores a sample selection left over from another log", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.sampleLogFile = "b.eval";
-    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
-    expect(selectionTrust()).toBe("trusted");
+  it("is untrusted for a log that sets trust_content=false", async () => {
+    renderAt("/logs/untrusted.eval", SelectionContentTrustProvider);
+    expect(await settled("untrusted settled")).toBeInTheDocument();
   });
 });
 
-describe("SelectedSampleContentTrustProvider", () => {
-  it("is trusted when the sample's log is", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.sampleLogFile = "a.eval";
-    mocks.headers = { "a.eval": TRUSTED };
-    expect(sampleTrust()).toBe("trusted");
+describe("a sample route takes its log's trust", () => {
+  it("is trusted when the sample's log is", async () => {
+    renderAt(
+      "/logs/trusted.eval/samples/sample/1/1",
+      SelectionContentTrustProvider
+    );
+    expect(await settled("trusted settled")).toBeInTheDocument();
   });
 
-  it("is untrusted when the selected sample's log is untrusted", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.sampleLogFile = "b.eval";
-    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
-    expect(sampleTrust()).toBe("untrusted");
+  it("is untrusted when the sample's log is untrusted", async () => {
+    renderAt(
+      "/logs/untrusted.eval/samples/sample/1/1",
+      SelectionContentTrustProvider
+    );
+    expect(await settled("untrusted settled")).toBeInTheDocument();
   });
 
-  it("falls back to the selected log without a sample selection", () => {
-    mocks.selectedLogFile = "b.eval";
-    mocks.headers = { "b.eval": UNTRUSTED };
-    expect(sampleTrust()).toBe("untrusted");
-  });
-
-  it("is untrusted while the selected sample's log header loads", () => {
-    mocks.selectedLogFile = "a.eval";
-    mocks.sampleLogFile = "b.eval";
-    mocks.headers = { "a.eval": TRUSTED };
-    expect(sampleTrust()).toBe("untrusted");
+  it("is untrusted while the sample's log header loads", async () => {
+    renderAt(
+      "/logs/loading.eval/samples/sample/1/1",
+      SelectionContentTrustProvider
+    );
+    await waitFor(() => expect(requested).toContain("/logs/loading.eval"));
+    expect(trust()).toBe("untrusted loading");
   });
 });

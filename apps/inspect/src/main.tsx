@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
 
+import "./client/jsonParseWorker";
+
 import { getBootstrap } from "./app_config";
 import { App } from "./app/App";
 import { Capabilities } from "./client/api/types";

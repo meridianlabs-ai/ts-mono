@@ -14,8 +14,8 @@ import {
   type TextInputChange,
 } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useAppConfig } from "../server/useAppConfig";
 import {
@@ -119,8 +119,9 @@ export const ValidationPanel: FC = () => {
           );
         }
       };
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      updateCases();
+      updateCases().catch((error: unknown) => {
+        console.error("Bulk split update failed:", error);
+      });
     },
     [selectedUri, cases, updateMutation]
   );
@@ -221,7 +222,7 @@ export const ValidationPanel: FC = () => {
     return (
       <div className={styles.container}>
         <NonIdealState
-          icon={ApplicationIcons.validation}
+          icon="validation"
           title="No Validation Sets in Project"
           description="Validation sets enable you to check scanner results against labeled cases."
           action={
@@ -278,7 +279,7 @@ export const ValidationPanel: FC = () => {
               title="Rename validation set"
               disabled={renameSetMutation.isPending}
             >
-              <i className={ApplicationIcons.rename} />
+              <Icon name="edit" />
             </button>
             <button
               type="button"
@@ -287,7 +288,7 @@ export const ValidationPanel: FC = () => {
               title="Delete validation set"
               disabled={deleteSetMutation.isPending}
             >
-              <i className={ApplicationIcons.trash} />
+              <Icon name="trash" />
             </button>
           </div>
         )}
@@ -306,7 +307,7 @@ export const ValidationPanel: FC = () => {
         {selectedUri && cases && (
           <div className={styles.filterControls}>
             <TextInput
-              icon={ApplicationIcons.search}
+              icon="search"
               value={searchText ?? ""}
               onChange={handleSearchChange}
               placeholder="Search..."

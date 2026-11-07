@@ -6,6 +6,7 @@ import {
   EvalSample,
 } from "@tsmono/inspect-common/types";
 import { effectiveEvalConfig } from "@tsmono/inspect-common/utils";
+import { useUnmount } from "@tsmono/react/hooks";
 import { AsyncData, createLogger, isRecord } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
@@ -318,8 +319,7 @@ export const useEvalDescriptor = () => {
   const scores = useScores();
   const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
+    return createEvalDescriptor(scores, sampleSummaries);
   }, [scores, sampleSummaries]);
 };
 
@@ -554,14 +554,11 @@ export const useSamplePopover = (id: string) => {
   }, [clearVisiblePopover]);
 
   // Clear the timeout when component unmounts
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
+  useUnmount(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  });
 
   const isShowing = useMemo(() => {
     return visiblePopover === id;

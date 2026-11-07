@@ -40,6 +40,11 @@ export default tseslint.config(
     },
     rules: {
       "import-x/no-duplicates": "error",
+      // `const { omitted, ...rest } = obj` is how we drop a key.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { ignoreRestSiblings: true },
+      ],
       // only-allowed-literals: `while (true)` is an idiom, not a bug — the
       // rule still flags every other always-truthy/falsy condition.
       "@typescript-eslint/no-unnecessary-condition": [
@@ -49,7 +54,29 @@ export default tseslint.config(
       // Disallow `void` as an escape hatch for floating promises — prefixing a
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.
-      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+      // The calls listed below return promises that are safe to drop:
+      // - react-router's navigate rejects only for an off-origin target, a
+      //   programmer error that should surface as an unhandled rejection.
+      // - TanStack Query's invalidateQueries never rejects unless passed
+      //   `throwOnError`, which no caller here does.
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          ignoreVoid: false,
+          allowForKnownSafeCalls: [
+            {
+              from: "package",
+              name: ["NavigateFunction", "navigate"],
+              package: "react-router",
+            },
+            {
+              from: "package",
+              name: "invalidateQueries",
+              package: "@tanstack/query-core",
+            },
+          ],
+        },
+      ],
       // A type assertion is an unchecked claim, so `as` silences exactly the
       // errors the compiler exists to catch (`as unknown as T` silences all of
       // them). This rule allows only the direction that can't lie — widening,

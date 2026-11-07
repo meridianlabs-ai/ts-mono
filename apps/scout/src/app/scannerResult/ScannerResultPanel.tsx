@@ -14,11 +14,10 @@ import {
   ToolButton,
 } from "@tsmono/react/components";
 import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 
-import { ApplicationIcons } from "../../icons";
 import {
   getValidationParam,
-  openRouteInNewTab,
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
@@ -247,7 +246,6 @@ export const ScannerResultPanel: FC = () => {
       if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(route);
       }
     },
@@ -265,7 +263,7 @@ export const ScannerResultPanel: FC = () => {
     ) {
       toolButtons.push(
         <ToolButton
-          icon={ApplicationIcons.highlight}
+          icon="highlight"
           key="highlight-labeled"
           latched={!!highlightLabeled}
           onClick={toggleHighlightLabeled}
@@ -284,7 +282,7 @@ export const ScannerResultPanel: FC = () => {
         <ToolButton
           key="transcript-navigate"
           label="Transcript"
-          icon={ApplicationIcons.transcript}
+          icon="transcript"
           onClick={handleNavigateToTranscript}
           title="View complete transcript (Cmd/Ctrl+click to open in new tab)"
           subtle={true}
@@ -298,7 +296,7 @@ export const ScannerResultPanel: FC = () => {
         <ToolButton
           key="validation-sidebar-toggle"
           label="Validation"
-          icon={ApplicationIcons.edit}
+          icon="edit"
           onClick={toggleValidationSidebar}
           title={
             validationSidebarCollapsed

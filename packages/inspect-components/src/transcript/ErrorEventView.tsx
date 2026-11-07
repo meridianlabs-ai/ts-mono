@@ -5,7 +5,6 @@ import { ANSIDisplay } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface ErrorEventViewProps {
@@ -26,7 +25,7 @@ export const ErrorEventView: FC<ErrorEventViewProps> = ({
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
-      icon={TranscriptIcons.error}
+      icon="error"
     >
       <ANSIDisplay
         output={event.error.traceback_ansi}

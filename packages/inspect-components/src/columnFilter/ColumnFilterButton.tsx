@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { forwardRef } from "react";
 
+import { Icon } from "@tsmono/react/icons";
+
 import styles from "./ColumnFilterButton.module.css";
 
 export interface ColumnFilterButtonProps {
@@ -24,7 +26,7 @@ export const ColumnFilterButton = forwardRef<
       onClick={onClick}
       aria-label={`Filter ${columnId}`}
     >
-      <i className="bi bi-funnel" />
+      <Icon name="filter" />
     </button>
   );
 });

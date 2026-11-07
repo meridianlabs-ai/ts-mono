@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { JSX, useState } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./DownloadScanButton.module.css";
 
@@ -22,27 +22,30 @@ export const DownloadScanButton = ({
 }: DownloadScanButtonProps): JSX.Element => {
   const [state, setState] = useState<DownloadState>("idle");
 
-  const handleClick = async (): Promise<void> => {
-    setState("downloading");
-    try {
-      const blob = await download(scansDir, scanPath);
-      triggerBrowserDownload(blob, `${scanPath}.zip`);
-      setState("success");
-    } catch {
-      setState("error");
-    }
+  const finish = (result: "success" | "error") => {
+    setState(result);
     // Brief visual feedback before resetting to idle
     setTimeout(() => setState("idle"), 1250);
   };
 
+  const handleClick = (): void => {
+    setState("downloading");
+    download(scansDir, scanPath)
+      .then((blob) => {
+        triggerBrowserDownload(blob, `${scanPath}.zip`);
+        finish("success");
+      })
+      .catch(() => finish("error"));
+  };
+
   const icon =
     state === "downloading"
-      ? ApplicationIcons.refresh
+      ? "refresh"
       : state === "success"
-        ? `${ApplicationIcons.confirm} primary`
+        ? "confirm"
         : state === "error"
-          ? ApplicationIcons.error
-          : ApplicationIcons.download;
+          ? "error"
+          : "download";
 
   return (
     <button
@@ -53,15 +56,15 @@ export const DownloadScanButton = ({
         state === "downloading" && styles.spinning,
         className
       )}
-      onClick={() => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        handleClick();
-      }}
+      onClick={handleClick}
       aria-label="Download scan results"
       disabled={state !== "idle"}
       title="Download Scan Results"
     >
-      <i className={icon} aria-hidden="true" />
+      <Icon
+        name={icon}
+        className={state === "success" ? "primary" : undefined}
+      />
     </button>
   );
 };

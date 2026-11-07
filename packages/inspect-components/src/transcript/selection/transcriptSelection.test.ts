@@ -7,70 +7,20 @@ import {
   testSpanEndEvent,
 } from "@tsmono/inspect-common/testing";
 
+import {
+  resolveSelected,
+  resolveSelectedIds,
+} from "../../selection/rowSelection";
 import { eventFallbackIds } from "../transform/treeify";
 import { EventNode, type EventType } from "../types";
 
 import {
   buildSelectableEventIndex,
   isSelectableEvent,
-  kEmptyTranscriptSelection,
-  resolveSelectedEvents,
-  resolveSelectedIds,
   selectedEventNodes,
-  toggleTranscriptSelection,
 } from "./transcriptSelection";
 
 const order = ["a", "b", "c", "d", "e"];
-const toggle = (
-  state = kEmptyTranscriptSelection,
-  id: string,
-  extend = false,
-  visible = order
-) => toggleTranscriptSelection(state, visible, id, extend);
-
-describe("toggleTranscriptSelection", () => {
-  it("toggles a single id and records it as the anchor", () => {
-    const on = toggle(undefined, "b");
-    expect([...on.selectedIds]).toEqual(["b"]);
-    expect(on.lastToggledId).toBe("b");
-    const off = toggle(on, "b");
-    expect(off.selectedIds.size).toBe(0);
-  });
-
-  it("shift-click selects the contiguous range from the anchor, in either direction", () => {
-    const range = toggle(toggle(undefined, "d"), "b", true);
-    expect([...range.selectedIds].sort()).toEqual(["b", "c", "d"]);
-    expect(range.lastToggledId).toBe("b");
-  });
-
-  it("shift-click on a selected row clears the whole range", () => {
-    let state = toggle(undefined, "a");
-    state = toggle(state, "d", true);
-    expect(state.selectedIds.size).toBe(4);
-    state = toggle(state, "a", true);
-    expect(state.selectedIds.size).toBe(0);
-  });
-
-  it("ranges run over the visible rows only and keep hidden selections", () => {
-    const visible = ["a", "b", "d", "e"];
-    let state = toggle(undefined, "c");
-    state = toggle(state, "a", false, visible);
-    state = toggle(state, "d", true, visible);
-    expect([...state.selectedIds].sort()).toEqual(["a", "b", "c", "d"]);
-  });
-
-  it("falls back to a single toggle when the anchor is not in the visible order", () => {
-    const anchored = { selectedIds: new Set(["gone"]), lastToggledId: "gone" };
-    const next = toggle(anchored, "c", true);
-    expect([...next.selectedIds].sort()).toEqual(["c", "gone"]);
-  });
-
-  it("does not mutate the previous state", () => {
-    const prev = { selectedIds: new Set(["a"]), lastToggledId: "a" };
-    toggle(prev, "b");
-    expect([...prev.selectedIds]).toEqual(["a"]);
-  });
-});
 
 describe("isSelectableEvent", () => {
   it("excludes span and step structure but keeps real events", () => {
@@ -95,7 +45,7 @@ describe("selectedEventNodes", () => {
   });
 });
 
-describe("resolveSelectedEvents", () => {
+describe("resolveSelected over events", () => {
   const ts = (s: number) => `2026-01-01T00:00:${String(s).padStart(2, "0")}Z`;
   const spanBegin = testSpanBeginEvent({
     uuid: "s",
@@ -131,7 +81,7 @@ describe("resolveSelectedEvents", () => {
 
   it("resolves events and ids in transcript order", () => {
     const ids = new Set(["event_index_3", "m1", "s", "nope"]);
-    const resolved = resolveSelectedEvents(index, ids);
+    const resolved = resolveSelected(index, ids);
     expect(resolved[0]).toBe(model1);
     expect(resolved[1]).toBe(model2);
     expect(resolveSelectedIds(index, ids)).toEqual(["m1", "event_index_3"]);
@@ -150,7 +100,7 @@ describe("resolveSelectedEvents", () => {
   });
 
   it("returns nothing for an empty selection", () => {
-    expect(resolveSelectedEvents(index, new Set())).toEqual([]);
+    expect(resolveSelected(index, new Set())).toEqual([]);
   });
 });
 

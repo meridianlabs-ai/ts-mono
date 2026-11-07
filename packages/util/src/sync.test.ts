@@ -44,6 +44,35 @@ describe("throttle", () => {
     expect(fn).toHaveBeenCalledExactlyOnceWith(1);
   });
 
+  test("flush runs the pending trailing call now, once", () => {
+    const fn = vi.fn((n: number) => n);
+    const throttled = throttle(fn, 100, { leading: false });
+
+    throttled(1);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledExactlyOnceWith(1);
+
+    vi.advanceTimersByTime(100);
+    throttled.flush();
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  test("flush cancels the pending timer, so a later call waits its own window", () => {
+    const fn = vi.fn((n: number) => n);
+    const throttled = throttle(fn, 100, { leading: false });
+
+    throttled(1);
+    throttled.flush();
+    vi.advanceTimersByTime(50);
+    throttled(2);
+    // The flushed call's timer would have fired here, at its old deadline.
+    vi.advanceTimersByTime(50);
+    expect(fn.mock.calls).toEqual([[1]]);
+
+    vi.advanceTimersByTime(50);
+    expect(fn.mock.calls).toEqual([[1], [2]]);
+  });
+
   test("a call after the window reopens invokes immediately", () => {
     const fn = vi.fn((n: number) => n);
     const throttled = throttle(fn, 100);
@@ -52,6 +81,20 @@ describe("throttle", () => {
     vi.advanceTimersByTime(200);
     throttled(2);
     expect(fn.mock.calls).toEqual([[1], [2]]);
+  });
+
+  test("a call made from inside the trailing call runs on the next trailing edge", () => {
+    const seen: number[] = [];
+    const throttled = throttle((n: number) => {
+      seen.push(n);
+      if (n === 2) throttled(102);
+    }, 100);
+
+    throttled(1);
+    throttled(2);
+    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
+    expect(seen).toEqual([1, 2, 102]);
   });
 });
 
@@ -91,5 +134,18 @@ describe("debounce", () => {
 
     vi.advanceTimersByTime(60);
     expect(fn).toHaveBeenCalledExactlyOnceWith(2);
+  });
+
+  test("a call made from inside the trailing call runs after its own wait", () => {
+    const seen: number[] = [];
+    const debounced = debounce((n: number) => {
+      seen.push(n);
+      if (n === 1) debounced(101);
+    }, 100);
+
+    debounced(1);
+    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(100);
+    expect(seen).toEqual([1, 101]);
   });
 });

@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   testAssistantMessage,
   testChatCompletionChoice,
+  testCompactionEvent,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
-import type {
-  CompactionEvent,
-  ModelEvent,
-  ToolEvent,
-} from "@tsmono/inspect-common/types";
+import type { ModelEvent, ToolEvent } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "./core";
 import { collectMarkers, isCompactionEvent, isErrorEvent } from "./markers";
@@ -49,8 +50,6 @@ const messageChoices = (messageId: string): ModelEvent["output"]["choices"] => [
   }),
 ];
 
-const NULL_CONFIG: ModelEvent["config"] = {};
-
 function makeModelEventNode(
   startSec: number,
   options?: {
@@ -60,47 +59,25 @@ function makeModelEventNode(
     messageId?: string;
   }
 ): TimelineEvent {
-  const event: ModelEvent = {
-    event: "model",
+  const event = testModelEvent({
     model: "test",
-    input: [],
-    input_refs: null,
-    tools: [],
-    tool_choice: "auto",
-    config: NULL_CONFIG,
-    output: {
-      choices: options?.messageId ? messageChoices(options.messageId) : [],
-      completion: "",
-      error: options?.outputError ?? null,
-      metadata: null,
+    output: testModelOutput({
       model: "test",
-      time: 1,
-      usage: {
+      choices: options?.messageId ? messageChoices(options.messageId) : [],
+      error: options?.outputError ?? null,
+      usage: testModelUsage({
         input_tokens: 50,
         output_tokens: 50,
         total_tokens: 100,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-        reasoning_tokens: null,
-        total_cost: null,
-      },
-    },
+      }),
+    }),
     timestamp: ts(startSec).toISOString(),
     working_start: startSec,
     working_time: 1,
-    cache: null,
-    call: null,
     completed: ts(startSec + 1).toISOString(),
     error: options?.error ?? null,
-    metadata: null,
-    pending: null,
-    retries: null,
-    role: null,
-    span_id: null,
-    traceback: null,
-    traceback_ansi: null,
     uuid: options?.uuid ?? null,
-  };
+  });
   return new TimelineEvent(event);
 }
 
@@ -111,30 +88,18 @@ function makeToolEventNode(
     uuid?: string;
   }
 ): TimelineEvent {
-  const event: ToolEvent = {
-    event: "tool",
-    type: "function",
+  const event = testToolEvent({
     function: "test_tool",
     id: `call-${startSec}`,
-    arguments: {},
     result: "ok",
-    events: [],
     timestamp: ts(startSec).toISOString(),
     working_start: startSec,
     working_time: 1,
     error: options?.error ?? null,
     failed: options?.error ? true : null,
-    agent: null,
-    agent_span_id: null,
     completed: ts(startSec + 1).toISOString(),
-    message_id: null,
-    metadata: null,
-    pending: null,
-    span_id: null,
-    truncated: null,
     uuid: options?.uuid ?? null,
-    view: null,
-  };
+  });
   return new TimelineEvent(event);
 }
 
@@ -142,19 +107,14 @@ function makeCompactionEventNode(
   startSec: number,
   options?: { uuid?: string }
 ): TimelineEvent {
-  const event: CompactionEvent = {
-    event: "compaction",
+  const event = testCompactionEvent({
     type: "summary",
     tokens_before: 10000,
     tokens_after: 5000,
     timestamp: ts(startSec).toISOString(),
     working_start: startSec,
-    metadata: null,
-    pending: null,
-    source: null,
-    span_id: null,
     uuid: options?.uuid ?? null,
-  };
+  });
   return new TimelineEvent(event);
 }
 

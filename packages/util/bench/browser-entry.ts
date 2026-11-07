@@ -6,7 +6,15 @@
  */
 import JSON5 from "json5";
 
-import { asyncJsonParse, asyncJsonParseBytes } from "../src/json-worker";
+import {
+  asyncJsonParse,
+  asyncJsonParseBytes,
+  configureJsonParseWorker,
+} from "../src/json-worker";
+
+import jsonParseWorkerUrl from "./json-parse.worker?worker&url";
+
+configureJsonParseWorker(jsonParseWorkerUrl);
 
 type PayloadKind =
   "flat" | "evalLog" | "numbers" | "deep" | "json5" | "nonfinite" | "jsonstr";

@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { useStatefulScrollPosition } from "../hooks";
+import { Icon, IconName } from "../icons";
 
 import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./TabSet.module.css";
@@ -41,7 +42,7 @@ interface TabPanelProps {
   className?: string | string[];
   children?: ReactNode;
   title: string;
-  icon?: string;
+  icon?: IconName;
   onSelected: (e: MouseEvent<HTMLElement>) => void;
   /** URL the tab navigates to. When set, the tab renders as a link so
    *  cmd/ctrl/middle-click open it in a new tab; `onSelected` still handles
@@ -126,7 +127,9 @@ const Tab: FC<{
   );
   const content = (
     <>
-      {tab.props.icon && <i className={clsx(tab.props.icon, styles.tabIcon)} />}
+      {tab.props.icon && (
+        <Icon name={tab.props.icon} className={styles.tabIcon} />
+      )}
       {tab.props.title}
     </>
   );

@@ -3,11 +3,11 @@ import { FC, Fragment, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { LabeledValue } from "@tsmono/react/components";
+import { IconName } from "@tsmono/react/icons";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { formatPercent, formatPrettyDecimal } from "@tsmono/util";
+import { formatPercent, formatPrettyDecimal, getOwn } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../../icons";
 import { updateScannerParam } from "../../../router/url";
 import { useStore } from "../../../state/store";
 import { Status, ValidationResults } from "../../../types/api-types";
@@ -130,7 +130,7 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
 };
 
 interface ScanResultsOutlineEntry {
-  icon?: string;
+  icon?: IconName;
   title: string;
   tokens?: number;
   results: number;
@@ -153,7 +153,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     const summary = scanners[scanner];
 
     // The configuration
-    const scanInfo = status.spec.scanners[scanner];
+    const scanInfo = getOwn(status.spec.scanners, scanner);
 
     const formattedParams: string[] = [];
     if (scanInfo) {
@@ -178,7 +178,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     }
 
     entries.push({
-      icon: ApplicationIcons.scorer,
+      icon: "scorer",
       title: scanner,
       results: summary?.results || 0,
       unscored: summary?.unscored ?? 0,

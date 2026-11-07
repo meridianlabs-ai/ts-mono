@@ -21,10 +21,12 @@ import {
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
 import {
+  selectionMenuChrome,
+  SelectTool,
+} from "@tsmono/inspect-components/selection";
+import {
   eventsToMarkdown,
   eventsToStr,
-  selectionMenuChrome,
-  TranscriptSelectTool,
   useTranscriptSelection,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
@@ -39,15 +41,14 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useCopyToClipboard,
+  useMountEffect,
   useProperty,
   useReflectEventNavigationInUrl,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import {
   getRailParam,
   nextRailValue,
@@ -99,8 +100,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
   const tabsRef = useRef<HTMLUListElement | null>(null);
   const [tabBarHeight, setTabBarHeight] = useState(40);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
+  useMountEffect(() => {
     const el = tabsRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => {
@@ -109,7 +109,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     observer.observe(el);
     setTabBarHeight(el.getBoundingClientRect().height);
     return () => observer.disconnect();
-  }, []);
+  });
 
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -194,7 +194,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );
@@ -301,7 +301,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       {
         id: "search",
         label: "Search",
-        icon: ApplicationIcons.search,
+        icon: "search",
         disabled: !resolvedTranscriptsDir,
         title: resolvedTranscriptsDir
           ? "Search"
@@ -310,7 +310,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       {
         id: "validation",
         label: "Validation",
-        icon: ApplicationIcons.edit,
+        icon: "edit",
       },
     ],
     [resolvedTranscriptsDir]
@@ -370,7 +370,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <ToolButton
         key="events-filter-transcript"
         label={`Events: ${label}`}
-        icon={ApplicationIcons.filter}
+        icon="filter"
         onClick={toggleTranscriptFilterShowing}
         className={styles.tabTool}
         subtle={true}
@@ -382,11 +382,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <ToolButton
         key="event-collapse-transcript"
         label={eventsCollapsed ? "Expand" : "Collapse"}
-        icon={
-          eventsCollapsed
-            ? ApplicationIcons.expand.all
-            : ApplicationIcons.collapse.all
-        }
+        icon={eventsCollapsed ? "expandAll" : "collapseAll"}
         onClick={() => {
           collapseEvents(!eventsCollapsed);
         }}
@@ -399,7 +395,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <ToolButton
       key="display-mode-toggle"
       label={displayMode === "rendered" ? "Raw" : "Rendered"}
-      icon={ApplicationIcons.display}
+      icon="display"
       onClick={toggleDisplayMode}
       className={styles.tabTool}
       subtle={true}
@@ -413,8 +409,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   if (onEventsTab) {
     tabTools.push(
-      <TranscriptSelectTool
+      <SelectTool
         key="events-select"
+        item="event"
         active={evidence.active}
         count={evidence.selectedCount}
         onToggle={evidence.toggleActive}
@@ -627,11 +624,11 @@ const CopyToolbarButton: FC<{
   onClearSelection,
 }) => {
   const { copied, copy: copyText } = useCopyToClipboard();
-  const icon = copied ? ApplicationIcons.confirm : ApplicationIcons.copy;
+  const icon = copied ? "confirm" : "copy";
 
   const selectionMenu =
     selectedCount > 0
-      ? selectionMenuChrome(selectedCount, onClearSelection)
+      ? selectionMenuChrome(selectedCount, "event", onClearSelection)
       : undefined;
   const hasSelection = selectionMenu !== undefined;
 

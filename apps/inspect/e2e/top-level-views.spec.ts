@@ -432,6 +432,23 @@ test.describe("Open in new tab", () => {
     );
   };
 
+  test("the navbar back and home links have accessible names", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+
+    const nav = page.getByRole("navigation");
+    await expect(
+      nav.getByRole("link", { name: "Back", exact: true })
+    ).toBeVisible();
+    await expect(
+      nav.getByRole("link", { name: "Home", exact: true })
+    ).toBeVisible();
+  });
+
   test("the Tasks / Folders / Samples switcher opens views in a new tab", async ({
     page,
     context,

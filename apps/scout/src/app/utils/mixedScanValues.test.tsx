@@ -12,7 +12,6 @@ import { decodeArrowBytes } from "@tsmono/util";
 import { ScanResultSummary } from "../types";
 
 import { expandResultsetRows } from "./arrow";
-import { rowRecords } from "./arrowCells";
 import { parseScanResultSummaries } from "./arrowHelpers";
 import { sortValue } from "./results";
 
@@ -45,7 +44,7 @@ const loadMixedScan = async (): Promise<Map<string, ScanResultSummary>> => {
     ])
   );
   const table = await expandResultsetRows(decodeArrowBytes(bytes));
-  const summaries = await parseScanResultSummaries(rowRecords(table));
+  const summaries = await parseScanResultSummaries(table);
   return new Map(summaries.map((s) => [s.identifier, s]));
 };
 

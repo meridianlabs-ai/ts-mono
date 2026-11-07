@@ -10,11 +10,11 @@ import {
 
 import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { VirtualList } from "@tsmono/react/virtual";
 import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
-import { useContentIcons } from "./IconsContext";
 import { resolveStoreKeys } from "./record_processors/store";
 import { RecordProcessor } from "./record_processors/types";
 import styles from "./RecordTree.module.css";
@@ -50,8 +50,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
   useBorders = true,
   copyButton = false,
 }) => {
-  const icons = useContentIcons();
-
   // Collapse state — persisted user choices only. Defaults are applied on
   // the fly at render time by `isItemCollapsed`, so we never bootstrap
   // defaults into persisted state.
@@ -197,11 +195,9 @@ export const RecordTree: FC<RecordTreeProps> = ({
           <div>
             {item.hasChildren ? (
               <pre className={clsx(styles.pre)}>
-                <i
-                  className={clsx(
-                    item.isCollapsed ? icons.tree.closed : icons.tree.open,
-                    styles.treeIcon
-                  )}
+                <Icon
+                  name={item.isCollapsed ? "treeClosed" : "treeOpen"}
+                  className={styles.treeIcon}
                 />
               </pre>
             ) : undefined}
@@ -296,11 +292,6 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!record) {
-    return [];
-  }
-
   // Apply any record processors
   if (recordProcessors.length > 0) {
     for (const processor of recordProcessors) {
@@ -361,8 +352,7 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (typeof value === "object" && value !== null) {
+  } else if (typeof value === "object") {
     processChildren = true;
     childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;

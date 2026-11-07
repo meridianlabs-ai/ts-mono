@@ -1,10 +1,8 @@
 import { FC } from "react";
 import { useNavigate } from "react-router";
 
-import { SegmentedControl } from "@tsmono/react/components";
-import { navigateAndForget } from "@tsmono/react/hooks";
+import { Segment, SegmentedControl } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../appearance/icons";
 import {
   logsUrl,
   samplesUrl,
@@ -19,10 +17,10 @@ interface ViewSegmentControlProps {
   selectedSegment: "logs" | "tasks" | "samples";
 }
 
-const segments = [
-  { id: "tasks", label: "Tasks", icon: ApplicationIcons.navbar.tasks },
-  { id: "logs", label: "Folders", icon: ApplicationIcons.file },
-  { id: "samples", label: "Samples", icon: ApplicationIcons.sample },
+const segments: Segment[] = [
+  { id: "tasks", label: "Tasks", icon: "navTasks" },
+  { id: "logs", label: "Folders", icon: "file" },
+  { id: "samples", label: "Samples", icon: "sample" },
 ];
 
 export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
@@ -49,7 +47,7 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
       selectedId={selectedSegment}
       onSegmentChange={(segment) => {
         const route = routes[segment];
-        if (route) navigateAndForget(navigate, route);
+        if (route) navigate(route);
       }}
     />
   );

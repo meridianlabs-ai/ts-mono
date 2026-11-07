@@ -1,50 +1,43 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAnchorEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { splice, TimelineEvent, TimelineSpan } from "./core";
 
+const kTimestamp = "2025-01-01T00:00:00Z";
+
 function anchor(id: string, spanId?: string): Event {
-  return {
-    event: "anchor",
+  return testAnchorEvent({
     anchor_id: id,
-    timestamp: "2025-01-01T00:00:00Z",
-    working_start: 0,
+    timestamp: kTimestamp,
     span_id: spanId ?? null,
     uuid: `a-${id}`,
-    metadata: null,
-    pending: null,
-    source: null,
-  };
+  });
 }
 
 function spanBegin(id: string, parentId: string): Event {
-  return {
-    event: "span_begin",
+  return testSpanBeginEvent({
     id,
     name: id,
     parent_id: parentId,
-    type: null,
-    timestamp: "2025-01-01T00:00:00Z",
-    working_start: 0,
+    timestamp: kTimestamp,
     span_id: id,
     uuid: `sb-${id}`,
-    metadata: null,
-    pending: null,
-  };
+  });
 }
 
 function spanEnd(id: string): Event {
-  return {
-    event: "span_end",
+  return testSpanEndEvent({
     id,
-    timestamp: "2025-01-01T00:00:00Z",
-    working_start: 0,
+    timestamp: kTimestamp,
     span_id: id,
     uuid: `se-${id}`,
-    metadata: null,
-    pending: null,
-  };
+  });
 }
 
 function ts(id: string, branchedFrom: string | null, events: Event[]) {

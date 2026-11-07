@@ -7,7 +7,7 @@ import { proposeLogLocation, scopeRouteLogFile } from "./logLocationTrust";
 const page = new URL("http://localhost:3000/viewer/index.html");
 
 describe("proposeLogLocation", () => {
-  it("no invocation source → nothing to approve", () => {
+  it("no invocation source → nothing to refuse", () => {
     expect(proposeLogLocation({ kind: "none" }, page)).toBeUndefined();
   });
 

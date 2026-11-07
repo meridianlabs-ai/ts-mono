@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { EvalError, EvalSampleLimit } from "@tsmono/inspect-common";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import { deriveSampleStatus } from "../status/status";
 
@@ -59,14 +60,14 @@ export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({
           ? `This run hit its ${limit?.type} limit`
           : "This run succeeded";
 
-  const icon =
+  const icon: IconName =
     outcome === "error"
-      ? "bi bi-x"
+      ? "close"
       : outcome === "cancelled"
-        ? "bi bi-dash"
+        ? "changeRemove"
         : outcome === "limit"
-          ? "bi bi-exclamation"
-          : "bi bi-check";
+          ? "exclamation"
+          : "confirm";
 
   return (
     <div className={styles.row}>
@@ -74,7 +75,7 @@ export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({
         className={clsx(styles.marker, markerByOutcome[outcome])}
         aria-hidden="true"
       >
-        <i className={icon} />
+        <Icon name={icon} />
       </span>
       <div className={styles.copy}>
         <span

@@ -1,5 +1,6 @@
 import { FC } from "react";
 
+import { IconName } from "@tsmono/react/icons";
 import { isUri, prettyDirUri } from "@tsmono/util";
 
 import { EditableText } from "./EditableText";
@@ -14,7 +15,7 @@ interface EditablePathProps {
   label?: string;
   title?: string;
 
-  icon?: string;
+  icon?: IconName;
   placeholder?: string;
 
   editable?: boolean;

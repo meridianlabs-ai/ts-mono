@@ -2,12 +2,9 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
 import {
@@ -63,13 +60,11 @@ describe("mixed score columns", () => {
 
         const { container, unmount } = render(
           <ComponentStateProvider hooks={makeStateHooks()}>
-            <ComponentIconProvider icons={testIcons}>
-              <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-                {orderedValues.map((value, index) => (
-                  <div key={index}>{descriptor.render(value)}</div>
-                ))}
-              </ComponentNavigationProvider>
-            </ComponentIconProvider>
+            <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+              {orderedValues.map((value, index) => (
+                <div key={index}>{descriptor.render(value)}</div>
+              ))}
+            </ComponentNavigationProvider>
           </ComponentStateProvider>
         );
         for (const value of text) {

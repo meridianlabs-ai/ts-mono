@@ -130,11 +130,7 @@ describe("content trust", () => {
   it("does not load the terminal player for untrusted content", () => {
     render(
       <ContentTrustProvider value="untrusted">
-        <AsciinemaPlayer
-          inputUrl="blob:x"
-          outputUrl="blob:y"
-          timingUrl="blob:z"
-        />
+        <AsciinemaPlayer input="x" output="y" timing="z" />
       </ContentTrustProvider>
     );
     expect(
@@ -214,7 +210,7 @@ describe("content trust", () => {
 it("withholds terminal playback when ANSI is denied even if media is allowed", () => {
   const { container } = render(
     <ContentPolicyProvider value={{ ...richContentPolicy, ansi: false }}>
-      <AsciinemaPlayer inputUrl="input" outputUrl="output" timingUrl="timing" />
+      <AsciinemaPlayer input="input" output="output" timing="timing" />
     </ContentPolicyProvider>
   );
   expect(

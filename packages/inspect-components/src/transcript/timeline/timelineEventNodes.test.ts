@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { testModelEvent } from "@tsmono/inspect-common/testing";
+import {
+  testAnchorEvent,
+  testCompactionEvent,
+  testInfoEvent,
+  testModelEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
-  AnchorEvent,
-  CompactionEvent,
   Event,
-  InfoEvent,
   SpanBeginEvent,
   SpanEndEvent,
-  ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
-import { TimelineEvent, TimelineSpan } from "./core";
+import { buildEventNodes } from "../hooks/useEventNodes";
+import type { EventNode } from "../types";
+
+import { buildTimeline, TimelineEvent, TimelineSpan } from "./core";
 import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
-import { makeSpan, ts } from "./testHelpers";
+import { makeSpan, rawEventBuilders, ts } from "./testHelpers";
 import {
   buildSelectionKey,
   collectPathWithNavigators,
@@ -22,6 +29,7 @@ import {
   computeCompactionRegions,
   findTerminatorTool,
   getParentKeyFromBranch,
+  getSelectedSpans,
   isForkNavData,
   parseSelection,
   type EmptyBranchData,
@@ -40,30 +48,17 @@ function makeTimelineEvent(
 ): TimelineEvent {
   const event =
     eventType === "compaction"
-      ? ({
-          event: "compaction",
+      ? testCompactionEvent({
           timestamp: ts(startSec).toISOString(),
           working_start: startSec,
-          pending: false,
-          span_id: null,
           uuid: `compaction-${startSec}`,
-          metadata: null,
-          source: "",
-          tokens_before: null,
-          tokens_after: null,
           type: "summary",
-        } satisfies CompactionEvent)
-      : ({
-          event: "info",
+        })
+      : testInfoEvent({
           timestamp: ts(startSec).toISOString(),
           working_start: startSec,
-          pending: false,
-          span_id: null,
           uuid: `info-${startSec}`,
-          metadata: null,
-          source: "",
-          data: "",
-        } satisfies InfoEvent);
+        });
 
   return new TimelineEvent(event);
 }
@@ -73,17 +68,15 @@ function makeAnchor(
   sec: number,
   spanId: string | null = null
 ): TimelineEvent {
-  return new TimelineEvent({
-    event: "anchor",
-    anchor_id: anchorId,
-    source: null,
-    timestamp: ts(sec).toISOString(),
-    working_start: sec,
-    metadata: null,
-    pending: null,
-    span_id: spanId,
-    uuid: `anchor-${anchorId}`,
-  } satisfies AnchorEvent);
+  return new TimelineEvent(
+    testAnchorEvent({
+      anchor_id: anchorId,
+      timestamp: ts(sec).toISOString(),
+      working_start: sec,
+      span_id: spanId,
+      uuid: `anchor-${anchorId}`,
+    })
+  );
 }
 
 function makeModel(sec: number, label = "m"): TimelineEvent {
@@ -550,89 +543,57 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
 // =============================================================================
 
 function makeTool(spanId: string, fn: string, sec: number): TimelineEvent {
-  return new TimelineEvent({
-    event: "tool",
-    type: "function",
-    function: fn,
-    id: `call-${fn}-${sec}`,
-    arguments: {},
-    result: "",
-    events: [],
+  return new TimelineEvent(
+    testToolEvent({
+      function: fn,
+      id: `call-${fn}-${sec}`,
+      timestamp: ts(sec).toISOString(),
+      working_start: sec,
+      completed: ts(sec).toISOString(),
+      span_id: spanId,
+      uuid: `tool-${spanId}-${sec}`,
+    })
+  );
+}
+
+/** Begin/end events delimiting a trajectory span `id` (span_id === id). */
+function trajectoryBegin(id: string, sec: number): SpanBeginEvent {
+  return testSpanBeginEvent({
+    name: "trajectory",
+    id,
+    span_id: id,
+    type: "trajectory",
     timestamp: ts(sec).toISOString(),
     working_start: sec,
-    agent: null,
-    agent_span_id: null,
-    completed: ts(sec).toISOString(),
-    error: null,
-    failed: null,
-    message_id: null,
-    metadata: null,
-    pending: null,
-    span_id: spanId,
-    truncated: null,
-    uuid: `tool-${spanId}-${sec}`,
-    view: null,
-  } satisfies ToolEvent);
+    uuid: id,
+  });
+}
+
+function trajectoryEnd(id: string, sec: number): SpanEndEvent {
+  return testSpanEndEvent({
+    id,
+    span_id: id,
+    timestamp: ts(sec).toISOString(),
+    working_start: sec,
+  });
 }
 
 describe("findTerminatorTool", () => {
   it("returns the function name of the last tool event inside the trajectory range", () => {
     const events: Event[] = [
-      {
-        event: "span_begin",
-        name: "trajectory",
-        id: "traj-1",
-        span_id: "traj-1",
-        type: "trajectory",
-        timestamp: ts(0).toISOString(),
-        parent_id: null,
-        pending: false,
-        working_start: 0,
-        uuid: "traj-1",
-        metadata: null,
-      } satisfies SpanBeginEvent,
+      trajectoryBegin("traj-1", 0),
       makeTool("inner-1", "send_message", 1).event,
       makeTool("inner-2", "rollback_conversation", 2).event,
       makeTool("inner-3", "restart_conversation", 3).event,
-      {
-        event: "span_end",
-        id: "traj-1",
-        span_id: "traj-1",
-        timestamp: ts(4).toISOString(),
-        pending: false,
-        working_start: 4,
-        uuid: null,
-        metadata: null,
-      } satisfies SpanEndEvent,
+      trajectoryEnd("traj-1", 4),
     ];
     expect(findTerminatorTool(events, "traj-1")).toBe("restart_conversation");
   });
 
   it("returns null when no tool sits inside the trajectory range", () => {
     const events: Event[] = [
-      {
-        event: "span_begin",
-        name: "trajectory",
-        id: "traj-1",
-        span_id: "traj-1",
-        type: "trajectory",
-        timestamp: ts(0).toISOString(),
-        parent_id: null,
-        pending: false,
-        working_start: 0,
-        uuid: "traj-1",
-        metadata: null,
-      } satisfies SpanBeginEvent,
-      {
-        event: "span_end",
-        id: "traj-1",
-        span_id: "traj-1",
-        timestamp: ts(1).toISOString(),
-        pending: false,
-        working_start: 1,
-        uuid: null,
-        metadata: null,
-      } satisfies SpanEndEvent,
+      trajectoryBegin("traj-1", 0),
+      trajectoryEnd("traj-1", 1),
     ];
     expect(findTerminatorTool(events, "traj-1")).toBeNull();
   });
@@ -644,29 +605,8 @@ describe("findTerminatorTool", () => {
   it("ignores tools outside the trajectory range", () => {
     const events: Event[] = [
       makeTool("outside-1", "before_tool", 0).event,
-      {
-        event: "span_begin",
-        name: "trajectory",
-        id: "traj-1",
-        span_id: "traj-1",
-        type: "trajectory",
-        timestamp: ts(1).toISOString(),
-        parent_id: null,
-        pending: false,
-        working_start: 1,
-        uuid: "traj-1",
-        metadata: null,
-      } satisfies SpanBeginEvent,
-      {
-        event: "span_end",
-        id: "traj-1",
-        span_id: "traj-1",
-        timestamp: ts(2).toISOString(),
-        pending: false,
-        working_start: 2,
-        uuid: null,
-        metadata: null,
-      } satisfies SpanEndEvent,
+      trajectoryBegin("traj-1", 1),
+      trajectoryEnd("traj-1", 2),
       makeTool("outside-2", "after_tool", 3).event,
     ];
     expect(findTerminatorTool(events, "traj-1")).toBeNull();
@@ -716,30 +656,9 @@ describe("collectPathWithNavigators — empty leaf marker", () => {
 
   it("passes terminator name into the marker when rawEvents is supplied", () => {
     const rows = rowsWithEmptyLeafBranch();
-    const trajBegin = {
-      event: "span_begin",
-      name: "trajectory",
-      id: "empty",
-      span_id: "empty",
-      type: "trajectory",
-      timestamp: ts(2).toISOString(),
-      parent_id: null,
-      pending: false,
-      working_start: 2,
-      uuid: "empty",
-      metadata: null,
-    } satisfies SpanBeginEvent;
+    const trajBegin = trajectoryBegin("empty", 2);
     const tool = makeTool("inner-tool", "restart_conversation", 3).event;
-    const trajEnd = {
-      event: "span_end",
-      id: "empty",
-      span_id: "empty",
-      timestamp: ts(4).toISOString(),
-      pending: false,
-      working_start: 4,
-      uuid: null,
-      metadata: null,
-    } satisfies SpanEndEvent;
+    const trajEnd = trajectoryEnd("empty", 4);
     const raw: Event[] = [trajBegin, tool, trajEnd];
 
     const { events } = collectPathWithNavigators(
@@ -875,4 +794,179 @@ describe("collectRawEvents — utility span elision", () => {
     const { events } = collectRawEvents([root], { includeUtility: true });
     expect(events.filter((e) => e.event === "span_begin")).toHaveLength(2);
   });
+});
+
+describe("collectRawEvents — agent cards inside checkpoint spans", () => {
+  // A main agent dispatching two subagents through tool calls. The turns run
+  // directly in the agent span, inside a checkpoint span, or (after a
+  // checkpoint resume) inside checkpoint spans that a `prior_run` wrap holds,
+  // followed by a live checkpoint span. The shape matches what Inspect logs:
+  // the ToolEvent sits in the enclosing span and is timestamped before the
+  // spans its call opens.
+  const sampleEvents = ({
+    layout = "plain",
+    dispatch,
+  }: {
+    layout?: "plain" | "checkpoint" | "resumed";
+    dispatch: "agent" | "handoff" | "collect";
+  }): Event[] => {
+    const { base, spanBegin, spanEnd } = rawEventBuilders();
+    const model = (spanId: string): Event =>
+      testModelEvent({ ...base(), span_id: spanId });
+    const agentSpan = (id: string, parentId: string): Event[] => [
+      spanBegin(id, "general", "agent", parentId),
+      model(id),
+      spanEnd(id),
+    ];
+    const toolCall = (
+      n: number,
+      parent: string,
+      agentSpanId: string | null
+    ): Event =>
+      testToolEvent({
+        ...base(),
+        id: `call_${n}`,
+        function: "agent",
+        span_id: parent,
+        agent_span_id: agentSpanId,
+      });
+    // `agent` tool: tool span > agent span.
+    // handoff: handoff span > tool span > agent span.
+    // collect() in a user tool: tool span > task spans > agent spans.
+    const subagentCall = (n: number, parent: string): Event[] => {
+      const turn = model(parent);
+      if (dispatch === "collect") {
+        const call = toolCall(n, parent, null);
+        return [
+          turn,
+          spanBegin(`tool${n}`, "fan_out", "tool", parent),
+          call,
+          ...[1, 2].flatMap((t) => [
+            spanBegin(`task${n}.${t}`, `task-${t}`, "task", `tool${n}`),
+            ...agentSpan(`sub${n}.${t}`, `task${n}.${t}`),
+            spanEnd(`task${n}.${t}`),
+          ]),
+          spanEnd(`tool${n}`),
+        ];
+      }
+      const call = toolCall(n, parent, `sub${n}`);
+      const toolSpanParent = dispatch === "handoff" ? `handoff${n}` : parent;
+      const toolSpan = [
+        spanBegin(`tool${n}`, "agent", "tool", toolSpanParent),
+        call,
+        ...agentSpan(`sub${n}`, `tool${n}`),
+        spanEnd(`tool${n}`),
+      ];
+      return [
+        turn,
+        ...(dispatch === "handoff"
+          ? [
+              spanBegin(`handoff${n}`, "general", "handoff", parent),
+              ...toolSpan,
+              spanEnd(`handoff${n}`),
+            ]
+          : toolSpan),
+      ];
+    };
+    const layouts = {
+      plain: () => [
+        ...subagentCall(1, "main"),
+        ...subagentCall(2, "main"),
+        model("main"),
+      ],
+      checkpoint: () => [
+        spanBegin("ck1", "checkpoint 1", "checkpoint", "main"),
+        ...subagentCall(1, "ck1"),
+        ...subagentCall(2, "ck1"),
+        model("ck1"),
+        spanEnd("ck1"),
+      ],
+      // Each restored checkpoint span is followed by its CheckpointEvent,
+      // which hydrate moves into the wrap (an info event stands in for it).
+      resumed: () => [
+        spanBegin("restore", "checkpoint restore 1", "prior_run", "main"),
+        spanBegin("ck1", "checkpoint 1", "checkpoint", "restore"),
+        ...subagentCall(1, "ck1"),
+        spanEnd("ck1"),
+        testInfoEvent({ ...base(), span_id: "restore" }),
+        spanBegin("ck2", "checkpoint 2", "checkpoint", "restore"),
+        ...subagentCall(2, "ck2"),
+        spanEnd("ck2"),
+        testInfoEvent({ ...base(), span_id: "restore" }),
+        spanEnd("restore"),
+        spanBegin("ck3", "checkpoint 3", "checkpoint", "main"),
+        model("ck3"),
+        spanEnd("ck3"),
+      ],
+    };
+    return [
+      spanBegin("solvers", "solvers", "solvers", null),
+      spanBegin("main", "main", "agent", "solvers"),
+      ...layouts[layout](),
+      spanEnd("main"),
+      spanEnd("solvers"),
+    ];
+  };
+
+  // Tool calls and agent cards in render order, with their tree depth.
+  const renderedCalls = (events: Event[]): string[] => {
+    const rows = computeSwimlaneRows(buildTimeline(events).root);
+    const collected = collectRawEvents(getSelectedSpans(rows, rows[0]!.key));
+    const { eventNodes } = buildEventNodes(
+      collected.events,
+      false,
+      collected.sourceSpans
+    );
+    const label = ({ event, sourceSpan }: EventNode): string | null => {
+      if (event.event === "tool") return `tool ${event.id}`;
+      if (event.event === "span_begin" && sourceSpan) return `card ${event.id}`;
+      return null;
+    };
+    const walk = (nodes: EventNode[], depth: number): string[] =>
+      nodes.flatMap((node) => {
+        const own = label(node);
+        return [
+          ...(own ? [`${depth} ${own}`] : []),
+          ...walk(node.children, depth + 1),
+        ];
+      });
+    return walk(eventNodes, 0);
+  };
+
+  const besideToolCalls = [
+    "0 tool call_1",
+    "0 card sub1",
+    "0 tool call_2",
+    "0 card sub2",
+  ];
+
+  // Once discard_checkpoint_span flattens the checkpoint spans, a checkpointed
+  // log reads as if it had none, and a resumed one as if its restored turns
+  // ran inside the "checkpoint restore" span.
+  it.each([
+    { dispatch: "agent", expected: besideToolCalls },
+    { dispatch: "handoff", expected: besideToolCalls },
+    {
+      dispatch: "collect",
+      expected: [
+        "0 tool call_1",
+        "0 card sub1.1",
+        "0 card sub1.2",
+        "0 tool call_2",
+        "0 card sub2.1",
+        "0 card sub2.2",
+      ],
+    },
+  ] as const)(
+    "renders $dispatch cards beside their tool call, with or without checkpointing",
+    ({ dispatch, expected }) => {
+      expect(renderedCalls(sampleEvents({ dispatch }))).toEqual(expected);
+      expect(
+        renderedCalls(sampleEvents({ layout: "checkpoint", dispatch }))
+      ).toEqual(expected);
+      expect(
+        renderedCalls(sampleEvents({ layout: "resumed", dispatch }))
+      ).toEqual(expected.map((line) => line.replace(/^0 /, "1 ")));
+    }
+  );
 });

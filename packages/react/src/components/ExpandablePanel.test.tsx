@@ -114,6 +114,11 @@ describe("ExpandablePanel auto-expand on find target", () => {
       expectTruncated: false,
     },
     {
+      name: "quoted target matching unquoted text → expanded",
+      target: { term: '"wondering"', eventId: "e1" },
+      expectTruncated: false,
+    },
+    {
       name: "non-matching target → truncated",
       target: { term: "absent-term-xyz", eventId: "e1" },
       expectTruncated: true,

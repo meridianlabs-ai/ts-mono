@@ -1,6 +1,8 @@
+// @no-unsafe-eval: hosts may serve the viewers under a CSP without it.
+import { table } from "arquero";
 import { describe, expect, test } from "vitest";
 
-import { castScanValue, decodeArrowBase64 } from "./arrow";
+import { castScanValue, decodeArrowBase64, decodeArrowBytes } from "./arrow";
 
 // LZ4_FRAME-compressed Arrow IPC stream containing:
 //   id:                 int32  [1, 2, 3, 4]
@@ -44,6 +46,35 @@ describe("decodeArrowBase64", () => {
       true,
       false,
     ]);
+  });
+
+  test("leaves columns without a cast as they are, in order", () => {
+    const bytes = table({
+      zeta: ["a", "b"],
+      count: [1, 2],
+      alpha: [true, null],
+    }).toArrowIPC();
+
+    const decoded = decodeArrowBytes(bytes);
+
+    expect(decoded.columnNames()).toEqual(["zeta", "count", "alpha"]);
+    expect(decoded.array("zeta")).toEqual(["a", "b"]);
+    expect(decoded.array("count")).toEqual([1, 2]);
+    expect(decoded.array("alpha")).toEqual([true, null]);
+  });
+
+  test("casts typed and null cells", () => {
+    const bytes = table({
+      value: ["7", null, "x"],
+      value_type: ["number", "number", null],
+      scan_error_refusal: [true, null, false],
+    }).toArrowIPC();
+
+    const decoded = decodeArrowBytes(bytes);
+
+    // A row without a value_type keeps its value.
+    expect(decoded.array("value")).toEqual([7, null, "x"]);
+    expect(decoded.array("scan_error_refusal")).toEqual([true, false, false]);
   });
 });
 

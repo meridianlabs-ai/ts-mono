@@ -1,15 +1,12 @@
 // Bundle the app-level CSS the embedded library needs into the lib build. The
 // standalone app imports these in main.tsx, which the lib build does NOT
-// include — so without them, embedded scout (e.g. in hawk) lost its icon
-// glyphs (Bootstrap Icons) and, more subtly, the Bootstrap `--bs-*` design
-// tokens its panels rely on (which made light mode render dark panels).
+// include — so without them, embedded scout (e.g. in hawk) lost the Bootstrap
+// `--bs-*` design tokens its panels rely on (which made light mode render dark panels).
 // Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
 // theme overrides Bootstrap's defaults.
-import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "@vscode/codicons/dist/codicon.css";
 
-import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
+import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import "prismjs/themes/prism.css";
@@ -20,39 +17,18 @@ import "./app/App.css";
 import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
-  ComponentIconProvider,
-  ComponentIcons,
   ContentTrustCeilingProvider,
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
 
 import { useAppConfigAsync } from "./app/server/useAppConfig";
 import { useTopicInvalidation } from "./app/server/useTopicInvalidation";
 import { createAppRouter } from "./AppRouter";
-import { ApplicationIcons } from "./icons";
 import { scoutStateHooks } from "./state/componentStateAdapter";
 import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
-
-const componentIcons: ComponentIcons = {
-  arrowDown: ApplicationIcons.arrows.down,
-  arrowUp: ApplicationIcons.arrows.up,
-  chevronDown: ApplicationIcons.chevron.down,
-  chevronUp: ApplicationIcons.collapse.up,
-  clearText: ApplicationIcons["clear-text"],
-  close: ApplicationIcons.close,
-  code: ApplicationIcons.code,
-  confirm: ApplicationIcons.confirm,
-  copy: ApplicationIcons.copy,
-  error: ApplicationIcons.error,
-  menu: ApplicationIcons.threeDots,
-  next: ApplicationIcons.next,
-  noSamples: ApplicationIcons.noSamples,
-  play: ApplicationIcons.play,
-  previous: ApplicationIcons.previous,
-  toggleRight: ApplicationIcons["toggle-right"],
-};
 
 export const AppModeContext = createContext<AppProps["mode"]>("scans");
 
@@ -81,18 +57,13 @@ const useThemePreferenceSync = () => {
   // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
   // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
   // reads the freshly-written value) and pull the new preference into zustand.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SETTINGS_STORAGE_KEY) {
-        window.__APPLY_BROWSER_THEME__?.();
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        useUserSettings.persist.rehydrate();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  useEventListener(window, "storage", (e) => {
+    if (e.key === SETTINGS_STORAGE_KEY) {
+      window.__APPLY_BROWSER_THEME__?.();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- rehydrate never rejects: zustand routes its errors to onRehydrateStorage, and its anonymous type can't be listed in allowForKnownSafeCalls
+      useUserSettings.persist.rehydrate();
+    }
+  });
 };
 
 const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
@@ -103,22 +74,20 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
 
   return router ? (
     <AppErrorBoundary>
-      <ComponentIconProvider icons={componentIcons}>
-        <ComponentStateProvider hooks={scoutStateHooks}>
-          <AppModeContext.Provider value={mode}>
-            <ExtendedFindProvider>
-              <FindTargetProvider>
-                {/* Content is untrusted unless a nearer provider says otherwise
+      <ComponentStateProvider hooks={scoutStateHooks}>
+        <AppModeContext.Provider value={mode}>
+          <ExtendedFindProvider>
+            <FindTargetProvider>
+              {/* Content is untrusted unless a nearer provider says otherwise
                     (a transcript's own trust, or app-owned data); the key
                     remounts everything when the ceiling changes. */}
-                <ContentTrustCeilingProvider value={trustCeiling}>
-                  <RouterProvider key={trustCeiling} router={router} />
-                </ContentTrustCeilingProvider>
-              </FindTargetProvider>
-            </ExtendedFindProvider>
-          </AppModeContext.Provider>
-        </ComponentStateProvider>
-      </ComponentIconProvider>
+              <ContentTrustCeilingProvider value={trustCeiling}>
+                <RouterProvider key={trustCeiling} router={router} />
+              </ContentTrustCeilingProvider>
+            </FindTargetProvider>
+          </ExtendedFindProvider>
+        </AppModeContext.Provider>
+      </ComponentStateProvider>
     </AppErrorBoundary>
   ) : null;
 };

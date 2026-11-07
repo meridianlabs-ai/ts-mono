@@ -1,9 +1,9 @@
 import clsx from "clsx";
-import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
+import { FC, MouseEvent, ReactNode, useCallback } from "react";
 
-import { useProperty, useTimeout } from "../hooks";
+import { useEventListener, useProperty, useTimeout } from "../hooks";
+import { Icon } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
 
 interface Slide {
@@ -20,8 +20,6 @@ interface LightboxCarouselProps {
  * LightboxCarousel component provides a carousel with lightbox functionality.
  */
 export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
-  const icons = useComponentIcons();
-
   const [isOpen, setIsOpen] = useProperty(id, "isOpen", {
     defaultValue: false,
   });
@@ -61,10 +59,10 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [setCurrentIndex, currentIndex, slides.length]);
 
   // Keyboard Navigation
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyUp = (e: KeyboardEvent) => {
+  useEventListener(
+    isOpen ? window : null,
+    "keyup",
+    (e) => {
       if (e.key === "Escape") {
         closeLightbox();
       } else if (e.key === "ArrowRight") {
@@ -74,10 +72,9 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       }
       e.preventDefault();
       e.stopPropagation();
-    };
-    window.addEventListener("keyup", handleKeyUp, true);
-    return () => window.removeEventListener("keyup", handleKeyUp, true);
-  }, [closeLightbox, isOpen, showNext, showPrev]);
+    },
+    { capture: true }
+  );
 
   const handleThumbClick = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
@@ -100,10 +97,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
             >
               <div>{slide.label}</div>
               <div>
-                <i
-                  className={clsx(icons.play, styles.carouselPlayIcon)}
-                  aria-hidden="true"
-                />
+                <Icon name="play" className={styles.carouselPlayIcon} />
               </div>
             </button>
           );
@@ -121,8 +115,9 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={styles.lightboxButtonClose}
               onClick={closeLightbox}
+              aria-label="Close"
             >
-              <i className={icons.close}></i>
+              <Icon name="close" />
             </button>
           </div>
           {slides.length > 1 ? (
@@ -130,8 +125,9 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={clsx(styles.lightboxPreviewButton, styles.prev)}
               onClick={showPrev}
+              aria-label="Previous"
             >
-              <i className={icons.previous}></i>
+              <Icon name="previous" />
             </button>
           ) : (
             ""
@@ -141,8 +137,9 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
               type="button"
               className={clsx(styles.lightboxPreviewButton, styles.next)}
               onClick={showNext}
+              aria-label="Next"
             >
-              <i className={icons.next} />
+              <Icon name="next" />
             </button>
           ) : (
             ""

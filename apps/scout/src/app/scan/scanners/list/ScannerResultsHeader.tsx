@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback } from "react";
 
-import { ApplicationIcons } from "../../../../icons";
+import { Icon } from "@tsmono/react/icons";
+
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsHeader.module.css";
@@ -101,14 +102,7 @@ const ColumnHeader: FC<{
     >
       {label}
       {sort && (
-        <i
-          className={clsx(
-            sort.direction === "asc"
-              ? ApplicationIcons.arrows.up
-              : ApplicationIcons.arrows.down
-          )}
-          aria-hidden="true"
-        />
+        <Icon name={sort.direction === "asc" ? "arrowUp" : "arrowDown"} />
       )}
     </button>
   );

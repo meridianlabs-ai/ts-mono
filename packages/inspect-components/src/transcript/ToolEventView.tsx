@@ -23,7 +23,6 @@ import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import { ApprovalInset } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import { SentinelInset } from "./SentinelEventView";
 import { NotRunWell, sameArguments } from "./ToolCheckInset";
 import styles from "./ToolEventView.module.css";
@@ -224,7 +223,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     />
   );
 
-  const toolLabel = toolLabels.messageLabels?.[event.id];
+  const toolLabel = getOwn(toolLabels.messageLabels, event.id);
 
   return (
     <EventPanel
@@ -236,7 +235,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           ? formatTiming(event.timestamp, event.working_start)
           : undefined
       }
-      icon={TranscriptIcons.solvers.use_tools}
+      icon="solverUseTools"
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
       turnNav={turnNav}

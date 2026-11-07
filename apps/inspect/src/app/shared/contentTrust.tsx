@@ -5,10 +5,7 @@ import { ContentTrustProvider } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
 import { useLogHeader } from "../../log_data";
-import {
-  useCurrentLogFile,
-  useCurrentSampleHandle,
-} from "../routing/currentSelection";
+import { useCurrentLogFile } from "../routing/currentSelection";
 
 /**
  * Trust for one log's content: untrusted when no log is given, or while its
@@ -29,26 +26,13 @@ const LogContentTrustProvider: FC<{
   );
 };
 
-/** Trust for the selected log's content. */
+/** Trust for the selected log's content; sample views under it inherit it. */
 export const SelectionContentTrustProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const logFile = useCurrentLogFile();
   return (
     <LogContentTrustProvider logFile={logFile}>
-      {children}
-    </LogContentTrustProvider>
-  );
-};
-
-/** Trust for views that show the selected sample: the log it was read from. */
-export const SelectedSampleContentTrustProvider: FC<{
-  children: ReactNode;
-}> = ({ children }) => {
-  const logFile = useCurrentLogFile();
-  const sampleLogFile = useCurrentSampleHandle()?.logFile;
-  return (
-    <LogContentTrustProvider logFile={sampleLogFile ?? logFile}>
       {children}
     </LogContentTrustProvider>
   );

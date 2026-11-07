@@ -11,9 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
 import { makeReactiveStateHooks } from "../test/component-state-hooks";
-import { testIcons } from "../test/test-icons";
 
-import { ComponentIconProvider } from "./ComponentIconContext";
 import { LightboxCarousel } from "./LightboxCarousel";
 import styles from "./LightboxCarousel.module.css";
 
@@ -23,11 +21,7 @@ import styles from "./LightboxCarousel.module.css";
 const Wrapper: FC<{ children: ReactNode }> = ({ children }) => {
   const [hooks] = useState(makeReactiveStateHooks);
   return (
-    <ComponentStateProvider hooks={hooks}>
-      <ComponentIconProvider icons={testIcons}>
-        {children}
-      </ComponentIconProvider>
-    </ComponentStateProvider>
+    <ComponentStateProvider hooks={hooks}>{children}</ComponentStateProvider>
   );
 };
 

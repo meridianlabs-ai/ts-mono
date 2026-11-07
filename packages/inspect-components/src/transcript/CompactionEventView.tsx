@@ -7,7 +7,6 @@ import { formatDateTime } from "@tsmono/util";
 import styles from "./CompactionEventView.module.css";
 import { EventPanel } from "./event/EventPanel";
 import { formatTitle } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface CompactionEventViewProps {
@@ -38,7 +37,7 @@ export const CompactionEventView: FC<CompactionEventViewProps> = ({
       title={formatTitle("Compaction" + source, undefined, event.working_start)}
       className={className}
       subTitle={formatDateTime(new Date(event.timestamp))}
-      icon={TranscriptIcons.compaction}
+      icon="compaction"
     >
       <MetaDataGrid
         entries={data}

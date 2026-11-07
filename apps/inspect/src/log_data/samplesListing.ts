@@ -22,8 +22,7 @@ import { currentDatabase } from "./databaseInstance";
  * (the log view's sample list) or a path prefix (samples mode) — each row
  * carrying its log's display context, joined here so consumers never join by
  * name. Db-backed queryFns, invalidation-driven (the ingestion sink pushes
- * observed file scopes and invalidates the rest — see
- * design/migration/log-data-summaries-entity.md), `keepPreviousData` across
+ * observed file scopes and invalidates the rest), `keepPreviousData` across
  * refetches, GC-able when unobserved.
  *
  * Paged queryFn shape from day one: `limit`/`cursor` participate in the query
@@ -233,7 +232,6 @@ export const pushFileSamples = async (
 /** Mark every samples listing under the dir stale and refetch the observed
  *  ones (Dexie-backed, so a refetch is a local read). */
 export const invalidateSamplesListings = (logDir: string): void => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   queryClient.invalidateQueries({
     queryKey: samplesListingDirKey(logDir),
   });

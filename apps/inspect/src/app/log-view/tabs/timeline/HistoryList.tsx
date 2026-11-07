@@ -17,6 +17,7 @@ import {
   fmtDayClock,
   kConnectionReasonLabel,
 } from "@tsmono/inspect-components/usage";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./HistoryList.module.css";
 import { OpenSampleLink, type SampleOpener } from "./OpenSampleLink";
@@ -234,10 +235,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                     </span>
                     {/* A knob first set to null is a plain transition —
                         matching limitLifted and changeText. */}
-                    {change.value === null &&
-                    change.previous !== null &&
-                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                    change.previous !== undefined ? (
+                    {change.value === null && change.previous !== null ? (
                       <span className={styles.muted}> (limit lifted)</span>
                     ) : null}
                   </Fragment>
@@ -416,7 +414,7 @@ export const HistoryList: FC<HistoryListProps> = ({
   };
 
   const allSelected = selectedCategories.size === 0;
-  const sortIcon = timeDescending ? "bi-arrow-down" : "bi-arrow-up";
+  const sortIcon: IconName = timeDescending ? "arrowDown" : "arrowUp";
 
   return (
     <div className={styles.container}>
@@ -474,7 +472,7 @@ export const HistoryList: FC<HistoryListProps> = ({
             onClick={onToggleTimeSort}
           >
             Time
-            <i className={`bi ${sortIcon}`} aria-hidden="true" />
+            <Icon name={sortIcon} />
           </button>
           <span>Kind</span>
           <span>Event</span>

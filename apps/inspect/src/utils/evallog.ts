@@ -23,8 +23,9 @@ const parseFileNameTimestamp = (raw: string): Date | undefined => {
 };
 
 export const parseLogFileName = (logFileName: string): ParsedLogFileName => {
-  const match = logFileName.match(kLogFilePattern);
-  if (!match) {
+  const [, timestamp, name, taskId, extension] =
+    logFileName.match(kLogFilePattern) ?? [];
+  if (timestamp === undefined || name === undefined) {
     // read the extension
     return {
       timestamp: undefined,
@@ -35,11 +36,9 @@ export const parseLogFileName = (logFileName: string): ParsedLogFileName => {
   }
 
   return {
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-    timestamp: parseFileNameTimestamp(match[1]),
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-    name: match[2],
-    taskId: match[3],
-    extension: match[4] === "json" ? "json" : "eval",
+    timestamp: parseFileNameTimestamp(timestamp),
+    name,
+    taskId,
+    extension: extension === "json" ? "json" : "eval",
   };
 };

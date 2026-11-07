@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Icon } from "@tsmono/react/icons";
+
 import { RunningMetric } from "../../../client/api/types";
-import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./RunningStatusPanel.module.css";
 
@@ -16,7 +17,7 @@ export const RunningStatusPanel: FC<RunningPanelProps> = ({ sampleCount }) => {
     <div>
       <div className={clsx(styles.statusContainer)}>
         <div className={clsx(styles.status)}>
-          <i className={clsx(ApplicationIcons.running, styles.icon)} />
+          <Icon name="running" className={styles.icon} />
           <div
             className={clsx(
               styles.statusText,

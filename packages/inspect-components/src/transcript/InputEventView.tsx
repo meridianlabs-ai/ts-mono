@@ -5,7 +5,6 @@ import { ANSIDisplay } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface InputEventViewProps {
@@ -26,7 +25,7 @@ export const InputEventView: FC<InputEventViewProps> = ({
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
-      icon={TranscriptIcons.input}
+      icon="input"
     >
       <ANSIDisplay
         output={event.input_ansi}

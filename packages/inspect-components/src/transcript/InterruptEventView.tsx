@@ -2,10 +2,9 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { InterruptEvent } from "@tsmono/inspect-common/types";
-import { formatDateTime } from "@tsmono/util";
+import { formatDateTime, getOwn } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface InterruptEventViewProps {
@@ -33,17 +32,17 @@ export const InterruptEventView: FC<InterruptEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const baseTitle = SOURCE_TITLES[event.source];
+  const baseTitle = getOwn(SOURCE_TITLES, event.source) ?? "Interrupted";
   const title = event.timestamp
     ? `${baseTitle} — ${formatDateTime(new Date(event.timestamp))}`
     : baseTitle;
-  const detail = INTERRUPTED_DESCRIPTIONS[event.interrupted];
+  const detail = getOwn(INTERRUPTED_DESCRIPTIONS, event.interrupted);
 
   return (
     <EventPanel
       eventNodeId={eventNode.id}
       title={title}
-      icon={TranscriptIcons.interrupt}
+      icon="interrupt"
       className={className}
     >
       <div className={clsx("text-size-smaller")}>{detail}</div>

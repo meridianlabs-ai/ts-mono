@@ -11,8 +11,6 @@ import { http, HttpResponse } from "msw";
 import { type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
-import { testIcons } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
@@ -55,11 +53,7 @@ const renderModal = (mode: "copy" | "move", cases: ValidationCase[]) => {
   const Wrapper = ({ children }: PropsWithChildren) => (
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
-        <StoreProvider value={store}>
-          <ComponentIconProvider icons={testIcons}>
-            {children}
-          </ComponentIconProvider>
-        </StoreProvider>
+        <StoreProvider value={store}>{children}</StoreProvider>
       </ApiProvider>
     </QueryClientProvider>
   );

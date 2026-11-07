@@ -15,6 +15,7 @@ import type {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
+  CommunicationEvent,
   CompactionEvent,
   ConnectionLimitChange,
   ErrorEvent,
@@ -32,6 +33,7 @@ import type {
   InputEvent,
   InterruptEvent,
   LoggerEvent,
+  ModelCall,
   ModelConfig,
   ModelEvent,
   ModelOutput,
@@ -51,6 +53,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   Timeline,
   TimelineEvent,
   TimelineSpan,
@@ -132,6 +135,13 @@ export const testToolCall = (overrides: Partial<ToolCall> = {}): ToolCall => ({
   function: "test_tool",
   arguments: {},
   type: "function",
+  ...overrides,
+});
+
+export const testModelCall = (
+  overrides: Partial<ModelCall> = {}
+): ModelCall => ({
+  request: {},
   ...overrides,
 });
 
@@ -403,6 +413,33 @@ export const testReviewEvent = (
   call: testToolCall(),
   decision: "continue",
   message: "",
+  ...overrides,
+});
+
+export const testCommunicationEvent = (
+  overrides: Partial<CommunicationEvent> = {}
+): CommunicationEvent => ({
+  event: "communication",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  kind: "read",
+  source: "test-source",
+  agent: "test-agent",
+  nested: false,
+  channel: "test-channel",
+  record_ids: [],
+  data: {},
+  ...overrides,
+});
+
+export const testSwarmEvent = (
+  overrides: Partial<SwarmEvent> = {}
+): SwarmEvent => ({
+  event: "swarm",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  kind: "test-kind",
+  data: { version: 1 },
   ...overrides,
 });
 

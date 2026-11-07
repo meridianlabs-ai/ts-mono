@@ -1,10 +1,8 @@
-import clsx from "clsx";
-
 import { EvalSample } from "@tsmono/inspect-common";
 import { PulsingDots } from "@tsmono/react/components";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import { SampleSummary } from "../../../client/api/types";
-import { ApplicationIcons } from "../../appearance/icons";
 import { errorType } from "../error/error";
 
 import styles from "./status.module.css";
@@ -66,12 +64,12 @@ export const SampleStatusIcon = ({ status }: SampleStatusIconProps) => {
     );
   }
 
-  const icon =
+  const icon: IconName =
     status === "error"
-      ? ApplicationIcons.error
+      ? "error"
       : status === "cancelled"
-        ? ApplicationIcons.cancelled
-        : ApplicationIcons.success;
+        ? "cancel"
+        : "success";
 
   const colorClass =
     status === "error"
@@ -82,7 +80,7 @@ export const SampleStatusIcon = ({ status }: SampleStatusIconProps) => {
 
   return (
     <div className={styles.statusCell}>
-      <i className={clsx(icon, colorClass)} />
+      <Icon name={icon} className={colorClass} />
     </div>
   );
 };

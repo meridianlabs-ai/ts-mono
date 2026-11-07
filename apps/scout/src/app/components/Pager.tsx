@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./Pager.module.css";
 
@@ -90,10 +90,7 @@ export const Pager: FC<PagerProps> = ({
               }
             }}
           >
-            <i
-              className={clsx(ApplicationIcons.navbar.back)}
-              aria-hidden="true"
-            />
+            <Icon name="navBack" />
           </button>
         </li>
 
@@ -148,10 +145,7 @@ export const Pager: FC<PagerProps> = ({
               }
             }}
           >
-            <i
-              className={clsx(ApplicationIcons.navbar.forward)}
-              aria-hidden="true"
-            />
+            <Icon name="navForward" />
           </button>
         </li>
       </ul>

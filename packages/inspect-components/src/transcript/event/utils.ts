@@ -117,6 +117,10 @@ export const eventTitle = (event: EventType): string => {
         : `Sentinel ${toTitleCase(event.kind)} (${event.status}): ${instanceLabel(event)}`;
     case "sandbox":
       return `Sandbox: ${event.action}`;
+    case "communication":
+      return `Communication: ${event.kind}`;
+    case "swarm":
+      return `Swarm: ${event.kind}`;
     default:
       return "";
   }

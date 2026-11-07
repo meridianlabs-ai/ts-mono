@@ -49,3 +49,20 @@
   background-color: #f8d7da;
   color: #721c24;
 }
+
+.syncErrorIcon {
+  color: var(--bs-danger);
+  margin-right: 0.4em;
+}
+
+.syncErrorDetail {
+  margin-top: 0.25em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-light-border-subtle);
+  overflow-wrap: anywhere;
+}

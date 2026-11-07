@@ -12,9 +12,9 @@ import {
 import { createPortal } from "react-dom";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { Icon } from "../icons";
 
 import styles from "./AutocompleteInput.module.css";
-import { useComponentIcons } from "./ComponentIconContext";
 
 export interface AutocompleteInputProps {
   id: string;
@@ -58,7 +58,6 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   allowBrowse = false,
   required = false,
 }) => {
-  const icons = useComponentIcons();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   // Start with no selection (-1) so Enter submits the typed value, not a suggestion
@@ -120,13 +119,13 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
     }
   }, [showDropdown]);
 
-  // Reset highlight when suggestions change (no selection by default)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Reset highlight when suggestions change (no selection by default).
+  // Uses the "adjust state during render" pattern to avoid an effect cycle.
+  const [prevSuggestions, setPrevSuggestions] = useState(filteredSuggestions);
+  if (prevSuggestions !== filteredSuggestions) {
+    setPrevSuggestions(filteredSuggestions);
     setHighlightedIndex(-1);
-  }, [filteredSuggestions]);
+  }
 
   // Select all text when autoFocus is enabled (show start of text, not end)
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -334,11 +333,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           aria-expanded={isOpen && isBrowseMode}
           aria-controls={showDropdown ? `${id}-listbox` : undefined}
         >
-          <i
-            className={
-              isOpen && isBrowseMode ? icons.chevronUp : icons.chevronDown
-            }
-          />
+          <Icon name={isOpen && isBrowseMode ? "chevronUp" : "chevronDown"} />
         </button>
       )}
 

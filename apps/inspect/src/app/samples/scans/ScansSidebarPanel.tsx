@@ -3,8 +3,6 @@ import { FC } from "react";
 import type { Event, Score } from "@tsmono/inspect-common/types";
 import { SidebarHeader } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../appearance/icons";
-
 import { SampleScansSidebar } from "./SampleScansSidebar";
 import { type MakeCiteUrl } from "./scanReferences";
 import styles from "./ScansSidebarPanel.module.css";
@@ -32,11 +30,7 @@ export const ScansSidebarPanel: FC<ScansSidebarPanelProps> = ({
 }) => {
   return (
     <div className={styles.container}>
-      <SidebarHeader
-        icon={ApplicationIcons.scoringSidebar}
-        title="Scans"
-        onClose={onClose}
-      />
+      <SidebarHeader icon="scanner" title="Scans" onClose={onClose} />
       <div className={styles.body}>
         <SampleScansSidebar
           scores={scores}

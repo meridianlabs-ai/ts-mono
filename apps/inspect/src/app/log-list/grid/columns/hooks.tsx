@@ -1,7 +1,7 @@
-import clsx from "clsx";
 import { useCallback, useMemo } from "react";
 
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+import { Icon, IconName } from "@tsmono/react/icons";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
@@ -16,7 +16,6 @@ import {
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import { ApplicationIcons } from "../../../appearance/icons";
 import {
   ColumnComparator,
   ExtendedColumnDef,
@@ -129,13 +128,13 @@ export const useLogListColumns = (
         accessorFn: (row) => row.type,
         cell: ({ row }) => {
           const type = row.original.type;
-          const icon =
+          const icon: IconName =
             type === "file" || type === "pending-task"
-              ? ApplicationIcons.inspectFile
-              : ApplicationIcons.folder;
+              ? "inspectFile"
+              : "folder";
           return (
             <div className={styles.iconCell}>
-              <i className={clsx(icon)} />
+              <Icon name={icon} />
             </div>
           );
         },
@@ -254,16 +253,16 @@ export const useLogListColumns = (
             return <EmptyCell />;
           }
 
-          const icon =
+          const icon: IconName =
             item.type === "pending-task"
-              ? ApplicationIcons.pendingTask
+              ? "pendingTaskSubtle"
               : status === "error"
-                ? ApplicationIcons.error
+                ? "error"
                 : status === "started"
-                  ? ApplicationIcons.running
+                  ? "running"
                   : status === "cancelled"
-                    ? ApplicationIcons.cancelled
-                    : ApplicationIcons.success;
+                    ? "cancel"
+                    : "success";
 
           const clz =
             item.type === "pending-task"
@@ -278,7 +277,7 @@ export const useLogListColumns = (
 
           return (
             <div className={styles.statusCell}>
-              <i className={clsx(icon, clz)} />
+              <Icon name={icon} className={clz} />
             </div>
           );
         },
@@ -357,8 +356,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -374,8 +372,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -404,8 +401,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -425,8 +421,7 @@ export const useLogListColumns = (
           row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatTime(value)}</div>;
@@ -490,8 +485,7 @@ export const useLogListColumns = (
             : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatPrettyDecimal(value)}%</div>;
@@ -507,8 +501,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;

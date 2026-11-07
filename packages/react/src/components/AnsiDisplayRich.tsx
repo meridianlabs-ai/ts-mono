@@ -7,7 +7,6 @@ import { FC, useState } from "react";
 import type { ANSIDisplayProps } from "./AnsiDisplay";
 import ansiStyles from "./AnsiDisplay.module.css";
 import styles from "./AnsiDisplayRich.module.css";
-import { useComponentIcons } from "./ComponentIconContext";
 import { ToolButton } from "./ToolButton";
 
 const RichANSIDisplay: FC<ANSIDisplayProps> = ({
@@ -15,7 +14,6 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
   style,
   className,
 }) => {
-  const icons = useComponentIcons();
   const [showRaw, setShowRaw] = useState(false);
   const ansiOutput = new ANSIOutput();
   ansiOutput.processOutput(output);
@@ -91,7 +89,7 @@ const RichANSIDisplay: FC<ANSIDisplayProps> = ({
     >
       <ToolButton
         className={clsx(styles.toggle, "text-size-smallest")}
-        icon={icons.code}
+        icon="code"
         label=""
         latched={showRaw}
         onClick={() => setShowRaw(!showRaw)}

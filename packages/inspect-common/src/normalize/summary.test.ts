@@ -184,6 +184,22 @@ describe("normalizeSampleSummary", () => {
     expect(summary?.role_usage).toEqual({});
   });
 
+  it("keeps __proto__ score and model names as ordinary entries", () => {
+    const summary = normalizeSampleSummary(
+      JSON.parse(`{
+        "id": "s1", "epoch": 1, "input": "q", "target": "t",
+        "scores": {"__proto__": {"value": 1}, "dropped": {}},
+        "model_usage": {"__proto__": {"input_tokens": 1}, "dropped": 1}
+      }`)
+    );
+    expect(Object.entries(summary?.scores ?? {})).toEqual([
+      ["__proto__", { value: 1 }],
+    ]);
+    expect(Object.entries(summary?.model_usage ?? {})).toEqual([
+      ["__proto__", { input_tokens: 1, output_tokens: 0, total_tokens: 0 }],
+    ]);
+  });
+
   it("drops rows missing id or epoch (no pydantic default to fill)", () => {
     expect(normalizeSampleSummary({ epoch: 1, input: "q" })).toBeUndefined();
     expect(normalizeSampleSummary({ id: "s1", input: "q" })).toBeUndefined();

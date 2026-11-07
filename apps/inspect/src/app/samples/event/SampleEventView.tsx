@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -9,14 +9,14 @@ import {
   useFocusTurnNavigation,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
-import { navigateAndForget } from "@tsmono/react/hooks";
+import { useDocumentTitleText } from "@tsmono/react/hooks";
 
 import { useAppConfig } from "../../../app_config";
 import {
   kLogViewSamplesTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { setDocumentTitle } from "../../../state/actions";
+import { documentTitle } from "../../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -31,7 +31,6 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../../routing/url";
-import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleNavbar } from "../SampleNavbar";
 
 import styles from "./SampleEventView.module.css";
@@ -44,13 +43,7 @@ import styles from "./SampleEventView.module.css";
  * (also mounted under /tasks and /samples so back/home return to the surface
  * the sample was opened from).
  */
-export const SampleEventView: FC = () => (
-  <SelectedSampleContentTrustProvider>
-    <SampleEventViewContent />
-  </SelectedSampleContentTrustProvider>
-);
-
-const SampleEventViewContent: FC = () => {
+export const SampleEventView: FC = () => {
   const { logPath, id: sampleId, epoch } = useLogOrSampleRouteParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const eventId = searchParams.get("event");
@@ -67,10 +60,7 @@ const SampleEventViewContent: FC = () => {
   // the user sees — same title as the sample view (SampleDisplay).
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [evalSpec, sample]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // A running sample has no settled `sample` until it completes — its events
   // stream through `running` instead. Read the same source the transcript
@@ -134,7 +124,7 @@ const SampleEventViewContent: FC = () => {
   }, [logPath, sampleId, epoch, resolvedEventId, builder, following]);
   const onExit = useCallback(() => {
     if (!exitUrl) return;
-    navigateAndForget(navigate, exitUrl);
+    navigate(exitUrl);
   }, [exitUrl, navigate]);
   const homeUrl = useMemo(() => {
     if (!logPath) return undefined;

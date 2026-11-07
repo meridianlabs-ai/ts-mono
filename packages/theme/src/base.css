@@ -47,6 +47,14 @@
   --inspect-glass-color: #000000;
   --inspect-glass-opacity: 0.3;
 
+  /* Terminal session bodies stay dark in every theme (the recordings' ANSI
+     colors assume a dark background). */
+  --inspect-terminal-background: #2d2d2d;
+  --inspect-terminal-foreground: #cccccc;
+  /* The largest terminal text: the transcript's tool output size (0.9em of
+     the smaller size). Narrower rows fit their columns below it. */
+  --inspect-terminal-font-size: calc(var(--inspect-font-size-smaller) * 0.9);
+
   /* Tool messages — dedicated tokens so apps (and the vscode bridge) can
      re-skin tool calls/outputs/errors without patching component CSS.
      Defaults reproduce the previous hard-coded appearance. */
@@ -1447,12 +1455,6 @@ pre[class*="language-"] {
   color: red;
 }
 /* END PrismJS */
-
-/* Note: SVG-icon mask rules (.ii::before, .inspect-icon-* etc.) are kept in
-   each app's local App.css because the `mask: url("../img/…")` references
-   are resolved relative to the CSS file, and the SVG assets live inside
-   each app's `src/img/` directory. Sharing those rules from this package
-   would require co-locating the assets here, which is out of scope. */
 
 /* Use this very carefully, find relies upon checking the
 document selection to determine if it should skip a find match

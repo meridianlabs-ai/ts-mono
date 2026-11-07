@@ -1,5 +1,5 @@
 // Public surface of the app-configuration subsystem (see
-// design/migration/domain-ownership.md). Everything not exported here is
+// apps/inspect/design/domain-ownership.md). Everything not exported here is
 // subsystem-private; external modules must import from this barrel.
 export type { AppConfig } from "./appConfig";
 export {

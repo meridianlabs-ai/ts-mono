@@ -45,3 +45,30 @@ export function createRestorableHashRouter(
   }
   return router;
 }
+
+/**
+ * Absolute URL for a hash route. Keeps the host page's path and query
+ * (e.g. `?log_dir=`, `?mode=scans`), which the app reads at startup.
+ */
+export const hashRouteUrl = (route: string): string => {
+  const path = route.startsWith("#") ? route.slice(1) : route;
+  const { origin, pathname, search } = window.location;
+  return `${origin}${pathname}${search}#${path}`;
+};
+
+/**
+ * Opens an href in a new tab without `window.opener` or a referrer, then
+ * refocuses this window.
+ *
+ * Where there is a link to render, prefer an `<a href>` so the browser handles
+ * cmd/ctrl/middle-click natively.
+ */
+export function openHrefInNewTab(href: string): void {
+  window.open(href, "_blank", "noopener,noreferrer");
+  window.focus();
+}
+
+/** Opens a hash route in a new tab (see `openHrefInNewTab`). */
+export function openRouteInNewTab(route: string): void {
+  openHrefInNewTab(hashRouteUrl(route));
+}

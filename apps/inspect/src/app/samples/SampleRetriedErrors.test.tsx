@@ -1,32 +1,26 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef, ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRef } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
 import { testErrorEvent } from "@tsmono/inspect-common/testing";
+import { ResizeObserverStub } from "@tsmono/react/testing";
+
+import {
+  ComponentProviders,
+  startTestApp,
+  stopTestApp,
+} from "../../test/testApp";
 
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
 
+// TranscriptLayout is a virtualized list, which renders no rows without
+// layout in jsdom; stub it with a marker so this test can see which view is
+// open.
 vi.mock("@tsmono/inspect-components/transcript", () => ({
   TranscriptLayout: () => <div data-testid="transcript-layout" />,
 }));
-
-// ANSIDisplay needs an icon-provider context that isn't present in jsdom; stub
-// it (rendering its output text) so we can assert which attempt's traceback is open.
-vi.mock("@tsmono/react/components", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@tsmono/react/components")>();
-  return {
-    ...actual,
-    ANSIDisplay: ({ output }: { output: string }) => (
-      <pre data-testid="ansi-display">{output}</pre>
-    ),
-    ExpandablePanel: ({ children }: { children: ReactNode }) => (
-      <div data-testid="expandable-panel">{children}</div>
-    ),
-  };
-});
 
 function makeRetry(n: number): EvalRetryError {
   return {
@@ -41,12 +35,23 @@ function renderPanel(count: number) {
   const scrollRef = createRef<HTMLDivElement>();
   const retries = Array.from({ length: count }, (_, i) => makeRetry(i + 1));
   return render(
-    <SampleRetriedErrors id="s1" retries={retries} scrollRef={scrollRef} />
+    <ComponentProviders>
+      <SampleRetriedErrors id="s1" retries={retries} scrollRef={scrollRef} />
+    </ComponentProviders>
   );
 }
 
 describe("SampleRetriedErrors", () => {
-  afterEach(() => cleanup());
+  beforeEach(() => {
+    // jsdom has no ResizeObserver; the expandable traceback panel measures.
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    startTestApp();
+  });
+  afterEach(async () => {
+    cleanup();
+    await stopTestApp();
+    vi.unstubAllGlobals();
+  });
 
   it("renders one card per attempt plus the terminal anchor", () => {
     renderPanel(3);
@@ -60,16 +65,18 @@ describe("SampleRetriedErrors", () => {
   it("shows failure copy in the anchor when the sample ended in error", () => {
     const scrollRef = createRef<HTMLDivElement>();
     render(
-      <SampleRetriedErrors
-        id="s1"
-        retries={[makeRetry(1), makeRetry(2)]}
-        error={{
-          message: "RuntimeError('boom')",
-          traceback: "boom",
-          traceback_ansi: "boom",
-        }}
-        scrollRef={scrollRef}
-      />
+      <ComponentProviders>
+        <SampleRetriedErrors
+          id="s1"
+          retries={[makeRetry(1), makeRetry(2)]}
+          error={{
+            message: "RuntimeError('boom')",
+            traceback: "boom",
+            traceback_ansi: "boom",
+          }}
+          scrollRef={scrollRef}
+        />
+      </ComponentProviders>
     );
     expect(screen.getByText("This run failed")).toBeDefined();
     expect(screen.queryByText("This run succeeded")).toBeNull();
@@ -102,11 +109,13 @@ describe("SampleRetriedErrors", () => {
       events: [testErrorEvent()],
     });
     render(
-      <SampleRetriedErrors
-        id="s1"
-        retries={[withEvents(1), withEvents(2)]}
-        scrollRef={scrollRef}
-      />
+      <ComponentProviders>
+        <SampleRetriedErrors
+          id="s1"
+          retries={[withEvents(1), withEvents(2)]}
+          scrollRef={scrollRef}
+        />
+      </ComponentProviders>
     );
     // Attempt 2 is open by default on the Error view (only the expanded card
     // exposes the toggle).

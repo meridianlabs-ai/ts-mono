@@ -3,18 +3,10 @@ import { cleanup, render as renderUi, within } from "@testing-library/react";
 import { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import {
-  makeStateHooks,
-  testIcons,
-  TrustedContentWrapper,
-} from "@tsmono/react/testing";
+import { makeStateHooks, TrustedContentWrapper } from "@tsmono/react/testing";
 
-import { ContentRenderersContext } from "./ContentRenderersContext";
 import { DisplayModeContext } from "./DisplayModeContext";
 import { RenderedContent } from "./RenderedContent";
 
@@ -31,11 +23,9 @@ afterEach(() => {
 const renderContent = (ui: ReactElement) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          {ui}
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        {ui}
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 
@@ -180,24 +170,5 @@ describe("RenderedContent in raw display mode", () => {
       <RenderedContent id="null" entry={{ name: "value", value: null }} />
     );
     expect(container.textContent).toBe("[null]");
-  });
-
-  it("keeps app-registered renderers for trusted content", () => {
-    const { container } = renderRaw(
-      <ContentRenderersContext.Provider
-        value={{
-          renderers: {
-            custom: {
-              bucket: -1,
-              canRender: () => true,
-              render: () => ({ rendered: <span>custom view</span> }),
-            },
-          },
-        }}
-      >
-        <RenderedContent id="custom" entry={{ name: "data", value: 42 }} />
-      </ContentRenderersContext.Provider>
-    );
-    expect(container.textContent).toBe("custom view");
   });
 });

@@ -3,10 +3,10 @@ import { FC } from "react";
 
 import type { ReviewEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
+import { IconName } from "@tsmono/react/icons";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface ReviewEventViewProps {
@@ -71,13 +71,13 @@ const decisionLabel = (decision: string): string => {
   }
 };
 
-const decisionIcon = (decision: string): string => {
+const decisionIcon = (decision: string): IconName => {
   switch (decision) {
     case "terminate":
-      return TranscriptIcons.approvals.terminate;
+      return "approvalTerminate";
     case "escalate":
-      return TranscriptIcons.approvals.escalate;
+      return "approvalEscalate";
     default:
-      return TranscriptIcons.approvals.approve;
+      return "approvalApprove";
   }
 };

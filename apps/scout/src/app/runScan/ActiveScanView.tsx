@@ -6,8 +6,8 @@ import {
   NoContentsPanel,
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
+import { getOwn } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import {
   ActiveScanInfo,
   ScannerSummary,
@@ -67,29 +67,27 @@ const getMetricLabel = (scanners: Record<string, ScannerSummary>): string => {
 
 const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   const { metrics, summary } = info;
-  // Date.now() is intentionally impure here - we need the current time to calculate
-  // live-updating elapsed/remaining durations. Safe for this client-only component.
-  // eslint-disable-next-line react-hooks/purity
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   // Update time every second for elapsed/remaining
   useInterval(() => setNow(Date.now()), 1000);
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
-    (name) => (summary.scanners[name]?.validation?.entries.length ?? 0) > 0
+    (name) =>
+      (getOwn(summary.scanners, name)?.validation?.entries.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
-    (name) => summary.scanners[name]?.metrics !== null
+    (name) => getOwn(summary.scanners, name)?.metrics !== null
   );
   const metricLabel = hasMetrics ? getMetricLabel(summary.scanners) : "";
   const hasUnscored = info.scanner_names.some(
-    (name) => (summary.scanners[name]?.unscored ?? 0) > 0
+    (name) => (getOwn(summary.scanners, name)?.unscored ?? 0) > 0
   );
 
   // Calculate scanner stats (iterate over scanner_names to show all rows from start)
   const scannerStats = info.scanner_names.map((name) => {
-    const scanner = summary.scanners[name];
+    const scanner = getOwn(summary.scanners, name);
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
           (sum, usage) => sum + usage.total_tokens,
@@ -297,16 +295,10 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
         />
       )}
       {!scanId && !error && (
-        <NoContentsPanel
-          icon={ApplicationIcons.running}
-          text="No scan started"
-        />
+        <NoContentsPanel icon="running" text="No scan started" />
       )}
       {scanId && !scanInfo && !error && !loading && (
-        <NoContentsPanel
-          icon={ApplicationIcons.running}
-          text="Scan not found"
-        />
+        <NoContentsPanel icon="running" text="Scan not found" />
       )}
       {scanInfo && <ActiveScanCard info={scanInfo} />}
     </div>

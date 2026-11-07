@@ -6,6 +6,8 @@ import { createRoot } from "react-dom/client";
 import { defaultRetry } from "@tsmono/react";
 import { getVscodeApi } from "@tsmono/util";
 
+import "./api/jsonParseWorker";
+
 import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";

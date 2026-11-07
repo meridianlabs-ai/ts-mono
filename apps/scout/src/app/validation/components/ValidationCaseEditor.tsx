@@ -16,8 +16,8 @@ import {
   MenuActionButton,
   SidebarHeader,
 } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../../icons";
 import {
   getValidationParam,
   getValidationSetParam,
@@ -452,7 +452,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
     <MenuActionButton
       items={[
         {
-          icon: ApplicationIcons.trash,
+          icon: "trash",
           label: "Delete validation case",
           value: "delete",
           disabled: deleteCaseMutation.isPending,
@@ -469,10 +469,9 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
     <div className={clsx(styles.container, className)}>
       <SidebarHeader
         title="Validation Case"
-        icon={ApplicationIcons.validation}
+        icon="validation"
         actions={actions}
         onClose={onClose ?? closeValidationSidebar}
-        closeIcon={ApplicationIcons.close}
       />
       <div className={styles.content}>
         <SidebarPanel>
@@ -628,7 +627,7 @@ export const SecondaryDisplayValue: FC<{ label: string; value: string }> = ({
 
 const InfoBox: FC<{ children: ReactNode }> = ({ children }) => (
   <div className={clsx("text-size-smaller", styles.infoBox)}>
-    <i className={clsx(ApplicationIcons.info)} />
+    <Icon name="info" />
     <div>{children}</div>
   </div>
 );

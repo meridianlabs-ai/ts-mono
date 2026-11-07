@@ -19,14 +19,12 @@ import { StickyScrollProvider } from "@tsmono/react/components";
 import { useLatestRef, useProperty, useScrollTrack } from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
+import type { RowSelection } from "../selection/rowSelection";
+import { useListRowSelection } from "../selection/useListRowSelection";
+
 import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
-import {
-  isSelectableEvent,
-  toggleTranscriptSelection,
-  type TranscriptRowSelectionProps,
-  type TranscriptSelection,
-} from "./selection/transcriptSelection";
+import { isSelectableEvent } from "./selection/transcriptSelection";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { findCollapsedAncestors, flatTree } from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
@@ -103,7 +101,7 @@ export interface TranscriptViewNodesProps {
   /** Disable turn/agent keyboard nav while find-in-page owns the keyboard. */
   keyboardNavDisabled?: boolean;
   /** Host-owned evidence selection; present only while selection mode is on. */
-  selection?: TranscriptSelection;
+  selection?: RowSelection;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -247,30 +245,9 @@ export const TranscriptViewNodes = forwardRef<
     [eventNodeContext, toolApprovals, toolSentinels, standaloneSentinels]
   );
 
-  // Bails out of React Compiler (checked with SWC): the row toggle keeps a
-  // stable identity by hand, reading live state through a ref.
-  const selectionLatest = useLatestRef({ selection, flattenedNodes });
-  const onToggleSelected = useCallback(
-    (eventId: string, extend: boolean) => {
-      const { selection: current, flattenedNodes: rows } =
-        selectionLatest.current;
-      if (!current) return;
-      // Ranges span the VISIBLE rows, as the user sees them.
-      const visibleIds = rows
-        .filter((n) => isSelectableEvent(n.event))
-        .map((n) => n.id);
-      current.onChange(
-        toggleTranscriptSelection(current, visibleIds, eventId, extend)
-      );
-    },
-    [selectionLatest]
-  );
-  const rowSelection = useMemo<TranscriptRowSelectionProps | undefined>(
-    () =>
-      selection
-        ? { selectedIds: selection.selectedIds, onToggle: onToggleSelected }
-        : undefined,
-    [selection, onToggleSelected]
+  // Ranges span the VISIBLE rows, as the user sees them.
+  const rowSelection = useListRowSelection(selection, () =>
+    flattenedNodes.filter((n) => isSelectableEvent(n.event)).map((n) => n.id)
   );
 
   // Turn map + anchors from the shared helper (collapse-independent
@@ -288,19 +265,11 @@ export const TranscriptViewNodes = forwardRef<
     };
   }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
 
-  const flattenedNodesLatest = useRef<EventNode[]>(flattenedNodes);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    flattenedNodesLatest.current = flattenedNodes;
-  }, [flattenedNodes]);
+  const flattenedNodesLatest = useLatestRef<EventNode[]>(flattenedNodes);
 
   // Latest turn lookup for scrollRowToTop's stamp: an expansion retry lands
   // after the turn map is recomputed, so closed-over values may be stale.
-  const turnLookupLatest = useRef({ turnAnchorIds, computedTurnMap });
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    turnLookupLatest.current = { turnAnchorIds, computedTurnMap };
-  }, [turnAnchorIds, computedTurnMap]);
+  const turnLookupLatest = useLatestRef({ turnAnchorIds, computedTurnMap });
 
   // The turn at the top of the viewport (tracked by useScrollTrack below);
   // seeded from the deep-link target so a keypress can't race the tracker's
@@ -345,7 +314,7 @@ export const TranscriptViewNodes = forwardRef<
         onDone,
       });
     },
-    [onProgrammaticScroll]
+    [onProgrammaticScroll, flattenedNodesLatest, turnLookupLatest]
   );
 
   const scrollToEvent = useCallback(
@@ -418,6 +387,7 @@ export const TranscriptViewNodes = forwardRef<
       scrollRef,
       onProgrammaticScroll,
       onHeadroomSetHidden,
+      flattenedNodesLatest,
     ]
   );
 
@@ -433,7 +403,7 @@ export const TranscriptViewNodes = forwardRef<
       getFlattenedNodes: () => flattenedNodesLatest.current,
       getVisibleRange: () => visibleRangeRef.current,
     }),
-    [scrollToEvent]
+    [scrollToEvent, flattenedNodesLatest]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a
@@ -580,7 +550,13 @@ export const TranscriptViewNodes = forwardRef<
         onNavigatedToEvent(anchorId);
       }
     },
-    [turnAnchorIds, scrollRowToTop, onNavigatedToEvent, onHeadroomSetHidden]
+    [
+      turnAnchorIds,
+      scrollRowToTop,
+      onNavigatedToEvent,
+      onHeadroomSetHidden,
+      flattenedNodesLatest,
+    ]
   );
 
   // `k` past turn 1: return to the very top of the transcript (the pre-turn
@@ -679,7 +655,7 @@ export const TranscriptViewNodes = forwardRef<
       );
       if (idx !== -1) scrollRowToTop(idx);
     },
-    [scrollRowToTop]
+    [scrollRowToTop, flattenedNodesLatest]
   );
 
   // Last-known selected tab per anchor panel, reported by EventPanel, so the

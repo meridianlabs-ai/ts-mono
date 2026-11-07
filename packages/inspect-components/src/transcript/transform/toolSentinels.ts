@@ -1,4 +1,5 @@
 import type {
+  Event,
   ModelEvent,
   Reference,
   SentinelEvent,
@@ -6,8 +7,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { eventNodeOf } from "../types";
-import type { EventNode } from "../types";
+import { EventNode, eventNodeOf } from "../types";
 
 import { SPAN_BEGIN, TYPE_SENTINEL } from "./utils";
 
@@ -16,6 +16,13 @@ export type SentinelNode = EventNode<SentinelEvent>;
 /** The span a sentinel's dispatch runs in; it holds the step's events and the model calls its monitors made. */
 export const isSentinelSpan = (node: EventNode): boolean =>
   node.event.event === SPAN_BEGIN && node.event.type === TYPE_SENTINEL;
+
+/** The name of the sentinel spans an agent bridge records its tool checks in (inspect_ai#5765); native checks record in spans named `sentinel`. */
+export const kBridgeCheckSpan = "sentinel_bridge";
+
+/** Whether a sandbox agent bridge ran the call on the host, which records it with `metadata.bridge`. */
+export const isBridgeTool = (event: ToolEvent): boolean =>
+  event.metadata != null && "bridge" in event.metadata;
 
 export interface SentinelRow {
   node: SentinelNode;
@@ -89,41 +96,6 @@ const reported = (node: SentinelNode, kind: SentinelEvent["kind"]): boolean =>
 const pathSegments = (path: string): string[] =>
   path === "" ? [] : path.split("/");
 
-const isAncestorPath = (ancestor: string, path: string): boolean =>
-  ancestor === "" ? path !== "" : path.startsWith(`${ancestor}/`);
-
-/**
- * Orders a step's events so a nested configuration reads top to bottom: each
- * layer above its children, siblings in the order they were first recorded.
- */
-const pathOrderKeys = (nodes: SentinelNode[]): Map<SentinelNode, number[]> => {
-  const firstSeen = new Map<string, number>();
-  nodes.forEach((node, index) => {
-    const segments = pathSegments(node.event.path);
-    for (let i = 1; i <= segments.length; i++) {
-      const prefix = segments.slice(0, i).join("/");
-      if (!firstSeen.has(prefix)) firstSeen.set(prefix, index);
-    }
-  });
-  const keys = new Map<SentinelNode, number[]>();
-  for (const node of nodes) {
-    const segments = pathSegments(node.event.path);
-    keys.set(
-      node,
-      segments.map((_, i) => firstSeen.get(segments.slice(0, i + 1).join("/"))!)
-    );
-  }
-  return keys;
-};
-
-const compareKeys = (a: number[], b: number[]): number => {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    const diff = a[i]! - b[i]!;
-    if (diff !== 0) return diff;
-  }
-  return a.length - b.length;
-};
-
 interface TreeNode {
   node: SentinelNode;
   parent?: TreeNode;
@@ -131,22 +103,46 @@ interface TreeNode {
   depth: number;
 }
 
-/** Links each check to the nearest recorded check above it by path. */
-const buildTree = (ordered: SentinelNode[]): TreeNode[] => {
-  const tree: TreeNode[] = [];
-  for (const node of ordered) {
-    const parent = tree.findLast((candidate) =>
-      isAncestorPath(candidate.node.event.path, node.event.path)
-    );
-    const entry: TreeNode = {
-      node,
-      parent,
-      children: [],
-      depth: parent ? parent.depth + 1 : 0,
-    };
-    parent?.children.push(entry);
-    tree.push(entry);
+interface PathLayer {
+  checks: SentinelNode[];
+  /** In the order each child path was first recorded. */
+  children: Map<string, PathLayer>;
+}
+
+/**
+ * Lays a step's checks out so a nested configuration reads top to bottom:
+ * each layer above its children, siblings in the order they were first
+ * recorded, and each check under the nearest recorded check above it by path.
+ */
+const buildTree = (checks: SentinelNode[]): TreeNode[] => {
+  const newLayer = (): PathLayer => ({ checks: [], children: new Map() });
+  const root = newLayer();
+  for (const node of checks) {
+    let layer = root;
+    for (const segment of pathSegments(node.event.path)) {
+      let child = layer.children.get(segment);
+      if (!child) layer.children.set(segment, (child = newLayer()));
+      layer = child;
+    }
+    layer.checks.push(node);
   }
+  const tree: TreeNode[] = [];
+  const visit = (layer: PathLayer, parent: TreeNode | undefined) => {
+    let above = parent;
+    for (const node of layer.checks) {
+      const entry: TreeNode = {
+        node,
+        parent,
+        children: [],
+        depth: parent ? parent.depth + 1 : 0,
+      };
+      parent?.children.push(entry);
+      tree.push(entry);
+      above = entry;
+    }
+    for (const child of layer.children.values()) visit(child, above);
+  };
+  visit(root, undefined);
   return tree;
 };
 
@@ -267,29 +263,22 @@ export function buildSentinelStep(
 ): SentinelStep {
   const first = nodes[0];
   const replaced = new Set<SentinelNode>();
-  nodes.forEach((loser, at) => {
-    if (loser.event.status !== "superseded") return;
-    for (const report of nodes.slice(0, at)) {
-      if (
-        reported(report, "decision") &&
-        report.event.path === loser.event.path &&
-        report.event.function === loser.event.function
-      ) {
-        replaced.add(report);
-      }
+  /** Decisions not yet superseded, by the layer and function that made them. */
+  const standing = new Map<string, SentinelNode[]>();
+  for (const node of nodes) {
+    const fn = node.event.function;
+    const key = `${node.event.path}\u0000${fn == null ? String(fn) : `:${fn}`}`;
+    if (node.event.status === "superseded") {
+      for (const report of standing.get(key) ?? []) replaced.add(report);
+      standing.delete(key);
+    } else if (reported(node, "decision")) {
+      const reports = standing.get(key);
+      if (reports) reports.push(node);
+      else standing.set(key, [node]);
     }
-  });
+  }
   const checks = nodes.filter((n) => !replaced.has(n));
-
-  const keys = pathOrderKeys(checks);
-  const ordered = checks
-    .map((node, index) => ({ node, index }))
-    .sort(
-      (a, b) =>
-        compareKeys(keys.get(a.node)!, keys.get(b.node)!) || a.index - b.index
-    )
-    .map(({ node }) => node);
-  const tree = buildTree(ordered);
+  const tree = buildTree(checks);
 
   const outcome = outcomeOf(checks);
   const acted = !!outcome && outcome.event.action !== "proceed";
@@ -366,6 +355,62 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
   };
 }
 
+/**
+ * The steps of a flat event list, keyed by the first event each recorded, in
+ * recording order. The events of one sentinel span form a step. Events
+ * outside a span group by conversation, stage and step id, and a step id the
+ * conversation reuses starts a new step once the root has reported for the
+ * earlier one. A node's id is its event's uuid, or `evt:<index>` in `events`
+ * without one.
+ */
+export function buildSentinelSteps(
+  events: Event[]
+): Map<SentinelEvent, SentinelStep> {
+  const sentinelSpans = new Set<string>();
+  for (const event of events) {
+    if (event.event === SPAN_BEGIN && event.type === TYPE_SENTINEL) {
+      sentinelSpans.add(event.id);
+    }
+  }
+  const groups: SentinelNode[][] = [];
+  const bySpan = new Map<string, SentinelNode[]>();
+  /** The latest spanless step per key, and whether its root has reported. */
+  const spanless = new Map<string, { nodes: SentinelNode[]; done: boolean }>();
+  events.forEach((event, index) => {
+    if (event.event !== "sentinel") return;
+    const node = new EventNode(event.uuid ?? `evt:${index}`, event, 0);
+    if (event.span_id && sentinelSpans.has(event.span_id)) {
+      let nodes = bySpan.get(event.span_id);
+      if (!nodes) {
+        bySpan.set(event.span_id, (nodes = []));
+        groups.push(nodes);
+      }
+      nodes.push(node);
+      return;
+    }
+    const key = `${event.conversation}\u0000${event.stage}\u0000${event.step_id}`;
+    let step = spanless.get(key);
+    // A superseded record names a decision already recorded, so it never
+    // starts a step.
+    if (!step || (step.done && event.status !== "superseded")) {
+      step = { nodes: [], done: false };
+      spanless.set(key, step);
+      groups.push(step.nodes);
+    }
+    step.nodes.push(node);
+    if (
+      event.path === "" &&
+      event.status !== "bypassed" &&
+      event.status !== "superseded"
+    ) {
+      step.done = true;
+    }
+  });
+  return new Map(
+    groups.map((nodes) => [nodes[0]!.event, buildSentinelStep(nodes)])
+  );
+}
+
 interface SentinelSpan {
   node: EventNode;
   /** Every event nested in the span. */
@@ -398,17 +443,21 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
  * The ToolEvent a tool-stage step judged: the first one with the step's id
  * recorded after a `tool_call` step (none when no such tool follows), the last
  * one before a `tool_result` step, skipping tools that already host a step of
- * the same stage.
+ * the same stage. A bridge's check judges only a call the bridge ran on the
+ * host: a native call under the same id (one the bridged agent inherited, for
+ * example) is not the one it checked.
  */
 const hostTool = (
   tools: ToolEntry[],
   step: SentinelStep,
   order: number,
-  claimed: Set<string>
+  claimed: Set<string>,
+  bridge: boolean
 ): ToolEntry | undefined => {
   const candidates = tools.filter(
     (t) =>
       t.node.event.id === step.stepId &&
+      (!bridge || isBridgeTool(t.node.event)) &&
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
   const after = candidates.find((t) => t.order > order);
@@ -422,6 +471,10 @@ const hostTool = (
  * inline. Each sentinel span holds one step; events outside a span group by
  * stage and step id. Steps with no tool render as one row at their span or
  * first event.
+ *
+ * The Activity view pairs the same way in `collectSentinelDecisions`
+ * (sample-activity/activityData.ts), over the flat event list; a change to
+ * these pairing rules belongs in both.
  */
 export function pairToolSentinels(
   eventNodes: EventNode[]
@@ -490,8 +543,11 @@ export function pairToolSentinels(
   const ordered = [...steps.values()].sort((a, b) => a.order - b.order);
   for (const { nodes, order: at, span } of ordered) {
     const step = buildSentinelStep(nodes, span?.modelCalls);
+    const bridge =
+      span?.node.event.event === SPAN_BEGIN &&
+      span.node.event.name === kBridgeCheckSpan;
     const tool = kToolStages.has(step.stage)
-      ? hostTool(tools, step, at, claimed)
+      ? hostTool(tools, step, at, claimed, bridge)
       : undefined;
     const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
     if (tool) {

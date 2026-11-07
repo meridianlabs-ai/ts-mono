@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { Transcript } from "../types/api-types";
+import { testUserMessage } from "@tsmono/inspect-common/testing";
+
+import { createTranscript } from "../test/objectFactories";
 
 import { expandInputEvents } from "./expandInputEvents";
 
 describe("expandInputEvents", () => {
   it("resolves attachment refs carried in input_data", () => {
     const id = "c".repeat(32);
-    const input: Transcript = {
+    const input = createTranscript({
       transcript_id: "t1",
-      messages: [{ id: "m1", role: "user", content: `attachment://${id}` }],
-      events: [],
-      timelines: [],
-      metadata: {},
-    };
+      messages: [testUserMessage({ id: "m1", content: `attachment://${id}` })],
+    });
 
     const result = expandInputEvents(input, "transcript", {
       messages: [],
@@ -23,7 +22,7 @@ describe("expandInputEvents", () => {
 
     expect(result).toEqual({
       ...input,
-      messages: [{ id: "m1", role: "user", content: "hello" }],
+      messages: [testUserMessage({ id: "m1", content: "hello" })],
     });
   });
 

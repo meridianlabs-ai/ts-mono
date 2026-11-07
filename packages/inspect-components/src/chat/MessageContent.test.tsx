@@ -9,15 +9,11 @@ import type {
   ContentText,
   ContentToolUse,
 } from "@tsmono/inspect-common/types";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeStateHooks,
   ResizeObserverStub,
-  testIcons,
   TrustedContentWrapper,
 } from "@tsmono/react/testing";
 
@@ -39,13 +35,11 @@ const renderMessage = (
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <DisplayModeContext.Provider value={{ displayMode }}>
-            <MessageContent contents={contents} />
-          </DisplayModeContext.Provider>
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <DisplayModeContext.Provider value={{ displayMode }}>
+          <MessageContent contents={contents} />
+        </DisplayModeContext.Provider>
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

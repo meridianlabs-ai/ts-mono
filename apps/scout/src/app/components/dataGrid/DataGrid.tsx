@@ -23,12 +23,13 @@ import {
 
 import {
   ColumnFilterControl,
+  combineFilters,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
+import { Icon } from "@tsmono/react/icons";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
-import { ApplicationIcons } from "../../../icons";
-import { openRouteInNewTab } from "../../../router/url";
 import type { FilterType } from "../../../state/store";
 import { columnAccessorKey } from "../columnSizing/types";
 import {
@@ -82,8 +83,10 @@ export function DataGrid<
   // UI
   className,
   loading = false,
-  emptyMessage = "No matching items",
-  noConfigMessage = "No directory configured.",
+  emptyMessage = "No items",
+  noMatchMessage = "No matching items",
+  externallyFiltered = false,
+  noConfigMessage,
 }: DataGridProps<TData, TColumn, TState>): ReactElement {
   // Destructure state for convenience
   const {
@@ -596,8 +599,10 @@ export function DataGrid<
   // Get empty state message
   const getEmptyMessage = (): string => {
     if (loading) return "Loading...";
-    if (!data.length && noConfigMessage) return noConfigMessage;
-    return emptyMessage;
+    if (noConfigMessage) return noConfigMessage;
+    return externallyFiltered || combineFilters(columnFilters)
+      ? noMatchMessage
+      : emptyMessage;
   };
 
   return (
@@ -671,20 +676,10 @@ export function DataGrid<
                       </span>
                       {{
                         asc: (
-                          <i
-                            className={clsx(
-                              ApplicationIcons.arrows.up,
-                              styles.sortIcon
-                            )}
-                          />
+                          <Icon name="arrowUp" className={styles.sortIcon} />
                         ),
                         desc: (
-                          <i
-                            className={clsx(
-                              ApplicationIcons.arrows.down,
-                              styles.sortIcon
-                            )}
-                          />
+                          <Icon name="arrowDown" className={styles.sortIcon} />
                         ),
                       }[header.column.getIsSorted() || "none"] ?? null}
                     </button>

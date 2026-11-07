@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   testAssistantMessage,
+  testChatCompletionChoice,
   testInfoEvent,
   testModelEvent,
   testModelOutput,
@@ -63,7 +64,10 @@ describe("buildScanReferencePreviews", () => {
         uuid: "m1",
         output: testModelOutput({
           choices: [
-            { message: testAssistantMessage({ id }), stop_reason: "stop" },
+            testChatCompletionChoice({
+              message: testAssistantMessage({ id }),
+              stop_reason: "stop",
+            }),
           ],
         }),
       });

@@ -26,6 +26,8 @@ import {
 } from "@tsmono/react/components";
 import { useElementHeight } from "@tsmono/react/hooks";
 
+import type { RowSelection } from "../selection/rowSelection";
+
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
 import { deriveFocusLanes, type FocusLane } from "./hooks/useFocusLaneScope";
@@ -43,7 +45,6 @@ import {
 } from "./OutlineSidebar";
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
-import type { TranscriptSelection } from "./selection/transcriptSelection";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { countUtilitySpans, TimelineSpan } from "./timeline/core";
 import {
@@ -197,7 +198,7 @@ export interface TranscriptLayoutProps {
   keyboardNavDisabled?: boolean;
   /** Evidence selection (host-owned state). Pass it only while selection mode
    *  is on: its presence shows the per-event header checkboxes. */
-  selection?: TranscriptSelection;
+  selection?: RowSelection;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */

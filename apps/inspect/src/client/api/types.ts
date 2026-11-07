@@ -5,6 +5,7 @@ import type {
   AttachmentData,
   BranchEvent,
   CallPoolData,
+  CommunicationEvent,
   CompactionEvent,
   ConfigUpdate,
   ErrorEvent,
@@ -42,6 +43,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -185,6 +187,8 @@ export interface EventData {
     | ApprovalEvent
     | ReviewEvent
     | SentinelEvent
+    | CommunicationEvent
+    | SwarmEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent
@@ -345,7 +349,6 @@ export interface ClientAPI {
   // Read flow data
   get_flow: (dir?: string) => Promise<string | undefined>;
 
-  get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
   // Per-file settled results, aligned with `log_files` — one unreadable file
   // never fails the others. See client-api.ts for the fallback that backs it.
   get_log_summaries_settled: (
@@ -478,8 +481,7 @@ export interface LogPreview {
 
 /**
  * The stored/cached form of one log's content: the details payload minus its
- * sample summaries (those are their own store — see
- * design/migration/log-data-summaries-entity.md), plus facts about the log's
+ * sample summaries (those are their own store), plus facts about the log's
  * samples derived once at ingestion. Deriving at write time is what keeps
  * whole-dir summary scans off every read path — these facts are listing
  * columns (Sample Errors / Sample Limits) and the zero-samples check.
@@ -545,8 +547,7 @@ export interface SampleDerived {
 /**
  * The Log entity row — identity plus header attributes at progressive
  * depth, plus retrieval facts. The one shape the store, the cache, and the
- * listing share (see design/migration/log-data-summaries-entity.md, phase
- * 3). Flat attribute columns arrive at `previewed` depth and are refreshed
+ * listing share. Flat attribute columns arrive at `previewed` depth and are refreshed
  * at `detailed`; `header` is the deep form.
  */
 export interface Log extends LogHandle {

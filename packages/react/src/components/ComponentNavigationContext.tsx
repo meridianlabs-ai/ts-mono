@@ -7,15 +7,12 @@ import { createContext, FC, ReactNode, useContext } from "react";
  * router tree, mapping its own navigation implementation (react-router,
  * debug-wrapped navigate, etc.) to this simple interface.
  *
- * Unlike `ComponentIconProvider` and `ComponentStateProvider` which sit outside
+ * Unlike `ComponentStateProvider`, which sits outside
  * the router, this provider must live **inside** the router tree because
  * `useNavigate()` requires router context.
  */
 export interface ComponentNavigation {
-  navigate: (
-    path: string,
-    options?: { replace?: boolean }
-  ) => void | Promise<void>;
+  navigate: (path: string, options?: { replace?: boolean }) => void;
 }
 
 const ComponentNavigationContext = createContext<ComponentNavigation | null>(

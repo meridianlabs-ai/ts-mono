@@ -57,12 +57,12 @@ export interface BackendBootstrap {
   capabilities: BackendCapabilities;
   /** Whether the browser itself fetches from the log location (static-http)
    *  rather than a server or host proxy that applies its own trust policy.
-   *  Only then does a location named by the page URL or a route need the
-   *  viewer's own approval (#615). */
+   *  Only then does the viewer itself refuse a location on another origin
+   *  named by the page URL or a route (#615). */
   browserDirect: boolean;
   /** Set when a `?log_dir=` in the invocation chose this backend's dir. Absent
    *  when embedded config or a host fixed it: the param is then ignored, so a
-   *  location it names is never fetched and there is nothing to approve. */
+   *  location it names is never fetched and there is nothing to refuse. */
   dirFromUrl?: true;
 }
 
@@ -211,23 +211,18 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   // document or passed via URL (could be hosted)
   const scriptEl = document.getElementById("log_dir_context");
   if (scriptEl) {
-    // Read the contents
-    const context = scriptEl.textContent;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (context !== null) {
-      const data = JSON5.parse<LogDirContext>(context);
-      if (data.log_dir || data.log_file) {
-        const log_dir = data.log_dir || dirname(data.log_file ?? "");
-        const app_config: AppConfig | undefined =
-          data.inspect_version !== undefined || data.trust_content !== undefined
-            ? {
-                inspect_version: data.inspect_version ?? "unknown",
-                scout_version: null,
-                trust_content: data.trust_content,
-              }
-            : undefined;
-        return staticBackend(log_dir, data.abs_log_dir, app_config);
-      }
+    const data = JSON5.parse<LogDirContext>(scriptEl.textContent);
+    if (data.log_dir || data.log_file) {
+      const log_dir = data.log_dir || dirname(data.log_file ?? "");
+      const app_config: AppConfig | undefined =
+        data.inspect_version !== undefined || data.trust_content !== undefined
+          ? {
+              inspect_version: data.inspect_version ?? "unknown",
+              scout_version: null,
+              trust_content: data.trust_content,
+            }
+          : undefined;
+      return staticBackend(log_dir, data.abs_log_dir, app_config);
     }
   }
 

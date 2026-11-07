@@ -1,13 +1,14 @@
 import { FC, ReactNode } from "react";
 import { useLocation } from "react-router";
 
+import { openRouteInNewTab } from "@tsmono/react/routing";
+
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import {
   activities,
   getActivityById,
   getActivityByRoute,
 } from "../../router/activities";
-import { openRouteInNewTab } from "../../router/url";
 import { AppConfig } from "../../types/api-types";
 
 import { ActivityBar } from "./ActivityBar";

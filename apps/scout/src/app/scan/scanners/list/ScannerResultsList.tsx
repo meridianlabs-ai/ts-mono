@@ -5,6 +5,8 @@ import { useSearchParams } from "react-router";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { basename, isRecord, valueAsString } from "@tsmono/util";
@@ -244,7 +246,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
         searchParams
       );
       if (newWindow) {
-        window.open(route, "_blank");
+        openRouteInNewTab(route);
       } else {
         navigate(route);
       }
@@ -264,9 +266,10 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     currentIndex >= 0 && currentIndex < filteredSummaries.length - 1;
 
   // Global keydown handler for keyboard shortcuts
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
+  useEventListener(
+    document,
+    "keydown",
+    (e) => {
       // Don't handle keyboard events if focus is on an input, textarea, or select element
       const activeElement = document.activeElement;
       const isInputFocused =
@@ -311,23 +314,10 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           handleEnter(e.metaKey || e.ctrlKey);
         }
       }
-    };
-
+    },
     // Use capture phase to catch event before it reaches other handlers
-    document.addEventListener("keydown", handleGlobalKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown, true);
-    };
-  }, [
-    hasPrevious,
-    hasNext,
-    handlePrevious,
-    handleNext,
-    handleEnter,
-    filteredSummaries,
-    setSelectedScanResult,
-  ]);
+    { capture: true }
+  );
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {

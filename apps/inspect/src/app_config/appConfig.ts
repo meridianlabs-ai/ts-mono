@@ -59,8 +59,7 @@ export interface AppConfigBootstrap {
   loader: "direct" | "replicator";
   logFile?: string;
   /** A link-named location on another origin that the browser would fetch
-   *  directly. Present only until the user approves it (`LogLocationGate`),
-   *  which is the precondition for resolving the config at all. */
+   *  directly. `LogLocationGate` refuses it, so the config never resolves. */
   logLocationProposal?: LogLocationProposal;
 }
 
@@ -73,7 +72,7 @@ export const resolveBootstrap = (): AppConfigBootstrap => {
   const singleFileMode = detectInitialSingleFileMode(source, document);
   const backend = resolveBackend(source);
   // A `?log_file=` is always selected, but a `?log_dir=` the backend didn't
-  // take (embedded config fixed the dir) is never read: nothing to approve.
+  // take (embedded config fixed the dir) is never read: nothing to refuse.
   const honored: UrlLogSource =
     source.kind === "dir" && !backend.dirFromUrl ? { kind: "none" } : source;
   return {

@@ -1,7 +1,7 @@
 # Sample usage and metadata
 
-The conditional Usage tab and always-addressable Metadata tab in sample
-detail: model/role timing, token and cost breakdowns, working/total time, and
+The Info tab in sample detail (usage on top, then metadata; the legacy
+`usage` and `metadata` tab ids route to it): model/role timing, token and cost breakdowns, working/total time, and
 arbitrary nested sample metadata/store/provenance.
 
 ## Sub-features
@@ -16,18 +16,19 @@ arbitrary nested sample metadata/store/provenance.
 
 ## How to get to it (user POV)
 
-- Open a sample. `Usage` appears only when at least one usage view has data.
-- Choose `Metadata` for the record trees; expand/collapse nodes and use copy
-  controls on values.
+- Open a sample and choose `Info`. The usage panel appears first, only when
+  the sample records usage; the metadata record trees follow. Expand/collapse
+  nodes and use copy controls on values.
 
 ## Driving it with Playwright
 
-- Usage: select `#usage-contents` on a fixture that records usage; assert exact
-  model/role names, token counts, time, and cost. If the tab is absent, confirm
-  the fixture has no usage before reporting a bug.
-- Metadata: select `#metadata-contents`; assert a known nested key/value,
+- Usage: within `#info-contents` on a fixture that records usage, assert exact
+  model/role names, token counts, time, and cost. If the usage panel is absent,
+  confirm the fixture has no usage before reporting a bug.
+- Metadata: within `#info-contents`, assert a known nested key/value,
   collapse/expand it, and verify a copy action.
-- Empty: use a fixture with no metadata and assert `No sample metadata available`.
+- Empty: use a fixture with no usage or metadata and assert
+  `No sample usage or metadata available`.
 - Large tree: scroll to a leaf beyond the initial virtual window, switch tabs
   away/back, and assert the tree still expands and scrolls correctly.
 
@@ -43,10 +44,10 @@ arbitrary nested sample metadata/store/provenance.
 
 ## Gotchas
 
-- Usage is conditional; Metadata is present even when empty.
+- The Info tab is always present; the usage panel within it is conditional.
 - Token counts and cost can be absent independently. Do not coerce missing cost
   to zero or hide valid token data because cost is absent.
 - `store` records can receive richer rendering in Transcript events while the
-  Metadata tab remains a general tree. Match the screenshot's surface first.
+  Info tab remains a general tree. Match the screenshot's surface first.
 - Record trees are virtualized and collapse large records by default. An
   offscreen leaf being absent from the DOM is not data loss.

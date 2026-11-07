@@ -7,7 +7,6 @@ import { formatBytes, formatMs, formatNumber, formatTime } from "@tsmono/util";
 
 import styles from "./CheckpointEventView.module.css";
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import { EventNode, EventPanelCallbacks } from "./types";
 
 type SnapshotDetails = CheckpointEvent["host"];
@@ -105,7 +104,7 @@ export const CheckpointEventView: FC<CheckpointEventViewProps> = ({
       title={`Checkpoint ${event.checkpoint_id} — turn ${event.turn} (${formatBytes(
         event.size_bytes
       )}, ${formatTime(event.duration_ms / 1000)})`}
-      icon={TranscriptIcons.checkpoint}
+      icon="checkpoint"
       eventCallbacks={eventCallbacks}
       collapsibleContent
     >

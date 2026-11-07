@@ -24,7 +24,8 @@ import {
   SegmentedControl,
   SidebarHeader,
 } from "@tsmono/react/components";
-import { baseApplicationIcons } from "@tsmono/react/icons";
+import { useInterval } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
 import {
   ApiError,
   autosizeTextarea,
@@ -371,10 +372,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   return (
     <div className={styles.container}>
       <SidebarHeader
-        icon={baseApplicationIcons.search}
+        icon="search"
         title={`Search: ${scope}`}
         onClose={onClose}
-        closeIcon={baseApplicationIcons.close}
       />
       <div className={styles.body}>
         <form
@@ -410,10 +410,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 aria-label="Recent searches"
                 aria-expanded={isRecentOpen}
               >
-                <i
-                  className={baseApplicationIcons.history}
-                  aria-hidden="true"
-                />
+                <Icon name="history" />
               </button>
               <button
                 type="button"
@@ -422,7 +419,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 title="New search"
                 aria-label="New search"
               >
-                <i className={baseApplicationIcons.add} aria-hidden="true" />
+                <Icon name="add" />
               </button>
             </div>
           </div>
@@ -447,19 +444,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               {searchType === "grep" ? (
                 <div className={styles.modeControls}>
                   <ModeToggle
-                    icon="case-sensitive"
+                    icon="matchCase"
                     title="Ignore Case"
                     active={grepOptions.ignoreCase}
                     onClick={() => toggleGrepOption("ignoreCase")}
                   />
                   <ModeToggle
-                    icon="regex"
+                    icon="matchRegex"
                     title="Regex"
                     active={grepOptions.regex}
                     onClick={() => toggleGrepOption("regex")}
                   />
                   <ModeToggle
-                    icon="whole-word"
+                    icon="matchWholeWord"
                     title="Whole Word"
                     active={grepOptions.wordBoundary}
                     onClick={() => toggleGrepOption("wordBoundary")}
@@ -538,7 +535,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 
 const ModeToggle: FC<{
   active: boolean;
-  icon: string;
+  icon: IconName;
   title: string;
   onClick: () => void;
 }> = ({ active, icon, title, onClick }) => (
@@ -549,7 +546,7 @@ const ModeToggle: FC<{
     aria-pressed={active}
     title={title}
   >
-    <i className={`codicon codicon-${icon}`} />
+    <Icon name={icon} />
   </button>
 );
 
@@ -614,13 +611,9 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   const [start] = useState(() => performance.now());
   const [elapsed, setElapsed] = useState(0);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsed(Math.floor((performance.now() - start) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [start]);
+  useInterval(() => {
+    setElapsed(Math.floor((performance.now() - start) / 1000));
+  }, 1000);
 
   const message =
     searchType === "grep"
@@ -631,8 +624,7 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   return (
     <div className={styles.emptyState}>
       <p className={styles.searchingText}>
-        <i className={baseApplicationIcons.search} aria-hidden="true" />{" "}
-        {message}
+        <Icon name="search" /> {message}
         <span className={styles.searchingElapsed}> · {elapsed}s</span>
       </p>
     </div>
@@ -734,7 +726,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response (#555): search results are not normalized
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -743,10 +735,7 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              ref.type === "event"
-              ? getEventUrl(ref.id)
-              : undefined;
+            : getEventUrl(ref.id);
         refs.push({
           id: ref.id,
           cite: ref.cite,

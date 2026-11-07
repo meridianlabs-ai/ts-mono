@@ -1,12 +1,14 @@
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useRef, useState } from "react";
 
-import { useComponentIcons } from "./ComponentIconContext";
+import { useEventListener } from "../hooks/useEventListener";
+import { Icon, IconName } from "../icons";
+
 import styles from "./MenuActionButton.module.css";
 
 export interface MenuActionItem {
   label: string;
   value: string;
-  icon?: string;
+  icon?: IconName;
   disabled?: boolean;
 }
 
@@ -23,7 +25,6 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   disabled,
   title,
 }) => {
-  const icons = useComponentIcons();
   const [showMenu, setShowMenu] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -33,10 +34,10 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
     onSelect(value);
   };
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!showMenu) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+  useEventListener(
+    showMenu ? document : null,
+    "keydown",
+    (e) => {
       if (e.key !== "Escape") return;
       // This Escape closes the menu and nothing else: stop it here (the
       // capture-phase registration below runs first) so an enclosing
@@ -49,10 +50,9 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
         wrapperRef.current?.contains(document.activeElement) ?? false;
       setShowMenu(false);
       if (refocus) triggerRef.current?.focus();
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [showMenu]);
+    },
+    { capture: true }
+  );
 
   return (
     <div ref={wrapperRef} className={styles.wrapper}>
@@ -66,7 +66,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
         aria-haspopup="menu"
         aria-expanded={showMenu}
       >
-        <i className={icons.menu} aria-hidden="true" />
+        <Icon name="threeDots" />
       </button>
       {showMenu && (
         <>
@@ -85,7 +85,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
                 onClick={() => handleSelect(item.value)}
                 disabled={item.disabled}
               >
-                {item.icon && <i className={item.icon} />}
+                {item.icon && <Icon name={item.icon} />}
                 {item.label}
               </button>
             ))}

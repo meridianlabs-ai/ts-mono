@@ -1,12 +1,12 @@
 import clsx from "clsx";
 import { forwardRef } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./Chip.module.css";
 
 interface ChipProps {
-  icon?: string;
+  icon?: IconName;
   label?: string;
   value: string;
   title?: string;
@@ -32,9 +32,9 @@ export const Chip = forwardRef<HTMLDivElement, ChipProps>(
         title={title}
       >
         {icon ? (
-          <i
+          <Icon
+            name={icon}
             className={clsx(
-              icon,
               styles.icon,
               onClick ? styles.clickable : undefined
             )}
@@ -56,18 +56,16 @@ export const Chip = forwardRef<HTMLDivElement, ChipProps>(
         {onClose ? (
           <button
             type="button"
-            className={clsx(
-              ApplicationIcons.xLarge,
-              styles.closeIcon,
-              styles.clickable
-            )}
+            className={clsx(styles.closeIcon, styles.clickable)}
             title={closeTitle}
             aria-label={closeTitle ?? `Remove ${value}`}
             onClick={(event) => {
               event.stopPropagation();
               onClose(event);
             }}
-          />
+          >
+            <Icon name="closeLarge" />
+          </button>
         ) : undefined}
       </div>
     );

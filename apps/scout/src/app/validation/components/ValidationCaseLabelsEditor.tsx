@@ -8,7 +8,6 @@ import { FC, useCallback, useRef, useState } from "react";
 
 import { AutocompleteInput, PopOver } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../icons";
 import { Chip } from "../../components/Chip";
 import { eventValue } from "../../utils/formEvents";
 
@@ -97,7 +96,7 @@ export const ValidationCaseLabelsEditor: FC<
         ))}
         <Chip
           ref={addChipRef}
-          icon={ApplicationIcons.add}
+          icon="add"
           value="Add"
           title="Add a new label"
           className={clsx(styles.labelChip, "text-size-smallest")}

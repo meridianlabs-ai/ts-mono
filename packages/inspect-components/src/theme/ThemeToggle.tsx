@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import type { ThemePreference } from "@tsmono/theme/bootstrap";
 
 import styles from "./ThemeToggle.module.css";
@@ -81,13 +82,9 @@ export const ThemeToggle = ({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <i
-          className={clsx(
-            "bi",
-            isDark ? "bi-moon-stars-fill" : "bi-sun-fill",
-            styles.icon
-          )}
-          aria-hidden="true"
+        <Icon
+          name={isDark ? "themeDark" : "themeLight"}
+          className={styles.icon}
         />
       </button>
       <PopOver

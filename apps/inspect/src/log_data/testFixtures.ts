@@ -54,11 +54,9 @@ export const makeWrapper = (client: QueryClient = new QueryClient()) =>
   };
 
 export const testMessages = (count: number): ChatMessage[] =>
-  Array.from({ length: count }, (_, i): ChatMessage => ({
-    id: `m-${i}`,
-    role: "user",
-    content: `message ${i}`,
-  }));
+  Array.from({ length: count }, (_, i) =>
+    testUserMessage({ id: `m-${i}`, content: `message ${i}` })
+  );
 
 export const testEvalSampleWithMessages = (
   messages: ChatMessage[]
@@ -75,6 +73,7 @@ export {
   testClientAPI,
   testLogDetails,
   testLogHeader,
+  testLogPreview,
   testSampleSummary,
 } from "../client/api/testClientApi";
 

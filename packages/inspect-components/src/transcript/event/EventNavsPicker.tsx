@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./EventNavsPicker.module.css";
 
@@ -93,7 +94,7 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
         >
           {selected?.title ?? ""}
         </span>
-        <i className={clsx("bi", "bi-chevron-down", styles.chevron)} />
+        <Icon name="chevronDown" className={styles.chevron} />
       </button>
       {open &&
         position &&

@@ -8,13 +8,8 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import {
-  makeStateHooks,
-  ResizeObserverStub,
-  testIcons,
-} from "@tsmono/react/testing";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { RecordTree } from "./RecordTree";
 
@@ -24,9 +19,7 @@ const renderTree = (
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <RecordTree id="test-tree" record={record} {...props} />
-      </ComponentIconProvider>
+      <RecordTree id="test-tree" record={record} {...props} />
     </ComponentStateProvider>
   );
 

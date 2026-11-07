@@ -27,6 +27,7 @@ import {
   testClientAPI,
   testEngineDatabase,
   testLogDetails,
+  testLogPreview,
 } from "./testFixtures";
 
 // --- fakes (no jsdom, no react-query) ---
@@ -57,15 +58,14 @@ const makeHeader = (
 const makePreview = (
   name: string,
   status: "success" | "started" = "success"
-): LogPreview => ({
-  eval_id: name,
-  run_id: `run-${name}`,
-  task: "task",
-  task_id: "task_1",
-  task_version: 0,
-  model: "m",
-  status,
-});
+): LogPreview =>
+  testLogPreview({
+    eval_id: name,
+    run_id: `run-${name}`,
+    task: "task",
+    model: "m",
+    status,
+  });
 
 const handle = (name: string, mtime?: number): LogHandle =>
   mtime === undefined ? { name } : { name, mtime };
@@ -931,6 +931,7 @@ describe("FetchEngine.applyListing epoch fencing", () => {
 
     expect(result).toEqual(before);
     expect(engine.listing()).toEqual(before);
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
     expect(calls.clearFile).toEqual([]);
     expect(calls.resetDepth).toEqual([]);
     expect(calls.writeListing).toEqual([]);
@@ -1191,6 +1192,37 @@ describe("FetchEngine status", () => {
     expect(engine.getStatus().syncing).toBe(false);
     expect(seen[0]).toBe(true);
     expect(seen[seen.length - 1]).toBe(false);
+  });
+});
+
+describe("FetchEngine lastSyncedAt", () => {
+  it("is set by a listing sync, not by hydration, and cleared by clear or restart", async () => {
+    const hydrated = handle("hydrated.eval", 1);
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb([detailedRow(hydrated)]),
+    });
+    const sync = () =>
+      engine.applyListing({
+        listing: [hydrated],
+        invalidated: [],
+        deleted: [],
+        persistListing: false,
+      });
+
+    expect(engine.listing()).toHaveLength(1);
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
+
+    await sync();
+    expect(engine.getStatus().lastSyncedAt).toBeTypeOf("number");
+
+    engine.clearData();
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
+
+    await sync();
+    engine.stop();
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
   });
 });
 

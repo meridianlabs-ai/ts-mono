@@ -3,14 +3,11 @@ import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap-icons/font/bootstrap-icons.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "../../../src/app/App.css";
 
-import { ComponentIconProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { testIcons } from "@tsmono/react/testing";
 
 import { apiScoutServer } from "../../../src/api/api-scout-server";
 import { DataframeView } from "../../../src/app/components/DataframeView";
@@ -62,45 +59,43 @@ function Fixture() {
   const [mounted, setMounted] = useState(true);
   return (
     <>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentStateProvider hooks={scoutStateHooks}>
-          <DataframeGridApiProvider>
-            <div style={{ display: "flex", gap: 12, padding: 8 }}>
-              <ScannerDataframeCopyCSVButton />
-              <ScannerDataframeDownloadCSVButton />
-              <ScannerDataframeClearFiltersButton />
-              <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
-              <button
-                onClick={() =>
-                  store.setState({
-                    dataframeFilterColumns:
-                      dataframe.columnNames.length === columns.length
-                        ? columns.slice(0, 3)
-                        : columns,
-                  })
-                }
-              >
-                Toggle columns
-              </button>
-              <button onClick={() => setMounted(!mounted)}>Toggle grid</button>
-              <input aria-label="Unrelated input" />
-            </div>
-            <div style={{ height: 500, width: "100%" }}>
-              {mounted && (
-                <DataframeView
-                  dataframe={dataframe}
-                  wrapText={wrap}
-                  onRowDoubleClicked={(row) => {
-                    if ("identifier" in row) setOpened(String(row.identifier));
-                  }}
-                />
-              )}
-            </div>
-            <output aria-label="Visible rows">{dataframe.rows.length}</output>
-            <output aria-label="Opened result">{opened}</output>
-          </DataframeGridApiProvider>
-        </ComponentStateProvider>
-      </ComponentIconProvider>
+      <ComponentStateProvider hooks={scoutStateHooks}>
+        <DataframeGridApiProvider>
+          <div style={{ display: "flex", gap: 12, padding: 8 }}>
+            <ScannerDataframeCopyCSVButton />
+            <ScannerDataframeDownloadCSVButton />
+            <ScannerDataframeClearFiltersButton />
+            <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
+            <button
+              onClick={() =>
+                store.setState({
+                  dataframeFilterColumns:
+                    dataframe.columnNames.length === columns.length
+                      ? columns.slice(0, 3)
+                      : columns,
+                })
+              }
+            >
+              Toggle columns
+            </button>
+            <button onClick={() => setMounted(!mounted)}>Toggle grid</button>
+            <input aria-label="Unrelated input" />
+          </div>
+          <div style={{ height: 500, width: "100%" }}>
+            {mounted && (
+              <DataframeView
+                dataframe={dataframe}
+                wrapText={wrap}
+                onRowDoubleClicked={(row) => {
+                  if ("identifier" in row) setOpened(String(row.identifier));
+                }}
+              />
+            )}
+          </div>
+          <output aria-label="Visible rows">{dataframe.rows.length}</output>
+          <output aria-label="Opened result">{opened}</output>
+        </DataframeGridApiProvider>
+      </ComponentStateProvider>
     </>
   );
 }

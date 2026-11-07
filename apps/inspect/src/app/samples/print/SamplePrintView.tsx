@@ -2,8 +2,12 @@ import React, { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
-import { ChatView } from "@tsmono/inspect-components/chat";
+import {
+  buildSelectableMessageIndex,
+  ChatView,
+} from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { resolveSelected } from "@tsmono/inspect-components/selection";
 import {
   flatTree,
   selectedEventNodes,
@@ -20,11 +24,12 @@ import {
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
+  kSampleInfoTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
-  kSampleMetdataTabId,
   kSampleScoringTabId,
   kSampleTranscriptTabId,
+  sampleTabAlias,
 } from "../../../constants";
 import {
   useSelectedEvalSampleData,
@@ -32,7 +37,6 @@ import {
 } from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
-import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleJSONView } from "../SampleJSONView";
 import { SampleScoresView } from "../scores/SampleScoresView";
 
@@ -45,19 +49,19 @@ import styles from "./SamplePrintView.module.css";
  * URL pattern: /logs/<logPath>/samples/sample/<id>/<epoch>/print?view=<tab>
  * Repeated `events=<node id>` params restrict a transcript print to those
  * events (ids as the transcript assigns them: the uuid, or the position-based
- * fallback for logs without uuids).
+ * fallback for logs without uuids). Repeated `messages=<id>` params restrict
+ * a messages print to those messages (the message id, or the position-based
+ * `msg-<n>` fallback for logs without ids).
  */
-export const SamplePrintView: FC = () => (
-  <SelectedSampleContentTrustProvider>
-    <SamplePrintViewContent />
-  </SelectedSampleContentTrustProvider>
-);
-
-const SamplePrintViewContent: FC = () => {
+export const SamplePrintView: FC = () => {
   const { sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
-  const view = searchParams.get("view") ?? kSampleTranscriptTabId;
+  const view = sampleTabAlias(
+    searchParams.get("view") ?? kSampleTranscriptTabId
+  );
   const printingSelection = searchParams.has("events");
+  const printingMessageSelection =
+    searchParams.has("messages") && view === kSampleMessagesTabId;
 
   // Get sample data
   const sample = useSelectedEvalSampleData().sample;
@@ -81,6 +85,24 @@ const SamplePrintViewContent: FC = () => {
     flattenedNodes.length === 0;
   const listHandle = useRef<VirtualListHandle | null>(null);
 
+  // Messages: restrict to the selected rows when `messages=<id>` params are
+  // present, resolving against the same fold the Messages tab uses. A row is
+  // a head message plus its folded tool messages, so the header counts rows.
+  const sampleMessages = sample?.messages ?? [];
+  const messageIds = searchParams.getAll("messages");
+  const selectedMessageRows =
+    messageIds.length > 0
+      ? resolveSelected(
+          buildSelectableMessageIndex(sampleMessages),
+          new Set(messageIds)
+        )
+      : undefined;
+  const printMessages = selectedMessageRows?.flat() ?? sampleMessages;
+  const messageSelectionNotFound =
+    printingMessageSelection &&
+    sampleMessages.length > 0 &&
+    selectedMessageRows?.length === 0;
+
   // Auto-print once content has finished rendering.
   // Uses a MutationObserver to detect when the DOM stops changing,
   // then triggers print after a settling period.
@@ -92,7 +114,8 @@ const SamplePrintViewContent: FC = () => {
       !sample ||
       hasPrinted.current ||
       !contentRef.current ||
-      selectionNotFound
+      selectionNotFound ||
+      messageSelectionNotFound
     ) {
       return;
     }
@@ -126,7 +149,7 @@ const SamplePrintViewContent: FC = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [sample, selectionNotFound]);
+  }, [sample, selectionNotFound, messageSelectionNotFound]);
 
   if (!sample) {
     return (
@@ -135,9 +158,6 @@ const SamplePrintViewContent: FC = () => {
       </div>
     );
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const sampleMessages = sample.messages || [];
 
   return (
     <div className={styles.container} ref={contentRef}>
@@ -148,6 +168,9 @@ const SamplePrintViewContent: FC = () => {
             Sample {sampleId} (Epoch {epoch})
             {printingSelection
               ? ` · ${flattenedNodes.length} selected ${flattenedNodes.length === 1 ? "event" : "events"}`
+              : null}
+            {printingMessageSelection && selectedMessageRows
+              ? ` · ${selectedMessageRows.length} selected ${selectedMessageRows.length === 1 ? "message" : "messages"}`
               : null}
           </div>
         )}
@@ -166,10 +189,10 @@ const SamplePrintViewContent: FC = () => {
         />
       )}
 
-      {view === kSampleMessagesTabId && (
+      {view === kSampleMessagesTabId && !messageSelectionNotFound && (
         <ChatView
           id="print-messages"
-          messages={sampleMessages}
+          messages={printMessages}
           display={{
             indented: true,
             unlabeledRoles: ["assistant"],
@@ -178,11 +201,15 @@ const SamplePrintViewContent: FC = () => {
         />
       )}
 
+      {messageSelectionNotFound && (
+        <NoContentsPanel text="None of the selected messages were found in this sample." />
+      )}
+
       {view === kSampleScoringTabId && (
         <SampleScoresView sample={sample} scrollRef={contentRef} />
       )}
 
-      {view === kSampleMetdataTabId && <PrintMetadata sample={sample} />}
+      {view === kSampleInfoTabId && <PrintMetadata sample={sample} />}
 
       {view === kSampleJsonTabId && <SampleJSONView sample={sample} />}
     </div>
@@ -234,8 +261,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
+  if (Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
         <CardHeader label="Usage" />

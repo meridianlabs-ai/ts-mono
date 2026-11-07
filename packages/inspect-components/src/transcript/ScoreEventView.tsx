@@ -6,7 +6,6 @@ import { RecordTree, RenderedText } from "@tsmono/inspect-components/content";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import styles from "./ScoreEventView.module.css";
 import { ScoreValue } from "./ScoreValue";
 import { EventNode } from "./types";
@@ -35,7 +34,7 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
-      icon={TranscriptIcons.scorer}
+      icon="scorer"
     >
       <div data-name="Explanation" className={clsx(styles.explanation)}>
         {event.target ? (

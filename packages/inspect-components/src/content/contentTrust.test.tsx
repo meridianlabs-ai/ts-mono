@@ -4,23 +4,17 @@ import { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  ComponentIconProvider,
   ComponentNavigationProvider,
   ContentTrustCeilingProvider,
   ContentTrustProvider,
   type ContentTrust,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import {
-  makeStateHooks,
-  ResizeObserverStub,
-  testIcons,
-} from "@tsmono/react/testing";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { MessageContent } from "../chat/MessageContent";
 import { ToolCallView } from "../chat/tools/ToolCallView";
 
-import { ContentRenderersContext } from "./ContentRenderersContext";
 import { DisplayModeContext } from "./DisplayModeContext";
 import { ExternalLink } from "./ExternalLink";
 import { logContentTrust, trustContentSetting } from "./logContentTrust";
@@ -38,15 +32,13 @@ const PNG =
 
 const withTrust = (trust: ContentTrust, ui: ReactNode) => (
   <ComponentStateProvider hooks={makeStateHooks()}>
-    <ComponentIconProvider icons={testIcons}>
-      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <ContentTrustProvider value={trust}>
-          <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
-            {ui}
-          </DisplayModeContext.Provider>
-        </ContentTrustProvider>
-      </ComponentNavigationProvider>
-    </ComponentIconProvider>
+    <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+      <ContentTrustProvider value={trust}>
+        <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
+          {ui}
+        </DisplayModeContext.Provider>
+      </ContentTrustProvider>
+    </ComponentNavigationProvider>
   </ComponentStateProvider>
 );
 
@@ -213,42 +205,6 @@ describe("untrusted content rendering", () => {
 });
 
 describe("custom renderers", () => {
-  const renderWithCustomRenderer = (trust: ContentTrust) => {
-    const canRender = vi.fn(() => true);
-    const customRender = vi.fn(() => ({
-      rendered: <a href="https://example.com">custom view</a>,
-    }));
-    const { container } = render(
-      withTrust(
-        trust,
-        <ContentRenderersContext.Provider
-          value={{
-            renderers: {
-              custom: { bucket: -1, canRender, render: customRender },
-            },
-          }}
-        >
-          <RenderedContent id="custom" entry={{ name: "data", value: 42 }} />
-        </ContentRenderersContext.Provider>
-      )
-    );
-    return { container, canRender, customRender };
-  };
-
-  it("are neither probed nor invoked for untrusted content", () => {
-    const { container, canRender, customRender } =
-      renderWithCustomRenderer("untrusted");
-    expect(canRender).not.toHaveBeenCalled();
-    expect(customRender).not.toHaveBeenCalled();
-    expect(container.textContent).toBe("42");
-  });
-
-  it("render trusted content", () => {
-    const { container, customRender } = renderWithCustomRenderer("trusted");
-    expect(customRender).toHaveBeenCalledOnce();
-    expect(container.querySelector("a")?.textContent).toBe("custom view");
-  });
-
   it.each([
     ["trusted", 1],
     ["untrusted", 0],

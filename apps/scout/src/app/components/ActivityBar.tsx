@@ -1,12 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import styles from "./ActivityBar.module.css";
 
 interface Activity {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
   description?: string;
 }
 
@@ -62,7 +64,7 @@ const Activity: FC<ActivityProps> = ({
       aria-current={selected ? "page" : undefined}
       onClick={(e) => onSelect(id, { openInNewTab: e.metaKey || e.ctrlKey })}
     >
-      <i className={clsx(styles.icon, icon)} aria-hidden="true"></i>
+      <Icon name={icon} className={styles.icon} />
       <div className={clsx(styles.label)}>{label}</div>
     </button>
   );

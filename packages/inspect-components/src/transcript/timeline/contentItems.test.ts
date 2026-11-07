@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { ModelEvent } from "@tsmono/inspect-common/types";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+} from "@tsmono/inspect-common/testing";
 
 import { buildContentItems } from "./contentItems";
 import { TimelineEvent, TimelineSpan } from "./core";
@@ -24,63 +30,32 @@ import {
 
 /** Minimal TimelineEvent with a specific UUID. */
 function makeEventNode(uuid: string | null, startSec: number): TimelineEvent {
-  const event: ModelEvent = {
-    event: "model",
+  const event = testModelEvent({
     model: "test",
-    input: [],
-    input_refs: null,
-    tools: [],
-    tool_choice: "auto",
-    config: {},
-    output: {
+    output: testModelOutput({
+      model: "test",
       choices: uuid
         ? [
-            {
-              message: {
-                role: "assistant" as const,
+            testChatCompletionChoice({
+              message: testAssistantMessage({
                 content: "",
                 id: `msg-${uuid}`,
-                source: null,
-                tool_calls: null,
-                metadata: null,
-                model: null,
-              },
-              stop_reason: "stop",
-              logprobs: null,
-            },
+              }),
+            }),
           ]
         : [],
-      completion: "",
-      error: null,
-      metadata: null,
-      model: "test",
-      time: 1,
-      usage: {
+      usage: testModelUsage({
         input_tokens: 50,
         output_tokens: 50,
         total_tokens: 100,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-        reasoning_tokens: null,
-        total_cost: null,
-      },
-    },
+      }),
+    }),
     timestamp: ts(startSec).toISOString(),
     working_start: startSec,
     working_time: 1,
-    cache: null,
-    call: null,
     completed: ts(startSec + 1).toISOString(),
-    error: null,
-    metadata: null,
-    pending: null,
-    retries: null,
-    role: null,
-    span_id: null,
-    traceback: null,
-    traceback_ansi: null,
     uuid,
-  };
+  });
   return new TimelineEvent(event);
 }
 

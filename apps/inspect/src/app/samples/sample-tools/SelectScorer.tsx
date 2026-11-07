@@ -4,7 +4,6 @@ import { FC, useCallback, useMemo, useState } from "react";
 import { PopOver, ToolButton } from "@tsmono/react/components";
 
 import { ScoreLabel } from "../../../app/types";
-import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./SelectScorer.module.css";
 
@@ -52,7 +51,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
       </span>
       <ToolButton
         label={label}
-        icon={ApplicationIcons.metrics}
+        icon="metrics"
         onClick={() => setShowing(!showing)}
         ref={setButtonEl}
         className={clsx(styles.bodyColorButton)}

@@ -1,12 +1,13 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { useComponentIcons } from "./ComponentIconContext";
+import { Icon, IconName } from "../icons";
+
 import styles from "./NoContentsPanel.module.css";
 
 interface NoContentsPanelProps {
   text: string;
-  icon?: string;
+  icon?: IconName;
   /** In-progress state: drop the icon and animate a trailing ellipsis. */
   busy?: boolean;
 }
@@ -16,12 +17,10 @@ export const NoContentsPanel: FC<NoContentsPanelProps> = ({
   icon,
   busy,
 }) => {
-  const icons = useComponentIcons();
-
   return (
     <div className={clsx(styles.panel)}>
       <div className={clsx(styles.container, "text-size-smaller")}>
-        {!busy && <i className={icon ?? icons.noSamples} />}
+        {!busy && <Icon name={icon ?? "noSamples"} />}
         <div>
           {text}
           {busy && (

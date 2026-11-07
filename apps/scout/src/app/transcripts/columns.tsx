@@ -1,5 +1,6 @@
 import clsx from "clsx";
 
+import { Icon } from "@tsmono/react/icons";
 import {
   formatNumber,
   formatPrettyDecimal,
@@ -9,7 +10,6 @@ import {
   valueAsString,
 } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
@@ -189,10 +189,7 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
       }
       return String(value);
     } catch {
-      // printObject already threw on this value, so String() is the
-      // non-throwing last resort here; valueAsString (JSON.stringify) could
-      // throw again on the same object.
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- printObject already threw on this value; String() is the non-throwing last resort, where JSON.stringify could throw again
       return String(value);
     }
   };
@@ -238,14 +235,10 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
         return "-";
       }
 
-      const icon = value
-        ? ApplicationIcons.checkbox.checked
-        : ApplicationIcons.checkbox.unchecked;
-
       return (
-        <i
+        <Icon
+          name={value ? "checkboxChecked" : "checkboxUnchecked"}
           className={clsx(
-            icon,
             "text-secondary",
             value ? styles.success : styles.unsuccess
           )}
