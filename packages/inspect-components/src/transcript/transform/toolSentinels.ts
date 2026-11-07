@@ -440,15 +440,21 @@ const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
 ]);
 
 /**
- * The ToolEvent a tool-stage step judged: the first one with the step's id
- * recorded after a `tool_call` step (none when no such tool follows), the last
- * one before a `tool_result` step, skipping tools that already host a step of
- * the same stage. A bridge's check judges only a call the bridge ran on the
- * host: a native call under the same id (one the bridged agent inherited, for
- * example) is not the one it checked.
+ * The ToolEvent a tool-stage step judged, skipping tools that already host a
+ * step of the same stage. For a `tool_call` step: the first one with the
+ * step's id after the latest model output before the step that proposed that
+ * id; without such an output, the first one after the step, else the last one
+ * before it. A ToolEvent is stamped when its call starts, before the sentinel
+ * judges it, so a timestamp-ordered tree puts it ahead of its `tool_call` step
+ * while the recorded order puts it after; the proposing output precedes both.
+ * For a `tool_result` step: the last one before it, else the first one after.
+ * A bridge's check judges only a call the bridge ran on the host: a native call
+ * under the same id (one the bridged agent inherited, for example) is not the
+ * one it checked.
  */
 const hostTool = (
   tools: ToolEntry[],
+  proposers: Map<string, number[]>,
   step: SentinelStep,
   order: number,
   claimed: Set<string>,
@@ -461,8 +467,14 @@ const hostTool = (
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
   const after = candidates.find((t) => t.order > order);
-  if (step.stage === "tool_call") return after;
-  return candidates.findLast((t) => t.order < order) ?? after;
+  const before = candidates.findLast((t) => t.order < order);
+  if (step.stage !== "tool_call") return before ?? after;
+  const proposedAt = proposers.get(step.stepId)?.findLast((at) => at < order);
+  const proposed =
+    proposedAt === undefined
+      ? undefined
+      : candidates.find((t) => t.order > proposedAt);
+  return proposed ?? after ?? before;
 };
 
 /**
@@ -483,6 +495,9 @@ export function pairToolSentinels(
   // The proposals of each call id in the latest model output (outside
   // sentinel spans) that proposed it, which its tools take in order.
   const proposals = new Map<string, ToolCall[]>();
+  // The order of every model output (outside sentinel spans) that proposed
+  // each call id.
+  const proposers = new Map<string, number[]>();
   const steps = new Map<string, StepEvents>();
   const seen = new Set<string>();
   let order = 0;
@@ -522,6 +537,9 @@ export function pairToolSentinels(
               id,
               proposed.filter((call) => call.id === id)
             );
+            const proposedAt = proposers.get(id) ?? [];
+            proposedAt.push(at);
+            proposers.set(id, proposedAt);
           }
         }
       }
@@ -547,7 +565,7 @@ export function pairToolSentinels(
       span?.node.event.event === SPAN_BEGIN &&
       span.node.event.name === kBridgeCheckSpan;
     const tool = kToolStages.has(step.stage)
-      ? hostTool(tools, step, at, claimed, bridge)
+      ? hostTool(tools, proposers, step, at, claimed, bridge)
       : undefined;
     const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
     if (tool) {
