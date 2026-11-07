@@ -11,34 +11,22 @@ import type {
 import { createActiveScanInfo } from "../../test/objectFactories";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
+import { useActiveScan } from "../server/useActiveScan";
 
 import { ActiveScanView } from "./ActiveScanView";
+
+// Spy rather than stub so tests without a mockReturnValue fetch through MSW
+// and the real normalizer.
+vi.mock("../server/useActiveScan", { spy: true });
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.resetAllMocks();
 });
 
-const serveActiveScan = (info: WireActiveScanInfo) => {
-  server.use(
-    http.get("/api/v2/scans/active", () =>
-      HttpResponse.json<WireActiveScansResponse>({
-        items: { [info.scan_id]: info },
-      })
-    )
-  );
-};
-
-const renderActiveScan = (info: WireActiveScanInfo) => {
-  serveActiveScan(info);
-  return render(<ActiveScanView scanId={info.scan_id} />, {
-    wrapper: createTestWrapper(),
-  });
-};
-
 it("updates elapsed, remaining and batch age each second and stops on unmount", async () => {
-  // Fake only the clock the view reads; the query and MSW keep real timers.
-  vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+  vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-01-01T00:01:00Z"));
   const started = Date.now() / 1000 - 10;
   const info = createActiveScanInfo({
@@ -48,8 +36,9 @@ it("updates elapsed, remaining and batch age each second and stops on unmount", 
   });
   info.metrics.completed_scans = 5;
   info.metrics.batch_oldest_created = started + 5;
-  const { unmount } = renderActiveScan(info);
-  expect(await screen.findByText("0:10")).toBeTruthy();
+  vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
+  const { unmount } = render(<ActiveScanView scanId={info.scan_id} />);
+  expect(screen.getByText("0:10")).toBeTruthy();
   expect(screen.getByText("0:30")).toBeTruthy();
   expect(screen.getByText("0:05")).toBeTruthy();
   await act(() => vi.advanceTimersByTime(1000));
@@ -59,6 +48,19 @@ it("updates elapsed, remaining and batch age each second and stops on unmount", 
   unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+const renderActiveScan = (info: WireActiveScanInfo) => {
+  server.use(
+    http.get("/api/v2/scans/active", () =>
+      HttpResponse.json<WireActiveScansResponse>({
+        items: { [info.scan_id]: info },
+      })
+    )
+  );
+  return render(<ActiveScanView scanId={info.scan_id} />, {
+    wrapper: createTestWrapper(),
+  });
+};
 
 describe("unscored column", () => {
   const scanWith = (
