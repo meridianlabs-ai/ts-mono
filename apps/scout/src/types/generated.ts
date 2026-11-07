@@ -3513,6 +3513,11 @@ export interface components {
              * @default 0
              */
             tokens: number;
+            /**
+             * Unscored
+             * @default 0
+             */
+            unscored: number;
             validation?: components["schemas"]["ValidationResults"] | null;
         };
         /**
