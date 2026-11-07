@@ -416,6 +416,100 @@ describe("useTranscriptTimeline punch-down views", () => {
   });
 });
 
+describe("useTranscriptTimeline punch-down on nested branches", () => {
+  const events = [
+    makeModelEvent("evt-1", 0, 3),
+    makeAnchorEvent("evt-anchor", "fork-1", 4),
+    makeModelEvent("evt-branch", 5, 8),
+    makeModelEvent("evt-orphan", 9, 10),
+  ];
+  const nestedTimeline: ServerTimeline = {
+    name: "default",
+    description: "Branches on a nested lane",
+    root: testTimelineSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        testTimelineSpan({
+          id: "lane",
+          name: "lane",
+          span_type: "agent",
+          content: [
+            testTimelineEvent({ event: "evt-1" }),
+            testTimelineEvent({ event: "evt-anchor" }),
+          ],
+          branches: [
+            testTimelineSpan({
+              id: "resolved",
+              name: "resolved",
+              span_type: "branch",
+              branched_from: "fork-1",
+              content: [testTimelineEvent({ event: "evt-branch" })],
+            }),
+            testTimelineSpan({
+              id: "unresolved",
+              name: "unresolved",
+              span_type: "branch",
+              branched_from: "no-such-anchor",
+              content: [testTimelineEvent({ event: "evt-orphan" })],
+            }),
+          ],
+        }),
+      ],
+    }),
+  };
+  const serverTimelines = [nestedTimeline];
+
+  function render() {
+    return renderHook(() =>
+      useTranscriptTimeline({
+        events,
+        serverTimelines,
+        timelineOptions: { showBranches: true },
+        timelineProps: { selected: null, onSelect: vi.fn() },
+      })
+    );
+  }
+
+  const rowKey = (
+    result: { current: ReturnType<typeof useTranscriptTimeline> },
+    name: string
+  ) => {
+    const row = result.current.state.rows.find((r) => r.name === name);
+    if (!row) throw new Error(`no row named ${name}`);
+    return row.key;
+  };
+
+  it("splices a branch on a nested span from that span's prefix", () => {
+    const { result } = render();
+    const key = rowKey(result, "resolved");
+    expect(result.current.views.canPushByRowKey(key)).toBe(true);
+
+    act(() => result.current.views.pushByRowKey(key, "resolved"));
+    expect(result.current.views.stack).toHaveLength(1);
+    const uuids = result.current.timeline.root.content.flatMap((c) =>
+      c.type === "event" ? [c.event.uuid] : []
+    );
+    expect(uuids).toEqual(["evt-1", "evt-anchor", "evt-branch"]);
+  });
+
+  it("offers no punch-down for a branch whose fork point is missing", () => {
+    const { result } = render();
+    const key = rowKey(result, "unresolved");
+    expect(result.current.views.canPushByRowKey(key)).toBe(false);
+
+    act(() => result.current.views.pushByRowKey(key, "unresolved"));
+    expect(result.current.views.stack).toHaveLength(0);
+  });
+
+  it("offers no punch-down for a non-branch row", () => {
+    const { result } = render();
+    expect(result.current.views.canPushByRowKey(rowKey(result, "lane"))).toBe(
+      false
+    );
+  });
+});
+
 // =============================================================================
 // Orphaned selection
 // =============================================================================
