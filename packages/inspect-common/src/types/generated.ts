@@ -602,6 +602,8 @@ export interface components {
              * @enum {string}
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -3777,6 +3779,8 @@ export interface components {
              * @enum {string}
              */
             event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Factory */
