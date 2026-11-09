@@ -100,7 +100,12 @@ const FilterMenu: FC<FilterMenuProps> = ({
   onSelect,
 }) => (
   <ToolDropdownButton
-    label={`${label}: ${selected ?? "All"}`}
+    label={
+      <>
+        {`${label}: `}
+        {selected === null ? "All" : <ContentText text={selected} />}
+      </>
+    }
     icon="filter"
     subtle
     dropdownClassName="text-size-smallest"

@@ -49,19 +49,34 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
   ).toContainText("reply to m-1 from alice");
 });
 
-test("a sample without communication has no Communication tab", async ({
+test("a sample without communication shows the Transcript, with its controls", async ({
   page,
   network,
 }) => {
   serveEvalFiles(network, [fixture]);
-  await page.goto(sampleUrl("plain", "communication"));
+  // Reached from a communicating sibling, the tab the route keeps is
+  // Communication, which this sample does not have.
+  await page.goto(sampleUrl("swarm", "communication"));
+  await expect(
+    page.getByRole("article", { name: "message from bob", exact: true })
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Previous sample" }).click();
+  await expect(page).toHaveURL(/\/samples\/sample\/plain\/1\/communication$/);
 
-  // A shared link to the tab falls back to the transcript.
   await expect(page.getByRole("tab", { name: "Transcript" })).toHaveAttribute(
     "aria-selected",
     "true"
   );
   await expect(page.getByRole("tab", { name: "Communication" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Events: / })).toBeVisible();
+
+  // Print prints the Transcript shown, by button and by shortcut.
+  const popup = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Print" }).click();
+  await expect(await popup).toHaveURL(/view=transcript/);
+  const shortcutPopup = page.waitForEvent("popup");
+  await page.keyboard.press("ControlOrMeta+p");
+  await expect(await shortcutPopup).toHaveURL(/view=transcript/);
 });
 
 test("the Communication tab offers no print, by button or shortcut", async ({

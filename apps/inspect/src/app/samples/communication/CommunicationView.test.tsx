@@ -9,6 +9,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Event } from "@tsmono/inspect-common/types";
+import { untrustedText } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeReactiveStateHooks,
@@ -92,6 +93,28 @@ describe("CommunicationView", () => {
       { ...swarmSent("s", 1, { id: "m-1", sender: "alice" }), nested: true },
     ]);
     expect(screen.getByText("alice (subagent)")).toBeDefined();
+  });
+
+  it("shows a selected filter value as untrusted text", () => {
+    const hidden = "\u202E";
+    renderView([
+      swarmSent(
+        "s",
+        1,
+        { id: "m-1", sender: `eve${hidden}lin`, recipients: ["bob"] },
+        `chat${hidden}ten`
+      ),
+    ]);
+    choose(/Agent: All/, untrustedText(`eve${hidden}lin`));
+    choose(/Channel: All/, untrustedText(`chat${hidden}ten`));
+    const agent = screen.getByRole("button", { name: /^Agent: / });
+    const channel = screen.getByRole("button", { name: /^Channel: / });
+    expect(agent.textContent).toBe(
+      `Agent: ${untrustedText(`eve${hidden}lin`)}`
+    );
+    expect(channel.textContent).toBe(
+      `Channel: ${untrustedText(`chat${hidden}ten`)}`
+    );
   });
 
   it("filters by agent and by channel", () => {
