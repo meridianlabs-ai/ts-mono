@@ -702,6 +702,78 @@ describe("pairToolSentinels", () => {
     });
   });
 
+  it("in a sample that records execution_id, shows no proposal for a tool whose conversation proposed different calls under its id", () => {
+    const proposal = (id: string, cmd: string) =>
+      new EventNode(
+        id,
+        testModelEvent({
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({
+                  tool_calls: [testToolCall({ id: "dup", arguments: { cmd } })],
+                }),
+              }),
+            ],
+          }),
+        }),
+        0
+      );
+    const result = pairToolSentinels(
+      [
+        proposal("m1", "FIRST"),
+        span("span-1", [sentinel("s1", { step_id: "dup" })]),
+        tool("tool-1", "dup"),
+        proposal("m2", "SECOND"),
+        span("span-2", [sentinel("s2", { step_id: "dup" })]),
+        tool("tool-2", "dup"),
+      ],
+      true
+    );
+    expect(result.toolSentinels.get("tool-1")?.proposed).toBeUndefined();
+    expect(result.toolSentinels.get("tool-2")?.proposed).toBeUndefined();
+  });
+
+  it("in a sample that records execution_id, shows no proposal for calls that share an id in one model output, even one whose arguments match", () => {
+    const output = new EventNode(
+      "m1",
+      testModelEvent({
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                tool_calls: [
+                  testToolCall({ id: "dup", arguments: { cmd: "FIRST" } }),
+                  testToolCall({ id: "dup", arguments: { cmd: "SECOND" } }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      }),
+      0
+    );
+    const ran = (id: string, cmd: string) =>
+      new EventNode(id, testToolEvent({ id: "dup", arguments: { cmd } }), 0);
+    const result = pairToolSentinels(
+      [
+        output,
+        span("span-1", [sentinel("s1", { step_id: "dup" })]),
+        ran("tool-1", "SECOND"),
+        span("span-2", [sentinel("s2", { step_id: "dup" })]),
+        ran("tool-2", "FIRST"),
+        span("span-3", [sentinel("s3", { step_id: "dup" })]),
+        ran("tool-3", "THIRD"),
+      ],
+      true
+    );
+    // A scaffold may rewrite a call's arguments, so equal arguments do not
+    // identify the proposal a run ran.
+    for (const id of ["tool-1", "tool-2", "tool-3"]) {
+      expect(result.toolSentinels.get(id)?.proposed).toBeUndefined();
+    }
+  });
+
   it("leaves a before-call step standalone when no tool with its id follows it", () => {
     const result = pairToolSentinels([
       tool("tool-1", "dup"),
