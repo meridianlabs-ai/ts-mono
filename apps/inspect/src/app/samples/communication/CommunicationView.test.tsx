@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import type { Event } from "@tsmono/inspect-common/types";
 import { untrustedText } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
@@ -115,6 +116,28 @@ describe("CommunicationView", () => {
     expect(channel.textContent).toBe(
       `Channel: ${untrustedText(`chat${hidden}ten`)}`
     );
+  });
+
+  it("shows a malformed send from a log file as a plain sent line", () => {
+    const raw = [{}, { record: null }, true, { record: false }].map(
+      (send, index) => ({
+        event: "communication",
+        uuid: `bad-${index}`,
+        timestamp: "2026-11-09T17:00:00Z",
+        working_start: 0,
+        kind: "sent",
+        source: "inspect_swarm",
+        agent: "alice",
+        channel: "messages",
+        send,
+      })
+    );
+    renderView(normalizeEvents(raw));
+    const lines = rows().map((row) => row.textContent);
+    expect(lines).toHaveLength(4);
+    for (const line of lines) {
+      expect(line).toContain("alice→ messages: sent");
+    }
   });
 
   it("filters by agent and by channel", () => {
