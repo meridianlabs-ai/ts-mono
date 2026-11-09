@@ -18,8 +18,8 @@ import {
   communicationEntries,
   filterEntries,
   filterOptions,
-  type CommunicationEntry,
   type CommunicationFilter,
+  type SendEntry,
 } from "./communicationEntries";
 import styles from "./CommunicationView.module.css";
 
@@ -46,14 +46,6 @@ export const CommunicationView: FC<CommunicationViewProps> = ({
   const entries = communicationEntries(events);
   const options = filterOptions(entries);
   const shown = filterEntries(entries, filter);
-  const sendsByRecord = new Map(
-    entries.flatMap((entry) =>
-      entry.type === "send" && entry.send.record.id
-        ? [[entry.send.record.id, entry] as const]
-        : []
-    )
-  );
-
   return (
     <div className={clsx("text-size-small", styles.view)}>
       <div className={styles.filters}>
@@ -82,15 +74,7 @@ export const CommunicationView: FC<CommunicationViewProps> = ({
           {shown.map((entry) => (
             <li key={entry.key}>
               {entry.type === "send" ? (
-                <SendEntry
-                  id={`${id}-${entry.key}`}
-                  entry={entry}
-                  replyTo={
-                    entry.send.record.reply_to
-                      ? sendsByRecord.get(entry.send.record.reply_to)
-                      : undefined
-                  }
-                />
+                <SendRow id={`${id}-${entry.key}`} entry={entry} />
               ) : (
                 <LineEntry event={entry.event} />
               )}
@@ -137,12 +121,8 @@ const FilterMenu: FC<FilterMenuProps> = ({
   />
 );
 
-const SendEntry: FC<{
-  id: string;
-  entry: Extract<CommunicationEntry, { type: "send" }>;
-  replyTo?: Extract<CommunicationEntry, { type: "send" }>;
-}> = ({ id, entry, replyTo }) => {
-  const { event, send, deliveries } = entry;
+const SendRow: FC<{ id: string; entry: SendEntry }> = ({ id, entry }) => {
+  const { event, send, deliveries, replyTo } = entry;
   const record = send.record;
   const rejected = send.rejected;
   // An address such as "all" resolves to other names; show both then.

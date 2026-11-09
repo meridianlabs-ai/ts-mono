@@ -1,8 +1,12 @@
-import { testCommunicationEvent } from "@tsmono/inspect-common/testing";
+import {
+  testCommunicationEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
   CommunicationEvent,
   CommunicationRecord,
   CommunicationRejection,
+  Event,
 } from "@tsmono/inspect-common/types";
 
 // Events shaped like those inspect_swarm wrote for a two-member swarm with
@@ -159,3 +163,30 @@ export const swarmCommunication = (): CommunicationEvent[] => [
     ],
   }),
 ];
+
+/**
+ * The events as one swarm run writes them: the run's span holds a span per
+ * member, and each event names its member's span.
+ */
+export const inSwarmRun = (
+  run: string,
+  events: CommunicationEvent[]
+): Event[] => {
+  const members = [...new Set(events.map((event) => event.agent))];
+  return [
+    testSpanBeginEvent({ id: run, name: "swarm", type: "agent" }),
+    ...members.map((member) =>
+      testSpanBeginEvent({
+        id: `${run}/${member}`,
+        parent_id: run,
+        name: member,
+        type: "agent",
+      })
+    ),
+    ...events.map((event) => ({
+      ...event,
+      agent_span_id: `${run}/${event.agent}`,
+      loop_span_id: `${run}/${event.agent}`,
+    })),
+  ];
+};

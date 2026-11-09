@@ -63,3 +63,32 @@ test("a sample without communication has no Communication tab", async ({
   );
   await expect(page.getByRole("tab", { name: "Communication" })).toHaveCount(0);
 });
+
+test("the Communication tab offers no print, by button or shortcut", async ({
+  page,
+  network,
+}) => {
+  serveEvalFiles(network, [fixture]);
+  let popups = 0;
+  page.on("popup", () => {
+    popups += 1;
+  });
+  await page.goto(sampleUrl("swarm", "communication"));
+  await expect(
+    page.getByRole("article", { name: "message from bob", exact: true })
+  ).toBeVisible();
+
+  // The print route has no Communication view: nothing would print.
+  await expect(page.getByRole("button", { name: "Print" })).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+p");
+
+  // The Transcript tab still prints from both; its popup comes after the
+  // keypress above would have opened one.
+  await page.getByRole("tab", { name: "Transcript" }).click();
+  await expect(page.getByRole("button", { name: "Print" })).toBeVisible();
+  const popup = page.waitForEvent("popup");
+  await page.keyboard.press("ControlOrMeta+p");
+  const printPage = await popup;
+  await expect(printPage).toHaveURL(/view=transcript/);
+  expect(popups).toBe(1);
+});

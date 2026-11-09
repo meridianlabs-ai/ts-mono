@@ -5,21 +5,25 @@ import type {
 } from "@tsmono/inspect-common/types";
 
 /**
- * One row of the Communication tab: a send with the deliveries that joined
- * it by record id, or any other communication event on a line of its own
- * (a read, a wait, or a delivery whose send is not in the sample).
+ * A send with the deliveries that joined it by record id, and the send it
+ * replies to when that is in the sample.
+ */
+export interface SendEntry {
+  type: "send";
+  key: string;
+  event: CommunicationEvent;
+  send: CommunicationSend;
+  deliveries: CommunicationEvent[];
+  replyTo?: SendEntry;
+}
+
+/**
+ * One row of the Communication tab: a send, or any other communication event
+ * on a line of its own (a read, a wait, or a delivery whose send is not in
+ * the sample).
  */
 export type CommunicationEntry =
-  | {
-      type: "send";
-      key: string;
-      event: CommunicationEvent;
-      send: CommunicationSend;
-      deliveries: CommunicationEvent[];
-    }
-  | { type: "line"; key: string; event: CommunicationEvent };
-
-type SendEntry = Extract<CommunicationEntry, { type: "send" }>;
+  SendEntry | { type: "line"; key: string; event: CommunicationEvent };
 
 /** Null selects every agent or channel. */
 export interface CommunicationFilter {
@@ -50,6 +54,19 @@ export const communicationEntries = (
 
   const keyOf = (event: CommunicationEvent, index: number) =>
     event.uuid ?? `communication-${index}`;
+  // Record ids are unique only within one swarm run: every run, including
+  // one nested in a member, restarts them. So a record is looked up within
+  // its run, the span that holds the acting member's span.
+  const parents = new Map<string, string | null | undefined>();
+  for (const event of events) {
+    if (event.event === "span_begin") parents.set(event.id, event.parent_id);
+  }
+  const recordKey = (event: CommunicationEvent, id: string) => {
+    const member = event.agent_span_id;
+    const run = member ? (parents.get(member) ?? "") : "";
+    return `${run}\u0000${id}`;
+  };
+
   // Sends first, so a delivery joins its send whatever their order.
   const sends = new Map<CommunicationEvent, SendEntry>();
   const sendsByRecord = new Map<string, SendEntry>();
@@ -64,8 +81,14 @@ export const communicationEntries = (
     };
     sends.set(event, entry);
     for (const id of event.record_ids) {
-      if (!sendsByRecord.has(id)) sendsByRecord.set(id, entry);
+      const key = recordKey(event, id);
+      if (!sendsByRecord.has(key)) sendsByRecord.set(key, entry);
     }
+  }
+  for (const entry of sends.values()) {
+    const replyTo = entry.send.record.reply_to;
+    if (replyTo)
+      entry.replyTo = sendsByRecord.get(recordKey(entry.event, replyTo));
   }
 
   const entries: CommunicationEntry[] = [];
@@ -78,7 +101,7 @@ export const communicationEntries = (
     const joined =
       event.kind === "delivered"
         ? event.record_ids
-            .map((id) => sendsByRecord.get(id))
+            .map((id) => sendsByRecord.get(recordKey(event, id)))
             .find((entry) => entry !== undefined)
         : undefined;
     if (joined) {

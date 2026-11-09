@@ -436,11 +436,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     }
   };
 
+  // The print route has no Communication view, so that tab offers no print.
+  const printable =
+    !isVscode() &&
+    effectiveSelectedTab !== kSampleCommunicationTabId &&
+    !!printLogPath &&
+    !!printSampleId &&
+    !!printEpoch;
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  const printShortcutEnabled =
-    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
   useEventListener(
-    printShortcutEnabled ? document : null,
+    printable ? document : null,
     "keydown",
     (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
@@ -817,7 +822,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (!isVscode() && printLogPath && printSampleId && printEpoch) {
+  if (printable) {
     tools.push(
       <ToolButton
         key="sample-print-tool"
