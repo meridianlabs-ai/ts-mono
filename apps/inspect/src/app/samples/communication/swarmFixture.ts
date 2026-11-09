@@ -1,6 +1,7 @@
 import {
   testCommunicationEvent,
   testSpanBeginEvent,
+  testSwarmEvent,
 } from "@tsmono/inspect-common/testing";
 import type {
   CommunicationEvent,
@@ -165,28 +166,29 @@ export const swarmCommunication = (): CommunicationEvent[] => [
 ];
 
 /**
- * The events as one swarm run writes them: the run's span holds a span per
- * member, and each event names its member's span.
+ * The events as one swarm run writes them: a swarm_start in the span the
+ * swarm runs in, a span per member opened in that span, and each event
+ * naming its member's span. Member names are unique across a sample's runs.
  */
 export const inSwarmRun = (
-  run: string,
+  span: string,
   events: CommunicationEvent[]
 ): Event[] => {
   const members = [...new Set(events.map((event) => event.agent))];
   return [
-    testSpanBeginEvent({ id: run, name: "swarm", type: "agent" }),
+    testSwarmEvent({ kind: "swarm_start", span_id: span }),
     ...members.map((member) =>
       testSpanBeginEvent({
-        id: `${run}/${member}`,
-        parent_id: run,
+        id: `span-${member}`,
+        parent_id: span,
         name: member,
         type: "agent",
       })
     ),
     ...events.map((event) => ({
       ...event,
-      agent_span_id: `${run}/${event.agent}`,
-      loop_span_id: `${run}/${event.agent}`,
+      agent_span_id: `span-${event.agent}`,
+      loop_span_id: `span-${event.agent}`,
     })),
   ];
 };

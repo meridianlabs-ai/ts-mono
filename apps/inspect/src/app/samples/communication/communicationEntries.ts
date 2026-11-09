@@ -56,14 +56,24 @@ export const communicationEntries = (
     event.uuid ?? `communication-${index}`;
   // Record ids are unique only within one swarm run: every run, including
   // one nested in a member, restarts them. So a record is looked up within
-  // its run, the span that holds the acting member's span.
-  const parents = new Map<string, string | null | undefined>();
+  // its run. A run's member spans open in the span the swarm ran in, after
+  // the swarm_start it writes there; one agent can run several swarms in its
+  // own span, so the run is that span and how many swarm_starts it had when
+  // the acting member's span opened.
+  const starts = new Map<string, number>();
+  const runs = new Map<string, string>();
   for (const event of events) {
-    if (event.event === "span_begin") parents.set(event.id, event.parent_id);
+    if (event.event === "swarm" && event.kind === "swarm_start") {
+      const span = event.span_id ?? "";
+      starts.set(span, (starts.get(span) ?? 0) + 1);
+    } else if (event.event === "span_begin") {
+      const parent = event.parent_id ?? "";
+      runs.set(event.id, `${parent}#${starts.get(parent) ?? 0}`);
+    }
   }
   const recordKey = (event: CommunicationEvent, id: string) => {
     const member = event.agent_span_id;
-    const run = member ? (parents.get(member) ?? "") : "";
+    const run = member ? (runs.get(member) ?? "") : "";
     return `${run}\u0000${id}`;
   };
 

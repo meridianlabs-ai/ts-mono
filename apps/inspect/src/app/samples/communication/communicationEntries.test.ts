@@ -79,51 +79,67 @@ describe("communicationEntries", () => {
   });
 });
 
-describe("communicationEntries with two swarm runs in one sample", () => {
-  // Each run restarts its record ids, so both have an m-1.
-  const secondRun = [
-    swarmSent("r2-e1", 20, {
-      id: "m-1",
-      sender: "carol",
-      to: ["dave"],
-      recipients: ["dave"],
-      content: "hi dave",
-    }),
-    swarmDelivered("r2-e2", 20, "carol", "m-1", ["dave"], 1),
-    swarmSent("r2-e3", 21, {
-      id: "m-2",
-      sender: "dave",
-      to: ["carol"],
-      recipients: ["carol"],
-      content: "hi carol",
-      reply_to: "m-1",
-    }),
-    swarmDelivered("r2-e4", 21, "dave", "m-2", ["carol"], 2),
-  ];
-  const entries = communicationEntries([
-    ...inSwarmRun("run-1", swarmCommunication()),
-    ...inSwarmRun("run-2", secondRun),
-  ]);
-  const send = (key: string) => {
-    const entry = entries.find((e) => e.key === key);
-    return entry?.type === "send" ? entry : undefined;
-  };
+describe.each([
+  ["each in its own span", "run-1", "run-2"],
+  // An agent can run one swarm after another in its own span.
+  ["one after the other in one span", "wrapper", "wrapper"],
+])(
+  "communicationEntries with two swarm runs %s",
+  (_, firstSpan, secondSpan) => {
+    // Each run restarts its record ids, so both have an m-1 and a w-1.
+    const secondRun = [
+      swarmSent("r2-e1", 20, {
+        id: "m-1",
+        sender: "carol",
+        to: ["dave"],
+        recipients: ["dave"],
+        content: "hi dave",
+      }),
+      swarmDelivered("r2-e2", 20, "carol", "m-1", ["dave"], 1),
+      swarmSent("r2-e3", 21, {
+        id: "m-2",
+        sender: "dave",
+        to: ["carol"],
+        recipients: ["carol"],
+        content: "hi carol",
+        reply_to: "m-1",
+      }),
+      swarmDelivered("r2-e4", 21, "dave", "m-2", ["carol"], 2),
+      swarmSent(
+        "r2-e5",
+        22,
+        { id: "w-1", kind: "create", sender: "carol", content: "notes" },
+        "shared_memory"
+      ),
+      swarmDelivered("r2-e6", 22, "carol", "w-1", [], 3, "shared_memory"),
+    ];
+    const entries = communicationEntries([
+      ...inSwarmRun(firstSpan, swarmCommunication()),
+      ...inSwarmRun(secondSpan, secondRun),
+    ]);
+    const send = (key: string) => {
+      const entry = entries.find((e) => e.key === key);
+      return entry?.type === "send" ? entry : undefined;
+    };
 
-  it("joins each delivery to the send of its own run", () => {
-    expect(send("e1")?.deliveries.map((d) => d.uuid)).toEqual(["e2"]);
-    expect(send("r2-e1")?.deliveries.map((d) => d.uuid)).toEqual(["r2-e2"]);
-  });
+    it("joins each delivery to the send of its own run", () => {
+      expect(send("e1")?.deliveries.map((d) => d.uuid)).toEqual(["e2"]);
+      expect(send("r2-e1")?.deliveries.map((d) => d.uuid)).toEqual(["r2-e2"]);
+      expect(send("e4")?.deliveries.map((d) => d.uuid)).toEqual(["e5"]);
+      expect(send("r2-e5")?.deliveries.map((d) => d.uuid)).toEqual(["r2-e6"]);
+    });
 
-  it("resolves a reply within its own run", () => {
-    expect(send("e8")?.replyTo?.key).toBe("e1");
-    expect(send("r2-e3")?.replyTo?.key).toBe("r2-e1");
-  });
+    it("resolves a reply within its own run", () => {
+      expect(send("e8")?.replyTo?.key).toBe("e1");
+      expect(send("r2-e3")?.replyTo?.key).toBe("r2-e1");
+    });
 
-  it("filters an agent to its own run's records", () => {
-    const shown = filterEntries(entries, { agent: "dave", channel: null });
-    expect(keys(shown)).toEqual(["r2-e1", "r2-e3"]);
-  });
-});
+    it("filters an agent to its own run's records", () => {
+      const shown = filterEntries(entries, { agent: "dave", channel: null });
+      expect(keys(shown)).toEqual(["r2-e1", "r2-e3"]);
+    });
+  }
+);
 
 describe("filterEntries", () => {
   const entries = communicationEntries(swarmCommunication());
