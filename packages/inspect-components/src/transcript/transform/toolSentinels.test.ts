@@ -702,13 +702,47 @@ describe("pairToolSentinels", () => {
     });
   });
 
-  it("leaves a before-call step standalone when no tool with its id follows it", () => {
+  it("pairs a before-call step with its tool when the tool sorts first", () => {
+    // A ToolEvent is stamped when its call starts, before the sentinel runs,
+    // so the timestamp-ordered tree puts it ahead of its step.
     const result = pairToolSentinels([
-      tool("tool-1", "dup"),
-      span("span-1", [sentinel("s1", { step_id: "dup", action: "reject" })]),
+      tool("tool-1", "call_1"),
+      span("span-1", [sentinel("s1", { step_id: "call_1", action: "reject" })]),
     ]);
-    expect(result.toolSentinels.size).toBe(0);
-    expect(result.standaloneSentinels.get("span-1")?.verdict).toBe("reject");
+    expect(result.toolSentinels.get("tool-1")?.before?.verdict).toBe("reject");
+    expect(result.standaloneSentinels.size).toBe(0);
+    expect(result.sentinelScrollRedirects.get("span-1")).toBe("tool-1");
+  });
+
+  it("keeps repeated call ids apart when each tool sorts ahead of its step", () => {
+    const proposal = (id: string) =>
+      new EventNode(
+        id,
+        testModelEvent({
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({
+                  tool_calls: [testToolCall({ id: "dup" })],
+                }),
+              }),
+            ],
+          }),
+        }),
+        0
+      );
+    const result = pairToolSentinels([
+      proposal("m1"),
+      tool("tool-1", "dup"),
+      span("span-1", [sentinel("s1", { step_id: "dup", action: "proceed" })]),
+      proposal("m2"),
+      tool("tool-2", "dup"),
+      span("span-2", [sentinel("s2", { step_id: "dup", action: "reject" })]),
+    ]);
+    const first = result.toolSentinels.get("tool-1")?.before;
+    const second = result.toolSentinels.get("tool-2")?.before;
+    expect(first && rowIds(first)).toEqual(["s1"]);
+    expect(second && rowIds(second)).toEqual(["s2"]);
   });
 
   it("pairs call and result stages with their tool and hides every event", () => {
