@@ -50,6 +50,11 @@ export {
 
 // Event utilities
 export { eventTitle, formatTiming, formatTitle } from "./event/utils";
+export {
+  communicationAgent,
+  communicationLine,
+  type CommunicationLinePart,
+} from "./CommunicationEventView";
 
 // Search text and event serialization
 export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";

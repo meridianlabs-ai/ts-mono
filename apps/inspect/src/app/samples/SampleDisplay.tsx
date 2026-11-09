@@ -79,6 +79,7 @@ import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
   kSampleActivityTabId,
+  kSampleCommunicationTabId,
   kSampleErrorTabId,
   kSampleInfoTabId,
   kSampleJsonTabId,
@@ -116,6 +117,8 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
+import { hasCommunicationEvents } from "./communication/communicationEntries";
+import { CommunicationView } from "./communication/CommunicationView";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -477,6 +480,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Hidden entirely for old logs whose events lack timestamps (design spec);
   // chunked samples carry an empty shell events array, so they hide it too.
   const hasActivityTab = hasEventTimestamps(sampleEvents);
+  // Only samples whose agents communicated (inspect_swarm's swarms) get the
+  // Communication tab; chunked samples' shell events hide it too.
+  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
   // Durable Activity UI state (band toggles, filters, selection) is keyed
   // per log + sample so it survives tab switches without leaking across
   // samples.
@@ -1030,10 +1036,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               selected={
                 effectiveSelectedTab === kSampleTranscriptTabId ||
                 // A shared /activity URL on a log whose events lack
-                // timestamps hides that tab — fall back here rather than
-                // leaving no panel selected.
+                // timestamps hides that tab, as a /communication URL on a
+                // sample without communication does — fall back here rather
+                // than leaving no panel selected.
                 (effectiveSelectedTab === kSampleActivityTabId &&
                   !hasActivityTab) ||
+                (effectiveSelectedTab === kSampleCommunicationTabId &&
+                  !hasCommunicationTab) ||
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
                 effectiveSelectedTab === undefined
               }
@@ -1149,6 +1158,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {hasCommunicationTab ? (
+              <TabPanel
+                key={kSampleCommunicationTabId}
+                id={kSampleCommunicationTabId}
+                className="sample-tab"
+                title="Communication"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleCommunicationTabId)}
+                selected={effectiveSelectedTab === kSampleCommunicationTabId}
+              >
+                <CommunicationView
+                  key={visitId}
+                  id={`${baseId}-${id}-communication`}
+                  events={sampleEvents}
+                />
+              </TabPanel>
+            ) : null}
             {terminalSample ? (
               <TabPanel
                 key={kSampleTerminalsTabId}

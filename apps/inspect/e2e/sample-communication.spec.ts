@@ -1,0 +1,65 @@
+/**
+ * Sample Communication tab e2e tests: the tab's visibility and routing on a
+ * real swarm log, read through the zip with its attachments resolved. The
+ * rows, the send/delivery join and the filters are unit-tested alongside
+ * CommunicationView.
+ */
+
+import { expect, test } from "./fixtures/app";
+import { serveEvalFiles } from "./fixtures/serve-eval-file";
+
+// fixtures/communication/generate_log.py: sample "swarm" is a two-member
+// inspect_swarm swarm; sample "plain" has no communication.
+const fixture = {
+  path: new URL("./fixtures/communication/swarm.eval", import.meta.url),
+  logFile: "swarm.eval",
+  preview: { task: "task", model: "mockllm/model", status: "success" },
+};
+
+const sampleUrl = (sample: string, tab: string) =>
+  `/#/logs/swarm.eval/samples/sample/${sample}/1/${tab}`;
+
+test("a swarm sample's Communication tab deep-links to its messages", async ({
+  page,
+  network,
+}) => {
+  serveEvalFiles(network, [fixture]);
+  await page.goto(sampleUrl("swarm", "transcript"));
+
+  await page.getByRole("tab", { name: "Communication" }).click();
+  await expect(page).toHaveURL(/\/samples\/sample\/swarm\/1\/communication$/);
+
+  const first = page.getByRole("article", {
+    name: "message from alice",
+    exact: true,
+  });
+  // The long message is a log attachment; the tab shows its text.
+  await expect(first).toContainText("Hi bob, please check a.md.");
+  await expect(first).toContainText("Delivered (#1) to bob");
+  await expect(
+    page.getByRole("article", { name: "Refused message from alice" })
+  ).toContainText("Refused (rate)");
+
+  await page.reload();
+  await expect(
+    page.getByRole("tab", { name: "Communication" })
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("article", { name: "message from bob", exact: true })
+  ).toContainText("reply to m-1 from alice");
+});
+
+test("a sample without communication has no Communication tab", async ({
+  page,
+  network,
+}) => {
+  serveEvalFiles(network, [fixture]);
+  await page.goto(sampleUrl("plain", "communication"));
+
+  // A shared link to the tab falls back to the transcript.
+  await expect(page.getByRole("tab", { name: "Transcript" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await expect(page.getByRole("tab", { name: "Communication" })).toHaveCount(0);
+});
