@@ -1173,11 +1173,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 href={sampleTabHref(kSampleCommunicationTabId)}
                 selected={effectiveSelectedTab === kSampleCommunicationTabId}
               >
-                <CommunicationView
-                  key={visitId}
-                  id={`${baseId}-${id}-communication`}
-                  events={sampleEvents}
-                />
+                <CommunicationView key={visitId} events={sampleEvents} />
               </TabPanel>
             ) : null}
             {terminalSample ? (

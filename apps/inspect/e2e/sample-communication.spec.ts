@@ -1,8 +1,8 @@
 /**
  * Sample Communication tab e2e tests: the tab's visibility and routing on a
  * real swarm log, read through the zip with its attachments resolved. The
- * rows, the send/delivery join and the filters are unit-tested alongside
- * CommunicationView.
+ * rows, the send/delivery join, sorting and filtering are unit-tested
+ * alongside CommunicationView.
  */
 
 import { expect, test } from "./fixtures/app";
@@ -29,24 +29,27 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
   await page.getByRole("tab", { name: "Communication" }).click();
   await expect(page).toHaveURL(/\/samples\/sample\/swarm\/1\/communication$/);
 
-  const first = page.getByRole("article", {
-    name: "message from alice",
-    exact: true,
-  });
-  // The long message is a log attachment; the tab shows its text.
-  await expect(first).toContainText("Hi bob, please check a.md.");
-  await expect(first).toContainText("Delivered (#1) to bob");
+  const grid = page.getByRole("grid", { name: "Communication" });
+  // The long message is a log attachment; its row previews the text.
+  const first = grid.getByRole("row").filter({ hasText: "please check a.md" });
+  await expect(first).toContainText("bob (#1)");
   await expect(
-    page.getByRole("article", { name: "Refused message from alice" })
-  ).toContainText("Refused (rate)");
+    grid.getByText("Refused (rate):", { exact: false })
+  ).toBeVisible();
+
+  // The selected row shows in full below the grid.
+  await first.click();
+  await expect(
+    page
+      .getByRole("region", { name: "Selected row" })
+      .getByRole("article", { name: "message from alice", exact: true })
+  ).toContainText("Delivered (#1) to bob");
 
   await page.reload();
   await expect(
     page.getByRole("tab", { name: "Communication" })
   ).toHaveAttribute("aria-selected", "true");
-  await expect(
-    page.getByRole("article", { name: "message from bob", exact: true })
-  ).toContainText("reply to m-1 from alice");
+  await expect(grid.getByText("m-1 from alice", { exact: true })).toBeVisible();
 });
 
 test("a sample without communication shows the Transcript, with its controls", async ({
@@ -58,7 +61,7 @@ test("a sample without communication shows the Transcript, with its controls", a
   // Communication, which this sample does not have.
   await page.goto(sampleUrl("swarm", "communication"));
   await expect(
-    page.getByRole("article", { name: "message from bob", exact: true })
+    page.getByRole("grid", { name: "Communication" }).getByRole("row").nth(1)
   ).toBeVisible();
   await page.getByRole("link", { name: "Previous sample" }).click();
   await expect(page).toHaveURL(/\/samples\/sample\/plain\/1\/communication$/);
@@ -90,7 +93,7 @@ test("the Communication tab offers no print, by button or shortcut", async ({
   });
   await page.goto(sampleUrl("swarm", "communication"));
   await expect(
-    page.getByRole("article", { name: "message from bob", exact: true })
+    page.getByRole("grid", { name: "Communication" }).getByRole("row").nth(1)
   ).toBeVisible();
 
   // The print route has no Communication view: nothing would print.

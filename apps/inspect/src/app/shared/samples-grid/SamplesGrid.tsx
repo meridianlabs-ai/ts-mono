@@ -1,4 +1,8 @@
-import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
+import type {
+  ColumnSizingState,
+  RowData,
+  SortingState,
+} from "@tanstack/react-table";
 import {
   ReactElement,
   RefObject,
@@ -23,14 +27,12 @@ import {
 import { ExtendedColumnDef } from "../data-grid/columnTypes";
 import { DataGrid } from "../data-grid/DataGrid";
 
-import { SampleRow } from "./types";
-
 const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
 
-interface SamplesGridProps {
-  rowData: SampleRow[];
-  columnDefs: ExtendedColumnDef<SampleRow>[];
+interface SamplesGridProps<TRow extends RowData> {
+  rowData: TRow[];
+  columnDefs: ExtendedColumnDef<TRow>[];
   /** Controlled column visibility keyed by column id; missing entries
    *  default to visible. */
   columnVisibility?: Record<string, boolean>;
@@ -52,19 +54,19 @@ interface SamplesGridProps {
    *  `sorting`. */
   columnSizing?: ColumnSizingState;
   onColumnSizingChange?: (sizing: ColumnSizingState) => void;
-  getRowId: (row: SampleRow) => string;
+  getRowId: (row: TRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
   /** Report selection moves instead of applying them — the caller owns
    *  selection and feeds it back through `selectedRowId` (see DataGrid's
    *  `onSelectedRowChange`). */
-  onRowSelect?: (row: SampleRow) => void;
+  onRowSelect?: (row: TRow) => void;
   /** Forwarded to the DataGrid's scroll container so the title bar can
    *  collapse on scroll. */
   scrollRef?: RefObject<HTMLDivElement | null>;
-  onRowOpen: (row: SampleRow) => void;
+  onRowOpen: (row: TRow) => void;
   /** Row link target (see DataGrid's `getRowHref`). */
-  getRowHref?: (row: SampleRow) => string | undefined;
+  getRowHref?: (row: TRow) => string | undefined;
   loading?: boolean;
   /**
    * Controlled column filters. When provided, the grid renders funnel state
@@ -98,18 +100,23 @@ interface SamplesGridProps {
    * cross-sample navigation off the grid's single source of truth rather than
    * re-deriving it from the unfiltered input.
    */
-  onDisplayedRowsChange?: (rows: SampleRow[]) => void;
+  onDisplayedRowsChange?: (rows: TRow[]) => void;
+  /** Accessible name for the grid (see DataGrid's `ariaLabel`). */
+  ariaLabel?: string;
+  /** Focus the grid on mount (see DataGrid's `autoFocus`). */
+  autoFocus?: boolean;
 }
 
 /**
  * Shared samples grid: a `DataGrid` wrapper that runs client-side sort over
- * its rows via the same listing query the log list uses. Per-column filtering
- * is dual-mode: uncontrolled (no `columnFilters` prop — local state, applied
- * client-side; SamplesPanel's cross-log mode) or controlled (the owner
- * filters upstream — on the samples tab via the filtrex FILTER string, which
- * is also the persistence).
+ * its rows via the same listing query the log list uses. Generic over the
+ * row type, so other in-memory grids (a sample's communication) reuse it.
+ * Per-column filtering is dual-mode: uncontrolled (no `columnFilters` prop —
+ * local state, applied client-side; SamplesPanel's cross-log mode) or
+ * controlled (the owner filters upstream — on the samples tab via the filtrex
+ * FILTER string, which is also the persistence).
  */
-export const SamplesGrid = ({
+export const SamplesGrid = <TRow extends RowData>({
   rowData,
   columnDefs,
   columnVisibility,
@@ -131,7 +138,9 @@ export const SamplesGrid = ({
   applyFiltersClientSide,
   hideColumnFilters,
   onDisplayedRowsChange,
-}: SamplesGridProps): ReactElement => {
+  ariaLabel = "Samples",
+  autoFocus = true,
+}: SamplesGridProps<TRow>): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
   const [localSorting, setLocalSorting] = useState<SortingState>(
@@ -165,7 +174,7 @@ export const SamplesGrid = ({
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
-    const map = new Map<string, ExtendedColumnDef<SampleRow>>();
+    const map = new Map<string, ExtendedColumnDef<TRow>>();
     for (const col of columnDefs) {
       if (col.id) map.set(col.id, col);
     }
@@ -173,7 +182,7 @@ export const SamplesGrid = ({
   }, [columnDefs]);
 
   const getValue = useCallback(
-    (row: SampleRow, columnId: string): unknown => {
+    (row: TRow, columnId: string): unknown => {
       const col = columnsById.get(columnId);
       if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
         return col.accessorFn(row, 0);
@@ -203,7 +212,7 @@ export const SamplesGrid = ({
   );
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
-  const { items } = useLogsListingQuery<SampleRow>({
+  const { items } = useLogsListingQuery<TRow>({
     rows: rowData,
     filter,
     orderBy,
@@ -234,7 +243,7 @@ export const SamplesGrid = ({
   );
 
   return (
-    <DataGrid<SampleRow>
+    <DataGrid<TRow>
       data={items}
       columns={columnDefs}
       getRowId={getRowId}
@@ -254,8 +263,8 @@ export const SamplesGrid = ({
       rowHeight={rowHeight}
       multiline={multiline}
       loading={loading}
-      autoFocus
-      ariaLabel="Samples"
+      autoFocus={autoFocus}
+      ariaLabel={ariaLabel}
     />
   );
 };

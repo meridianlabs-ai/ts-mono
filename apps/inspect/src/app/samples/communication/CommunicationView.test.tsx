@@ -6,98 +6,186 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import type { Event } from "@tsmono/inspect-common/types";
 import { untrustedText } from "@tsmono/react/components";
-import { ComponentStateProvider } from "@tsmono/react/state";
-import {
-  makeReactiveStateHooks,
-  ResizeObserverStub,
-} from "@tsmono/react/testing";
+import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import { CommunicationView } from "./CommunicationView";
 import { kLongMessage, swarmCommunication, swarmSent } from "./swarmFixture";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-const renderView = (events: Event[] = swarmCommunication()) =>
-  render(
-    <ComponentStateProvider hooks={makeReactiveStateHooks()}>
-      <CommunicationView id="test" events={events} />
-    </ComponentStateProvider>
-  );
-
-const rows = () => within(screen.getByRole("list")).getAllByRole("listitem");
-const message = (name: string) => screen.getByRole("article", { name });
-
-const choose = (menu: RegExp, value: string) => {
-  fireEvent.click(screen.getByRole("button", { name: menu }));
-  fireEvent.click(screen.getByRole("button", { name: value }));
-};
+// jsdom has no layout, and the grid's virtualizer renders only the rows that
+// fit its scroll element, so give every element a size.
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1600);
+});
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
+const renderView = (events: Event[] = swarmCommunication()) =>
+  render(<CommunicationView events={events} />);
+
+const grid = () => screen.getByRole("grid", { name: "Communication" });
+
+/** Each body row as its cells' text, keyed by column header. */
+const rows = (): Record<string, string>[] => {
+  const headers = within(grid())
+    .getAllByRole("columnheader")
+    .map((header) => header.textContent);
+  return within(grid())
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) =>
+      Object.fromEntries(
+        within(row)
+          .getAllByRole("gridcell")
+          .map((cell, index) => [headers[index] ?? "", cell.textContent])
+      )
+    );
+};
+
+const rowWith = (column: string, text: string) => {
+  const row = rows().find((r) => r[column] === text);
+  expect(row).toBeDefined();
+  return row ?? {};
+};
+
+/** Click the row whose Id cell holds `id` and that is a send. */
+const select = (id: string) => {
+  const index = rows().findIndex((r) => r.Id === id && r.Event === "sent");
+  const row = within(grid()).getAllByRole("row")[index + 1];
+  expect(row).toBeDefined();
+  if (row) fireEvent.click(row);
+};
+
+const selected = () => screen.getByRole("region", { name: "Selected row" });
+
 describe("CommunicationView", () => {
-  it("shows a send as a message with its delivery joined, not repeated", () => {
+  it("shows a send as a row with its delivery joined, not repeated", () => {
     renderView();
-    const first = message("message from alice");
-    expect(within(first).getByText("alice")).toBeDefined();
-    expect(first.textContent).toContain("→ bob");
-    expect(first.textContent).toContain("messages · message · m-1");
-    expect(first.textContent).toContain("Delivered (#1) to bob");
-    // The delivery has no row of its own, so the content shows once.
-    expect(screen.getAllByText(/please check a\.md/)).toHaveLength(1);
+    // Deliveries e2, e5 and e9 join their sends.
+    expect(rows()).toHaveLength(8);
+    expect(rowWith("Id", "m-1")).toMatchObject({
+      Agent: "alice",
+      Event: "sent",
+      Channel: "messages",
+      Kind: "message",
+      To: "bob",
+      "Delivered to": "bob (#1)",
+      Status: "Delivered",
+    });
   });
 
-  it("keeps the whole of long content, collapsed", () => {
+  it("shows the selected row in full", () => {
     renderView();
-    const content = within(message("message from alice")).getByText(
-      /please check a\.md/
+    expect(selected().textContent).toBe("Select a row to show it in full.");
+    select("m-1");
+    const message = within(selected()).getByRole("article", {
+      name: "message from alice",
+    });
+    expect(message.textContent).toContain("Delivered (#1) to bob");
+    expect(within(message).getByText(/please check a\.md/).textContent).toBe(
+      kLongMessage
     );
-    expect(content.textContent).toBe(kLongMessage);
+  });
+
+  it("caps a long preview with an ellipsis, not the selected content", () => {
+    const long = "x".repeat(1000);
+    renderView([
+      swarmSent("s", 1, { id: "m-1", sender: "alice", content: long }),
+    ]);
+    expect(rowWith("Id", "m-1").Content).toBe(`${"x".repeat(300)}…`);
+    select("m-1");
+    expect(within(selected()).getByText(long)).toBeDefined();
   });
 
   it("shows a reply with the message it answers", () => {
     renderView();
-    expect(message("message from bob").textContent).toContain(
-      "In reply to m-1 from alice"
-    );
+    expect(rowWith("Id", "m-3")["Reply to"]).toBe("m-1 from alice");
   });
 
   it("shows a refusal with its control and reason, and no delivery", () => {
     renderView();
-    const refused = message("Refused message from alice");
+    expect(rowWith("Id", "m-2")).toMatchObject({
+      Status: "Refused (rate): rate limit: retry in 3600 s",
+      "Delivered to": "",
+    });
+    select("m-2");
+    const refused = within(selected()).getByRole("article", {
+      name: "Refused message from alice",
+    });
     expect(refused.textContent).toContain(
       "Refused (rate): rate limit: retry in 3600 s"
     );
     expect(refused.textContent).toContain("(to all)");
-    expect(refused.textContent).not.toContain("Delivered");
   });
 
-  it("shows reads and waits on one line each", () => {
+  it("shows reads and waits as rows of their own", () => {
     renderView();
-    const lines = rows().map((row) => row.textContent);
-    expect(lines).toContainEqual(
-      expect.stringContaining("bobwaited 0.5s on messages, shared_memory: news")
-    );
-    expect(lines).toContainEqual(
-      expect.stringContaining("bob← messages: read m-1")
-    );
+    expect(
+      rowWith("Content", "waited 0.5s on messages, shared_memory: news")
+    ).toMatchObject({
+      Agent: "bob",
+      Event: "waited",
+      Channel: "messages, shared_memory",
+      Status: "news",
+    });
+    expect(rowWith("Content", "← messages: read m-1")).toMatchObject({
+      Agent: "bob",
+      Event: "read",
+      Id: "m-1",
+    });
   });
 
   it("marks a subagent's send", () => {
     renderView([
       { ...swarmSent("s", 1, { id: "m-1", sender: "alice" }), nested: true },
     ]);
-    expect(screen.getByText("alice (subagent)")).toBeDefined();
+    expect(rowWith("Id", "m-1").Agent).toBe("alice (subagent)");
   });
 
-  it("shows a selected filter value as untrusted text", () => {
-    const hidden = "\u202E";
+  it("sorts by a column", () => {
+    renderView();
+    fireEvent.click(within(grid()).getByText("Agent"));
+    expect(rows().map((row) => row.Agent)).toEqual([
+      "alice",
+      "alice",
+      "alice",
+      "alice",
+      "bob",
+      "bob",
+      "bob",
+      "bob",
+    ]);
+  });
+
+  it("filters by a column", async () => {
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: "Filter channel" }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Filter value" }),
+      { target: { value: "shared_memory" } }
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    // alice's write, bob's read of it, and both waits on it.
+    expect(rows().map((row) => row.Event)).toEqual([
+      "waited",
+      "sent",
+      "waited",
+      "read",
+    ]);
+  });
+
+  it("shows log text in cells as untrusted text", () => {
+    const hidden = "‮";
     renderView([
       swarmSent(
         "s",
@@ -106,19 +194,13 @@ describe("CommunicationView", () => {
         `chat${hidden}ten`
       ),
     ]);
-    choose(/Agent: All/, untrustedText(`eve${hidden}lin`));
-    choose(/Channel: All/, untrustedText(`chat${hidden}ten`));
-    const agent = screen.getByRole("button", { name: /^Agent: / });
-    const channel = screen.getByRole("button", { name: /^Channel: / });
-    expect(agent.textContent).toBe(
-      `Agent: ${untrustedText(`eve${hidden}lin`)}`
-    );
-    expect(channel.textContent).toBe(
-      `Channel: ${untrustedText(`chat${hidden}ten`)}`
-    );
+    expect(rowWith("Id", "m-1")).toMatchObject({
+      Agent: untrustedText(`eve${hidden}lin`),
+      Channel: untrustedText(`chat${hidden}ten`),
+    });
   });
 
-  it("shows a malformed send from a log file as a plain sent line", () => {
+  it("shows a malformed send from a log file as a plain sent row", () => {
     const raw = [{}, { record: null }, true, { record: false }].map(
       (send, index) => ({
         event: "communication",
@@ -133,31 +215,8 @@ describe("CommunicationView", () => {
       })
     );
     renderView(normalizeEvents(raw));
-    const lines = rows().map((row) => row.textContent);
-    expect(lines).toHaveLength(4);
-    for (const line of lines) {
-      expect(line).toContain("alice→ messages: sent");
-    }
-  });
-
-  it("filters by agent and by channel", () => {
-    renderView();
-    expect(rows()).toHaveLength(8);
-
-    choose(/Agent: All/, "alice");
-    expect(screen.getByRole("button", { name: /Agent: alice/ })).toBeDefined();
-    // alice's sends and wait, and bob's reply to her.
-    expect(rows()).toHaveLength(5);
-    expect(screen.getByText("5 of 8 events")).toBeDefined();
-
-    choose(/Channel: All/, "shared_memory");
-    expect(rows()).toHaveLength(2);
-    expect(
-      screen.queryByRole("article", { name: "message from bob" })
-    ).toBeNull();
-
-    choose(/Agent: alice/, "All");
-    choose(/Channel: shared_memory/, "All");
-    expect(rows()).toHaveLength(8);
+    expect(rows().map((row) => row.Content)).toEqual(
+      Array.from({ length: 4 }, () => "→ messages: sent")
+    );
   });
 });

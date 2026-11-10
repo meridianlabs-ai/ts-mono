@@ -6,24 +6,10 @@
   padding: 0.6em 1em 1em;
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4em;
-}
-
-.count {
-  margin-left: auto;
-}
-
-.entries {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4em;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.grid {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
 }
 
 .send {

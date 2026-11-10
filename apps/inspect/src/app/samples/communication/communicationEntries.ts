@@ -25,12 +25,6 @@ export interface SendEntry {
 export type CommunicationEntry =
   SendEntry | { type: "line"; key: string; event: CommunicationEvent };
 
-/** Null selects every agent or channel. */
-export interface CommunicationFilter {
-  agent: string | null;
-  channel: string | null;
-}
-
 export const isCommunicationEvent = (
   event: Event
 ): event is CommunicationEvent => event.event === "communication";
@@ -123,19 +117,6 @@ export const communicationEntries = (
   return entries;
 };
 
-/** The agents a row involves: the one that acted and whom it reached. */
-export const entryAgents = (entry: CommunicationEntry): string[] => {
-  const { event } = entry;
-  if (entry.type === "send") {
-    return [
-      event.agent,
-      ...entry.send.record.recipients,
-      ...entry.deliveries.flatMap((d) => d.delivery?.recipients ?? []),
-    ];
-  }
-  return [event.agent, ...(event.delivery?.recipients ?? [])];
-};
-
 /** The channels a row went through; a wait's are the ones it waited on. */
 export const entryChannels = (entry: CommunicationEntry): string[] => {
   const { event } = entry;
@@ -144,24 +125,3 @@ export const entryChannels = (entry: CommunicationEntry): string[] => {
   }
   return event.wait?.channels ?? [];
 };
-
-export const filterEntries = (
-  entries: CommunicationEntry[],
-  filter: CommunicationFilter
-): CommunicationEntry[] =>
-  entries.filter(
-    (entry) =>
-      (filter.agent === null || entryAgents(entry).includes(filter.agent)) &&
-      (filter.channel === null || entryChannels(entry).includes(filter.channel))
-  );
-
-/** Every agent and channel the rows name, sorted, for the filter menus. */
-export const filterOptions = (
-  entries: CommunicationEntry[]
-): { agents: string[]; channels: string[] } => ({
-  agents: sortedUnique(entries.flatMap(entryAgents)),
-  channels: sortedUnique(entries.flatMap(entryChannels)),
-});
-
-const sortedUnique = (values: string[]): string[] =>
-  [...new Set(values)].sort((a, b) => a.localeCompare(b));

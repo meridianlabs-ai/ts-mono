@@ -4,8 +4,6 @@ import { testInfoEvent } from "@tsmono/inspect-common/testing";
 
 import {
   communicationEntries,
-  filterEntries,
-  filterOptions,
   hasCommunicationEvents,
   type CommunicationEntry,
 } from "./communicationEntries";
@@ -133,44 +131,5 @@ describe.each([
       expect(send("e8")?.replyTo?.key).toBe("e1");
       expect(send("r2-e3")?.replyTo?.key).toBe("r2-e1");
     });
-
-    it("filters an agent to its own run's records", () => {
-      const shown = filterEntries(entries, { agent: "dave", channel: null });
-      expect(keys(shown)).toEqual(["r2-e1", "r2-e3"]);
-    });
   }
 );
-
-describe("filterEntries", () => {
-  const entries = communicationEntries(swarmCommunication());
-
-  it("by agent keeps what the agent did and what reached it", () => {
-    const shown = filterEntries(entries, { agent: "bob", channel: null });
-    // alice's message to bob and refused broadcast, and bob's own wait,
-    // reads and reply; not alice's write to shared memory or her wait.
-    expect(keys(shown)).toEqual(["e1", "e3", "e6", "e7", "e8", "e11"]);
-  });
-
-  it("by channel keeps its sends and reads, and waits on it", () => {
-    const shown = filterEntries(entries, {
-      agent: null,
-      channel: "shared_memory",
-    });
-    expect(keys(shown)).toEqual(["e3", "e4", "e10", "e11"]);
-  });
-
-  it("by agent and channel keeps rows that match both", () => {
-    const shown = filterEntries(entries, {
-      agent: "alice",
-      channel: "shared_memory",
-    });
-    expect(keys(shown)).toEqual(["e4", "e10"]);
-  });
-
-  it("offers every agent and channel the rows name", () => {
-    expect(filterOptions(entries)).toEqual({
-      agents: ["alice", "bob"],
-      channels: ["messages", "shared_memory"],
-    });
-  });
-});

@@ -7,126 +7,71 @@ import {
   communicationLine,
 } from "@tsmono/inspect-components/transcript";
 import { fmtClock } from "@tsmono/inspect-components/usage";
-import {
-  ContentText,
-  ExpandablePanel,
-  NoContentsPanel,
-  ToolDropdownButton,
-} from "@tsmono/react/components";
+import { ContentText } from "@tsmono/react/components";
 
-import {
-  communicationEntries,
-  filterEntries,
-  filterOptions,
-  type CommunicationFilter,
-  type SendEntry,
-} from "./communicationEntries";
+import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
+
+import { communicationColumns } from "./communicationColumns";
+import { communicationEntries, type SendEntry } from "./communicationEntries";
 import styles from "./CommunicationView.module.css";
 
 interface CommunicationViewProps {
-  /** Scopes the content panels' collapsed state to this sample. */
-  id: string;
   events: readonly Event[];
 }
 
+// The grid's own row and header heights, so a short list needs no scrolling.
+const kRowHeight = 30;
+const kHeaderHeight = 25;
+// Room for a horizontal scrollbar under the last row.
+const kGridSlack = 20;
+
 /**
- * A sample's agent communication: each send as a message from its sender to
- * its recipients, with its deliveries joined to it, and reads and waits on
- * one line each. Event strings are model or producer text, so they render
- * through the content trust policy as plain text, never Markdown.
+ * A sample's agent communication as a grid, one row per send (with its
+ * deliveries joined to it) and per other event (a read, a wait, a delivery
+ * whose send is not in the sample), sortable and filterable by column. The
+ * selected row is shown in full below the grid. Event strings are model or
+ * producer text, so they render through the content trust policy as plain
+ * text, never Markdown.
  */
-export const CommunicationView: FC<CommunicationViewProps> = ({
-  id,
-  events,
-}) => {
-  const [filter, setFilter] = useState<CommunicationFilter>({
-    agent: null,
-    channel: null,
-  });
+export const CommunicationView: FC<CommunicationViewProps> = ({ events }) => {
   const entries = communicationEntries(events);
-  const options = filterOptions(entries);
-  const shown = filterEntries(entries, filter);
+  const [selectedKey, setSelectedKey] = useState<string>();
+  const selected = entries.find((entry) => entry.key === selectedKey);
+  const select = (entry: { key: string }) => setSelectedKey(entry.key);
+  const gridHeight = kHeaderHeight + entries.length * kRowHeight + kGridSlack;
   return (
     <div className={clsx("text-size-small", styles.view)}>
-      <div className={styles.filters}>
-        <FilterMenu
-          label="Agent"
-          values={options.agents}
-          selected={filter.agent}
-          onSelect={(agent) => setFilter({ ...filter, agent })}
+      <div
+        className={styles.grid}
+        style={{ height: `min(60vh, ${gridHeight}px)` }}
+      >
+        <SamplesGrid
+          rowData={entries}
+          columnDefs={communicationColumns}
+          getRowId={(entry) => entry.key}
+          selectedRowId={selectedKey}
+          onRowSelect={select}
+          onRowOpen={select}
+          ariaLabel="Communication"
+          autoFocus={false}
         />
-        <FilterMenu
-          label="Channel"
-          values={options.channels}
-          selected={filter.channel}
-          onSelect={(channel) => setFilter({ ...filter, channel })}
-        />
-        <span className={clsx("text-style-secondary", styles.count)}>
-          {shown.length === entries.length
-            ? `${entries.length} ${entries.length === 1 ? "event" : "events"}`
-            : `${shown.length} of ${entries.length} events`}
-        </span>
       </div>
-      {shown.length === 0 ? (
-        <NoContentsPanel text="No communication matches these filters." />
-      ) : (
-        <ol className={styles.entries}>
-          {shown.map((entry) => (
-            <li key={entry.key}>
-              {entry.type === "send" ? (
-                <SendRow id={`${id}-${entry.key}`} entry={entry} />
-              ) : (
-                <LineEntry event={entry.event} />
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
+      <section aria-label="Selected row">
+        {selected === undefined ? (
+          <div className="text-style-secondary">
+            Select a row to show it in full.
+          </div>
+        ) : selected.type === "send" ? (
+          <SendRow entry={selected} />
+        ) : (
+          <LineEntry event={selected.event} />
+        )}
+      </section>
     </div>
   );
 };
 
-interface FilterMenuProps {
-  label: string;
-  values: string[];
-  selected: string | null;
-  onSelect: (value: string | null) => void;
-}
-
-const FilterMenu: FC<FilterMenuProps> = ({
-  label,
-  values,
-  selected,
-  onSelect,
-}) => (
-  <ToolDropdownButton
-    label={
-      <>
-        {`${label}: `}
-        {selected === null ? "All" : <ContentText text={selected} />}
-      </>
-    }
-    icon="filter"
-    subtle
-    dropdownClassName="text-size-smallest"
-    items={[
-      {
-        key: "all",
-        label: "All",
-        selected: selected === null,
-        onClick: () => onSelect(null),
-      },
-      ...values.map((value) => ({
-        key: `value-${value}`,
-        label: <ContentText text={value} />,
-        selected: value === selected,
-        onClick: () => onSelect(value),
-      })),
-    ]}
-  />
-);
-
-const SendRow: FC<{ id: string; entry: SendEntry }> = ({ id, entry }) => {
+const SendRow: FC<{ entry: SendEntry }> = ({ entry }) => {
   const { event, send, deliveries, replyTo } = entry;
   const record = send.record;
   const rejected = send.rejected;
@@ -188,11 +133,9 @@ const SendRow: FC<{ id: string; entry: SendEntry }> = ({ id, entry }) => {
           Content not recorded.
         </div>
       ) : record.content.length > 0 ? (
-        <ExpandablePanel id={`${id}-content`} collapse={true} lines={8}>
-          <div className={styles.content}>
-            <ContentText text={record.content} />
-          </div>
-        </ExpandablePanel>
+        <div className={styles.content}>
+          <ContentText text={record.content} />
+        </div>
       ) : null}
       {rejected ? (
         <div className={clsx(styles.detail, styles.refused)}>
