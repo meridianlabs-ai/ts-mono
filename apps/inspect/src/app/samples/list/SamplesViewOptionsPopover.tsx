@@ -9,6 +9,55 @@ import {
   useSamplesViewScoreColorScales,
 } from "./useSamplesView";
 
+interface ViewOption {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}
+
+interface ViewOptionsPopoverProps {
+  id: string;
+  showing: boolean;
+  setShowing: (showing: boolean) => void;
+  positionEl: HTMLElement | null;
+  options: ViewOption[];
+}
+
+/** A view's presentation toggles, one checkbox each, under its View button. */
+export const ViewOptionsPopover: FC<ViewOptionsPopoverProps> = ({
+  id,
+  showing,
+  setShowing,
+  positionEl,
+  options,
+}) => (
+  <PopOver
+    id={id}
+    isOpen={showing}
+    setIsOpen={setShowing}
+    positionEl={positionEl}
+    placement="bottom-end"
+    showArrow={false}
+    hoverDelay={-1}
+    closeOnMouseLeave={false}
+    offset={[0, 1]}
+  >
+    <div className={clsx(styles.container, "text-size-small")}>
+      {options.map((option) => (
+        <label key={option.label} className={styles.row}>
+          <input
+            type="checkbox"
+            checked={option.checked}
+            onChange={option.onChange}
+            className={styles.checkbox}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  </PopOver>
+);
+
 interface SamplesViewOptionsPopoverProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
@@ -26,48 +75,32 @@ export const SamplesViewOptionsPopover: FC<SamplesViewOptionsPopoverProps> = ({
   const showColorScales = Object.keys(scoreColorScales).length > 0;
 
   return (
-    <PopOver
+    <ViewOptionsPopover
       id="samples-view-options-popover"
-      isOpen={showing}
-      setIsOpen={setShowing}
+      showing={showing}
+      setShowing={setShowing}
       positionEl={positionEl}
-      placement="bottom-end"
-      showArrow={false}
-      hoverDelay={-1}
-      closeOnMouseLeave={false}
-      offset={[0, 1]}
-    >
-      <div className={clsx(styles.container, "text-size-small")}>
-        <label className={styles.row}>
-          <input
-            type="checkbox"
-            checked={view.multiline}
-            onChange={() => setMultiline(!view.multiline)}
-            className={styles.checkbox}
-          />
-          <span>Multiline</span>
-        </label>
-        <label className={styles.row}>
-          <input
-            type="checkbox"
-            checked={view.compactScores}
-            onChange={() => setCompactScores(!view.compactScores)}
-            className={styles.checkbox}
-          />
-          <span>Compact scores</span>
-        </label>
-        {showColorScales && (
-          <label className={styles.row}>
-            <input
-              type="checkbox"
-              checked={view.colorScalesEnabled}
-              onChange={() => setColorScalesEnabled(!view.colorScalesEnabled)}
-              className={styles.checkbox}
-            />
-            <span>Score colors</span>
-          </label>
-        )}
-      </div>
-    </PopOver>
+      options={[
+        {
+          label: "Multiline",
+          checked: view.multiline,
+          onChange: () => setMultiline(!view.multiline),
+        },
+        {
+          label: "Compact scores",
+          checked: view.compactScores,
+          onChange: () => setCompactScores(!view.compactScores),
+        },
+        ...(showColorScales
+          ? [
+              {
+                label: "Score colors",
+                checked: view.colorScalesEnabled,
+                onChange: () => setColorScalesEnabled(!view.colorScalesEnabled),
+              },
+            ]
+          : []),
+      ]}
+    />
   );
 };

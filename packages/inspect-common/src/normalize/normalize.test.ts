@@ -627,6 +627,104 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  const sent = (send: unknown) =>
+    normalizeEvent({ ...communication, kind: "sent", channel: "c", send });
+
+  it.each([
+    ["an empty send", {}],
+    ["a send that is not an object", true],
+    ["a null record", { record: null }],
+    ["a record that is not an object", { record: false }],
+    ["a record without a sender", { record: { kind: "message" } }],
+    [
+      "a rejection that is not an object",
+      { record: { kind: "message", sender: "a" }, rejected: true },
+    ],
+    [
+      "a rejection without a reason",
+      { record: { kind: "message", sender: "a" }, rejected: { control: "r" } },
+    ],
+  ])("communication: drops %s", (_, send) => {
+    expect(sent(send)).toMatchObject({ kind: "sent", send: null });
+  });
+
+  it("communication: keeps a valid send, filling its record's fields", () => {
+    expect(
+      sent({
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b", 1],
+          content: 7,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      })
+    ).toMatchObject({
+      send: {
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: [],
+          content: null,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      },
+    });
+  });
+
+  it("communication: drops what a reader cannot use in the other fields", () => {
+    expect(
+      normalizeEvent({
+        ...communication,
+        agent: 3,
+        kind: "delivered",
+        channel: 4,
+        record_ids: ["m-1", null],
+        delivery: { recipients: ["b", {}], seq: "1" },
+      })
+    ).toMatchObject({
+      agent: "",
+      channel: null,
+      record_ids: ["m-1"],
+      delivery: { recipients: ["b"], seq: null },
+    });
+    expect(
+      normalizeEvent({ ...communication, kind: "delivered", delivery: 1 })
+    ).toMatchObject({ delivery: null });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news" },
+      })
+    ).toMatchObject({ wait: null });
+  });
+
+  it("communication: keeps a complete send's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "sent",
+      channel: "c",
+      nested: false,
+      record_ids: ["m-1"],
+      data: {},
+      send: {
+        record: {
+          id: "m-1",
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: ["b"],
+          content: "hi",
+        },
+      },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
   it("communication: keeps a complete event's identity", () => {
     const complete = {
       ...communication,
