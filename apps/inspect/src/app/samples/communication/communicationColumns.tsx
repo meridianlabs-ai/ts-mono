@@ -84,10 +84,12 @@ const textColumn = (
   header,
   size,
   minSize: 50,
-  accessorFn: value,
+  // An absent attribute is undefined, not "", so the shared "Is blank"
+  // filter (a null test) finds it; cells show it as empty text.
+  accessorFn: (entry) => value(entry) || undefined,
   cell: ({ getValue }) => (
     <div>
-      <ContentText text={getValue<string>()} />
+      <ContentText text={getValue<string | undefined>() ?? ""} />
     </div>
   ),
   meta: { filterable: true, filterType: "string" },
@@ -128,7 +130,7 @@ export const communicationColumns: CommunicationColumn[] = [
   textColumn("status", "Status", status, 150, {
     cell: ({ getValue, row }) => (
       <div className={clsx(isRefused(row.original) && styles.refused)}>
-        <ContentText text={getValue<string>()} />
+        <ContentText text={getValue<string | undefined>() ?? ""} />
       </div>
     ),
   }),
@@ -137,7 +139,7 @@ export const communicationColumns: CommunicationColumn[] = [
     flex: 1,
     cell: ({ getValue }) => (
       <div>
-        <ContentText text={preview(getValue<string>())} />
+        <ContentText text={preview(getValue<string | undefined>() ?? "")} />
       </div>
     ),
   }),

@@ -184,8 +184,26 @@ describe("CommunicationView", () => {
     ]);
   });
 
+  it.each([
+    // Only bob's reply answers a message.
+    ["replyTo", "is not blank", ["m-3"]],
+    // The two waits, the two reads and the refused send have no delivery.
+    ["delivered", "is blank", ["", "m-1", "m-2", "", "w-1"]],
+    // Only sends have a record kind.
+    ["kind", "is blank", ["", "m-1", "", "w-1"]],
+  ])("filters %s for %s values", async (column, operator, ids) => {
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: `Filter ${column}` }));
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Filter operator" }),
+      { target: { value: operator } }
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(rows().map((row) => row.Id)).toEqual(ids);
+  });
+
   it("shows log text in cells as untrusted text", () => {
-    const hidden = "‮";
+    const hidden = "\u202E";
     renderView([
       swarmSent(
         "s",
