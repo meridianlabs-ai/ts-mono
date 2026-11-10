@@ -254,6 +254,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  const hideFind = useStore((state) => state.appActions.hideFind);
   useUnmount(() => {
     clearSampleTab();
   });
@@ -1173,7 +1174,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 href={sampleTabHref(kSampleCommunicationTabId)}
                 selected={effectiveSelectedTab === kSampleCommunicationTabId}
               >
-                <CommunicationView key={visitId} events={sampleEvents} />
+                <CommunicationView
+                  key={visitId}
+                  events={sampleEvents}
+                  onShown={hideFind}
+                />
               </TabPanel>
             ) : null}
             {terminalSample ? (

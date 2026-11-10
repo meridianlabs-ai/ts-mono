@@ -8,6 +8,7 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import { fmtClock } from "@tsmono/inspect-components/usage";
 import { ContentText } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
 
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 
@@ -15,12 +16,16 @@ import { communicationColumns } from "./communicationColumns";
 import {
   communicationEntries,
   deliveryNotify,
+  waitWokenBy,
   type SendEntry,
 } from "./communicationEntries";
 import styles from "./CommunicationView.module.css";
 
 interface CommunicationViewProps {
   events: readonly Event[];
+  /** Called when the tab opens. The grid's find replaces the page's on this
+   *  tab, so the owner closes a page find band left open on another tab. */
+  onShown?: () => void;
 }
 
 // The grid's own row and header heights, so a short list needs no scrolling.
@@ -37,7 +42,13 @@ const kGridSlack = 20;
  * producer text, so they render through the content trust policy as plain
  * text, never Markdown.
  */
-export const CommunicationView: FC<CommunicationViewProps> = ({ events }) => {
+export const CommunicationView: FC<CommunicationViewProps> = ({
+  events,
+  onShown,
+}) => {
+  useMountEffect(() => {
+    onShown?.();
+  });
   const entries = communicationEntries(events);
   const [selectedKey, setSelectedKey] = useState<string>();
   const selected = entries.find((entry) => entry.key === selectedKey);
@@ -195,30 +206,38 @@ const deliveryText = (delivery: CommunicationEvent): string => {
     : "Delivered";
 };
 
-const LineEntry: FC<{ event: CommunicationEvent }> = ({ event }) => (
-  <div className={styles.line}>
-    <Time event={event} />
-    <span className={styles.agent}>
-      <ContentText text={communicationAgent(event)} />
-    </span>
-    <span>
-      {communicationLine(event).map((part, index) => (
-        <span
-          key={index}
-          className={
-            part.tone === "refused"
-              ? styles.refused
-              : part.tone === "secondary"
-                ? "text-style-secondary"
-                : undefined
-          }
-        >
-          <ContentText text={part.text} />
+const LineEntry: FC<{ event: CommunicationEvent }> = ({ event }) => {
+  const wokenBy = event.kind === "waited" ? waitWokenBy(event) : [];
+  return (
+    <div className={styles.line}>
+      <Time event={event} />
+      <span className={styles.agent}>
+        <ContentText text={communicationAgent(event)} />
+      </span>
+      <span>
+        {communicationLine(event).map((part, index) => (
+          <span
+            key={index}
+            className={
+              part.tone === "refused"
+                ? styles.refused
+                : part.tone === "secondary"
+                  ? "text-style-secondary"
+                  : undefined
+            }
+          >
+            <ContentText text={part.text} />
+          </span>
+        ))}
+      </span>
+      {wokenBy.length > 0 ? (
+        <span className="text-style-secondary">
+          {`woken by ${wokenBy.map((seq) => `#${seq}`).join(", ")}`}
         </span>
-      ))}
-    </span>
-  </div>
-);
+      ) : null}
+    </div>
+  );
+};
 
 const Time: FC<{ event: CommunicationEvent }> = ({ event }) => (
   <time

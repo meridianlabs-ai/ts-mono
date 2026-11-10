@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import type { Event } from "@tsmono/inspect-common/types";
+import { fmtClock } from "@tsmono/inspect-components/usage";
 import { untrustedText } from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
@@ -17,8 +18,8 @@ import { CommunicationView } from "./CommunicationView";
 import {
   kLongMessage,
   swarmCommunication,
-  swarmDelivered,
   swarmSent,
+  swarmWaited,
 } from "./swarmFixture";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
@@ -85,7 +86,6 @@ describe("CommunicationView", () => {
       Kind: "message",
       To: "bob",
       "Delivered to": "bob",
-      Order: "1",
       Status: "Delivered",
     });
   });
@@ -95,7 +95,6 @@ describe("CommunicationView", () => {
     expect(rowWith("Id", "w-1")).toMatchObject({
       To: "",
       "Delivered to": "bob",
-      Order: "2",
     });
     select("w-1");
     expect(selected().textContent).toContain("Delivered (#2) · notified bob");
@@ -184,16 +183,15 @@ describe("CommunicationView", () => {
     ]);
   });
 
-  it("sorts by delivery order as numbers", () => {
+  it("shows the deliveries that woke a wait", () => {
     renderView([
-      swarmSent("s1", 1, { id: "m-1", sender: "alice" }),
-      swarmDelivered("d1", 1, "alice", "m-1", ["bob"], 10),
-      swarmSent("s2", 2, { id: "m-2", sender: "alice" }),
-      swarmDelivered("d2", 2, "alice", "m-2", ["bob"], 9),
-      swarmSent("s3", 3, { id: "m-3", sender: "alice" }),
+      {
+        ...swarmWaited("w", 1, "bob", 0.5, "news"),
+        data: { version: 1, woken_by: [3, "x", 5] },
+      },
     ]);
-    fireEvent.click(within(grid()).getByText("Order"));
-    expect(rows().map((row) => row.Order)).toEqual(["9", "10", ""]);
+    fireEvent.click(within(grid()).getAllByRole("row")[1] ?? grid());
+    expect(selected().textContent).toContain("woken by #3, #5");
   });
 
   it("finds text beyond a row's preview and selects the match", async () => {
@@ -214,6 +212,17 @@ describe("CommunicationView", () => {
     );
     expect(rows()).toHaveLength(9);
     expect(within(selected()).getByText(/needle$/)).toBeDefined();
+  });
+
+  it("finds a row by its time as shown", async () => {
+    renderView();
+    fireEvent.keyDown(document.body, { key: "f", ctrlKey: true });
+    fireEvent.change(await screen.findByPlaceholderText("Find"), {
+      target: { value: fmtClock("2026-11-09T17:00:05.000Z") },
+    });
+    expect(
+      within(selected()).getByRole("article").getAttribute("aria-label")
+    ).toBe("Refused message from alice");
   });
 
   it("filters by a column", async () => {

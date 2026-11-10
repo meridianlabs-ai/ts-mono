@@ -29,7 +29,7 @@ from inspect_swarm import (
 )
 
 LONG_MESSAGE = "Hi bob, please check a.md.\nIt has the plan.\n" + "\n".join(
-    f"step {i}" for i in range(20)
+    f"step {i}" for i in range(40)
 )
 
 

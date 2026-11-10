@@ -108,7 +108,7 @@ export const swarmWaited = (
 export const kLongMessage = [
   "Hi bob, please check a.md.",
   "It has the plan.",
-  ...Array.from({ length: 20 }, (_, i) => `step ${i}`),
+  ...Array.from({ length: 40 }, (_, i) => `step ${i}`),
 ].join("\n");
 
 /** One swarm sample's communication, in the order the log holds it. */

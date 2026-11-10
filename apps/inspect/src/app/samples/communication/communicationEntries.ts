@@ -145,3 +145,11 @@ export const deliveryNotify = (delivery: CommunicationEvent): string[] => {
     ? notify.filter((name): name is string => typeof name === "string")
     : [];
 };
+
+/** The delivery numbers that ended a wait (inspect_swarm's `woken_by`). */
+export const waitWokenBy = (wait: CommunicationEvent): number[] => {
+  const wokenBy = wait.data["woken_by"];
+  return Array.isArray(wokenBy)
+    ? wokenBy.filter((seq): seq is number => typeof seq === "number")
+    : [];
+};

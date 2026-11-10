@@ -33,12 +33,6 @@ const names = (values: readonly string[]): string => values.join(", ");
 const deliveredTo = (entry: CommunicationEntry): string =>
   names([...new Set(entryDeliveries(entry).flatMap(deliveryNotify))]);
 
-// The delivery's place in the swarm's delivery order, across all channels.
-const deliveryOrder = (entry: CommunicationEntry): number | undefined =>
-  entryDeliveries(entry)
-    .map((delivery) => delivery.delivery?.seq)
-    .find((seq) => seq !== null && seq !== undefined) ?? undefined;
-
 const recordId = (entry: CommunicationEntry): string =>
   entry.type === "send" && entry.send.record.id
     ? entry.send.record.id
@@ -109,6 +103,8 @@ export const communicationColumns: CommunicationColumn[] = [
     size: 100,
     minSize: 60,
     accessorFn: (entry) => entry.event.timestamp,
+    // Find matches the time as shown; sorting and filtering use the raw one.
+    textValue: (entry) => fmtClock(entry.event.timestamp),
     cell: ({ getValue }) => <div>{fmtClock(getValue<string>())}</div>,
     meta: {
       filterable: true,
@@ -129,19 +125,6 @@ export const communicationColumns: CommunicationColumn[] = [
   textColumn("to", "To", recipients, 110),
   textColumn("replyTo", "Reply to", replyTo, 110),
   textColumn("delivered", "Delivered to", deliveredTo, 110),
-  {
-    id: "order",
-    header: "Order",
-    size: 70,
-    minSize: 50,
-    accessorFn: deliveryOrder,
-    cell: ({ getValue }) => <div>{getValue<number | undefined>()}</div>,
-    meta: {
-      filterable: true,
-      filterType: "number",
-      sortComparator: comparators.number,
-    },
-  },
   textColumn("status", "Status", status, 150, {
     cell: ({ getValue, row }) => (
       <div className={clsx(isRefused(row.original) && styles.refused)}>

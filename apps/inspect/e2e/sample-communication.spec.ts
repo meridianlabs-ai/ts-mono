@@ -26,37 +26,43 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
 }) => {
   serveEvalFiles(network, [fixture]);
   await page.goto(sampleUrl("swarm", "transcript"));
+  const findInput = page.getByPlaceholder("Find");
+  const selected = page.getByRole("region", { name: "Selected row" });
 
+  // The page's find, left open on Transcript, gives way to the grid's.
+  await expect(page.getByRole("tab", { name: "Communication" })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+f");
+  await expect(findInput).toHaveCount(1);
   await page.getByRole("tab", { name: "Communication" }).click();
   await expect(page).toHaveURL(/\/samples\/sample\/swarm\/1\/communication$/);
 
   const grid = page.getByRole("grid", { name: "Communication" });
   // The long message is a log attachment; its row previews the text.
-  const first = grid.getByRole("row").filter({ hasText: "please check a.md" });
+  await expect(
+    grid.getByRole("row").filter({ hasText: "please check a.md" })
+  ).toBeVisible();
+  await expect(findInput).toHaveCount(0);
   // The write is addressed to no one; it was news to bob.
   await expect(
     grid.getByRole("row").filter({ hasText: "create" })
   ).toContainText("bob");
-  await expect(
-    grid.getByText("Refused (rate):", { exact: false })
-  ).toBeVisible();
+  const refused = grid.getByRole("row").filter({ hasText: "Refused (rate):" });
+  await expect(refused).toBeVisible();
 
-  // The selected row shows in full below the grid.
-  await first.click();
+  // Find searches whole messages, past a row's preview, and shows the match
+  // in full below the grid.
+  await page.keyboard.press("ControlOrMeta+f");
+  await findInput.fill("step 39");
+  await expect(findInput).toHaveCount(1);
+  await expect(page.getByTestId("find-band-match-count")).toHaveText("1 of 1");
   await expect(
-    page
-      .getByRole("region", { name: "Selected row" })
-      .getByRole("article", { name: "message from alice", exact: true })
+    selected.getByRole("article", { name: "message from alice", exact: true })
   ).toContainText("Delivered (#1) to bob");
 
-  // Find opens the grid's band, not the sample's, and selects the match.
-  await page.keyboard.press("ControlOrMeta+f");
-  await page.getByPlaceholder("Find").fill("plan written");
-  await expect(page.getByPlaceholder("Find")).toHaveCount(1);
+  // So does a click on a row.
+  await refused.click();
   await expect(
-    page
-      .getByRole("region", { name: "Selected row" })
-      .getByRole("article", { name: "Refused message from alice" })
+    selected.getByRole("article", { name: "Refused message from alice" })
   ).toBeVisible();
 
   await page.reload();
