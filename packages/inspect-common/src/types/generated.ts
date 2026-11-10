@@ -639,7 +639,7 @@ export interface components {
          *     ```yaml
          *     approvers:
          *       - name: human
-         *         tools: web_browser*, bash, pyhton
+         *         tools: bash*, python, text_editor
          *         choices: [approve, reject]
          *
          *       - name: human
