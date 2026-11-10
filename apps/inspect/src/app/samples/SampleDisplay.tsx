@@ -67,6 +67,7 @@ import {
   useDocumentTitleText,
   useElementHeight,
   useEventListener,
+  useProperty,
   useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
@@ -119,6 +120,7 @@ import {
 
 import { hasCommunicationEvents } from "./communication/communicationEntries";
 import { CommunicationView } from "./communication/CommunicationView";
+import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -255,6 +257,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
   const hideFind = useStore((state) => state.appActions.hideFind);
+  const [communicationMultiline, setCommunicationMultiline] = useProperty(
+    "sample-communication",
+    "multiline",
+    { defaultValue: false }
+  );
   useUnmount(() => {
     clearSampleTab();
   });
@@ -657,6 +664,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         onClick={() => setTerminalsFill(true)}
         subtle
         collapseLabel
+      />
+    );
+  }
+
+  if (effectiveSelectedTab === kSampleCommunicationTabId) {
+    tools.push(
+      <CommunicationViewOptions
+        key="sample-communication-view"
+        multiline={communicationMultiline}
+        setMultiline={setCommunicationMultiline}
       />
     );
   }
@@ -1177,6 +1194,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <CommunicationView
                   key={visitId}
                   events={sampleEvents}
+                  multiline={communicationMultiline}
                   onShown={hideFind}
                 />
               </TabPanel>

@@ -10,7 +10,11 @@ import { fmtClock } from "@tsmono/inspect-components/usage";
 import { ContentText } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
 
-import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
+import {
+  kGridModeRowHeight,
+  kListModeRowHeight,
+  SamplesGrid,
+} from "../../shared/samples-grid/SamplesGrid";
 
 import { communicationColumns } from "./communicationColumns";
 import {
@@ -23,13 +27,14 @@ import styles from "./CommunicationView.module.css";
 
 interface CommunicationViewProps {
   events: readonly Event[];
+  /** Taller rows that show up to three lines of each message. */
+  multiline?: boolean;
   /** Called when the tab opens. The grid's find replaces the page's on this
    *  tab, so the owner closes a page find band left open on another tab. */
   onShown?: () => void;
 }
 
-// The grid's own row and header heights, so a short list needs no scrolling.
-const kRowHeight = 30;
+// The grid's own header height, so a short list needs no scrolling.
 const kHeaderHeight = 25;
 // Room for a horizontal scrollbar under the last row.
 const kGridSlack = 20;
@@ -44,6 +49,7 @@ const kGridSlack = 20;
  */
 export const CommunicationView: FC<CommunicationViewProps> = ({
   events,
+  multiline = false,
   onShown,
 }) => {
   useMountEffect(() => {
@@ -53,7 +59,8 @@ export const CommunicationView: FC<CommunicationViewProps> = ({
   const [selectedKey, setSelectedKey] = useState<string>();
   const selected = entries.find((entry) => entry.key === selectedKey);
   const select = (entry: { key: string }) => setSelectedKey(entry.key);
-  const gridHeight = kHeaderHeight + entries.length * kRowHeight + kGridSlack;
+  const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
+  const gridHeight = kHeaderHeight + entries.length * rowHeight + kGridSlack;
   return (
     <div className={clsx("text-size-small", styles.view)}>
       <div
@@ -62,7 +69,8 @@ export const CommunicationView: FC<CommunicationViewProps> = ({
       >
         <SamplesGrid
           rowData={entries}
-          columnDefs={communicationColumns}
+          columnDefs={communicationColumns(multiline)}
+          multiline={multiline}
           getRowId={(entry) => entry.key}
           selectedRowId={selectedKey}
           onRowSelect={select}

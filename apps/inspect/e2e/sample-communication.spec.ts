@@ -130,3 +130,36 @@ test("the Communication tab offers no print, by button or shortcut", async ({
   await expect(printPage).toHaveURL(/view=transcript/);
   expect(popups).toBe(1);
 });
+
+test("the Multiline view option shows three lines of each message", async ({
+  page,
+  network,
+}) => {
+  serveEvalFiles(network, [fixture]);
+  await page.goto(sampleUrl("swarm", "communication"));
+  const row = page
+    .getByRole("grid", { name: "Communication" })
+    .getByRole("row")
+    .filter({ hasText: "please check a.md" });
+  const content = row
+    .getByRole("gridcell")
+    .filter({ hasText: "please check a.md" })
+    .locator("> div");
+  const lines = () =>
+    content.evaluate((el) => {
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+      return Math.round(el.getBoundingClientRect().height / lineHeight);
+    });
+  const height = async () => (await row.boundingBox())?.height ?? 0;
+
+  await expect(row).toBeVisible();
+  expect(await lines()).toBe(1);
+  const singleHeight = await height();
+
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Multiline" }).check();
+
+  // The message has many lines; the cell shows its first three.
+  await expect.poll(lines).toBe(3);
+  expect(await height()).toBeGreaterThan(singleHeight);
+});

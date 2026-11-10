@@ -31,8 +31,8 @@ import { ExtendedColumnDef } from "../data-grid/columnTypes";
 import { DataGrid } from "../data-grid/DataGrid";
 import { buildSearchIndex, findMatches } from "../data-grid/findMatches";
 
-const kListModeRowHeight = 70;
-const kGridModeRowHeight = 30;
+export const kListModeRowHeight = 70;
+export const kGridModeRowHeight = 30;
 
 interface SamplesGridProps<TRow extends RowData> {
   rowData: TRow[];

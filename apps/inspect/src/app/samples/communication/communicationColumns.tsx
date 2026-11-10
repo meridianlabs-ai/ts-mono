@@ -7,13 +7,14 @@ import { ContentText } from "@tsmono/react/components";
 import type { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { comparators } from "../../shared/gridComparators";
 
+import styles from "./communicationColumns.module.css";
 import {
   deliveryNotify,
   entryChannels,
   entryDeliveries,
   type CommunicationEntry,
 } from "./communicationEntries";
-import styles from "./CommunicationView.module.css";
+import viewStyles from "./CommunicationView.module.css";
 
 type CommunicationColumn = ExtendedColumnDef<CommunicationEntry>;
 
@@ -93,11 +94,7 @@ const textColumn = (
   ...extra,
 });
 
-/**
- * The Communication grid's columns, one per attribute a row can have. Every
- * value is log text, so cells render through the content trust policy.
- */
-export const communicationColumns: CommunicationColumn[] = [
+const columns = (multiline: boolean): CommunicationColumn[] => [
   {
     id: "time",
     header: "Time",
@@ -115,6 +112,25 @@ export const communicationColumns: CommunicationColumn[] = [
   },
   textColumn("agent", "Agent", (entry) => communicationAgent(entry.event), 120),
   textColumn("event", "Event", (entry) => entry.event.kind, 80),
+  textColumn("to", "To", recipients, 110),
+  textColumn("content", "Content", content, 260, {
+    minSize: 120,
+    flex: 1,
+    cell: ({ getValue }) => (
+      <div
+        className={clsx(multiline && ["three-line-clamp", styles.contentLines])}
+      >
+        <ContentText text={preview(getValue<string | undefined>() ?? "")} />
+      </div>
+    ),
+  }),
+  textColumn("status", "Status", status, 150, {
+    cell: ({ getValue, row }) => (
+      <div className={clsx(isRefused(row.original) && viewStyles.refused)}>
+        <ContentText text={getValue<string | undefined>() ?? ""} />
+      </div>
+    ),
+  }),
   textColumn("channel", "Channel", (entry) => names(entryChannels(entry)), 120),
   textColumn(
     "kind",
@@ -123,23 +139,18 @@ export const communicationColumns: CommunicationColumn[] = [
     80
   ),
   textColumn("id", "Id", recordId, 70),
-  textColumn("to", "To", recipients, 110),
   textColumn("replyTo", "Reply to", replyTo, 110),
   textColumn("delivered", "Delivered to", deliveredTo, 110),
-  textColumn("status", "Status", status, 150, {
-    cell: ({ getValue, row }) => (
-      <div className={clsx(isRefused(row.original) && styles.refused)}>
-        <ContentText text={getValue<string | undefined>() ?? ""} />
-      </div>
-    ),
-  }),
-  textColumn("content", "Content", content, 260, {
-    minSize: 120,
-    flex: 1,
-    cell: ({ getValue }) => (
-      <div>
-        <ContentText text={preview(getValue<string | undefined>() ?? "")} />
-      </div>
-    ),
-  }),
 ];
+
+const singleLineColumns = columns(false);
+const multilineColumns = columns(true);
+
+/**
+ * The Communication grid's columns, one per attribute a row can have. Every
+ * value is log text, so cells render through the content trust policy. In
+ * multiline rows, Content shows up to three lines of the message.
+ */
+export const communicationColumns = (
+  multiline: boolean
+): CommunicationColumn[] => (multiline ? multilineColumns : singleLineColumns);
