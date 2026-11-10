@@ -6,6 +6,7 @@
  * only").
  */
 import type { ChatMessage } from "@tsmono/inspect-common";
+import { jsonParse } from "@tsmono/util";
 
 import {
   ChunkByteStore,
@@ -65,8 +66,8 @@ const readJson = async <T>(
     `fetch ${name} — ${(bytes.byteLength / 1024).toFixed(1)}KB in ` +
       `${(performance.now() - startedAt).toFixed(0)}ms (sidecar, uncached)`
   );
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- chunk-file boundary: sidecar payloads are this app's own writes, and T is the caller's claim about what it stored
-  return JSON.parse(decoder.decode(bytes)) as T;
+  // jsonParse: the shell and metadata can hold NaN/Infinity constants
+  return jsonParse<T>(decoder.decode(bytes));
 };
 
 /**
