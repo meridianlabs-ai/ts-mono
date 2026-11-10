@@ -1,9 +1,6 @@
 import clsx from "clsx";
 
-import {
-  communicationAgent,
-  communicationLine,
-} from "@tsmono/inspect-components/transcript";
+import { communicationAgent } from "@tsmono/inspect-components/transcript";
 import { fmtClock } from "@tsmono/inspect-components/usage";
 import { ContentText } from "@tsmono/react/components";
 
@@ -50,21 +47,25 @@ const replyTo = (entry: CommunicationEntry): string => {
   return entry.replyTo ? `${id} from ${entry.replyTo.event.agent}` : id;
 };
 
+// Producer words such as a wait's "all_waiting" read as "All waiting", like
+// the viewer's own labels; a refusal's reason stays in the row's detail.
+const label = (word: string): string => {
+  const words = word.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 const status = (entry: CommunicationEntry): string => {
   if (entry.type === "send") {
     const rejected = entry.send.rejected;
-    if (rejected) return `Refused (${rejected.control}): ${rejected.reason}`;
+    if (rejected) return `Refused (${rejected.control})`;
     return entry.deliveries.length > 0 ? "Delivered" : "Sent";
   }
-  return entry.event.wait?.outcome ?? "";
+  return label(entry.event.wait?.outcome ?? "");
 };
 
+// Only what a member wrote; the detail below shows the rest of a row.
 const content = (entry: CommunicationEntry): string =>
-  entry.type === "send"
-    ? (entry.send.record.content ?? "")
-    : communicationLine(entry.event)
-        .map((part) => part.text)
-        .join("");
+  entry.type === "send" ? (entry.send.record.content ?? "") : "";
 
 const isRefused = (entry: CommunicationEntry): boolean =>
   entry.type === "send" && !!entry.send.rejected;

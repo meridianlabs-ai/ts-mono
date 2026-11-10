@@ -46,7 +46,7 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
   await expect(
     grid.getByRole("row").filter({ hasText: "create" })
   ).toContainText("bob");
-  const refused = grid.getByRole("row").filter({ hasText: "Refused (rate):" });
+  const refused = grid.getByRole("row").filter({ hasText: "Refused (rate)" });
   await expect(refused).toBeVisible();
 
   // Find searches whole messages, past a row's preview, and shows the match

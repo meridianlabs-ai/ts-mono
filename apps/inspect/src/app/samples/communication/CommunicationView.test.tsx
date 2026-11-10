@@ -131,7 +131,7 @@ describe("CommunicationView", () => {
   it("shows a refusal with its control and reason, and no delivery", () => {
     renderView();
     expect(rowWith("Id", "m-2")).toMatchObject({
-      Status: "Refused (rate): rate limit: retry in 3600 s",
+      Status: "Refused (rate)",
       "Delivered to": "",
     });
     select("m-2");
@@ -144,21 +144,37 @@ describe("CommunicationView", () => {
     expect(refused.textContent).toContain("(to all)");
   });
 
-  it("shows reads and waits as rows of their own", () => {
-    renderView();
+  it("shows every status as a capitalized label", () => {
+    renderView([
+      ...swarmCommunication(),
+      swarmSent("s", 9, { id: "m-9", sender: "bob" }),
+      swarmWaited("w", 10, "bob", 1, "all_waiting"),
+    ]);
+    expect(rowWith("Id", "m-1").Status).toBe("Delivered");
+    expect(rowWith("Id", "m-2").Status).toBe("Refused (rate)");
+    expect(rowWith("Id", "m-9").Status).toBe("Sent");
     expect(
-      rowWith("Content", "waited 0.5s on messages, shared_memory: news")
-    ).toMatchObject({
-      Agent: "bob",
-      Event: "waited",
-      Channel: "messages, shared_memory",
-      Status: "news",
-    });
-    expect(rowWith("Content", "← messages: read m-1")).toMatchObject({
-      Agent: "bob",
-      Event: "read",
-      Id: "m-1",
-    });
+      rows()
+        .filter((row) => row.Event === "waited")
+        .map((row) => row.Status)
+    ).toEqual(["News", "News", "All waiting"]);
+  });
+
+  it("shows only member content in rows, and a read or wait in full below", () => {
+    renderView();
+    const others = rows().filter((row) => row.Event !== "sent");
+    expect(others.map((row) => row.Event)).toEqual([
+      "waited",
+      "read",
+      "waited",
+      "read",
+    ]);
+    expect(others.every((row) => row.Content === "")).toBe(true);
+    const index = rows().findIndex((row) => row.Event === "waited");
+    fireEvent.click(within(grid()).getAllByRole("row")[index + 1] ?? grid());
+    expect(selected().textContent).toContain(
+      "waited 0.5s on messages, shared_memory: news"
+    );
   });
 
   it("marks a subagent's send", () => {
@@ -291,8 +307,8 @@ describe("CommunicationView", () => {
       })
     );
     renderView(normalizeEvents(raw));
-    expect(rows().map((row) => row.Content)).toEqual(
-      Array.from({ length: 4 }, () => "→ messages: sent")
+    expect(rows().map((row) => [row.Event, row.Content])).toEqual(
+      Array.from({ length: 4 }, () => ["sent", ""])
     );
   });
 });
