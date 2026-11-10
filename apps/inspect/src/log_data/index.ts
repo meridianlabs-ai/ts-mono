@@ -143,6 +143,10 @@ export {
   type ViewRow,
 } from "./chunked";
 export { resolvedEventsReader } from "./chunkedAttachments";
+export {
+  chunkedHasCommunication,
+  useChunkedCommunicationEvents,
+} from "./chunkedCommunication";
 export { kDefaultMessageRowOptions } from "./messageRows";
 export { useMessagesExport } from "./messagesExport";
 export { messagesFromEvents } from "./messagesFromEvents";

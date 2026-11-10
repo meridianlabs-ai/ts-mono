@@ -163,3 +163,41 @@ test("the Multiline view option shows three lines of each message", async ({
   await expect.poll(lines).toBe(3);
   expect(await height()).toBeGreaterThan(singleHeight);
 });
+
+test("a chunked swarm sample read in windows has its Communication tab", async ({
+  page,
+  network,
+}) => {
+  // fixtures/communication/generate_chunked_log.py: swarm.eval converted to
+  // chunked samples without timelines, so the viewer reads it in windows.
+  serveEvalFiles(network, [
+    {
+      ...fixture,
+      path: new URL(
+        "./fixtures/communication/swarm-chunked.eval",
+        import.meta.url
+      ),
+    },
+  ]);
+  await page.goto(sampleUrl("swarm", "communication"));
+
+  await expect(
+    page.getByRole("tab", { name: "Communication" })
+  ).toHaveAttribute("aria-selected", "true");
+  const grid = page.getByRole("grid", { name: "Communication" });
+  // The long message is an attachment, read with the communication.
+  await expect(
+    grid.getByRole("row").filter({ hasText: "please check a.md" })
+  ).toBeVisible();
+  await expect(
+    grid.getByRole("row").filter({ hasText: "Refused (rate)" })
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Previous sample" }).click();
+  await expect(page).toHaveURL(/\/samples\/sample\/plain\/1\/communication$/);
+  await expect(page.getByRole("tab", { name: "Transcript" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await expect(page.getByRole("tab", { name: "Communication" })).toHaveCount(0);
+});

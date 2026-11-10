@@ -92,6 +92,7 @@ import {
   sampleTabAlias,
 } from "../../constants";
 import {
+  chunkedHasCommunication,
   kDefaultMessageRowOptions,
   messagesFromEvents,
   useMessagesExport,
@@ -118,6 +119,7 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
+import { ChunkedCommunicationView } from "./communication/ChunkedCommunicationView";
 import { hasCommunicationEvents } from "./communication/communicationEntries";
 import { CommunicationView } from "./communication/CommunicationView";
 import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
@@ -269,9 +271,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const routedTab = sampleTabId || selectedTab;
   // Only samples whose agents communicated (inspect_swarm's swarms) get the
-  // Communication tab; chunked samples' shell events hide it too. A link to
-  // it on another sample shows the Transcript, with the Transcript's controls.
-  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
+  // Communication tab; a chunked sample read in windows has only shell events,
+  // so its chunk stats tell. A link to it on another sample shows the
+  // Transcript, with the Transcript's controls.
+  const hasCommunicationTab = sampleData.chunked
+    ? chunkedHasCommunication(sampleData.chunked)
+    : hasCommunicationEvents(sampleEvents);
   const aliasedTab = routedTab ? sampleTabAlias(routedTab) : routedTab;
   const effectiveSelectedTab =
     aliasedTab === kSampleCommunicationTabId && !hasCommunicationTab
@@ -1191,12 +1196,22 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 href={sampleTabHref(kSampleCommunicationTabId)}
                 selected={effectiveSelectedTab === kSampleCommunicationTabId}
               >
-                <CommunicationView
-                  key={visitId}
-                  events={sampleEvents}
-                  multiline={communicationMultiline}
-                  onShown={hideFind}
-                />
+                {sampleData.chunked ? (
+                  <ChunkedCommunicationView
+                    key={visitId}
+                    handle={sampleHandle}
+                    chunked={sampleData.chunked}
+                    multiline={communicationMultiline}
+                    onShown={hideFind}
+                  />
+                ) : (
+                  <CommunicationView
+                    key={visitId}
+                    events={sampleEvents}
+                    multiline={communicationMultiline}
+                    onShown={hideFind}
+                  />
+                )}
               </TabPanel>
             ) : null}
             {terminalSample ? (
