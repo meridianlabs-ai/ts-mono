@@ -10,7 +10,12 @@ import { ContentText } from "@tsmono/react/components";
 import type { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { comparators } from "../../shared/gridComparators";
 
-import { entryChannels, type CommunicationEntry } from "./communicationEntries";
+import {
+  deliveryNotify,
+  entryChannels,
+  entryDeliveries,
+  type CommunicationEntry,
+} from "./communicationEntries";
 import styles from "./CommunicationView.module.css";
 
 type CommunicationColumn = ExtendedColumnDef<CommunicationEntry>;
@@ -24,18 +29,15 @@ const preview = (text: string): string =>
 
 const names = (values: readonly string[]): string => values.join(", ");
 
+// Whom the row's delivery was news to; the To column keeps the addressees.
 const deliveredTo = (entry: CommunicationEntry): string =>
-  entry.type === "send"
-    ? entry.deliveries
-        .map((delivery) => {
-          const seq = delivery.delivery?.seq;
-          const to = names(delivery.delivery?.recipients ?? []);
-          return seq !== null && seq !== undefined
-            ? `${to} (#${seq})`.trim()
-            : to;
-        })
-        .join("; ")
-    : "";
+  names([...new Set(entryDeliveries(entry).flatMap(deliveryNotify))]);
+
+// The delivery's place in the swarm's delivery order, across all channels.
+const deliveryOrder = (entry: CommunicationEntry): number | undefined =>
+  entryDeliveries(entry)
+    .map((delivery) => delivery.delivery?.seq)
+    .find((seq) => seq !== null && seq !== undefined) ?? undefined;
 
 const recordId = (entry: CommunicationEntry): string =>
   entry.type === "send" && entry.send.record.id
@@ -127,6 +129,19 @@ export const communicationColumns: CommunicationColumn[] = [
   textColumn("to", "To", recipients, 110),
   textColumn("replyTo", "Reply to", replyTo, 110),
   textColumn("delivered", "Delivered to", deliveredTo, 110),
+  {
+    id: "order",
+    header: "Order",
+    size: 70,
+    minSize: 50,
+    accessorFn: deliveryOrder,
+    cell: ({ getValue }) => <div>{getValue<number | undefined>()}</div>,
+    meta: {
+      filterable: true,
+      filterType: "number",
+      sortComparator: comparators.number,
+    },
+  },
   textColumn("status", "Status", status, 150, {
     cell: ({ getValue, row }) => (
       <div className={clsx(isRefused(row.original) && styles.refused)}>

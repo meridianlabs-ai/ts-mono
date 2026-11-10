@@ -12,7 +12,11 @@ import { ContentText } from "@tsmono/react/components";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 
 import { communicationColumns } from "./communicationColumns";
-import { communicationEntries, type SendEntry } from "./communicationEntries";
+import {
+  communicationEntries,
+  deliveryNotify,
+  type SendEntry,
+} from "./communicationEntries";
 import styles from "./CommunicationView.module.css";
 
 interface CommunicationViewProps {
@@ -54,6 +58,7 @@ export const CommunicationView: FC<CommunicationViewProps> = ({ events }) => {
           onRowOpen={select}
           ariaLabel="Communication"
           autoFocus={false}
+          findable
         />
       </div>
       <section aria-label="Selected row">
@@ -159,11 +164,27 @@ const SendRow: FC<{ entry: SendEntry }> = ({ entry }) => {
               />
             </>
           ) : null}
+          <Notified delivery={delivery} />
           {" · "}
           <Time event={delivery} />
         </div>
       ))}
     </article>
+  );
+};
+
+// A shared-memory write is addressed to no one but is news to members that
+// had not seen it; a message's notified members are its recipients.
+const Notified: FC<{ delivery: CommunicationEvent }> = ({ delivery }) => {
+  const notify = deliveryNotify(delivery).join(", ");
+  if (!notify || notify === delivery.delivery?.recipients.join(", ")) {
+    return null;
+  }
+  return (
+    <>
+      {" · notified "}
+      <ContentText text={notify} />
+    </>
   );
 };
 

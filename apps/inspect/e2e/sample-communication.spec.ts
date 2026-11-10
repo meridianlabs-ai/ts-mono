@@ -1,8 +1,9 @@
 /**
  * Sample Communication tab e2e tests: the tab's visibility and routing on a
- * real swarm log, read through the zip with its attachments resolved. The
- * rows, the send/delivery join, sorting and filtering are unit-tested
- * alongside CommunicationView.
+ * real swarm log, read through the zip with its attachments resolved, and
+ * which find band Ctrl/Cmd+F opens. The rows, the send/delivery join,
+ * sorting, filtering and find matching are unit-tested alongside
+ * CommunicationView.
  */
 
 import { expect, test } from "./fixtures/app";
@@ -32,7 +33,10 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
   const grid = page.getByRole("grid", { name: "Communication" });
   // The long message is a log attachment; its row previews the text.
   const first = grid.getByRole("row").filter({ hasText: "please check a.md" });
-  await expect(first).toContainText("bob (#1)");
+  // The write is addressed to no one; it was news to bob.
+  await expect(
+    grid.getByRole("row").filter({ hasText: "create" })
+  ).toContainText("bob");
   await expect(
     grid.getByText("Refused (rate):", { exact: false })
   ).toBeVisible();
@@ -44,6 +48,16 @@ test("a swarm sample's Communication tab deep-links to its messages", async ({
       .getByRole("region", { name: "Selected row" })
       .getByRole("article", { name: "message from alice", exact: true })
   ).toContainText("Delivered (#1) to bob");
+
+  // Find opens the grid's band, not the sample's, and selects the match.
+  await page.keyboard.press("ControlOrMeta+f");
+  await page.getByPlaceholder("Find").fill("plan written");
+  await expect(page.getByPlaceholder("Find")).toHaveCount(1);
+  await expect(
+    page
+      .getByRole("region", { name: "Selected row" })
+      .getByRole("article", { name: "Refused message from alice" })
+  ).toBeVisible();
 
   await page.reload();
   await expect(

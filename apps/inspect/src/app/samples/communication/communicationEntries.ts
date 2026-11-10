@@ -125,3 +125,23 @@ export const entryChannels = (entry: CommunicationEntry): string[] => {
   }
   return event.wait?.channels ?? [];
 };
+
+/** A row's deliveries: a send's joined ones, or a delivery row itself. */
+export const entryDeliveries = (
+  entry: CommunicationEntry
+): CommunicationEvent[] => {
+  if (entry.type === "send") return entry.deliveries;
+  return entry.event.kind === "delivered" ? [entry.event] : [];
+};
+
+/**
+ * The members a delivery was news to when it was committed (inspect_swarm's
+ * `notify`): a message's recipients, or for a shared-memory write the
+ * members that had not seen the written files' current versions.
+ */
+export const deliveryNotify = (delivery: CommunicationEvent): string[] => {
+  const notify = delivery.data["notify"];
+  return Array.isArray(notify)
+    ? notify.filter((name): name is string => typeof name === "string")
+    : [];
+};

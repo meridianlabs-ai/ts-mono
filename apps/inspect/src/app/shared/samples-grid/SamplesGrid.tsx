@@ -4,11 +4,13 @@ import type {
   SortingState,
 } from "@tanstack/react-table";
 import {
+  KeyboardEvent,
   ReactElement,
   RefObject,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -18,6 +20,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 
 import type { ValueComparator } from "../../log-list/listing/types";
 import {
@@ -26,6 +29,7 @@ import {
 } from "../../log-list/listing/useLogsListingQuery";
 import { ExtendedColumnDef } from "../data-grid/columnTypes";
 import { DataGrid } from "../data-grid/DataGrid";
+import { buildSearchIndex, findMatches } from "../data-grid/findMatches";
 
 const kListModeRowHeight = 70;
 const kGridModeRowHeight = 30;
@@ -105,6 +109,13 @@ interface SamplesGridProps<TRow extends RowData> {
   ariaLabel?: string;
   /** Focus the grid on mount (see DataGrid's `autoFocus`). */
   autoFocus?: boolean;
+  /**
+   * Ctrl/Cmd+F opens a find band over the grid, ahead of any page-level
+   * find: it searches the displayed rows' column values (not just what the
+   * cells show) and moves the selection through the matches through
+   * `onRowSelect`, hiding no rows. Render the grid in a positioned box.
+   */
+  findable?: boolean;
 }
 
 /**
@@ -140,6 +151,7 @@ export const SamplesGrid = <TRow extends RowData>({
   onDisplayedRowsChange,
   ariaLabel = "Samples",
   autoFocus = true,
+  findable = false,
 }: SamplesGridProps<TRow>): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
@@ -242,29 +254,102 @@ export const SamplesGrid = <TRow extends RowData>({
     [onColumnFilterChange]
   );
 
+  // Find, as the log list's grid does it, over this grid's displayed rows.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findTerm, setFindTerm] = useState("");
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const searchColumns = columnDefs.filter(
+    (col) => col.id === undefined || columnVisibility?.[col.id] !== false
+  );
+  const matchesOf = (term: string) =>
+    findMatches(buildSearchIndex(items, searchColumns, getRowId), term);
+  const matchIds = findOpen ? matchesOf(findTerm) : [];
+  const activeMatch =
+    selectedRowId === undefined ? -1 : matchIds.indexOf(selectedRowId);
+
+  const selectMatch = (ids: string[], index: number) => {
+    const id = ids[index];
+    const row = items.find((item) => getRowId(item) === id);
+    if (row) onRowSelect?.(row);
+  };
+  const stepMatch = (back: boolean) => {
+    const count = matchIds.length;
+    if (count === 0) return;
+    const next =
+      activeMatch < 0 ? (back ? count - 1 : 0) : activeMatch + (back ? -1 : 1);
+    selectMatch(matchIds, (next + count) % count);
+  };
+  const handleFindTermChange = () => {
+    const term = findInputRef.current?.value ?? "";
+    setFindTerm(term);
+    selectMatch(matchesOf(term), 0);
+  };
+  const closeFind = () => {
+    setFindOpen(false);
+    setFindTerm("");
+  };
+  const openFind = () => {
+    setFindOpen(true);
+    setTimeout(() => {
+      findInputRef.current?.focus();
+      findInputRef.current?.select();
+    });
+  };
+  const handleFindKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      closeFind();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      stepMatch(e.shiftKey);
+    }
+  };
+  useFindBandShortcut(openFind, {
+    onClose: closeFind,
+    isOpen: findOpen,
+    enabled: findable,
+    preempt: true,
+  });
+
   return (
-    <DataGrid<TRow>
-      data={items}
-      columns={columnDefs}
-      getRowId={getRowId}
-      columnVisibility={columnVisibility}
-      sorting={sorting}
-      onSortingChange={handleSortingChange}
-      columnFilters={effectiveFilters}
-      onColumnFilterChange={handleColumnFilterChange}
-      hideColumnFilters={hideColumnFilters}
-      columnSizing={columnSizing}
-      onColumnSizingChange={handleColumnSizingChange}
-      selectedRowId={selectedRowId}
-      onSelectedRowChange={onRowSelect}
-      scrollRef={scrollRef}
-      onRowActivate={onRowOpen}
-      getRowHref={getRowHref}
-      rowHeight={rowHeight}
-      multiline={multiline}
-      loading={loading}
-      autoFocus={autoFocus}
-      ariaLabel={ariaLabel}
-    />
+    <>
+      {findOpen ? (
+        <FindBandUI
+          inputRef={findInputRef}
+          value={findTerm}
+          onChange={handleFindTermChange}
+          onKeyDown={handleFindKeyDown}
+          onClose={closeFind}
+          onPrevious={() => stepMatch(true)}
+          onNext={() => stepMatch(false)}
+          disableNav={matchIds.length === 0}
+          noResults={!!findTerm && matchIds.length === 0}
+          matchCount={findTerm ? matchIds.length : undefined}
+          matchIndex={findTerm && activeMatch >= 0 ? activeMatch : undefined}
+        />
+      ) : null}
+      <DataGrid<TRow>
+        data={items}
+        columns={columnDefs}
+        getRowId={getRowId}
+        columnVisibility={columnVisibility}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
+        columnFilters={effectiveFilters}
+        onColumnFilterChange={handleColumnFilterChange}
+        hideColumnFilters={hideColumnFilters}
+        columnSizing={columnSizing}
+        onColumnSizingChange={handleColumnSizingChange}
+        selectedRowId={selectedRowId}
+        onSelectedRowChange={onRowSelect}
+        scrollRef={scrollRef}
+        onRowActivate={onRowOpen}
+        getRowHref={getRowHref}
+        rowHeight={rowHeight}
+        multiline={multiline}
+        loading={loading}
+        autoFocus={autoFocus}
+        ariaLabel={ariaLabel}
+      />
+    </>
   );
 };

@@ -57,7 +57,8 @@ export const swarmDelivered = (
   recordId: string,
   recipients: string[],
   seq: number,
-  channel = "messages"
+  channel = "messages",
+  notify = recipients
 ): CommunicationEvent =>
   swarmEvent(uuid, second, {
     kind: "delivered",
@@ -65,7 +66,7 @@ export const swarmDelivered = (
     channel,
     record_ids: [recordId],
     delivery: { recipients, seq },
-    data: { version: 1, notify: recipients, result: null },
+    data: { version: 1, notify, result: null },
   });
 
 export const swarmRead = (
@@ -132,7 +133,8 @@ export const swarmCommunication = (): CommunicationEvent[] => [
     },
     "shared_memory"
   ),
-  swarmDelivered("e5", 3, "alice", "w-1", [], 2, "shared_memory"),
+  // A write is addressed to no one; it is news to bob, who has not seen it.
+  swarmDelivered("e5", 3, "alice", "w-1", [], 2, "shared_memory", ["bob"]),
   swarmRead("e6", 4, "bob", "messages", ["m-1"]),
   swarmSent(
     "e7",

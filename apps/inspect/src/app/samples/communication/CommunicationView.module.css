@@ -7,6 +7,7 @@
 }
 
 .grid {
+  position: relative;
   border: 1px solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
   overflow: hidden;

@@ -4,6 +4,7 @@ import { testInfoEvent } from "@tsmono/inspect-common/testing";
 
 import {
   communicationEntries,
+  deliveryNotify,
   hasCommunicationEvents,
   type CommunicationEntry,
 } from "./communicationEntries";
@@ -23,6 +24,17 @@ describe("hasCommunicationEvents", () => {
     expect(
       hasCommunicationEvents([testInfoEvent(), ...swarmCommunication()])
     ).toBe(true);
+  });
+});
+
+describe("deliveryNotify", () => {
+  it.each([
+    [{ notify: ["bob", 3, null, "carol"] }, ["bob", "carol"]],
+    [{}, []],
+    [{ notify: "bob" }, []],
+  ])("reads %j as %j", (data, names) => {
+    const delivery = swarmDelivered("d", 1, "alice", "m-1", [], 1);
+    expect(deliveryNotify({ ...delivery, data })).toEqual(names);
   });
 });
 

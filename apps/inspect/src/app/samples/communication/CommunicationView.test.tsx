@@ -14,7 +14,12 @@ import { untrustedText } from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import { CommunicationView } from "./CommunicationView";
-import { kLongMessage, swarmCommunication, swarmSent } from "./swarmFixture";
+import {
+  kLongMessage,
+  swarmCommunication,
+  swarmDelivered,
+  swarmSent,
+} from "./swarmFixture";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
@@ -79,9 +84,21 @@ describe("CommunicationView", () => {
       Channel: "messages",
       Kind: "message",
       To: "bob",
-      "Delivered to": "bob (#1)",
+      "Delivered to": "bob",
+      Order: "1",
       Status: "Delivered",
     });
+  });
+
+  it("shows whom a shared-memory write was news to", () => {
+    renderView();
+    expect(rowWith("Id", "w-1")).toMatchObject({
+      To: "",
+      "Delivered to": "bob",
+      Order: "2",
+    });
+    select("w-1");
+    expect(selected().textContent).toContain("Delivered (#2) · notified bob");
   });
 
   it("shows the selected row in full", () => {
@@ -165,6 +182,38 @@ describe("CommunicationView", () => {
       "bob",
       "bob",
     ]);
+  });
+
+  it("sorts by delivery order as numbers", () => {
+    renderView([
+      swarmSent("s1", 1, { id: "m-1", sender: "alice" }),
+      swarmDelivered("d1", 1, "alice", "m-1", ["bob"], 10),
+      swarmSent("s2", 2, { id: "m-2", sender: "alice" }),
+      swarmDelivered("d2", 2, "alice", "m-2", ["bob"], 9),
+      swarmSent("s3", 3, { id: "m-3", sender: "alice" }),
+    ]);
+    fireEvent.click(within(grid()).getByText("Order"));
+    expect(rows().map((row) => row.Order)).toEqual(["9", "10", ""]);
+  });
+
+  it("finds text beyond a row's preview and selects the match", async () => {
+    renderView([
+      ...swarmCommunication(),
+      swarmSent("s", 9, {
+        id: "m-9",
+        sender: "bob",
+        content: `${"x".repeat(400)} needle`,
+      }),
+    ]);
+    fireEvent.keyDown(document.body, { key: "f", ctrlKey: true });
+    fireEvent.change(await screen.findByPlaceholderText("Find"), {
+      target: { value: "NEEDLE" },
+    });
+    expect(screen.getByTestId("find-band-match-count").textContent).toBe(
+      "1 of 1"
+    );
+    expect(rows()).toHaveLength(9);
+    expect(within(selected()).getByText(/needle$/)).toBeDefined();
   });
 
   it("filters by a column", async () => {
