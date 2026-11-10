@@ -1666,6 +1666,8 @@ export interface components {
             status: "started" | "success" | "cancelled" | "error";
             /** Tags */
             tags: string[];
+            /** Total Samples */
+            total_samples?: number | null;
             /**
              * Version
              * @default 2
