@@ -4425,6 +4425,8 @@ export interface components {
             message_count?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -4494,6 +4496,8 @@ export interface components {
             limit?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
