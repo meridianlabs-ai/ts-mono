@@ -1330,7 +1330,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -4383,6 +4383,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
