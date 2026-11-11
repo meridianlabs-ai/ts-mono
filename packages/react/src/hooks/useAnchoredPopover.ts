@@ -1,4 +1,4 @@
-import { RefCallback, useCallback, useState } from "react";
+import { Ref, RefCallback, useCallback, useState } from "react";
 
 /**
  * Shows a popover element in the top layer, anchored to `anchor` through the
@@ -17,22 +17,28 @@ import { RefCallback, useCallback, useState } from "react";
  * `anchor-name` list, so two popovers can share one anchor. On teardown,
  * focus inside the popover returns to the trigger: removing a popover from
  * the DOM would otherwise drop focus to `<body>`.
+ *
+ * `forwardRef` also receives the popover element. Pass a stable ref (a
+ * `useRef` object or a state setter): a new identity re-shows the popover.
  */
 export function useAnchoredPopover(
   anchor: HTMLElement,
   trigger: HTMLElement,
-  anchorName: string
-): { ref: RefCallback<HTMLElement>; shown: boolean } {
+  anchorName: string,
+  forwardRef?: Ref<HTMLDivElement>
+): { ref: RefCallback<HTMLDivElement>; shown: boolean } {
   const [shown, setShown] = useState(false);
   // useCallback for identity, not speed: React re-runs a ref callback (hiding
   // and re-showing the popover) whenever its identity changes.
   const ref = useCallback(
-    (popover: HTMLElement | null) => {
+    (popover: HTMLDivElement | null) => {
       if (!popover) return;
       const removeAnchorName = addAnchorName(anchor, anchorName);
       popover.showPopover({ source: trigger });
+      setRef(forwardRef, popover);
       setShown(true);
       return () => {
+        setRef(forwardRef, null);
         const hadFocus = popover.contains(document.activeElement);
         // A no-op when the browser has already hidden it (light dismiss).
         popover.hidePopover();
@@ -40,10 +46,15 @@ export function useAnchoredPopover(
         if (hadFocus) trigger.focus({ preventScroll: true });
       };
     },
-    [anchor, trigger, anchorName]
+    [anchor, trigger, anchorName, forwardRef]
   );
   return { ref, shown };
 }
+
+const setRef = <T>(ref: Ref<T> | undefined, value: T | null) => {
+  if (typeof ref === "function") ref(value);
+  else if (ref) ref.current = value;
+};
 
 const addAnchorName = (el: HTMLElement, name: string): (() => void) => {
   const names = (value: string) =>

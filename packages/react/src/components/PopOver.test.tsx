@@ -33,6 +33,12 @@ const advance = (ms: number) => {
   });
 };
 const card = () => screen.queryByText("Card body");
+// A browser fires mouseenter/mouseleave on the popover element itself.
+const cardPopover = () => {
+  const popover = screen.getByText("Card body").closest("[popover]");
+  if (!popover) throw new Error("no popover");
+  return popover;
+};
 
 describe("PopOver hover card", () => {
   beforeEach(() => vi.useFakeTimers());
@@ -57,11 +63,11 @@ describe("PopOver hover card", () => {
     advance(200);
     fireEvent.mouseLeave(chip);
     advance(100);
-    fireEvent.mouseEnter(screen.getByText("Card body"));
+    fireEvent.mouseEnter(cardPopover());
     advance(1000);
     expect(card()).not.toBeNull();
 
-    fireEvent.mouseLeave(screen.getByText("Card body"));
+    fireEvent.mouseLeave(cardPopover());
     expect(card()).toBeNull();
 
     fireEvent.mouseEnter(chip);

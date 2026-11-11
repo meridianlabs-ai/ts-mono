@@ -3,6 +3,7 @@ import {
   CSSProperties,
   FC,
   HTMLAttributes,
+  Ref,
   ToggleEvent,
   useId,
   useRef,
@@ -87,6 +88,8 @@ export interface AnchoredPopoverProps extends Omit<
   offset?: number;
   /** Draws an arrow from the popover toward the anchor. */
   arrow?: boolean;
+  /** Receives the popover element while it's open. Must keep its identity. */
+  ref?: Ref<HTMLDivElement>;
 }
 
 /**
@@ -125,6 +128,7 @@ const OpenPopover: FC<
   placement = "bottom",
   offset = 8,
   arrow = false,
+  ref: forwardRef,
   className,
   style,
   children,
@@ -134,7 +138,12 @@ const OpenPopover: FC<
   const uid = useId().replace(/[^\w-]/g, "");
   const anchorName = `--popover-anchor-${uid}`;
   const selfName = `--popover-${uid}`;
-  const { ref, shown } = useAnchoredPopover(anchor, trigger, anchorName);
+  const { ref, shown } = useAnchoredPopover(
+    anchor,
+    trigger,
+    anchorName,
+    forwardRef
+  );
 
   const side = sideOf(placement);
 

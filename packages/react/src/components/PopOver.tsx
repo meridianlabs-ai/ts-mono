@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CSSProperties, FC, ReactNode, useRef, useState } from "react";
+import { CSSProperties, FC, ReactNode, useState } from "react";
 
 import { useEventListener } from "../hooks/useEventListener";
 import { usePointerRest } from "../hooks/usePointerRest";
@@ -68,7 +68,7 @@ export const PopOver: FC<PopOverProps> = ({
   const hover = hoverDelay > 0;
   const [hoverShown, setHoverShown] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const pressInside = useRef(false);
+  const [popover, setPopover] = useState<HTMLDivElement | null>(null);
 
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (prevIsOpen !== isOpen) {
@@ -93,15 +93,20 @@ export const PopOver: FC<PopOverProps> = ({
   useEventListener(hoverTarget, "mouseenter", () => setLeaving(false));
   useTimeout(close, leaving ? HOVER_LEAVE_GRACE_MS : null);
 
+  // Native listeners rather than React's onMouseEnter/onMouseLeave: React
+  // derives those from mouseout/mouseover pairs, and when the pointer jumps
+  // from the trigger into the popover Safari can report them so that React
+  // dispatches no enter, letting the leave grace period close the card.
+  useEventListener(popover, "mouseenter", () => setLeaving(false));
+  useEventListener(popover, "mouseleave", () => {
+    if (closeOnMouseLeave) close();
+  });
+
   // Hover cards are `manual` popovers, so they don't close an open menu, and
-  // need their own outside-press dismissal. React dispatches from its root
-  // before this document listener runs, so the popover's capture handler has
-  // already flagged presses inside it (including popovers nested in it).
-  useEventListener(hover && hoverShown ? document : null, "mousedown", () => {
-    if (pressInside.current) {
-      pressInside.current = false;
-      return;
-    }
+  // need their own outside-press dismissal. Popovers nested in this one
+  // render inside it, so presses in them count as inside.
+  useEventListener(hover && hoverShown ? document : null, "mousedown", (e) => {
+    if (e.target instanceof Node && popover?.contains(e.target)) return;
     close();
   });
 
@@ -120,13 +125,7 @@ export const PopOver: FC<PopOverProps> = ({
       id={id}
       className={clsx(className)}
       style={{ ...panelStyle, ...styles }}
-      onMouseEnter={() => setLeaving(false)}
-      onMouseLeave={() => {
-        if (closeOnMouseLeave) close();
-      }}
-      onMouseDownCapture={() => {
-        pressInside.current = true;
-      }}
+      ref={setPopover}
     >
       {children}
     </AnchoredPopover>
