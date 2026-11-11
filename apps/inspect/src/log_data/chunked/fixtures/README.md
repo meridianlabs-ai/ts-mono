@@ -42,4 +42,6 @@ Sources (under the inspect_ai repo's `tests/`):
 - `non-finite.eval` — one `mockllm/model` sample with NaN/Infinity/-Infinity
   dataset metadata and a NaN (unscored) score, so the shell, `metadata.json`
   and events chunks carry the JSON constants `NaN`/`Infinity`. Not from the
-  inspect_ai tests; written by a one-off `eval()` run
+  inspect_ai tests; written by a one-off `eval()` run (a scorer returning
+  `Score(value=float("nan"))` over one `Sample` with that metadata), then
+  converted as above
