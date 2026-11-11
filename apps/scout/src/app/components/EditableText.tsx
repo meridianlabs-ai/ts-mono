@@ -257,7 +257,7 @@ export const EditableText: FC<EditableTextProps> = ({
           placement="bottom-start"
           hoverDelay={0}
           showArrow={false}
-          offset={[0, 4]}
+          offset={4}
           className={clsx(styles.mruPopover, "text-size-smallest")}
         >
           <div className={styles.mruList}>

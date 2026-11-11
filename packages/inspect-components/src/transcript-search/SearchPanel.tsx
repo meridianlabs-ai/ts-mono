@@ -511,7 +511,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
         positionEl={recentButtonRef.current}
         placement="bottom-end"
-        offset={[0, 2]}
+        offset={2}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         showArrow={false}

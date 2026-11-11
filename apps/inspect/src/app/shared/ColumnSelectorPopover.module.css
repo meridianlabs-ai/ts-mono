@@ -19,14 +19,13 @@
 }
 
 .scrollableContainer {
-  /* The popper is positioned below the trigger, so its actual visible room
+  /* The popover is positioned below the trigger, so its actual visible room
      is less than full viewport height. Cap conservatively so the scrollbar
      kicks in before the popover extends past the viewport. */
   max-height: min(70vh, calc(100vh - 10rem));
   overflow-y: auto;
   /* Reserve scrollbar space up-front so switching between view modes doesn't
-     reflow content width when a scrollbar appears/disappears — that reflow
-     would otherwise chain through ResizeObserver → popper.update(). */
+     reflow content width when a scrollbar appears/disappears. */
   scrollbar-gutter: stable;
 }
 

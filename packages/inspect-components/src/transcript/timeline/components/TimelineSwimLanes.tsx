@@ -349,6 +349,9 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
           break;
         }
         case "Escape": {
+          // An open popover in the swimlane (options, timeline picker) owns
+          // this Escape; preventDefault would stop the browser closing it.
+          if (e.currentTarget.querySelector(":popover-open")) break;
           e.preventDefault();
           clearSelection();
           break;
