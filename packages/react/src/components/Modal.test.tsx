@@ -6,7 +6,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Modal } from "./Modal";
@@ -18,37 +17,17 @@ const renderModal = (props: Partial<Parameters<typeof Modal>[0]> = {}) =>
     </Modal>
   );
 
-// Drives `show` from local state so closing the modal actually unmounts it,
-// exercising the focus-restoration cleanup.
-const Harness = ({ children }: { children?: ReactNode }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <>
-      <button data-testid="opener" onClick={() => setShow(true)}>
-        open
-      </button>
-      <Modal show={show} onHide={() => setShow(false)} title="T" id="harness">
-        {children ?? <button>inner</button>}
-      </Modal>
-    </>
-  );
-};
+const cancelEvent = () => new Event("cancel", { cancelable: true });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-describe("Modal accessibility", () => {
-  it("exposes dialog semantics linked to the title", () => {
+describe("Modal", () => {
+  it("is a dialog labelled by its title", () => {
     renderModal();
-    const dialog = screen.getByRole("dialog");
-    expect(dialog.getAttribute("aria-modal")).toBe("true");
-    const labelledby = dialog.getAttribute("aria-labelledby");
-    expect(labelledby).toBe("test-modal-title");
-    expect(document.getElementById(labelledby ?? "")?.textContent).toBe(
-      "My Title"
-    );
+    expect(screen.getByRole("dialog", { name: "My Title" })).toBeDefined();
   });
 
   it("generates unique title ids when no id is provided", () => {
@@ -62,74 +41,79 @@ describe("Modal accessibility", () => {
         </Modal>
       </>
     );
-
-    const [firstDialog, secondDialog] = screen.getAllByRole("dialog");
-    const firstLabelId = firstDialog?.getAttribute("aria-labelledby");
-    const secondLabelId = secondDialog?.getAttribute("aria-labelledby");
-    expect(firstLabelId).toBeTruthy();
-    expect(secondLabelId).toBeTruthy();
-    expect(firstLabelId).not.toBe(secondLabelId);
-    expect(document.getElementById(firstLabelId ?? "")?.textContent).toBe(
-      "First"
-    );
-    expect(document.getElementById(secondLabelId ?? "")?.textContent).toBe(
-      "Second"
-    );
+    expect(screen.getByRole("dialog", { name: "First" })).toBeDefined();
+    expect(screen.getByRole("dialog", { name: "Second" })).toBeDefined();
   });
 
-  it("exposes a named close button with a decorative icon", () => {
-    renderModal();
-    const closeButton = screen.getByRole("button", { name: "Close" });
-    expect(closeButton.getAttribute("type")).toBe("button");
-    expect(closeButton.querySelector("i")?.getAttribute("aria-hidden")).toBe(
-      "true"
-    );
-  });
-
-  it("closes on Escape", () => {
+  it("exposes a named close button that hides it", () => {
     const onHide = vi.fn();
     renderModal({ onHide });
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onHide).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onHide).toHaveBeenCalledOnce();
   });
 
-  it("submits on Enter when onSubmit is provided", () => {
-    const onSubmit = vi.fn();
-    renderModal({ onSubmit });
-    fireEvent.keyDown(document, { key: "Enter" });
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+  it("hides on Escape (the dialog's cancel) instead of closing itself", () => {
+    const onHide = vi.fn();
+    renderModal({ onHide });
+    const event = cancelEvent();
+    screen.getByRole("dialog").dispatchEvent(event);
+    expect(onHide).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
   });
 
-  it("submits on Enter from text inputs", () => {
+  it("reports a close it didn't ask for, not one it has since reopened from", () => {
+    const onHide = vi.fn();
+    renderModal({ onHide });
+    const dialog = screen.getByRole<HTMLDialogElement>("dialog");
+    dialog.dispatchEvent(new Event("close"));
+    expect(onHide).not.toHaveBeenCalled();
+    dialog.close();
+    dialog.dispatchEvent(new Event("close"));
+    expect(onHide).toHaveBeenCalledOnce();
+  });
+
+  it("hides on a click on the backdrop, not inside the dialog", () => {
+    const onHide = vi.fn();
+    renderModal({ onHide });
+    fireEvent.click(screen.getByRole("button", { name: "inner" }));
+    expect(onHide).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("presentation"));
+    expect(onHide).toHaveBeenCalledOnce();
+  });
+
+  it("submits on Enter from text inputs, not from buttons", () => {
     const onSubmit = vi.fn();
     renderModal({
       onSubmit,
       children: <input aria-label="Name" />,
-    });
-    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
-      key: "Enter",
-    });
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not submit on Enter from buttons", () => {
-    const onSubmit = vi.fn();
-    renderModal({
-      onSubmit,
       footer: <button type="button">Cancel</button>,
     });
     fireEvent.keyDown(screen.getByRole("button", { name: "Cancel" }), {
       key: "Enter",
     });
     expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+      key: "Enter",
+    });
+    expect(onSubmit).toHaveBeenCalledOnce();
   });
 
-  it("does not throw on Enter without onSubmit", () => {
-    renderModal();
-    expect(() => fireEvent.keyDown(document, { key: "Enter" })).not.toThrow();
+  it("uses the latest callbacks", () => {
+    const firstHide = vi.fn();
+    const nextHide = vi.fn();
+    const ui = (onHide: () => void) => (
+      <Modal show onHide={onHide} title="T">
+        <span />
+      </Modal>
+    );
+    const { rerender } = render(ui(firstHide));
+    rerender(ui(nextHide));
+    screen.getByRole("dialog").dispatchEvent(cancelEvent());
+    expect(firstHide).not.toHaveBeenCalled();
+    expect(nextHide).toHaveBeenCalledOnce();
   });
 
-  it("focuses the [data-autofocus] element on open", async () => {
+  it("focuses the [data-autofocus] element once open", async () => {
     renderModal({
       children: (
         <>
@@ -145,85 +129,8 @@ describe("Modal accessibility", () => {
     );
   });
 
-  it("focuses the first tabbable element when nothing is marked autofocus", async () => {
-    renderModal({ children: <button>first inner</button> });
-    // The header close button is the first tabbable element.
-    await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getAllByRole("button")[0])
-    );
-  });
-
-  it("restores focus to the previously focused element on close", async () => {
-    render(<Harness />);
-    const opener = screen.getByTestId("opener");
-    // fireEvent.click does not move focus in jsdom, so focus explicitly to
-    // model a user who opened the dialog from this control.
-    opener.focus();
-    fireEvent.click(opener);
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeNull());
-    fireEvent.keyDown(document, { key: "Escape" });
-    await waitFor(() => expect(document.activeElement).toBe(opener));
-  });
-
-  it("traps Tab within the dialog", () => {
-    renderModal({
-      children: (
-        <>
-          <button>inner one</button>
-          <button>inner two</button>
-        </>
-      ),
-    });
-    const dialog = screen.getByRole("dialog");
-    const buttons = Array.from(dialog.querySelectorAll("button"));
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    if (!first || !last) throw new Error("expected tabbable buttons");
-
-    last.focus();
-    fireEvent.keyDown(document, { key: "Tab" });
-    expect(document.activeElement).toBe(first);
-
-    first.focus();
-    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(last);
-  });
-
   it("renders nothing when not shown", () => {
     renderModal({ show: false });
     expect(screen.queryByRole("dialog")).toBeNull();
-  });
-});
-
-describe("Modal keyboard listener lifecycle", () => {
-  it("uses replacement callbacks, ignores hidden dialogs, and cleans up on unmount", () => {
-    const firstHide = vi.fn();
-    const nextHide = vi.fn();
-    const nextSubmit = vi.fn();
-    const ui = (show: boolean, onHide: () => void) => (
-      <Modal
-        show={show}
-        onHide={onHide}
-        onSubmit={nextSubmit}
-        title="Lifecycle"
-      >
-        <input aria-label="Lifecycle input" />
-      </Modal>
-    );
-    const { rerender, unmount } = render(ui(true, firstHide));
-    rerender(ui(true, nextHide));
-    fireEvent.keyDown(document, { key: "Escape" });
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
-    expect(firstHide).not.toHaveBeenCalled();
-    expect(nextHide).toHaveBeenCalledTimes(1);
-    expect(nextSubmit).toHaveBeenCalledTimes(1);
-    rerender(ui(false, nextHide));
-    fireEvent.keyDown(document, { key: "Escape" });
-    fireEvent.keyDown(document, { key: "Enter" });
-    expect(nextHide).toHaveBeenCalledTimes(1);
-    expect(nextSubmit).toHaveBeenCalledTimes(1);
-    unmount();
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(nextHide).toHaveBeenCalledTimes(1);
   });
 });

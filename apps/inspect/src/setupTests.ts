@@ -4,12 +4,13 @@ import "@testing-library/jest-dom/vitest";
 // Setup fake IndexedDB for database tests
 import "fake-indexeddb/auto";
 
-import { installPopoverStub } from "@tsmono/react/testing";
+import { installDialogStub, installPopoverStub } from "@tsmono/react/testing";
 
 global.TextDecoder = TextDecoder;
 global.TextEncoder = TextEncoder;
 
 installPopoverStub();
+installDialogStub();
 
 // Mock build-time constants (injected via vite `define` in production builds).
 (global as Record<string, unknown>).__LOGGING_FILTER__ = "";

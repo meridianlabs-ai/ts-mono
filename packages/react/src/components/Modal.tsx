@@ -1,32 +1,21 @@
 import clsx from "clsx";
-import { FC, ReactNode, useEffect, useId, useRef } from "react";
-import { createPortal } from "react-dom";
+import { FC, ReactNode, useId, useRef } from "react";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { useShowModal } from "../hooks/useShowModal";
 import { Icon } from "../icons";
 
+import { hasOpenPopover } from "./AnchoredPopover";
 import styles from "./Modal.module.css";
-
-const TABBABLE_SELECTOR =
-  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
-const tabbableElements = (container: HTMLElement): HTMLElement[] =>
-  Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
-    (el) => el.getAttribute("aria-hidden") !== "true"
-  );
 
 const TEXT_INPUT_SELECTOR =
   'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),textarea,vscode-textfield';
 
-const shouldSubmitOnEnter = (
-  event: KeyboardEvent,
-  modal: HTMLElement | null
-): boolean => {
-  if (event.defaultPrevented || !modal) return false;
+const shouldSubmitOnEnter = (event: KeyboardEvent, dialog: Element) => {
+  if (event.defaultPrevented) return false;
   const target = event.target;
   if (!(target instanceof Element)) return true;
-  if (!modal.contains(target)) return false;
-  if (target === modal) return true;
+  if (target === dialog) return true;
   return target.matches(TEXT_INPUT_SELECTOR);
 };
 
@@ -57,8 +46,15 @@ interface ModalProps {
   bodyClassName?: string;
 }
 
-export const Modal: FC<ModalProps> = ({
-  show,
+/**
+ * A modal `<dialog>`. The browser makes the rest of the page inert, keeps
+ * focus inside, routes Escape to any popover open inside it first, and
+ * returns focus on close. Every close path reports through `onHide`.
+ */
+export const Modal: FC<ModalProps> = ({ show, ...props }) =>
+  show ? <OpenModal {...props} /> : null;
+
+const OpenModal: FC<Omit<ModalProps, "show">> = ({
   onHide,
   onSubmit,
   title,
@@ -71,93 +67,62 @@ export const Modal: FC<ModalProps> = ({
   padded = true,
   bodyClassName,
 }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
   const fallbackTitleId = useId();
+  const titleId = id ? `${id}-title` : fallbackTitleId;
+  const { ref, dialog } = useShowModal();
+  // Safari closes a popover open inside the dialog on Escape and then also
+  // sends the dialog a cancel for the same keypress.
+  const escapeForPopover = useRef(false);
 
-  // Handle escape, enter, and tab (focus trap) keys.
   useEventListener(
-    typeof document === "undefined" ? null : document,
+    dialog,
     "keydown",
     (e) => {
-      if (!show) return;
-      if (e.key === "Escape") {
-        onHide();
-      } else if (e.key === "Enter" && onSubmit) {
-        if (!shouldSubmitOnEnter(e, modalRef.current)) return;
-        e.preventDefault();
-        onSubmit();
-      } else if (e.key === "Tab" && modalRef.current) {
-        const tabbables = tabbableElements(modalRef.current);
-        const first = tabbables[0];
-        const last = tabbables[tabbables.length - 1];
-        // No tabbables → leave default behavior untouched (no worse than
-        // a page without a trap).
-        if (!first || !last) return;
-        const active = document.activeElement;
-        if (e.shiftKey && active === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    }
+      escapeForPopover.current =
+        e.key === "Escape" && !!dialog && hasOpenPopover(dialog);
+    },
+    { capture: true }
   );
+  useEventListener(dialog, "keydown", (e) => {
+    if (e.key !== "Enter" || !onSubmit || !dialog) return;
+    if (!shouldSubmitOnEnter(e, dialog)) return;
+    e.preventDefault();
+    onSubmit();
+  });
 
-  // Move focus into the dialog on open and restore it to the previously
-  // focused element on close.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!show || !modalRef.current) return;
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    const modal = modalRef.current;
-    // Small delay to ensure web components are ready before focusing.
-    const timer = window.setTimeout(() => {
-      const autofocusEl = modal.querySelector<HTMLElement>(
-        "[autofocus], [data-autofocus]"
-      );
-      if (autofocusEl) {
-        autofocusEl.focus();
-      } else {
-        const tabbables = tabbableElements(modal);
-        (tabbables[0] ?? modal).focus();
-      }
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-      previouslyFocused?.focus();
-    };
-  }, [show]);
-
-  if (!show) return null;
-
-  const titleId = id ? `${id}-title` : fallbackTitleId;
-
-  return createPortal(
-    // Dismissal is keyboard-accessible via the Escape handler above and the
-    // close button below; the backdrop is a mouse-only convenience, so it
-    // carries no semantics of its own.
-    <div
-      className={styles.backdrop}
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onHide();
+  return (
+    <dialog
+      ref={ref}
+      id={id}
+      aria-labelledby={titleId}
+      className={styles.dialog}
+      // Escape: stay open until the owner hides it.
+      onCancel={(e) => {
+        e.preventDefault();
+        if (escapeForPopover.current) {
+          escapeForPopover.current = false;
+          return;
+        }
+        onHide();
+      }}
+      // A close the owner didn't ask for, e.g. Chrome closing anyway after
+      // repeated Escapes that the cancel handler above prevented. The event
+      // is queued, so skip it if the dialog has been reopened since (React
+      // re-runs the ref that opens it in StrictMode).
+      onClose={(e) => {
+        if (!e.currentTarget.open) onHide();
       }}
     >
+      {/* Dismissal is keyboard-accessible via Escape and the close button;
+          the backdrop is a mouse-only convenience. A press that starts in
+          the dialog and ends here clicks their common ancestor, not this. */}
+      <div className={styles.backdrop} role="presentation" onClick={onHide} />
       <div
-        ref={modalRef}
-        id={id}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
         className={clsx(styles.modal, className)}
         style={width ? { maxWidth: width } : undefined}
       >
+        {/* Rendered with the dialog, so opening it focuses the close button
+            (the first focusable element) unless something has autofocus. */}
         <div className={styles.header}>
           <h3 id={titleId} className={styles.title}>
             {title}
@@ -171,19 +136,22 @@ export const Modal: FC<ModalProps> = ({
             <Icon name="close" />
           </button>
         </div>
-        <div
-          className={clsx(
-            styles.body,
-            OVERFLOW_CLASS[overflow],
-            !padded && styles.noPadding,
-            bodyClassName
-          )}
-        >
-          {children}
-        </div>
-        {footer && <div className={styles.footer}>{footer}</div>}
+        {dialog && (
+          <>
+            <div
+              className={clsx(
+                styles.body,
+                OVERFLOW_CLASS[overflow],
+                !padded && styles.noPadding,
+                bodyClassName
+              )}
+            >
+              {children}
+            </div>
+            {footer && <div className={styles.footer}>{footer}</div>}
+          </>
+        )}
       </div>
-    </div>,
-    document.body
+    </dialog>
   );
 };

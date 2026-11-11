@@ -946,11 +946,6 @@
       "count": 1
     }
   },
-  "packages/react/src/components/Modal.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
