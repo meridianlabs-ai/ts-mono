@@ -41,6 +41,32 @@ test("transcripts page renders grid with data", async ({ page, network }) => {
   await expect(page.locator("#transcripts-footer")).toContainText("2 items");
 });
 
+test("the add-filter popover opens with its column picker focused", async ({
+  page,
+  network,
+}) => {
+  network.use(
+    http.post("*/api/v2/transcripts/:dir", () =>
+      HttpResponse.json<TranscriptsResponse>(
+        createTranscriptsResponse([
+          createTranscriptInfo({ transcript_id: "t-001", task_id: "my-task" }),
+        ])
+      )
+    )
+  );
+
+  await page.goto("/#/transcripts");
+  await expect(page.getByText("my-task").first()).toBeVisible();
+
+  await page.getByTitle("Add a new filter").click();
+  const picker = page.getByRole("combobox").filter({
+    has: page.getByRole("option", { name: "Select column..." }),
+  });
+  await expect(picker).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(picker).toBeHidden();
+});
+
 test("transcripts page shows an empty grid when no transcripts exist", async ({
   page,
 }) => {
