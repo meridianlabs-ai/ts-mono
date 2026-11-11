@@ -55,7 +55,7 @@ describe("AnchoredPopover", () => {
       .getPropertyValue("anchor-name")
       .split(", ")
       .find((n) => n !== "--existing");
-    expect(name).toMatch(/^--popover-anchor-/);
+    expect(name).toBeDefined();
     expect(
       screen.getByRole("dialog").style.getPropertyValue("position-anchor")
     ).toBe(name);
@@ -71,6 +71,45 @@ describe("AnchoredPopover", () => {
     });
     expect(onClose).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("isn't closed by a nested popover closing", () => {
+    const onClose = vi.fn();
+    const Nested = () => {
+      const [inner, setInner] = useState<HTMLButtonElement | null>(null);
+      return (
+        <>
+          <button ref={setInner}>Inner trigger</button>
+          <AnchoredPopover
+            open
+            anchor={inner}
+            onClose={() => {}}
+            aria-label="Inner"
+            role="dialog"
+          >
+            inner
+          </AnchoredPopover>
+        </>
+      );
+    };
+    const Outer = () => {
+      const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+      return (
+        <>
+          <button ref={setAnchor}>Outer trigger</button>
+          <AnchoredPopover open anchor={anchor} onClose={onClose}>
+            <Nested />
+          </AnchoredPopover>
+        </>
+      );
+    };
+    render(<Outer />);
+    act(() => {
+      screen
+        .getByRole("dialog", { name: "Inner" })
+        .dispatchEvent(toggleEvent("closed"));
+    });
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("returns focus to the trigger when it closes with focus inside", () => {

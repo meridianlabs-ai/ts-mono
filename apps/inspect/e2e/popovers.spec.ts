@@ -11,28 +11,29 @@ import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 const LOG_FILE = "popovers.json";
 
+const sample = (id: number, question: string, answer: string) =>
+  createEvalSample({
+    id,
+    messages: [
+      { role: "user", content: question, source: "input" },
+      { role: "assistant", content: answer, source: "generate" },
+    ],
+  });
+
+// Two samples, so the log opens on its samples grid rather than skipping
+// straight to its only sample.
 const serveSample = (network: Parameters<typeof serveEvalLog>[0]) =>
   serveEvalLog(
     network,
     createEvalLog({
       samples: [
-        createEvalSample({
-          id: 1,
-          messages: [
-            { role: "user", content: "What is 2+2?", source: "input" },
-            {
-              role: "assistant",
-              content: "The answer is 4.",
-              source: "generate",
-            },
-          ],
-        }),
+        sample(1, "What is 2+2?", "The answer is 4."),
+        sample(2, "What is 3+3?", "The answer is 6."),
       ],
     }),
     LOG_FILE
   );
 
-/** Opens the sample's Copy menu; returns its trigger and last item. */
 async function openCopyMenu(page: Page): Promise<{
   trigger: Locator;
   lastItem: Locator;
@@ -59,8 +60,11 @@ test("a column filter opens with its input focused, and Escape returns focus to 
   network,
 }) => {
   serveSample(network);
-  await page.goto("/");
-  const funnel = page.getByRole("button", { name: "Filter task", exact: true });
+  await page.goto(`/#/logs/${encodeURIComponent(LOG_FILE)}/samples`);
+  const funnel = page.getByRole("button", {
+    name: "Filter input",
+    exact: true,
+  });
   await funnel.click();
 
   const input = page.getByPlaceholder("Filter");

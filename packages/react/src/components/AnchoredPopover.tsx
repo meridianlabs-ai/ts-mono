@@ -93,6 +93,14 @@ export interface AnchoredPopoverProps extends Omit<
 }
 
 /**
+ * Whether an `auto` popover (a menu or panel, not a hover card) is open
+ * within `root`. Escape belongs to it: handlers for Escape elsewhere in the
+ * page should leave it alone so the browser closes just the popover.
+ */
+export const hasOpenPopover = (root: ParentNode = document): boolean =>
+  root.querySelector('[popover="auto"]:popover-open') !== null;
+
+/**
  * A floating panel in the browser's top layer, positioned with CSS anchor
  * positioning: it stays attached to `anchor` through scrolling and resizing,
  * flips to the opposite side when it doesn't fit, and is never clipped by an
@@ -147,7 +155,9 @@ const OpenPopover: FC<
 
   const side = sideOf(placement);
 
+  // React bubbles toggle events, so a nested popover's would arrive here too.
   const handleBeforeToggle = (e: ToggleEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
     if (e.newState === "closed") {
       restoreFocusOnClose.current = e.currentTarget.contains(
         document.activeElement
@@ -155,7 +165,7 @@ const OpenPopover: FC<
     }
   };
   const handleToggle = (e: ToggleEvent<HTMLDivElement>) => {
-    if (e.newState !== "closed") return;
+    if (e.target !== e.currentTarget || e.newState !== "closed") return;
     // Escape restores focus to whatever was focused when the popover opened,
     // which isn't the trigger in Safari (clicks don't focus buttons there).
     if (restoreFocusOnClose.current) trigger.focus({ preventScroll: true });
@@ -164,6 +174,9 @@ const OpenPopover: FC<
 
   return (
     <div
+      // An empty title stops an ancestor's tooltip (e.g. a grid header's)
+      // showing over the popover, which renders inside it.
+      title=""
       {...rest}
       ref={ref}
       popover={mode}

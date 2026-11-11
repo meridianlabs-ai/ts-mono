@@ -508,7 +508,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         id={`recent-searches-${api.cacheKey}`}
         isOpen={isRecentOpen}
         setIsOpen={setIsRecentOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={recentButtonRef.current}
         placement="bottom-end"
         offset={2}
