@@ -61,15 +61,37 @@ describe("Modal", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("reports a close it didn't ask for, not one it has since reopened from", () => {
+  it("reopens after a close it didn't ask for, and reports it", () => {
     const onHide = vi.fn();
     renderModal({ onHide });
     const dialog = screen.getByRole<HTMLDialogElement>("dialog");
+    // Already open again (StrictMode reopens it): nothing to report.
     dialog.dispatchEvent(new Event("close"));
     expect(onHide).not.toHaveBeenCalled();
     dialog.close();
     dialog.dispatchEvent(new Event("close"));
     expect(onHide).toHaveBeenCalledOnce();
+    expect(dialog.open).toBe(true);
+  });
+
+  it("leaves an enclosing modal open when a nested one is dismissed", () => {
+    const outerHide = vi.fn();
+    const innerHide = vi.fn();
+    render(
+      <Modal show onHide={outerHide} title="Outer">
+        <Modal show onHide={innerHide} title="Inner">
+          <span />
+        </Modal>
+      </Modal>
+    );
+    const inner = screen.getByRole<HTMLDialogElement>("dialog", {
+      name: "Inner",
+    });
+    inner.dispatchEvent(cancelEvent());
+    inner.close();
+    inner.dispatchEvent(new Event("close"));
+    expect(innerHide).toHaveBeenCalled();
+    expect(outerHide).not.toHaveBeenCalled();
   });
 
   it("hides on a click on the backdrop, not inside the dialog", () => {
@@ -96,6 +118,25 @@ describe("Modal", () => {
       key: "Enter",
     });
     expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't submit an Enter a child claims", () => {
+    const onSubmit = vi.fn();
+    renderModal({
+      onSubmit,
+      children: (
+        <input
+          aria-label="Tag"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+        />
+      ),
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Tag" }), {
+      key: "Enter",
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("uses the latest callbacks", () => {

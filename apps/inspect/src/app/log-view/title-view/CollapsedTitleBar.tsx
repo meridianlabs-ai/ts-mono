@@ -196,9 +196,8 @@ const MetricsLink: FC<MetricsLinkProps> = ({ scorers }) => {
   const grouped = groupScorers(scorers);
   const showReducer = scorers.findIndex((s) => !!s.reducer) !== -1;
 
-  // Modal portals to <body> internally, so it escapes the title-view
-  // collapsing wrapper (which sets opacity: 0 on whichever slot is hidden)
-  // without a manual portal here.
+  // Modal renders in the browser's top layer, so the title-view collapsing
+  // wrapper (opacity: 0 on whichever slot is hidden) doesn't hide it.
   const [showing, setShowing] = useState(false);
 
   return (

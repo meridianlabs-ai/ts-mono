@@ -14,7 +14,7 @@ const TEXT_INPUT_SELECTOR =
 const shouldSubmitOnEnter = (event: KeyboardEvent, dialog: Element) => {
   if (event.defaultPrevented) return false;
   const target = event.target;
-  if (!(target instanceof Element)) return true;
+  if (!(target instanceof Element) || !dialog.contains(target)) return false;
   if (target === dialog) return true;
   return target.matches(TEXT_INPUT_SELECTOR);
 };
@@ -83,7 +83,9 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
     },
     { capture: true }
   );
-  useEventListener(dialog, "keydown", (e) => {
+  // On document, so it runs after the dialog's children's own (React)
+  // handlers, which can claim Enter with preventDefault.
+  useEventListener(dialog ? document : null, "keydown", (e) => {
     if (e.key !== "Enter" || !onSubmit || !dialog) return;
     if (!shouldSubmitOnEnter(e, dialog)) return;
     e.preventDefault();
@@ -98,6 +100,8 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
       className={styles.dialog}
       // Escape: stay open until the owner hides it.
       onCancel={(e) => {
+        // React bubbles cancel, so a nested modal's arrives here too.
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         if (escapeForPopover.current) {
           escapeForPopover.current = false;
@@ -106,11 +110,15 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
         onHide();
       }}
       // A close the owner didn't ask for, e.g. Chrome closing anyway after
-      // repeated Escapes that the cancel handler above prevented. The event
-      // is queued, so skip it if the dialog has been reopened since (React
-      // re-runs the ref that opens it in StrictMode).
+      // repeated Escapes that the cancel handler prevented. Reopen, so the
+      // dialog matches `show` until the owner hides it. The event is queued:
+      // skip it if the dialog is open again already (React re-runs the ref
+      // that opens it in StrictMode) or it's a nested modal's.
       onClose={(e) => {
-        if (!e.currentTarget.open) onHide();
+        const closed = e.currentTarget;
+        if (e.target !== closed || closed.open) return;
+        closed.showModal();
+        onHide();
       }}
     >
       {/* Dismissal is keyboard-accessible via Escape and the close button;

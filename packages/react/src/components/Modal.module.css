@@ -9,7 +9,19 @@
   padding: 15vh 0 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  /* Rendered where its owner is, so it inherits from there (a hidden title
+     bar slot sets pointer-events: none). Reset to the body's. */
+  color: var(--bs-body-color);
+  font-family: var(--bs-body-font-family);
+  font-size: var(--bs-body-font-size);
+  font-weight: var(--bs-body-font-weight);
+  line-height: var(--bs-body-line-height);
+  letter-spacing: normal;
+  text-align: start;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .dialog:modal {
