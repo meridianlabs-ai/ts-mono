@@ -256,6 +256,48 @@ describe("useTranscriptSearchSource", () => {
     expect(revealed).toBe(true);
   });
 
+  it("reveals an approval in another row through the row that renders it", async () => {
+    // The sub row holds a tool (e2) and its approval (e3), shown inline.
+    const e1 = ev("e1", "hello");
+    const e2 = ev("e2", "wondering tool");
+    const e3 = ev("e3", "wondering approval");
+    const sub = new TimelineSpan({
+      id: "sub",
+      name: "sub",
+      spanType: "agent",
+      content: [new TimelineEvent(e2), new TimelineEvent(e3)],
+    });
+    const main = new TimelineSpan({
+      id: "main",
+      name: "main",
+      spanType: "agent",
+      content: [new TimelineEvent(e1), sub],
+    });
+    const onSelect = vi.fn();
+    const { source } = renderHarness({
+      events: [e1, e2, e3],
+      rows: [makeRow("main", main, 0), makeRow("main/sub", sub, 1)],
+      selected: "main",
+      // The approval is hidden from the row list, as in the real view.
+      flattenedNodeIds: ["e2"],
+      panels: [{ id: "e2", text: "wondering tool wondering approval" }],
+      rowEventId: (eventId) => (eventId === "e3" ? "e2" : eventId),
+      onSelect,
+    });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(
+        2,
+        "forward",
+        new AbortController().signal
+      );
+    });
+
+    expect(onSelect).toHaveBeenCalledWith("main/sub");
+    expect(revealed).toBe(true);
+  });
+
   it("recounts when the events change", () => {
     let events: ModelEvent[] = [ev("e1", "wondering")];
     const Probe = ({ onSource }: { onSource: (s?: FindSource) => void }) => {

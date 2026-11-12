@@ -287,6 +287,32 @@ describe("FindBand", () => {
     expect(highlighted("find-current")).toEqual(["d"]);
   });
 
+  it("lands on a match again after matches vanish and come back", async () => {
+    const Swap: FC = () => {
+      const [shown, setShown] = useState(true);
+      return (
+        <>
+          <button onClick={() => setShown((value) => !value)}>swap</button>
+          {shown && <p id="a">needle one</p>}
+        </>
+      );
+    };
+    render(
+      <Page>
+        <Swap />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("1 of 1");
+
+    fireEvent.click(screen.getByText("swap"));
+    await waitFor(() => expect(status().textContent).toBe("No results"));
+    fireEvent.click(screen.getByText("swap"));
+
+    await waitFor(() => expect(status().textContent).toBe("1 of 1"));
+    expect(highlighted("find-current")).toEqual(["a"]);
+  });
+
   it("stays on the current match when text renders above it", async () => {
     const Growing: FC = () => {
       const [shown, setShown] = useState(false);
@@ -377,13 +403,15 @@ describe("FindBand", () => {
 describe("FindBand with a find source", () => {
   // A virtualized list of five items whose data reads "needle <i>", of which
   // only the items in `rendered` are in the DOM. A `phantom` item renders
-  // without its text, as when the data holds text the row doesn't show.
+  // without its text, as when the data holds text the row doesn't show; a
+  // `triple` item shows its text three times.
   const List: FC<{
     initial: number[];
     phantom?: number;
+    triple?: number;
     dataCount?: number;
     reveal: FindSource["reveal"];
-  }> = ({ initial, phantom, dataCount = 1, reveal }) => {
+  }> = ({ initial, phantom, triple, dataCount = 1, reveal }) => {
     const [rendered, setRendered] = useState(initial);
     const { registerFindSource } = useExtendedFind();
     // eslint-disable-next-line tsmono/no-raw-use-effect -- test fixture registering a fake source
@@ -412,7 +440,11 @@ describe("FindBand with a find source", () => {
       <div id="list">
         {rendered.map((item) => (
           <p key={item} id={`item-${item}`} data-item={item}>
-            {item === phantom ? "blank" : `needle ${item}`}
+            {item === phantom
+              ? "blank"
+              : item === triple
+                ? `needle ${item} needle ${item} needle ${item}`
+                : `needle ${item}`}
           </p>
         ))}
       </div>
@@ -622,6 +654,64 @@ describe("FindBand with a find source", () => {
     expect(reveal.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       [1, "backward"],
     ]);
+  });
+
+  it("steps backward onto the last match of a row that shows more than its data", async () => {
+    const reveal = vi.fn(() => Promise.resolve(true));
+    render(
+      <Page>
+        <List initial={[3]} triple={2} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+
+    await waitFor(() =>
+      expect(
+        [...(highlights.get("find-current") ?? [])].map((range) =>
+          range instanceof Range ? range.startOffset : null
+        )
+      ).toEqual(["needle 2 needle 2 ".length])
+    );
+  });
+
+  it("skips a row that rendered without its match once the row is quiet", async () => {
+    const reveal = vi.fn(() => Promise.resolve(true));
+    render(
+      <Page>
+        <List initial={[0]} phantom={1} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    // Well before the 1s cap for a row whose text is still rendering.
+    await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
+      timeout: 600,
+    });
+  });
+
+  it("keeps a match after the list when the term grows", () => {
+    const reveal = vi.fn(() => new Promise<boolean>(() => {}));
+    render(
+      <Page>
+        <List initial={[2]} phantom={2} reveal={reveal} />
+        <p id="after">needle after</p>
+      </Page>
+    );
+    search("need");
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+    expect(currentId()).toEqual(["after"]);
+    reveal.mockClear();
+
+    search("needle");
+
+    expect(currentId()).toEqual(["after"]);
+    expect(reveal).not.toHaveBeenCalled();
   });
 
   it("steps past every match of an item that never renders", async () => {

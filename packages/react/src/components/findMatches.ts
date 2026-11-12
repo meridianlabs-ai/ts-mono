@@ -205,12 +205,15 @@ function locate(
   position: number,
   isEnd: boolean
 ): [Text, number] {
-  let index = run.starts.length - 1;
-  while (
-    index > 0 &&
-    (isEnd ? run.starts[index]! >= position : run.starts[index]! > position)
-  ) {
-    index--;
+  // Binary search for the last node starting before the position (at or
+  // before it, for a start).
+  let low = 0;
+  let high = run.starts.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    const start = run.starts[mid]!;
+    if (isEnd ? start < position : start <= position) low = mid;
+    else high = mid - 1;
   }
-  return [run.nodes[index]!, position - run.starts[index]!];
+  return [run.nodes[low]!, position - run.starts[low]!];
 }

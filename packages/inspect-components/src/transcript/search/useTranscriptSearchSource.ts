@@ -177,7 +177,10 @@ async function waitForRow(
   for (let i = 0; i < SETTLE_LIMIT; i++) {
     const view = viewNodesRef.current;
     if (!view) return false;
-    if (view.getFlattenedNodes().some((n) => n.id === eventId)) return true;
+    // An approval or sentinel has no row of its own: wait for the one that
+    // renders it, which the newly selected row's view knows.
+    const rowId = view.rowEventId(eventId);
+    if (view.getFlattenedNodes().some((n) => n.id === rowId)) return true;
     await raf();
   }
   return false;

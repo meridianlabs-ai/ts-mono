@@ -33,8 +33,10 @@ interface FindSessionOptions {
   onStatus: (status: FindStatus) => void;
 }
 
-// How long a revealed item may take to render its text (markdown and syntax
-// highlighting are asynchronous) before a step skips past it.
+// A revealed item that shows no match is skipped once the page has been quiet
+// this long (its markdown and syntax highlighting render asynchronously), or
+// after REVEAL_SETTLE_MS at most.
+const QUIET_MS = 150;
 const REVEAL_SETTLE_MS = 1000;
 // Consecutive items a single step may skip because they render no match.
 const MAX_SKIPS = 10;
@@ -71,12 +73,17 @@ export class FindSession {
     direction: FindDirection;
     skips: number;
     inFlight: boolean;
+    // Stepping backward onto the item's last match: once rendered, its last
+    // DOM match, however many its data counted.
+    toLast: boolean;
   } | null = null;
+  private lastMutation = 0;
   private navigation = 0;
   // The term has no current match yet: land on the first one that renders.
   private awaitingMatch = false;
   // Per list, the highest rendered item: items past it are below the view.
   private lastRendered = new Map<string, number>();
+  private anchors = new Map<string, Element>();
   private abortReveal: AbortController | null = null;
   private settleTimer: number | null = null;
   private frame: number | null = null;
@@ -149,6 +156,7 @@ export class FindSession {
     this.observer = new MutationObserver((records) => {
       const band = this.options.band();
       if (band && records.every((r) => band.contains(r.target))) return;
+      this.lastMutation = performance.now();
       this.scheduleRebuild();
     });
     this.observer.observe(this.options.root, {
@@ -192,6 +200,15 @@ export class FindSession {
    *  highlights, scrolls if a navigation is waiting, and reports status. */
   private publish(): void {
     const total = totalMatches(this.entries);
+    if (this.current && this.revealing?.toLast) {
+      const { key } = this.current;
+      const entry = this.entries.find(
+        (e) => e.source === key.source && e.item === key.item
+      );
+      if (entry?.ranges) {
+        this.current.key = { ...key, occurrence: entry.ranges.length - 1 };
+      }
+    }
     if (this.current) {
       const ordinal = ordinalOf(this.entries, this.current.key);
       if (ordinal !== null) {
@@ -204,6 +221,9 @@ export class FindSession {
         this.current = key
           ? { key, ordinal: ordinalOf(this.entries, key)! }
           : null;
+        // The matches are gone (the content changed): land on the first one
+        // when they come back.
+        if (!this.current && this.term) this.awaitingMatch = true;
       }
     }
     const range = this.currentRange();
@@ -250,6 +270,7 @@ export class FindSession {
       }
     }
     this.lastRendered.clear();
+    this.anchors = new Map(sources.map((s) => [s.id, s.anchor]));
     const matches: SourceMatches[] = sources.map(({ id, source, anchor }) => {
       const renderedItems = source.renderedItems();
       if (renderedItems.size > 0) {
@@ -290,7 +311,8 @@ export class FindSession {
         if (index !== -1) return ordinal + index;
       } else if (
         entry.source !== null &&
-        entry.item > (this.lastRendered.get(entry.source) ?? Infinity)
+        entry.item > (this.lastRendered.get(entry.source) ?? Infinity) &&
+        !(from && this.isAfterList(from, entry.source))
       ) {
         // An item past the list's rendered rows is below the viewport.
         return ordinal;
@@ -298,6 +320,17 @@ export class FindSession {
       ordinal += entry.count;
     }
     return 0;
+  }
+
+  /** Whether a range sits in the page after a list, outside it. */
+  private isAfterList(range: Range, source: string): boolean {
+    const anchor = this.anchors.get(source);
+    if (!anchor || anchor.contains(range.startContainer)) return false;
+    return (
+      (anchor.compareDocumentPosition(range.startContainer) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0
+    );
   }
 
   private navigate(ordinal: number, direction: FindDirection, skips: number) {
@@ -314,7 +347,16 @@ export class FindSession {
       this.publish();
       return;
     }
-    this.revealing = { direction, skips, inFlight: true };
+    const entry = this.entries.find(
+      (e) => e.source === key.source && e.item === key.item
+    );
+    this.revealing = {
+      direction,
+      skips,
+      inFlight: true,
+      toLast:
+        direction === "backward" && key.occurrence === (entry?.count ?? 0) - 1,
+    };
     this.publish();
     const settle = (rendered: boolean) => {
       if (navigation !== this.navigation || !this.revealing) return;
@@ -325,12 +367,22 @@ export class FindSession {
         this.skipUnrevealed(navigation);
         return;
       }
-      this.settleTimer = window.setTimeout(() => {
+      const started = performance.now();
+      const check = () => {
         this.settleTimer = null;
-        if (navigation !== this.navigation) return;
+        if (navigation !== this.navigation || !this.revealing) return;
+        const now = performance.now();
+        if (
+          now - this.lastMutation < QUIET_MS &&
+          now - started < REVEAL_SETTLE_MS
+        ) {
+          this.settleTimer = window.setTimeout(check, QUIET_MS);
+          return;
+        }
         this.rebuild();
         this.skipUnrevealed(navigation);
-      }, REVEAL_SETTLE_MS);
+      };
+      this.settleTimer = window.setTimeout(check, QUIET_MS);
     };
     this.abortReveal = new AbortController();
     source

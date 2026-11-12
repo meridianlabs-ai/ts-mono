@@ -5,8 +5,10 @@ interface Scroller {
   x: boolean;
 }
 
+// `hidden` too: an ellipsized title can be scrolled programmatically to show
+// a match past its edge, as the browser's own find does. Not `clip`.
 const scrollable = (overflow: string) =>
-  overflow === "auto" || overflow === "scroll";
+  overflow === "auto" || overflow === "scroll" || overflow === "hidden";
 
 /** Ancestors with something to scroll, innermost first. */
 function scrollAncestors(node: Node): Scroller[] {

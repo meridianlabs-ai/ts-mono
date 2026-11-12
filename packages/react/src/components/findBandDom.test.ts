@@ -133,6 +133,34 @@ describe("scrollRangeIntoView, horizontally", () => {
   });
 });
 
+describe("scrollRangeIntoView, clipped by overflow: hidden", () => {
+  it("scrolls an ellipsized title to a match past its edge", () => {
+    const title = document.createElement("div");
+    // jsdom doesn't expand the `overflow` shorthand; browsers do.
+    title.style.overflowX = "hidden";
+    title.style.overflowY = "hidden";
+    Object.defineProperty(title, "scrollWidth", { value: 2000 });
+    Object.defineProperty(title, "clientWidth", { value: 300 });
+    title.getBoundingClientRect = () => new DOMRect(0, 0, 300, 20);
+    let scrollLeft = 0;
+    Object.defineProperty(title, "scrollLeft", { get: () => scrollLeft });
+    let rangeLeft = 900;
+    title.scrollTo = (options?: ScrollToOptions | number) => {
+      const left =
+        typeof options === "number" ? options : (options?.left ?? scrollLeft);
+      rangeLeft -= left - scrollLeft;
+      scrollLeft = left;
+    };
+    const range = mountRange(title);
+    range.getBoundingClientRect = () => new DOMRect(rangeLeft, 0, 50, 20);
+
+    scrollRangeIntoView(range);
+
+    expect(rangeLeft).toBeGreaterThanOrEqual(0);
+    expect(rangeLeft + 50).toBeLessThanOrEqual(300);
+  });
+});
+
 describe("isRangeAboveView", () => {
   it("is true only above the innermost visible top", () => {
     const outer = scroller({ top: 50, height: 600 });
