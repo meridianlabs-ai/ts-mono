@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { FC, ReactNode, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { useEventListener } from "../hooks/useEventListener";
 import { useShowModal } from "../hooks/useShowModal";
@@ -14,10 +15,7 @@ const TEXT_INPUT_SELECTOR =
 const shouldSubmitOnEnter = (event: KeyboardEvent, dialog: Element) => {
   if (event.defaultPrevented) return false;
   const target = event.target;
-  // closest, not contains: a nested modal's dialog renders inside this one.
-  if (!(target instanceof Element) || target.closest("dialog") !== dialog) {
-    return false;
-  }
+  if (!(target instanceof Element) || !dialog.contains(target)) return false;
   if (target === dialog) return true;
   return target.matches(TEXT_INPUT_SELECTOR);
 };
@@ -53,6 +51,10 @@ interface ModalProps {
  * A modal `<dialog>`. The browser makes the rest of the page inert, keeps
  * focus inside, routes Escape to any popover open inside it first, and
  * returns focus on close. Every close path reports through `onHide`.
+ *
+ * Portaled to `<body>`, so the owner's styles and `:hover` don't reach it.
+ * Popovers declared in its children still render inside the dialog, which
+ * keeps them interactive.
  */
 export const Modal: FC<ModalProps> = ({ show, ...props }) =>
   show ? <OpenModal {...props} /> : null;
@@ -95,7 +97,7 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
     onSubmit();
   });
 
-  return (
+  return createPortal(
     <dialog
       ref={ref}
       id={id}
@@ -163,6 +165,7 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
           </>
         )}
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   );
 };

@@ -122,3 +122,28 @@ test("Escape closes a popover in a modal first, and only for that keypress", asy
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 });
+
+test("a modal doesn't inherit styles from the page that opens it", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({ samples: [sample(1), sample(2)] }),
+    LOG_FILE
+  );
+  await page.goto(`/#/logs/${encodeURIComponent(LOG_FILE)}/samples`);
+  // A modal opened from a clickable card once showed the card's pointer.
+  await page.locator("#app").evaluate((app: HTMLElement) => {
+    app.style.cursor = "pointer";
+  });
+
+  await page.getByTitle("Edit tags", { exact: true }).click();
+  const title = page
+    .getByRole("dialog", { name: "Edit tags" })
+    .getByRole("heading", { name: "Edit tags" });
+  await expect(title).toBeVisible();
+  expect(await title.evaluate((el) => getComputedStyle(el).cursor)).toBe(
+    "auto"
+  );
+});
