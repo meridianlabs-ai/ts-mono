@@ -18,7 +18,7 @@ export interface VirtualListHandle {
     align?: "start" | "center" | "end";
     behavior?: "auto" | "smooth";
     onDone?: () => void;
-  }): void;
+  }): () => void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
   getState(callback: (snapshot: VirtualListStateSnapshot) => void): void;
   jumpToStart(): void;

@@ -271,7 +271,17 @@ export class FindSession {
     this.abortReveal = new AbortController();
     source
       .reveal(key.item, direction, this.abortReveal.signal)
-      .then(settle, () => settle(false));
+      .then(settle, () => this.stopRevealing(navigation));
+  }
+
+  // Something else scrolled the list (the user, a restore): leave the view
+  // where it is and keep the current match without moving on.
+  private stopRevealing(navigation: number): void {
+    if (navigation !== this.navigation) return;
+    this.revealing = null;
+    this.scrollPending = false;
+    this.clearSettleTimer();
+    this.publish();
   }
 
   // The item never rendered, or rendered none of the text its data matched:

@@ -60,6 +60,7 @@ vi.mock("./TranscriptVirtualList", () => ({
       scrollToIndex: ({ index, onDone }) => {
         scrolledIndices.push(index);
         onDone?.();
+        return () => {};
       },
       scrollTo: () => {},
       getState: () => {},
@@ -658,7 +659,9 @@ describe("TranscriptViewNodes navigation to hidden events", () => {
     };
     const scrollTargets = (eventId: string) => {
       scrolledIndices.length = 0;
-      act(() => ref.current?.scrollToEvent(eventId));
+      act(() => {
+        ref.current?.scrollToEvent(eventId);
+      });
       return rowIds(scrolledIndices);
     };
     return { ref, rowIds, scrollTargets };

@@ -579,7 +579,7 @@ describe("VirtualList scroll settling", () => {
     return { ...view, listRef, source };
   };
 
-  it("finishes a settle that a newer one takes over", () => {
+  it("reports done only for the settle that lands", () => {
     const { listRef, unmount } = mount();
     const first = vi.fn();
     const second = vi.fn();
@@ -594,21 +594,38 @@ describe("VirtualList scroll settling", () => {
       behavior: "auto",
       onDone: second,
     });
-
-    expect(first).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(200);
+
+    expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
     unmount();
   });
 
-  it("finishes a pending settle on unmount", () => {
-    const { listRef, unmount } = mount();
-    const onDone = vi.fn();
-    listRef.current?.scrollToIndex({ index: 2, behavior: "auto", onDone });
+  it("rejects a find reveal when another scroll takes over", async () => {
+    const { listRef, source, unmount } = mount();
+    const revealed = source()?.reveal(
+      2,
+      "forward",
+      new AbortController().signal
+    );
+
+    listRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+
+    await expect(revealed).rejects.toThrow();
+    unmount();
+  });
+
+  it("rejects a find reveal when the list unmounts", async () => {
+    const { source, unmount } = mount();
+    const revealed = source()?.reveal(
+      2,
+      "forward",
+      new AbortController().signal
+    );
 
     unmount();
 
-    expect(onDone).toHaveBeenCalledOnce();
+    await expect(revealed).rejects.toThrow();
   });
 
   it("ends a find reveal when its navigation is aborted", async () => {
@@ -618,7 +635,7 @@ describe("VirtualList scroll settling", () => {
 
     controller.abort();
 
-    await expect(revealed).resolves.toBe(false);
+    await expect(revealed).rejects.toThrow();
     unmount();
   });
 });

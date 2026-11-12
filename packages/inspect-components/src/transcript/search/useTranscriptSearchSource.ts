@@ -124,7 +124,10 @@ export function useTranscriptSearchSource(
           if (!(await waitForRow(viewNodesRef, eventId))) return false;
         }
         if (signal.aborted) return false;
-        viewNodesRef.current?.scrollToEvent(eventId);
+        const cancelScroll = viewNodesRef.current?.scrollToEvent(eventId);
+        if (cancelScroll) {
+          signal.addEventListener("abort", cancelScroll, { once: true });
+        }
         return waitForEventInDOM(eventId);
       },
     };

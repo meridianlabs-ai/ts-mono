@@ -108,8 +108,9 @@ export interface TranscriptViewNodesProps {
 }
 
 export interface TranscriptViewNodesHandle {
-  /** Scroll to an event by its ID. Expands collapsed ancestors first if needed. */
-  scrollToEvent: (eventId: string) => void;
+  /** Scroll to an event by its ID. Expands collapsed ancestors first if
+   *  needed. Returns a cancel that stops the scroll if it's still settling. */
+  scrollToEvent: (eventId: string) => () => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
   /** The element holding the rendered event rows, null until mounted. */
@@ -330,7 +331,7 @@ export const TranscriptViewNodes = forwardRef<
   // single choke point stamping the current turn, so a j/k/f fired before
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
-    (index: number, onDone?: () => void) => {
+    (index: number, onDone?: () => void): (() => void) => {
       onProgrammaticScroll?.(true);
       const rowId = flattenedNodesLatest.current[index]?.id;
       if (rowId !== undefined) {
@@ -344,9 +345,9 @@ export const TranscriptViewNodes = forwardRef<
       const handle = listHandle.current;
       if (!handle) {
         onDone?.();
-        return;
+        return () => {};
       }
-      handle.scrollToIndex({
+      return handle.scrollToIndex({
         index,
         align: "start",
         behavior: "auto",
@@ -357,28 +358,23 @@ export const TranscriptViewNodes = forwardRef<
   );
 
   const scrollToEvent = useCallback(
-    (targetId: string) => {
+    (targetId: string): (() => void) => {
       const eventId = redirectEventId(targetId);
       // Imperative jumps are navigation too: collapse the chrome even when
       // the URL doesn't change (re-click) and the deep-link effect won't run.
       onHeadroomSetHidden?.(true);
-      const tryScroll = (idx: number) => {
-        if (listHandle.current) {
-          scrollRowToTop(idx);
-        } else {
-          onProgrammaticScroll?.(true);
-          const el = scrollRef?.current?.querySelector(
-            `[id="${escapeAttr(eventId)}"]`
-          );
-          el?.scrollIntoView({ block: "start", behavior: "auto" });
-        }
+      const tryScroll = (idx: number): (() => void) => {
+        if (listHandle.current) return scrollRowToTop(idx);
+        onProgrammaticScroll?.(true);
+        const el = scrollRef?.current?.querySelector(
+          `[id="${escapeAttr(eventId)}"]`
+        );
+        el?.scrollIntoView({ block: "start", behavior: "auto" });
+        return () => {};
       };
 
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
-      if (idx !== -1) {
-        tryScroll(idx);
-        return;
-      }
+      if (idx !== -1) return tryScroll(idx);
 
       // Hidden in a collapsed region: expand ancestors in ONE batched update
       // (sequential toggles clobber each other while the store is unseeded),
@@ -392,12 +388,15 @@ export const TranscriptViewNodes = forwardRef<
         onExpandNodes(collapsedAncestors);
         // After the next render, the flat list will include the event.
         // Retry up to 3 frames in case React batching pushes the commit later.
+        let cancelled = false;
+        let cancelScroll = () => {};
         const retryScroll = (attemptsLeft: number) => {
+          if (cancelled) return;
           const newIdx = flattenedNodesLatest.current.findIndex(
             (e) => e.id === eventId
           );
           if (newIdx !== -1) {
-            tryScroll(newIdx);
+            cancelScroll = tryScroll(newIdx);
             return;
           }
           if (attemptsLeft > 0) {
@@ -405,7 +404,10 @@ export const TranscriptViewNodes = forwardRef<
           }
         };
         requestAnimationFrame(() => retryScroll(3));
-        return;
+        return () => {
+          cancelled = true;
+          cancelScroll();
+        };
       }
 
       // Fall back to direct DOM scroll.
@@ -414,6 +416,7 @@ export const TranscriptViewNodes = forwardRef<
         `[id="${escapeAttr(eventId)}"]`
       );
       el?.scrollIntoView({ block: "start", behavior: "auto" });
+      return () => {};
     },
     [
       redirectEventId,

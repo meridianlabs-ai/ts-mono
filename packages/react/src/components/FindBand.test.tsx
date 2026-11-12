@@ -439,6 +439,22 @@ describe("FindBand with a find source", () => {
     expect(status().textContent).toBe("1 of 5");
   });
 
+  it("stays on the match when another scroll takes over its reveal", async () => {
+    const reveal = vi.fn(() => Promise.reject(new Error("taken over")));
+    render(
+      <Page>
+        <List initial={[0]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(reveal).toHaveBeenCalledOnce();
+    expect(status().textContent).toBe("2 of 5");
+  });
+
   it("steps past every match of an item that never renders", async () => {
     const reveal = vi.fn((item: number) => Promise.resolve(item !== 1));
     render(

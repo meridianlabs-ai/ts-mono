@@ -115,7 +115,7 @@ interface HarnessOptions {
   /** Event panels rendered in the transcript's element. */
   panels?: { id: string; text: string }[];
   onSelect?: (key: string | null) => void;
-  scrollToEvent?: (id: string) => void;
+  scrollToEvent?: (id: string) => () => void;
 }
 
 function renderHarness(opts: HarnessOptions) {
@@ -126,7 +126,7 @@ function renderHarness(opts: HarnessOptions) {
   const Probe = () => {
     const { getFindSources } = useExtendedFind();
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
-      scrollToEvent: opts.scrollToEvent ?? vi.fn(),
+      scrollToEvent: opts.scrollToEvent ?? (() => () => {}),
       getFlattenedNodes: () => flattened,
       getElement: () => document.getElementById("transcript"),
     });
@@ -234,7 +234,8 @@ describe("useTranscriptSearchSource", () => {
   it("reveals an event in another row by switching to it and scrolling", async () => {
     const { events, rows } = twoRowFixture();
     const onSelect = vi.fn();
-    const scrollToEvent = vi.fn();
+    const cancelScroll = vi.fn();
+    const scrollToEvent = vi.fn(() => cancelScroll);
     const { source } = renderHarness({
       events,
       rows,
@@ -257,6 +258,27 @@ describe("useTranscriptSearchSource", () => {
     expect(revealed).toBe(true);
     expect(onSelect).toHaveBeenCalledWith("main/sub");
     expect(scrollToEvent).toHaveBeenCalledWith("e2");
+    expect(cancelScroll).not.toHaveBeenCalled();
+  });
+
+  it("stops its scroll when the find navigation is aborted", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    const cancelScroll = vi.fn();
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering" }],
+      scrollToEvent: () => cancelScroll,
+    });
+    const controller = new AbortController();
+
+    await act(async () => {
+      await source().reveal(0, "forward", controller.signal);
+    });
+    controller.abort();
+
+    expect(cancelScroll).toHaveBeenCalledOnce();
   });
 
   it("reports an event that never renders", async () => {
