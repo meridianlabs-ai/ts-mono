@@ -1,3 +1,4 @@
-import { installPopoverStub } from "@tsmono/react/testing";
+import { installDialogStub, installPopoverStub } from "@tsmono/react/testing";
 
 installPopoverStub();
+installDialogStub();

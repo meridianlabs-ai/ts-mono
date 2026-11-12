@@ -38,3 +38,27 @@ export const installPopoverStub = (): void => {
     },
   });
 };
+
+/**
+ * jsdom has no `showModal`/`close` on `<dialog>`. Installs stand-ins that
+ * only toggle the `open` attribute (which jsdom's UA sheet shows), so modals
+ * can mount in jsdom tests. Nothing else is simulated (top layer, inertness,
+ * Escape, focus): cover those in Playwright. Call from a test setup file; it
+ * does nothing outside jsdom or where the API exists.
+ */
+export const installDialogStub = (): void => {
+  if (
+    typeof HTMLDialogElement === "undefined" ||
+    "showModal" in HTMLDialogElement.prototype
+  ) {
+    return;
+  }
+  Object.assign(HTMLDialogElement.prototype, {
+    showModal(this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    },
+    close(this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    },
+  });
+};

@@ -31,12 +31,13 @@ if (typeof HTMLElement !== "undefined") {
     });
   }
 
-  const { ResizeObserverStub, installPopoverStub } =
+  const { ResizeObserverStub, installDialogStub, installPopoverStub } =
     await import("@tsmono/react/testing");
   if (typeof ResizeObserver === "undefined") {
     Object.assign(globalThis, { ResizeObserver: ResizeObserverStub });
   }
   installPopoverStub();
+  installDialogStub();
 }
 
 // Top-level await needs a module; nothing is exported on purpose.

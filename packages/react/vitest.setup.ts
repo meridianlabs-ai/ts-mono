@@ -1,9 +1,10 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
-import { installPopoverStub } from "./src/test/dom-stubs";
+import { installDialogStub, installPopoverStub } from "./src/test/dom-stubs";
 
 installPopoverStub();
+installDialogStub();
 
 afterEach(async () => {
   cleanup();
