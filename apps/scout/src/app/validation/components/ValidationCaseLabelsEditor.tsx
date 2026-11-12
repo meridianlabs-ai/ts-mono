@@ -108,7 +108,7 @@ export const ValidationCaseLabelsEditor: FC<
         id="validation-labels-add"
         isOpen={isPopoverOpen}
         setIsOpen={setIsPopoverOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={addChipRef.current}
         placement="bottom-start"
         showArrow={true}

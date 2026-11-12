@@ -92,6 +92,7 @@ export function createEvalSample(overrides: {
   metadata?: EvalSample["metadata"];
   events?: EvalSample["events"];
   timelines?: EvalSample["timelines"];
+  store?: EvalSample["store"];
 }): EvalSample {
   const lastAssistant = [...overrides.messages]
     .reverse()
@@ -113,7 +114,7 @@ export function createEvalSample(overrides: {
     events: overrides.events ?? [],
     timelines: overrides.timelines,
     metadata: overrides.metadata ?? {},
-    store: {},
+    store: overrides.store ?? {},
     model_usage: {},
     role_usage: {},
     attachments: {},
