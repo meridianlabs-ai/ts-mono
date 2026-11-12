@@ -109,8 +109,13 @@ export interface TranscriptViewNodesProps {
 
 export interface TranscriptViewNodesHandle {
   /** Scroll to an event by its ID. Expands collapsed ancestors first if
-   *  needed. Returns a cancel that stops the scroll if it's still settling. */
-  scrollToEvent: (eventId: string) => () => void;
+   *  needed. Returns a cancel that stops the scroll if it's still settling.
+   *  `onDone` fires once the scroll ends (landed, or the event couldn't be
+   *  found); `onAbandon` instead if another scroll takes over first. */
+  scrollToEvent: (
+    eventId: string,
+    callbacks?: { onDone?: () => void; onAbandon?: () => void }
+  ) => () => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
   /** The element holding the rendered event rows, null until mounted. */
@@ -331,7 +336,11 @@ export const TranscriptViewNodes = forwardRef<
   // single choke point stamping the current turn, so a j/k/f fired before
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
-    (index: number, onDone?: () => void): (() => void) => {
+    (
+      index: number,
+      onDone?: () => void,
+      onAbandon?: () => void
+    ): (() => void) => {
       onProgrammaticScroll?.(true);
       const rowId = flattenedNodesLatest.current[index]?.id;
       if (rowId !== undefined) {
@@ -352,24 +361,31 @@ export const TranscriptViewNodes = forwardRef<
         align: "start",
         behavior: "auto",
         onDone,
+        onAbandon,
       });
     },
     [onProgrammaticScroll, flattenedNodesLatest, turnLookupLatest]
   );
 
   const scrollToEvent = useCallback(
-    (targetId: string): (() => void) => {
+    (
+      targetId: string,
+      callbacks?: { onDone?: () => void; onAbandon?: () => void }
+    ): (() => void) => {
       const eventId = redirectEventId(targetId);
       // Imperative jumps are navigation too: collapse the chrome even when
       // the URL doesn't change (re-click) and the deep-link effect won't run.
       onHeadroomSetHidden?.(true);
       const tryScroll = (idx: number): (() => void) => {
-        if (listHandle.current) return scrollRowToTop(idx);
+        if (listHandle.current) {
+          return scrollRowToTop(idx, callbacks?.onDone, callbacks?.onAbandon);
+        }
         onProgrammaticScroll?.(true);
         const el = scrollRef?.current?.querySelector(
           `[id="${escapeAttr(eventId)}"]`
         );
         el?.scrollIntoView({ block: "start", behavior: "auto" });
+        callbacks?.onDone?.();
         return () => {};
       };
 
@@ -401,6 +417,8 @@ export const TranscriptViewNodes = forwardRef<
           }
           if (attemptsLeft > 0) {
             requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
+          } else {
+            callbacks?.onDone?.();
           }
         };
         requestAnimationFrame(() => retryScroll(3));
@@ -416,6 +434,7 @@ export const TranscriptViewNodes = forwardRef<
         `[id="${escapeAttr(eventId)}"]`
       );
       el?.scrollIntoView({ block: "start", behavior: "auto" });
+      callbacks?.onDone?.();
       return () => {};
     },
     [

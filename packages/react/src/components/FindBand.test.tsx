@@ -455,6 +455,30 @@ describe("FindBand with a find source", () => {
     expect(status().textContent).toBe("2 of 5");
   });
 
+  it("stops a pending reveal when the user scrolls the page", () => {
+    const signals: AbortSignal[] = [];
+    const reveal = vi.fn(
+      (_item: number, _direction: FindDirection, signal: AbortSignal) => {
+        signals.push(signal);
+        return new Promise<boolean>(() => {});
+      }
+    );
+    render(
+      <Page>
+        <List initial={[0]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    fireEvent.pointerDown(input());
+    expect(signals[0]?.aborted).toBe(false);
+    fireEvent.wheel(document.getElementById("list")!);
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(status().textContent).toBe("2 of 5");
+  });
+
   it("steps past every match of an item that never renders", async () => {
     const reveal = vi.fn((item: number) => Promise.resolve(item !== 1));
     render(

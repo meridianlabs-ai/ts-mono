@@ -18,6 +18,8 @@ export interface VirtualListHandle {
     align?: "start" | "center" | "end";
     behavior?: "auto" | "smooth";
     onDone?: () => void;
+    /** Called instead of onDone when a newer scroll or unmount takes over. */
+    onAbandon?: () => void;
   }): () => void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
   getState(callback: (snapshot: VirtualListStateSnapshot) => void): void;

@@ -832,7 +832,12 @@ export function VirtualList<T>({
             ? "auto"
             : (opts.behavior ?? (smoothScroll ? "smooth" : "auto"));
         if (behavior === "auto") {
-          return settleScrollToIndex(opts.index, opts.align, opts.onDone);
+          return settleScrollToIndex(
+            opts.index,
+            opts.align,
+            opts.onDone,
+            opts.onAbandon
+          );
         }
         // Smooth scrolls animate over many frames — settling would fight the
         // animation, so they stay a single fire.

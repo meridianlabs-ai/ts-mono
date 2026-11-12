@@ -123,11 +123,17 @@ export function useTranscriptSearchSource(
           onSelect(rowKey);
           if (!(await waitForRow(viewNodesRef, eventId))) return false;
         }
-        if (signal.aborted) return false;
-        const cancelScroll = viewNodesRef.current?.scrollToEvent(eventId);
-        if (cancelScroll) {
+        const view = viewNodesRef.current;
+        if (signal.aborted || !view) return false;
+        // Resolve once the list's own scroll lands, so the band's scroll to
+        // the match comes after it rather than being overwritten.
+        await new Promise<void>((resolve, reject) => {
+          const cancelScroll = view.scrollToEvent(eventId, {
+            onDone: resolve,
+            onAbandon: () => reject(new Error("Another scroll took over")),
+          });
           signal.addEventListener("abort", cancelScroll, { once: true });
-        }
+        });
         return waitForEventInDOM(eventId);
       },
     };

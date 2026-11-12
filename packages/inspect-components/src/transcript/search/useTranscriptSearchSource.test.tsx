@@ -115,7 +115,7 @@ interface HarnessOptions {
   /** Event panels rendered in the transcript's element. */
   panels?: { id: string; text: string }[];
   onSelect?: (key: string | null) => void;
-  scrollToEvent?: (id: string) => () => void;
+  scrollToEvent?: TranscriptViewNodesHandle["scrollToEvent"];
 }
 
 function renderHarness(opts: HarnessOptions) {
@@ -126,7 +126,12 @@ function renderHarness(opts: HarnessOptions) {
   const Probe = () => {
     const { getFindSources } = useExtendedFind();
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
-      scrollToEvent: opts.scrollToEvent ?? (() => () => {}),
+      scrollToEvent:
+        opts.scrollToEvent ??
+        ((_id, callbacks) => {
+          callbacks?.onDone?.();
+          return () => {};
+        }),
       getFlattenedNodes: () => flattened,
       getElement: () => document.getElementById("transcript"),
     });
@@ -235,7 +240,12 @@ describe("useTranscriptSearchSource", () => {
     const { events, rows } = twoRowFixture();
     const onSelect = vi.fn();
     const cancelScroll = vi.fn();
-    const scrollToEvent = vi.fn(() => cancelScroll);
+    const scrollToEvent = vi.fn(
+      (_id: string, callbacks?: { onDone?: () => void }) => {
+        callbacks?.onDone?.();
+        return cancelScroll;
+      }
+    );
     const { source } = renderHarness({
       events,
       rows,
@@ -257,7 +267,7 @@ describe("useTranscriptSearchSource", () => {
 
     expect(revealed).toBe(true);
     expect(onSelect).toHaveBeenCalledWith("main/sub");
-    expect(scrollToEvent).toHaveBeenCalledWith("e2");
+    expect(scrollToEvent).toHaveBeenCalledWith("e2", expect.anything());
     expect(cancelScroll).not.toHaveBeenCalled();
   });
 
@@ -269,7 +279,10 @@ describe("useTranscriptSearchSource", () => {
       rows,
       selected: "main",
       panels: [{ id: "e1", text: "wondering" }],
-      scrollToEvent: () => cancelScroll,
+      scrollToEvent: (_id, callbacks) => {
+        callbacks?.onDone?.();
+        return cancelScroll;
+      },
     });
     const controller = new AbortController();
 
@@ -279,6 +292,39 @@ describe("useTranscriptSearchSource", () => {
     controller.abort();
 
     expect(cancelScroll).toHaveBeenCalledOnce();
+  });
+
+  it("waits for its scroll to land, and rejects if another scroll takes over", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    let callbacks: { onDone?: () => void; onAbandon?: () => void } = {};
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering" }],
+      scrollToEvent: (_id, given) => {
+        callbacks = given ?? {};
+        return () => {};
+      },
+    });
+
+    let settled: string | null = null;
+    const revealed = source()
+      .reveal(0, "forward", new AbortController().signal)
+      .then(
+        () => (settled = "resolved"),
+        () => (settled = "rejected")
+      );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(settled).toBe(null);
+
+    callbacks.onAbandon?.();
+    await act(async () => {
+      await revealed;
+    });
+    expect(settled).toBe("rejected");
   });
 
   it("reports an event that never renders", async () => {

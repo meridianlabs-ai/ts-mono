@@ -34,6 +34,7 @@ interface FindSessionOptions {
 const REVEAL_SETTLE_MS = 1000;
 // Consecutive items a single step may skip because they render no match.
 const MAX_SKIPS = 10;
+const USER_SCROLL_EVENTS = ["wheel", "touchmove", "pointerdown"] as const;
 
 /**
  * Find state for one open find band: the matches for the current term, the
@@ -59,7 +60,14 @@ export class FindSession {
   private frame: number | null = null;
   private observer: MutationObserver | null = null;
 
-  constructor(private readonly options: FindSessionOptions) {}
+  constructor(private readonly options: FindSessionOptions) {
+    for (const type of USER_SCROLL_EVENTS) {
+      document.addEventListener(type, this.onUserInput, {
+        capture: true,
+        passive: true,
+      });
+    }
+  }
 
   get searchTerm(): string {
     return this.term;
@@ -93,6 +101,9 @@ export class FindSession {
   }
 
   dispose(): void {
+    for (const type of USER_SCROLL_EVENTS) {
+      document.removeEventListener(type, this.onUserInput, { capture: true });
+    }
     this.cancelNavigation();
     this.observe(false);
     if (this.frame !== null) cancelAnimationFrame(this.frame);
@@ -271,16 +282,26 @@ export class FindSession {
     this.abortReveal = new AbortController();
     source
       .reveal(key.item, direction, this.abortReveal.signal)
-      .then(settle, () => this.stopRevealing(navigation));
+      .then(settle, () => {
+        if (navigation === this.navigation) this.stopNavigating();
+      });
   }
 
-  // Something else scrolled the list (the user, a restore): leave the view
-  // where it is and keep the current match without moving on.
-  private stopRevealing(navigation: number): void {
-    if (navigation !== this.navigation) return;
-    this.revealing = null;
-    this.scrollPending = false;
-    this.clearSettleTimer();
+  // The user scrolling or clicking the page while a navigation is still
+  // bringing its match in takes over: the view stays where they put it.
+  private readonly onUserInput = (event: Event): void => {
+    if (!this.revealing && !this.scrollPending) return;
+    const band = this.options.band();
+    if (band && event.target instanceof Node && band.contains(event.target)) {
+      return;
+    }
+    this.stopNavigating();
+  };
+
+  // Something else took over the scroll (the user, a restore): keep the
+  // current match, leave the view where it is, and don't move on.
+  private stopNavigating(): void {
+    this.cancelNavigation();
     this.publish();
   }
 
@@ -290,7 +311,10 @@ export class FindSession {
     const revealing = this.revealing;
     if (!revealing || !this.current || navigation !== this.navigation) return;
     this.revealing = null;
-    if (revealing.skips >= MAX_SKIPS) return;
+    if (revealing.skips >= MAX_SKIPS) {
+      this.scrollPending = false;
+      return;
+    }
     const { key } = this.current;
     const start = ordinalOf(this.entries, { ...key, occurrence: 0 });
     const count =
