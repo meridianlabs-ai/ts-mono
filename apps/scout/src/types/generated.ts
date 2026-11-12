@@ -848,6 +848,8 @@ export interface components {
              * @constant
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -3734,6 +3736,8 @@ export interface components {
              * @constant
              */
             event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Factory */
@@ -4271,6 +4275,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;

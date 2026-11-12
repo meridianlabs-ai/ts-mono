@@ -153,7 +153,7 @@
   },
   "apps/inspect/src/app/samples/transcript/chunked/mainViewOutline.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/transcript/hooks.ts": {
@@ -242,16 +242,6 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/chunked/chunkedSample.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/chunked/chunkStore.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
   },
