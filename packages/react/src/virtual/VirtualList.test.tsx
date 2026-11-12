@@ -548,7 +548,7 @@ describe("VirtualList scroll settling", () => {
     vi.useRealTimers();
   });
 
-  const mount = () => {
+  const mount = (hooks: ComponentStateHooks = makeStateHooks()) => {
     const scrollRef = createRef<HTMLDivElement>();
     const listRef = createRef<VirtualListHandle>();
     let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
@@ -561,7 +561,7 @@ describe("VirtualList scroll settling", () => {
       return null;
     };
     const view = render(
-      <Wrapper hooks={makeStateHooks()}>
+      <Wrapper hooks={hooks}>
         <Probe onSources={(get) => (sources = get)} />
         <div ref={scrollRef}>
           <VirtualList<string>
@@ -574,13 +574,14 @@ describe("VirtualList scroll settling", () => {
         </div>
       </Wrapper>
     );
-    vi.advanceTimersByTime(50);
     const source = () => sources?.().get("settle-list");
-    return { ...view, listRef, source };
+    const settle = () => vi.advanceTimersByTime(50);
+    return { ...view, listRef, source, settle };
   };
 
   it("reports done only for the settle that lands", () => {
-    const { listRef, unmount } = mount();
+    const { listRef, unmount, settle } = mount();
+    settle();
     const first = vi.fn();
     const second = vi.fn();
 
@@ -601,8 +602,47 @@ describe("VirtualList scroll settling", () => {
     unmount();
   });
 
+  it("lets a scroll requested at mount win over restoring the saved position", () => {
+    const store = new Map<string, unknown>([
+      [
+        "settle-list::snapshot",
+        { version: 1, scrollOffset: 200, totalCount: 3 },
+      ],
+    ]);
+    const key = (id: string, prop: string) => `${id}::${prop}`;
+    const hooks: ComponentStateHooks = {
+      useValue: (id, prop, defaultValue) =>
+        store.has(key(id, prop)) ? store.get(key(id, prop)) : defaultValue,
+      useSetValue: () => (id, prop, value) => {
+        store.set(key(id, prop), value);
+      },
+      useRemoveValue: () => (id, prop) => {
+        store.delete(key(id, prop));
+      },
+      useEntries: () => undefined,
+      useRemoveAll: () => () => {},
+      useRemoveByPrefix: () => () => {},
+    };
+    const { listRef, unmount } = mount(hooks);
+    const onDone = vi.fn();
+    const onAbandon = vi.fn();
+
+    listRef.current?.scrollToIndex({
+      index: 2,
+      behavior: "auto",
+      onDone,
+      onAbandon,
+    });
+    vi.advanceTimersByTime(200);
+
+    expect(onAbandon).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledOnce();
+    unmount();
+  });
+
   it("rejects a find reveal when another scroll takes over", async () => {
-    const { listRef, source, unmount } = mount();
+    const { listRef, source, unmount, settle } = mount();
+    settle();
     const revealed = source()?.reveal(
       2,
       "forward",
@@ -616,7 +656,8 @@ describe("VirtualList scroll settling", () => {
   });
 
   it("rejects a find reveal when the list unmounts", async () => {
-    const { source, unmount } = mount();
+    const { source, unmount, settle } = mount();
+    settle();
     const revealed = source()?.reveal(
       2,
       "forward",
@@ -629,7 +670,8 @@ describe("VirtualList scroll settling", () => {
   });
 
   it("ends a find reveal when its navigation is aborted", async () => {
-    const { source, unmount } = mount();
+    const { source, unmount, settle } = mount();
+    settle();
     const controller = new AbortController();
     const revealed = source()?.reveal(2, "forward", controller.signal);
 

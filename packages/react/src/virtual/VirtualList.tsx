@@ -682,9 +682,10 @@ export function VirtualList<T>({
         release();
       } else if (snapshot) {
         // Restore unless the user already scrolled this list (don't fight the
-        // wheel); a foreign scrollTop from a shared container doesn't block it.
+        // wheel) or a caller already asked to scroll it (e.g. find revealing a
+        // row); a foreign scrollTop from a shared container doesn't block it.
         hasInitialScrolledRef.current = true;
-        if (!userScrolledRef.current) {
+        if (!userScrolledRef.current && settleAbandonRef.current === null) {
           // settleRestoreScroll releases the auto-scroll guard itself.
           // Whether to clamp is decided once at restore time (one-shot
           // semantics); only the clamp BOUNDS are re-read per frame.

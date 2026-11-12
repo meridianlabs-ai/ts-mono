@@ -405,6 +405,8 @@ export const TranscriptViewNodes = forwardRef<
         // After the next render, the flat list will include the event.
         // Retry up to 3 frames in case React batching pushes the commit later.
         let cancelled = false;
+        // Once a scroll starts (or the retries give up), it reports itself.
+        let started = false;
         let cancelScroll = () => {};
         const retryScroll = (attemptsLeft: number) => {
           if (cancelled) return;
@@ -412,19 +414,23 @@ export const TranscriptViewNodes = forwardRef<
             (e) => e.id === eventId
           );
           if (newIdx !== -1) {
+            started = true;
             cancelScroll = tryScroll(newIdx);
             return;
           }
           if (attemptsLeft > 0) {
             requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
           } else {
+            started = true;
             callbacks?.onDone?.();
           }
         };
         requestAnimationFrame(() => retryScroll(3));
         return () => {
+          if (cancelled) return;
           cancelled = true;
           cancelScroll();
+          if (!started) callbacks?.onAbandon?.();
         };
       }
 
