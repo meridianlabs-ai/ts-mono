@@ -259,6 +259,31 @@ test("Escape in the swimlane closes its options popover before clearing the row 
   await expect(exploreCard).toBeVisible();
 });
 
+test("Escape in focus mode closes an open menu before leaving focus mode", async ({
+  page,
+  network,
+}) => {
+  await openTranscriptWithTimeline(page, network);
+  await expect(page.getByText("sub-agent: explore")).toBeVisible();
+  await page.keyboard.press("f");
+  const exit = page.getByRole("link", { name: "Exit focus mode" });
+  await expect(exit).toBeVisible();
+
+  for (const name of [/^Select agent/, /^Choose theme$/]) {
+    const trigger = page.getByRole("button", { name });
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+    await expect(exit).toBeVisible();
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(exit).toBeHidden();
+});
+
 for (const deepLink of [
   { query: "?event=evt-target", selector: "#event-panel-evt-target" },
   {

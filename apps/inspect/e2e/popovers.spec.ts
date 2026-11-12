@@ -109,3 +109,59 @@ test("a menu with no room below its trigger opens above it", async ({
     (await box(trigger)).y
   );
 });
+
+// Two agents' recordings, so fullscreen terminals show the agent menu.
+const cast = (agent: string, start: number) =>
+  [
+    JSON.stringify({
+      version: 2,
+      width: 80,
+      height: 24,
+      timestamp: 1_792_950_894 + start,
+      ir_agent_span_id: `span-${agent}`,
+      ir_agent: agent,
+    }),
+    JSON.stringify([0, "o", `$ echo ${agent}\r\n`]),
+    JSON.stringify([5, "o", `${agent}\r\n`]),
+  ].join("\n");
+
+test("Escape in fullscreen terminals closes the agent menu before leaving fullscreen", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [
+        createEvalSample({
+          id: 1,
+          messages: [{ role: "user", content: "Run it", source: "input" }],
+          store: {
+            "asciinema:terminal-main": cast("main", 0),
+            "asciinema:terminal-helper": cast("helper", 2),
+          },
+        }),
+      ],
+    }),
+    LOG_FILE
+  );
+  await page.goto(
+    `/#/logs/${encodeURIComponent(LOG_FILE)}/samples/sample/1/1/terminals`
+  );
+  await page.getByRole("button", { name: "Show terminals fullscreen" }).click();
+  const fullscreen = page.getByRole("region", { name: "Terminals fullscreen" });
+  await expect(fullscreen).toBeVisible();
+
+  const picker = fullscreen.getByTitle("Show another agent's terminals");
+  await picker.click();
+  const menu = page.getByText("Agents in this sample");
+  await expect(menu).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(picker).toBeFocused();
+  await expect(fullscreen).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(fullscreen).toBeHidden();
+});
