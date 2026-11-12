@@ -216,6 +216,62 @@ describe("FindBand", () => {
     expect(highlighted("find-match")).toEqual(["b", "c", "d"]);
   });
 
+  it("recounts when a class change hides a match", async () => {
+    const style = document.createElement("style");
+    style.textContent = ".hide { display: none; }";
+    document.head.appendChild(style);
+    const Tabs: FC = () => {
+      const [hidden, setHidden] = useState(false);
+      return (
+        <>
+          <button onClick={() => setHidden(true)}>hide</button>
+          <p id="a">needle one</p>
+          <p id="b" className={hidden ? "hide" : undefined}>
+            needle two
+          </p>
+        </>
+      );
+    };
+    render(
+      <Page>
+        <Tabs />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("1 of 2");
+    // Let the find target's own re-render land first.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    fireEvent.click(screen.getByText("hide"));
+
+    await waitFor(() => expect(status().textContent).toBe("1 of 1"));
+    style.remove();
+  });
+
+  it("lands on a match that renders after a search found none", async () => {
+    const Late: FC = () => {
+      const [shown, setShown] = useState(false);
+      return (
+        <>
+          <button onClick={() => setShown(true)}>more</button>
+          {shown && <p id="d">needle four</p>}
+        </>
+      );
+    };
+    render(
+      <Page>
+        <Late />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("No results");
+
+    fireEvent.click(screen.getByText("more"));
+
+    await waitFor(() => expect(status().textContent).toBe("1 of 1"));
+    expect(highlighted("find-current")).toEqual(["d"]);
+  });
+
   it("stays on the current match when text renders above it", async () => {
     const Growing: FC = () => {
       const [shown, setShown] = useState(false);
@@ -397,6 +453,19 @@ describe("FindBand with a find source", () => {
     ]);
     // Unrendered again, item 1 counts its data match again.
     expect(status().textContent).toBe("3 of 5");
+  });
+
+  it("starts below the rendered rows when none of them matches", () => {
+    const reveal = vi.fn(() => new Promise<boolean>(() => {}));
+    render(
+      <Page>
+        <List initial={[2]} phantom={2} reveal={reveal} />
+      </Page>
+    );
+
+    search("needle");
+
+    expect(reveal).toHaveBeenCalledWith(3, "forward", expect.any(AbortSignal));
   });
 
   it("skips an item at once when the list reports it never renders", async () => {

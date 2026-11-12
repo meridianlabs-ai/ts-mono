@@ -116,6 +116,7 @@ interface HarnessOptions {
   panels?: { id: string; text: string }[];
   onSelect?: (key: string | null) => void;
   scrollToEvent?: TranscriptViewNodesHandle["scrollToEvent"];
+  rowEventId?: (eventId: string) => string;
 }
 
 function renderHarness(opts: HarnessOptions) {
@@ -134,6 +135,7 @@ function renderHarness(opts: HarnessOptions) {
         }),
       getFlattenedNodes: () => flattened,
       getElement: () => document.getElementById("transcript"),
+      rowEventId: opts.rowEventId ?? ((eventId) => eventId),
     });
     useTranscriptSearchSource({
       events: opts.events,
@@ -185,6 +187,21 @@ describe("useTranscriptSearchSource", () => {
     expect(source().countByItem("wondering")).toEqual([{ item: 1, count: 1 }]);
     expect(source().countByItem("hello")).toEqual([{ item: 0, count: 1 }]);
     expect(source().countByItem("absent")).toEqual([]);
+  });
+
+  it("counts an event shown inside another event's row under that row", () => {
+    // An approval (e2) renders inline in its tool's row (e1).
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e2", "wondering approval"),
+    ]);
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      rowEventId: (eventId) => (eventId === "e2" ? "e1" : eventId),
+    });
+    expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
   });
 
   it("recounts when the events change", () => {

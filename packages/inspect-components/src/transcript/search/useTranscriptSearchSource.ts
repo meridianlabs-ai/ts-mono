@@ -81,8 +81,13 @@ export function useTranscriptSearchSource(
       anchor: root,
       countByItem: cacheLastTerm((term) => {
         const counts = new Map<number, number>();
+        // An approval or sentinel shows inside its tool's row, so its
+        // matches count under the item that renders them.
+        const rowEventId = viewNodesRef.current?.rowEventId ?? ((id) => id);
         for (const match of findAllMatches(events, term, eventToRow)) {
-          const index = eventIndex.get(match.eventId)!;
+          const index =
+            eventIndex.get(rowEventId(match.eventId)) ??
+            eventIndex.get(match.eventId)!;
           counts.set(index, (counts.get(index) ?? 0) + 1);
         }
         return [...counts]

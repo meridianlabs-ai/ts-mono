@@ -55,6 +55,10 @@ export class FindSession {
     inFlight: boolean;
   } | null = null;
   private navigation = 0;
+  // The term has no current match yet: land on the first one that renders.
+  private awaitingMatch = false;
+  // Per list, the highest rendered item: items past it are below the view.
+  private lastRendered = new Map<string, number>();
   private abortReveal: AbortController | null = null;
   private settleTimer: number | null = null;
   private frame: number | null = null;
@@ -78,9 +82,11 @@ export class FindSession {
     const previous = this.currentRange();
     this.term = term;
     this.current = null;
+    this.awaitingMatch = false;
     this.cancelNavigation();
     this.observe(term !== "");
     this.rebuild();
+    this.awaitingMatch = term !== "";
     this.selectFrom(previous?.startContainer.isConnected ? previous : null);
   }
 
@@ -126,6 +132,10 @@ export class FindSession {
       childList: true,
       subtree: true,
       characterData: true,
+      // Tabs and toggles that only switch a class or `hidden` show and hide
+      // text too. Not `style`: lists rewrite it on every scroll.
+      attributes: true,
+      attributeFilter: ["class", "hidden", "open"],
     });
   }
 
@@ -147,6 +157,10 @@ export class FindSession {
         this.current.key,
         previous
       );
+    }
+    if (this.awaitingMatch && totalMatches(this.entries) > 0) {
+      this.selectFrom(null);
+      return;
     }
     this.publish();
   }
@@ -211,13 +225,20 @@ export class FindSession {
         pageRanges.push(range);
       }
     }
-    const matches: SourceMatches[] = sources.map(({ id, source, anchor }) => ({
-      id,
-      position: pageMatchesBefore(pageRanges, anchor),
-      dataCounts: source.countByItem(term),
-      rendered: rendered.get(id)!,
-      renderedItems: source.renderedItems(),
-    }));
+    this.lastRendered.clear();
+    const matches: SourceMatches[] = sources.map(({ id, source, anchor }) => {
+      const renderedItems = source.renderedItems();
+      if (renderedItems.size > 0) {
+        this.lastRendered.set(id, Math.max(...renderedItems));
+      }
+      return {
+        id,
+        position: pageMatchesBefore(pageRanges, anchor),
+        dataCounts: source.countByItem(term),
+        rendered: rendered.get(id)!,
+        renderedItems,
+      };
+    });
     return buildEntries(pageRanges, matches);
   }
 
@@ -225,10 +246,8 @@ export class FindSession {
    *  above the viewport, so typing doesn't jump the page back to the top. */
   private selectFrom(from: Range | null): void {
     let ordinal = 0;
-    const seenRendered = new Set<string | null>();
     for (const entry of this.entries) {
       if (entry.ranges) {
-        seenRendered.add(entry.source);
         const index = entry.ranges.findIndex((range) =>
           from
             ? range.compareBoundaryPoints(Range.START_TO_START, from) >= 0
@@ -238,7 +257,10 @@ export class FindSession {
           this.navigate(ordinal + index, "forward", 0);
           return;
         }
-      } else if (seenRendered.has(entry.source)) {
+      } else if (
+        entry.source !== null &&
+        entry.item > (this.lastRendered.get(entry.source) ?? Infinity)
+      ) {
         // An item past the list's rendered rows is below the viewport.
         this.navigate(ordinal, "forward", 0);
         return;
@@ -251,6 +273,7 @@ export class FindSession {
   private navigate(ordinal: number, direction: FindDirection, skips: number) {
     const key = keyAt(this.entries, ordinal);
     if (!key) return;
+    this.awaitingMatch = false;
     this.cancelNavigation();
     const navigation = this.navigation;
     this.current = { key, ordinal: ordinalOf(this.entries, key)! };

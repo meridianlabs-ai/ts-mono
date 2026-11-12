@@ -120,6 +120,9 @@ export interface TranscriptViewNodesHandle {
   getFlattenedNodes: () => EventNode[];
   /** The element holding the rendered event rows, null until mounted. */
   getElement: () => HTMLElement | null;
+  /** The event whose row renders this event: itself, or the tool event an
+   *  approval or sentinel is shown inside. */
+  rowEventId: (eventId: string) => string;
 }
 
 // =============================================================================
@@ -466,8 +469,9 @@ export const TranscriptViewNodes = forwardRef<
       scrollToEvent,
       getFlattenedNodes: () => flattenedNodesLatest.current,
       getElement: () => rootRef.current,
+      rowEventId: redirectEventId,
     }),
-    [scrollToEvent, flattenedNodesLatest]
+    [scrollToEvent, flattenedNodesLatest, redirectEventId]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a

@@ -47,6 +47,19 @@ describe("findTextMatches", () => {
     expect(texts(root, "username")).toEqual([]);
   });
 
+  it("matches whitespace as it renders", () => {
+    const root = mount(
+      "<p>hello  world</p><p>line one\nline two</p><pre>a  b</pre>"
+    );
+    expect(findTextMatches(root, "hello world")).toHaveLength(1);
+    expect(findTextMatches(root, "one line")).toHaveLength(1);
+    // Preformatted text keeps its spaces.
+    expect(findTextMatches(root, "a b")).toHaveLength(0);
+    expect(texts(root, "a  b")).toEqual(["a  b"]);
+    const [range] = findTextMatches(root, "hello world");
+    expect(range?.toString()).toBe("hello  world");
+  });
+
   it("treats a term with regex syntax literally", () => {
     const root = mount("<p>a.b a*b (x)</p>");
     expect(texts(root, "a.b")).toEqual(["a.b"]);
