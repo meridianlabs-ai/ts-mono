@@ -139,6 +139,23 @@ describe("Modal", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("leaves Enter in a nested modal to that modal", () => {
+    const outerSubmit = vi.fn();
+    const innerSubmit = vi.fn();
+    render(
+      <Modal show onHide={() => {}} onSubmit={outerSubmit} title="Outer">
+        <Modal show onHide={() => {}} onSubmit={innerSubmit} title="Inner">
+          <input aria-label="Name" />
+        </Modal>
+      </Modal>
+    );
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), {
+      key: "Enter",
+    });
+    expect(innerSubmit).toHaveBeenCalledOnce();
+    expect(outerSubmit).not.toHaveBeenCalled();
+  });
+
   it("uses the latest callbacks", () => {
     const firstHide = vi.fn();
     const nextHide = vi.fn();

@@ -61,3 +61,64 @@ test("a modal keeps focus inside, makes the page inert, and returns focus when d
   await page.mouse.click(5, 400);
   await expect(dialog).toBeHidden();
 });
+
+test("Escape closes a popover in a modal first, and only for that keypress", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({ samples: [sample(1), sample(2)] }),
+    LOG_FILE
+  );
+  await page.goto(`/#/logs/${encodeURIComponent(LOG_FILE)}/samples`);
+
+  const opener = page.getByTitle("Edit tags", { exact: true });
+  const dialog = page.getByRole("dialog", { name: "Edit tags" });
+  const menu = page.locator("#modal-menu");
+  // No modal holds a menu yet, so open a bare auto popover inside one.
+  const openMenu = () =>
+    page.evaluate(() => {
+      const el = document.createElement("div");
+      el.id = "modal-menu";
+      el.popover = "auto";
+      el.textContent = "menu";
+      document.querySelector("dialog")?.append(el);
+      el.showPopover();
+    });
+
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  await openMenu();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(dialog).toBeVisible();
+  // With focus on <body>, key events don't pass through the dialog.
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+  expect(
+    await page.evaluate(() => document.activeElement === document.body)
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  // Safari's sequence, which Chromium doesn't produce: the Escape that
+  // closes the menu also sends the dialog a cancel.
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  await openMenu();
+  await page.evaluate(() => {
+    const modal = document.querySelector("dialog");
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+    document.querySelector<HTMLElement>("#modal-menu")?.hidePopover();
+    modal?.dispatchEvent(new Event("cancel", { cancelable: true }));
+  });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});

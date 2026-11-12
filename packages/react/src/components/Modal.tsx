@@ -14,7 +14,10 @@ const TEXT_INPUT_SELECTOR =
 const shouldSubmitOnEnter = (event: KeyboardEvent, dialog: Element) => {
   if (event.defaultPrevented) return false;
   const target = event.target;
-  if (!(target instanceof Element) || !dialog.contains(target)) return false;
+  // closest, not contains: a nested modal's dialog renders inside this one.
+  if (!(target instanceof Element) || target.closest("dialog") !== dialog) {
+    return false;
+  }
   if (target === dialog) return true;
   return target.matches(TEXT_INPUT_SELECTOR);
 };
@@ -71,11 +74,11 @@ const OpenModal: FC<Omit<ModalProps, "show">> = ({
   const titleId = id ? `${id}-title` : fallbackTitleId;
   const { ref, dialog } = useShowModal();
   // Safari closes a popover open inside the dialog on Escape and then also
-  // sends the dialog a cancel for the same keypress.
+  // sends the dialog a cancel for the same keypress. Tracked on document, so
+  // every keypress resets it, including those with focus on <body>.
   const escapeForPopover = useRef(false);
-
   useEventListener(
-    dialog,
+    dialog ? document : null,
     "keydown",
     (e) => {
       escapeForPopover.current =
