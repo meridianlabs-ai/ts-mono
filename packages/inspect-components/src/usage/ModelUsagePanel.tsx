@@ -5,6 +5,7 @@ import type { CostedUsage } from "@tsmono/inspect-common/utils";
 import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
+import { visibleOutputTokens } from "./tokenTotals";
 
 // One definition, so a token category added here is also counted by
 // costSummary's partial-cost check.
@@ -61,7 +62,7 @@ const buildCategories = (usage: ModelUsageData): Category[] => {
     input: usage.input_tokens ?? 0,
     cacheRead: usage.input_tokens_cache_read ?? 0,
     cacheWrite: usage.input_tokens_cache_write ?? 0,
-    output: usage.output_tokens ?? 0,
+    output: visibleOutputTokens(usage),
     reasoning: usage.reasoning_tokens ?? 0,
   };
   return CAT_ORDER.filter((k) => vals[k] > 0).map((k) => ({
@@ -133,7 +134,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
     (usage.input_tokens ?? 0) +
     (usage.input_tokens_cache_read ?? 0) +
     (usage.input_tokens_cache_write ?? 0);
-  const outputAll = (usage.output_tokens ?? 0) + (usage.reasoning_tokens ?? 0);
+  const outputAll = visibleOutputTokens(usage) + (usage.reasoning_tokens ?? 0);
   const denom = inputAll + outputAll || total || 1;
   const inputPct = Math.round((inputAll / denom) * 100);
   const outputPct = Math.max(0, 100 - inputPct);
