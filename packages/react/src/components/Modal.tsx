@@ -54,7 +54,8 @@ interface ModalProps {
  *
  * Portaled to `<body>`, so the owner's styles and `:hover` don't reach it.
  * Popovers declared in its children still render inside the dialog, which
- * keeps them interactive.
+ * keeps them interactive. Don't declare a Modal inside popover content:
+ * `showModal()` closes that popover, which would unmount the Modal.
  */
 export const Modal: FC<ModalProps> = ({ show, ...props }) =>
   show ? <OpenModal {...props} /> : null;
