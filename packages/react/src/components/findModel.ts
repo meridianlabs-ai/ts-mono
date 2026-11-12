@@ -53,7 +53,8 @@ export function buildEntries(
   };
   for (const source of ordered) {
     pushPage(source.position);
-    entries.push(...sourceEntries(source));
+    // One push per entry: spreading a large list exceeds the argument limit.
+    for (const entry of sourceEntries(source)) entries.push(entry);
   }
   pushPage(pageRanges.length);
   return entries;

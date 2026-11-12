@@ -2,7 +2,7 @@ import { RefObject, useEffect, useMemo } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import {
-  cacheLastTerm,
+  cacheLastCall,
   useExtendedFind,
   type FindSource,
 } from "@tsmono/react/components";
@@ -14,6 +14,7 @@ import type { TranscriptViewNodesHandle } from "../TranscriptViewNodes";
 import { buildEventToRowMap, findAllMatches } from "./sampleSearch";
 
 const DEFAULT_ID = "transcript-sample";
+const sameEvent = (eventId: string) => eventId;
 const SETTLE_LIMIT = 90;
 
 export interface UseTranscriptSearchSourceOptions {
@@ -76,14 +77,13 @@ export function useTranscriptSearchSource(
       if (event.uuid) eventIndex.set(event.uuid, index);
     });
     const root = () => viewNodesRef.current?.getElement() ?? null;
-
-    return {
-      anchor: root,
-      countByItem: cacheLastTerm((term) => {
+    // Keyed on the view's redirects too: they arrive when the row mounts and
+    // change when the selected row does.
+    const countByItem = cacheLastCall(
+      (term: string, rowEventId: (eventId: string) => string) => {
         const counts = new Map<number, number>();
         // An approval or sentinel shows inside its tool's row, so its
         // matches count under the item that renders them.
-        const rowEventId = viewNodesRef.current?.rowEventId ?? ((id) => id);
         for (const match of findAllMatches(events, term, eventToRow)) {
           const index =
             eventIndex.get(rowEventId(match.eventId)) ??
@@ -93,7 +93,13 @@ export function useTranscriptSearchSource(
         return [...counts]
           .map(([item, count]) => ({ item, count }))
           .sort((a, b) => a.item - b.item);
-      }),
+      }
+    );
+
+    return {
+      anchor: root,
+      countByItem: (term) =>
+        countByItem(term, viewNodesRef.current?.rowEventId ?? sameEvent),
       itemOf: (node) => {
         const container = root();
         if (!container?.contains(node)) return null;
@@ -139,7 +145,11 @@ export function useTranscriptSearchSource(
           });
           signal.addEventListener("abort", cancelScroll, { once: true });
         });
-        return waitForEventInDOM(eventId);
+        // An approval or sentinel has no element of its own: wait for the
+        // row that renders it.
+        return waitForEventInDOM(
+          viewNodesRef.current?.rowEventId(eventId) ?? eventId
+        );
       },
     };
   }, [events, rows, viewNodesRef, latest]);

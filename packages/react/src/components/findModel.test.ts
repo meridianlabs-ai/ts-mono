@@ -81,6 +81,17 @@ describe("buildEntries", () => {
   });
 });
 
+describe("buildEntries at scale", () => {
+  it("handles a list with hundreds of thousands of matching items", () => {
+    const dataCounts = Array.from({ length: 300_000 }, (_, item) => ({
+      item,
+      count: 1,
+    }));
+    const entries = buildEntries([], [source({ dataCounts })]);
+    expect(totalMatches(entries)).toBe(300_000);
+  });
+});
+
 describe("match keys", () => {
   const dom = ranges(2);
   const entries = buildEntries(ranges(1), [

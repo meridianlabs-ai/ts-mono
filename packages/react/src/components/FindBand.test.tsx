@@ -153,6 +153,21 @@ describe("FindBand", () => {
     expect(status().textContent).toBe("3 of 3");
   });
 
+  it("opens a closed details element to show the current match", () => {
+    render(
+      <Page>
+        <details data-testid="details">
+          <summary>summary</summary>
+          <p id="a">needle inside</p>
+        </details>
+      </Page>
+    );
+    search("needle");
+
+    expect(status().textContent).toBe("1 of 1");
+    expect(screen.getByTestId<HTMLDetailsElement>("details").open).toBe(true);
+  });
+
   it("keeps the current match while the term grows, if it still matches", () => {
     render(
       <Page>
@@ -546,6 +561,67 @@ describe("FindBand with a find source", () => {
 
     expect(signals[0]?.aborted).toBe(true);
     expect(status().textContent).toBe("2 of 5");
+  });
+
+  it("steps backward past an item that renders without its matches", async () => {
+    const reveal = vi.fn(() => Promise.resolve(true));
+    render(
+      <Page>
+        <List initial={[3]} phantom={2} dataCount={2} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("7 of 9");
+
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+
+    await waitFor(
+      () =>
+        expect(reveal.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+          [2, "backward"],
+          [1, "backward"],
+        ]),
+      { timeout: 3000 }
+    );
+  });
+
+  it("stops a pending reveal on a scroll key, not on other keys", () => {
+    const signals: AbortSignal[] = [];
+    const reveal = vi.fn(
+      (_item: number, _direction: FindDirection, signal: AbortSignal) => {
+        signals.push(signal);
+        return new Promise<boolean>(() => {});
+      }
+    );
+    render(
+      <Page>
+        <List initial={[0]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    fireEvent.keyDown(document.body, { key: "Shift" });
+    expect(signals[0]?.aborted).toBe(false);
+    fireEvent.keyDown(document.body, { key: "PageDown" });
+
+    expect(signals[0]?.aborted).toBe(true);
+  });
+
+  it("reveals only backward on Shift+Enter for a new term", () => {
+    const reveal = vi.fn(() => new Promise<boolean>(() => {}));
+    render(
+      <Page>
+        <List initial={[2]} phantom={2} reveal={reveal} />
+      </Page>
+    );
+    fireEvent.change(input(), { target: { value: "needle" } });
+
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+
+    expect(reveal.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+      [1, "backward"],
+    ]);
   });
 
   it("steps past every match of an item that never renders", async () => {

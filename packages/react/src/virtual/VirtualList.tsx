@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import {
-  cacheLastTerm,
+  cacheLastCall,
   useExtendedFindOptional,
   type FindSource,
   type ItemMatchCount,
@@ -915,7 +915,7 @@ export function VirtualList<T>({
       new Set(virtualizer.getVirtualItems().map((item) => item.index));
     return {
       anchor: () => wrapperRef.current,
-      countByItem: cacheLastTerm((term) =>
+      countByItem: cacheLastCall((term: string) =>
         countMatchesByItem(precomputedSearchTexts, term.toLowerCase())
       ),
       itemOf: (node) => {

@@ -40,14 +40,20 @@ export interface FindSource {
   ) => Promise<boolean>;
 }
 
-/** Wraps a per-term computation so repeated calls for the same term (every
+/** Wraps a computation so repeated calls with the same arguments (every
  *  re-collect while the band is open) reuse the last result. */
-export function cacheLastTerm<T>(
-  compute: (term: string) => T
-): (term: string) => T {
-  let last: { term: string; value: T } | null = null;
-  return (term) => {
-    if (last?.term !== term) last = { term, value: compute(term) };
+export function cacheLastCall<A extends unknown[], T>(
+  compute: (...args: A) => T
+): (...args: A) => T {
+  let last: { args: A; value: T } | null = null;
+  return (...args) => {
+    if (
+      !last ||
+      last.args.length !== args.length ||
+      last.args.some((arg, i) => !Object.is(arg, args[i]))
+    ) {
+      last = { args, value: compute(...args) };
+    }
     return last.value;
   };
 }

@@ -1,5 +1,9 @@
 import type { FindDirection, FindSource } from "./ExtendedFindContext";
-import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
+import {
+  isRangeAboveView,
+  openDetailsAround,
+  scrollRangeIntoView,
+} from "./findBandDom";
 import { clearFindHighlights, paintFindHighlights } from "./findHighlights";
 import { findTextMatches } from "./findMatches";
 import {
@@ -34,7 +38,21 @@ interface FindSessionOptions {
 const REVEAL_SETTLE_MS = 1000;
 // Consecutive items a single step may skip because they render no match.
 const MAX_SKIPS = 10;
-const USER_SCROLL_EVENTS = ["wheel", "touchmove", "pointerdown"] as const;
+const USER_SCROLL_EVENTS = [
+  "wheel",
+  "touchmove",
+  "pointerdown",
+  "keydown",
+] as const;
+const SCROLL_KEYS = new Set([
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  "ArrowUp",
+  "ArrowDown",
+  " ",
+]);
 
 /**
  * Find state for one open find band: the matches for the current term, the
@@ -77,7 +95,9 @@ export class FindSession {
     return this.term;
   }
 
-  setTerm(term: string): void {
+  /** Searches a new term, landing on the first match from the viewport
+   *  down, or the one before it when searching backward. */
+  setTerm(term: string, direction: FindDirection = "forward"): void {
     if (term === this.term) return;
     const previous = this.currentRange();
     this.term = term;
@@ -87,7 +107,10 @@ export class FindSession {
     this.observe(term !== "");
     this.rebuild();
     this.awaitingMatch = term !== "";
-    this.selectFrom(previous?.startContainer.isConnected ? previous : null);
+    this.selectFrom(
+      previous?.startContainer.isConnected ? previous : null,
+      direction
+    );
   }
 
   step(direction: FindDirection): void {
@@ -159,7 +182,7 @@ export class FindSession {
       );
     }
     if (this.awaitingMatch && totalMatches(this.entries) > 0) {
-      this.selectFrom(null);
+      this.selectFrom(null, "forward");
       return;
     }
     this.publish();
@@ -193,6 +216,7 @@ export class FindSession {
     paintFindHighlights(this.allRanges(), range);
     if (range && this.scrollPending && !listScrolling) {
       this.scrollPending = false;
+      openDetailsAround(range);
       this.scrollAfterLayout(this.navigation);
     }
     this.options.onStatus({
@@ -242,32 +266,38 @@ export class FindSession {
     return buildEntries(pageRanges, matches);
   }
 
-  /** Chooses the first match at or after `from`, or else the first one not
-   *  above the viewport, so typing doesn't jump the page back to the top. */
-  private selectFrom(from: Range | null): void {
+  /** Lands on the first match at or after `from`, or else the first one not
+   *  above the viewport, so typing doesn't jump the page back to the top.
+   *  Searching backward lands on the match before that one. */
+  private selectFrom(from: Range | null, direction: FindDirection): void {
+    const ordinal = this.firstFrom(from);
+    this.navigate(
+      direction === "forward" ? ordinal : ordinal - 1,
+      direction,
+      0
+    );
+  }
+
+  private firstFrom(from: Range | null): number {
     let ordinal = 0;
     for (const entry of this.entries) {
       if (entry.ranges) {
         const index = entry.ranges.findIndex((range) =>
           from
             ? range.compareBoundaryPoints(Range.START_TO_START, from) >= 0
-            : !isAboveViewport(range)
+            : !isRangeAboveView(range)
         );
-        if (index !== -1) {
-          this.navigate(ordinal + index, "forward", 0);
-          return;
-        }
+        if (index !== -1) return ordinal + index;
       } else if (
         entry.source !== null &&
         entry.item > (this.lastRendered.get(entry.source) ?? Infinity)
       ) {
         // An item past the list's rendered rows is below the viewport.
-        this.navigate(ordinal, "forward", 0);
-        return;
+        return ordinal;
       }
       ordinal += entry.count;
     }
-    this.navigate(0, "forward", 0);
+    return 0;
   }
 
   private navigate(ordinal: number, direction: FindDirection, skips: number) {
@@ -310,10 +340,12 @@ export class FindSession {
       });
   }
 
-  // The user scrolling or clicking the page while a navigation is still
-  // bringing its match in takes over: the view stays where they put it.
+  // The user scrolling (wheel, touch, scroll keys) or clicking the page while
+  // a navigation is still bringing its match in takes over: the view stays
+  // where they put it.
   private readonly onUserInput = (event: Event): void => {
     if (!this.revealing && !this.scrollPending) return;
+    if (event instanceof KeyboardEvent && !SCROLL_KEYS.has(event.key)) return;
     const band = this.options.band();
     if (band && event.target instanceof Node && band.contains(event.target)) {
       return;
@@ -343,8 +375,8 @@ export class FindSession {
     const count =
       this.entries.find((e) => e.source === key.source && e.item === key.item)
         ?.count ?? 0;
-    // A vanished item's ordinal now belongs to the match after it.
-    const from = start ?? this.current.ordinal;
+    // A vanished item's start ordinal now belongs to the match after it.
+    const from = start ?? this.current.ordinal - key.occurrence;
     const ordinal = revealing.direction === "forward" ? from + count : from - 1;
     this.navigate(ordinal, revealing.direction, revealing.skips + 1);
   }
@@ -356,7 +388,7 @@ export class FindSession {
       requestAnimationFrame(() => {
         if (navigation !== this.navigation) return;
         const range = this.currentRange();
-        if (range) scrollRangeIntoViewIfNeeded(range);
+        if (range) scrollRangeIntoView(range);
       })
     );
   }
@@ -423,26 +455,4 @@ function pageMatchesBefore(pageRanges: readonly Range[], anchor: Element) {
       (anchor.compareDocumentPosition(range.startContainer) & after) !== 0
   );
   return index === -1 ? pageRanges.length : index;
-}
-
-function viewportOf(range: Range): { top: number; bottom: number } {
-  const parent = findScrollableParent(range.startContainer.parentElement, {
-    minScrollBuffer: 0,
-  });
-  if (parent) {
-    const rect = parent.getBoundingClientRect();
-    return { top: rect.top, bottom: rect.bottom };
-  }
-  return { top: 0, bottom: window.innerHeight };
-}
-
-function isAboveViewport(range: Range): boolean {
-  return range.getBoundingClientRect().bottom <= viewportOf(range).top;
-}
-
-function scrollRangeIntoViewIfNeeded(range: Range): void {
-  const rect = range.getBoundingClientRect();
-  const viewport = viewportOf(range);
-  if (rect.top >= viewport.top && rect.bottom <= viewport.bottom) return;
-  scrollRangeToCenter(range);
 }

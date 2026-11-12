@@ -50,24 +50,21 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   });
 
   // Returns whether the term changed.
-  const applyTerm = (): boolean => {
+  const applyTerm = (direction: FindDirection = "forward"): boolean => {
     const session = sessionRef.current;
     const value = searchBoxRef.current?.value ?? "";
     if (!session || value === session.searchTerm) return false;
     // Before the session searches, so panels holding a match start
     // expanding before it scrolls to one.
     setFindTarget(value ? { term: value } : null);
-    session.setTerm(value);
+    session.setTerm(value, direction);
     return true;
   };
 
   const search = (direction: FindDirection): void => {
     // A term not yet searched (debounce pending) lands on its first match
-    // from the viewport; searching backward steps once more, onto the match
-    // before it.
-    if (!applyTerm() || direction === "backward") {
-      sessionRef.current?.step(direction);
-    }
+    // in that direction.
+    if (!applyTerm(direction)) sessionRef.current?.step(direction);
   };
 
   const handleInputChange = useDebouncedCallback(() => {

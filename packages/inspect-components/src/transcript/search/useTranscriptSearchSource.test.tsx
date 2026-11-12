@@ -123,7 +123,10 @@ function renderHarness(opts: HarnessOptions) {
   const flattened: EventNode[] = (opts.flattenedNodeIds ?? []).map(
     (id) => new EventNode(id, testInfoEvent({ uuid: id }), 0)
   );
-  const harness: { source?: FindSource } = {};
+  const harness: {
+    source?: FindSource;
+    view?: TranscriptViewNodesHandle | null;
+  } = {};
   const Probe = () => {
     const { getFindSources } = useExtendedFind();
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
@@ -145,6 +148,7 @@ function renderHarness(opts: HarnessOptions) {
       viewNodesRef,
     });
     harness.source = getFindSources().get("transcript-sample");
+    harness.view = viewNodesRef.current;
     return null;
   };
   const tree = () => (
@@ -169,7 +173,13 @@ function renderHarness(opts: HarnessOptions) {
   rerender(tree());
   const registered = harness.source;
   if (!registered) throw new Error("source not registered");
-  return { source: () => registered };
+  return {
+    source: () => registered,
+    // A row switch or remount gives the view new redirects.
+    setRowEventId: (rowEventId: (eventId: string) => string) => {
+      if (harness.view) harness.view.rowEventId = rowEventId;
+    },
+  };
 }
 
 const textIn = (id: string) => document.getElementById(id)!.firstChild!;
@@ -202,6 +212,48 @@ describe("useTranscriptSearchSource", () => {
       rowEventId: (eventId) => (eventId === "e2" ? "e1" : eventId),
     });
     expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
+  });
+
+  it("recounts when the view's redirects change", () => {
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e2", "wondering approval"),
+    ]);
+    const { source, setRowEventId } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+    });
+    expect(source().countByItem("wondering")).toHaveLength(2);
+
+    setRowEventId((eventId) => (eventId === "e2" ? "e1" : eventId));
+
+    expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
+  });
+
+  it("reveals an event shown inside another row once that row renders", async () => {
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e3", "wondering approval"),
+    ]);
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering tool wondering approval" }],
+      rowEventId: (eventId) => (eventId === "e3" ? "e1" : eventId),
+    });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(
+        1,
+        "forward",
+        new AbortController().signal
+      );
+    });
+
+    expect(revealed).toBe(true);
   });
 
   it("recounts when the events change", () => {

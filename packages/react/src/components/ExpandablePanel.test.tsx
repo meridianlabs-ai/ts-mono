@@ -89,7 +89,7 @@ const longContent = (
     {Array.from({ length: 50 }).map((_, i) => (
       <p key={i}>Line {i}: lorem ipsum dolor sit amet</p>
     ))}
-    <p data-testid="needle-paragraph">contains the wondering needle</p>
+    <p data-testid="needle-paragraph">{"contains the wondering\n    needle"}</p>
   </div>
 );
 
@@ -116,6 +116,11 @@ describe("ExpandablePanel auto-expand on find target", () => {
     {
       name: "quoted target matching unquoted text → expanded",
       target: { term: '"wondering"' },
+      expectTruncated: false,
+    },
+    {
+      name: "target matching text across a line break → expanded",
+      target: { term: "wondering needle" },
       expectTruncated: false,
     },
     {
