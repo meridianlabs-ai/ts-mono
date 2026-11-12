@@ -1,161 +1,288 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { FC, ReactNode, useEffect } from "react";
+import { FC, ReactNode, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExtendedFindProvider, useExtendedFind } from "./ExtendedFindContext";
-import { FindBand } from "./FindBand";
-import { FindTargetProvider } from "./FindTargetContext";
+import { stubFindHighlightApi } from "../test/dom-stubs";
 
-const Providers: FC<{ children: ReactNode }> = ({ children }) => (
+import {
+  ExtendedFindProvider,
+  FindSource,
+  useExtendedFind,
+} from "./ExtendedFindContext";
+import { FindBand } from "./FindBand";
+import { FindTargetProvider, useFindTarget } from "./FindTargetContext";
+
+let highlights: Map<string, Set<AbstractRange>>;
+
+beforeEach(() => {
+  highlights = stubFindHighlightApi(vi.stubGlobal);
+});
+
+afterEach(() => {
+  // Unmount while the highlight stub is still installed.
+  cleanup();
+  window.getSelection()?.removeAllRanges();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+const FindTargetProbe: FC = () => (
+  <span data-unsearchable data-testid="find-target">
+    {useFindTarget()?.term ?? ""}
+  </span>
+);
+
+const Page: FC<{
+  children: ReactNode;
+  open?: boolean;
+  onClose?: () => void;
+}> = ({ children, open = true, onClose = vi.fn() }) => (
   <ExtendedFindProvider>
-    <FindTargetProvider>{children}</FindTargetProvider>
+    <FindTargetProvider>
+      {open && <FindBand onClose={onClose} />}
+      <FindTargetProbe />
+      {children}
+    </FindTargetProvider>
   </ExtendedFindProvider>
 );
 
-const MatchCounter: FC<{ count: number }> = ({ count }) => {
-  const { registerMatchCounter } = useExtendedFind();
+const input = () => screen.getByPlaceholderText<HTMLInputElement>("Find");
+const status = () => screen.getByTestId("find-band-match-count");
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(
-    () => registerMatchCounter("find-band-test", () => count),
-    [count, registerMatchCounter]
-  );
-
-  return null;
+// Enter on a new term searches it at once, without the type-ahead debounce.
+const search = (term: string) => {
+  fireEvent.change(input(), { target: { value: term } });
+  fireEvent.keyDown(input(), { key: "Enter" });
 };
 
-const renderFindBand = (onClose = vi.fn(), children?: ReactNode) => {
-  render(
-    <Providers>
-      <FindBand onClose={onClose} />
-      {children}
-    </Providers>
+const highlighted = (name: string) =>
+  [...(highlights.get(name) ?? [])].map((range) =>
+    range instanceof Range
+      ? range.startContainer.parentElement?.closest("p")?.id
+      : undefined
   );
-  const input = screen.getByPlaceholderText<HTMLInputElement>("Find");
-  input.value = "needle";
-  return { input, onClose };
-};
+
+const threeNeedles = (
+  <>
+    <p id="a">needle one</p>
+    <p id="b">needle two</p>
+    <p id="c">needle three</p>
+  </>
+);
 
 describe("FindBand", () => {
-  let windowFind: ReturnType<typeof vi.fn>;
+  it("highlights every match and counts them", () => {
+    render(<Page>{threeNeedles}</Page>);
+    search("needle");
 
-  beforeEach(() => {
-    windowFind = vi.fn(() => false);
-    Object.defineProperty(window, "find", {
-      configurable: true,
-      value: windowFind,
-    });
+    expect(status().textContent).toBe("1 of 3");
+    expect(highlighted("find-current")).toEqual(["a"]);
+    expect(highlighted("find-match")).toEqual(["b", "c"]);
   });
 
-  afterEach(() => {
-    cleanup();
-    window.getSelection()?.removeAllRanges();
-    vi.restoreAllMocks();
+  it("steps with Enter and Shift+Enter, wrapping at both ends", () => {
+    render(<Page>{threeNeedles}</Page>);
+    search("needle");
+
+    const steps: [boolean, string, string][] = [
+      [false, "2 of 3", "b"],
+      [false, "3 of 3", "c"],
+      [false, "1 of 3", "a"],
+      [true, "3 of 3", "c"],
+      [true, "2 of 3", "b"],
+    ];
+    for (const [shiftKey, text, id] of steps) {
+      fireEvent.keyDown(input(), { key: "Enter", shiftKey });
+      expect(status().textContent).toBe(text);
+      expect(highlighted("find-current")).toEqual([id]);
+    }
+  });
+
+  it.each([
+    { key: "g", metaKey: true, shiftKey: false, expected: "2 of 3" },
+    { key: "G", metaKey: true, shiftKey: true, expected: "3 of 3" },
+    { key: "F3", metaKey: false, shiftKey: false, expected: "2 of 3" },
+    { key: "F3", metaKey: false, shiftKey: true, expected: "3 of 3" },
+  ])(
+    "steps on $key (shift: $shiftKey) from outside the input",
+    ({ key, metaKey, shiftKey, expected }) => {
+      render(<Page>{threeNeedles}</Page>);
+      search("needle");
+
+      fireEvent.keyDown(document.body, { key, metaKey, shiftKey });
+
+      expect(status().textContent).toBe(expected);
+    }
+  );
+
+  it("leaves the selection and focus alone", () => {
+    render(
+      <Page>
+        {threeNeedles}
+        <p id="mine">my selection</p>
+      </Page>
+    );
+    input().focus();
+    search("needle");
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(document.activeElement).toBe(input());
+
+    const selection = window.getSelection()!;
+    selection.selectAllChildren(document.getElementById("mine")!);
+    fireEvent.keyDown(document.body, { key: "F3" });
+
+    expect(status().textContent).toBe("3 of 3");
+    expect(selection.toString()).toBe("my selection");
+  });
+
+  it("keeps the current match while the term grows, if it still matches", () => {
+    render(
+      <Page>
+        <p id="a">abc</p>
+        <p id="b">ab</p>
+        <p id="c">abc</p>
+      </Page>
+    );
+    search("ab");
+    fireEvent.keyDown(input(), { key: "Enter" });
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(highlighted("find-current")).toEqual(["c"]);
+
+    search("abc");
+
+    expect(status().textContent).toBe("2 of 2");
+    expect(highlighted("find-current")).toEqual(["c"]);
+  });
+
+  it("does not count unsearchable text", () => {
+    render(
+      <Page>
+        <p id="a">needle</p>
+        <p data-unsearchable>needle</p>
+      </Page>
+    );
+    search("needle");
+
+    expect(status().textContent).toBe("1 of 1");
+  });
+
+  it("shows No results when nothing matches", () => {
+    render(<Page>{threeNeedles}</Page>);
+    search("haystack");
+
+    expect(status().textContent).toBe("No results");
+    expect(status().style.visibility).toBe("visible");
+    expect(highlights.size).toBe(0);
+  });
+
+  it("counts matches that render after the search", async () => {
+    const Late: FC = () => {
+      const [shown, setShown] = useState(false);
+      return (
+        <>
+          {threeNeedles}
+          <button onClick={() => setShown(true)}>more</button>
+          {shown && <p id="d">needle four</p>}
+        </>
+      );
+    };
+    render(
+      <Page>
+        <Late />
+      </Page>
+    );
+    search("needle");
+    fireEvent.click(screen.getByText("more"));
+
+    await waitFor(() => expect(status().textContent).toBe("1 of 4"));
+    expect(highlighted("find-match")).toEqual(["b", "c", "d"]);
+  });
+
+  it("stays on the current match when text renders above it", async () => {
+    const Growing: FC = () => {
+      const [shown, setShown] = useState(false);
+      return (
+        <>
+          <button onClick={() => setShown(true)}>more</button>
+          {shown && <p id="z">needle zero</p>}
+          {threeNeedles}
+        </>
+      );
+    };
+    render(
+      <Page>
+        <Growing />
+      </Page>
+    );
+    search("needle");
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+    expect(highlighted("find-current")).toEqual(["c"]);
+
+    fireEvent.click(screen.getByText("more"));
+
+    await waitFor(() => expect(status().textContent).toBe("4 of 4"));
+    expect(highlighted("find-current")).toEqual(["c"]);
+  });
+
+  it("sets the find target, and clears it and the highlights on close", () => {
+    const { rerender } = render(<Page>{threeNeedles}</Page>);
+    search("needle");
+    expect(screen.getByTestId("find-target").textContent).toBe("needle");
+
+    rerender(<Page open={false}>{threeNeedles}</Page>);
+
+    expect(screen.getByTestId("find-target").textContent).toBe("");
+    expect(highlights.size).toBe(0);
   });
 
   it("closes on Escape", () => {
     const onClose = vi.fn();
-    const { input } = renderFindBand(onClose);
+    render(<Page onClose={onClose}>{threeNeedles}</Page>);
 
-    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.keyDown(input(), { key: "Escape" });
 
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    { key: "Enter", shiftKey: false, backwards: false },
-    { key: "Enter", shiftKey: true, backwards: true },
-    { key: "g", ctrlKey: true, shiftKey: false, backwards: false },
-    { key: "g", ctrlKey: true, shiftKey: true, backwards: true },
-    { key: "F3", shiftKey: false, backwards: false },
-    { key: "F3", shiftKey: true, backwards: true },
-  ])(
-    "searches with backwards=$backwards for $key",
-    async ({ key, ctrlKey, shiftKey, backwards }) => {
-      const { input } = renderFindBand();
-
-      fireEvent.keyDown(input, { key, ctrlKey, shiftKey });
-
-      await waitFor(() => expect(windowFind).toHaveBeenCalled());
-      expect(windowFind.mock.calls.every((call) => call[2] === backwards)).toBe(
-        true
-      );
-    }
-  );
-
-  it("finds previous on Cmd+Shift+G when focus is outside the input", async () => {
-    renderFindBand(vi.fn(), <div data-testid="outside">content</div>);
-
-    // Shift makes e.key uppercase; the global handler must still match
-    fireEvent.keyDown(document.body, {
-      key: "G",
-      metaKey: true,
-      shiftKey: true,
-    });
-
-    await waitFor(() => expect(windowFind).toHaveBeenCalled());
-    expect(windowFind.mock.calls.every((call) => call[2] === true)).toBe(true);
-  });
-
   it("intercepts Cmd+F with CapsLock (uppercase key) instead of native find", () => {
-    const { input } = renderFindBand();
-    input.blur();
+    render(<Page>{threeNeedles}</Page>);
+    input().blur();
 
-    const event = fireEvent.keyDown(document.body, {
-      key: "F",
-      metaKey: true,
-    });
+    const event = fireEvent.keyDown(document.body, { key: "F", metaKey: true });
 
     // preventDefault called → returns false; native browser find is blocked
     expect(event).toBe(false);
-    expect(document.activeElement).toBe(input);
+    expect(document.activeElement).toBe(input());
   });
 
-  // Runs a debounced search to completion, which arms the cursor-restore flag
-  const armCursorRestore = async (input: HTMLInputElement) => {
-    fireEvent.change(input, { target: { value: "needles" } });
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
-    );
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  };
+  it("sends typing on the page to the end of the search box", () => {
+    render(<Page>{threeNeedles}</Page>);
+    fireEvent.change(input(), { target: { value: "nee" } });
+    input().setSelectionRange(0, 0);
+    input().blur();
 
-  it("restores the caret to the end when the browser reset it to 0", async () => {
-    const { input } = renderFindBand();
-    await armCursorRestore(input);
+    fireEvent.keyDown(document.body, { key: "d" });
 
-    input.focus();
-    input.setSelectionRange(0, 0);
-    fireEvent.keyDown(input, { key: "x" });
-
-    expect(input.selectionStart).toBe(input.value.length);
-  });
-
-  it("respects a user-placed mid-text caret after a search", async () => {
-    const { input } = renderFindBand();
-    await armCursorRestore(input);
-
-    input.focus();
-    input.setSelectionRange(2, 2);
-    fireEvent.keyDown(input, { key: "x" });
-
-    expect(input.selectionStart).toBe(2);
+    expect(document.activeElement).toBe(input());
+    expect(input().selectionStart).toBe(3);
   });
 
   it("doesn't steal keystrokes from a focused select", () => {
-    const { input } = renderFindBand(
-      vi.fn(),
-      <select data-testid="dropdown">
-        <option>alpha</option>
-        <option>beta</option>
-      </select>
+    render(
+      <Page>
+        <select data-testid="dropdown">
+          <option>alpha</option>
+          <option>beta</option>
+        </select>
+      </Page>
     );
     const dropdown = screen.getByTestId("dropdown");
     dropdown.focus();
@@ -163,133 +290,123 @@ describe("FindBand", () => {
     fireEvent.keyDown(dropdown, { key: "b" });
 
     expect(document.activeElement).toBe(dropdown);
-    expect(document.activeElement).not.toBe(input);
   });
+});
 
-  it("shows no-results state when DOM and extended search both miss", async () => {
-    const { input } = renderFindBand();
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
+describe("FindBand with a find source", () => {
+  // A virtualized list of five items whose data reads "needle <i>", of which
+  // only the items in `rendered` are in the DOM. A `phantom` item renders
+  // without its text, as when the data holds text the row doesn't show.
+  const List: FC<{
+    initial: number[];
+    phantom?: number;
+    dataCount?: number;
+    reveal: FindSource["reveal"];
+  }> = ({ initial, phantom, dataCount = 1, reveal }) => {
+    const [rendered, setRendered] = useState(initial);
+    const { registerFindSource } = useExtendedFind();
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- test fixture registering a fake source
+    useEffect(
+      () =>
+        registerFindSource("list", {
+          anchor: () => document.getElementById("list"),
+          countByItem: (term) =>
+            [0, 1, 2, 3, 4]
+              .filter((item) => `needle ${item}`.includes(term))
+              .map((item) => ({ item, count: dataCount })),
+          itemOf: (node) => {
+            const row = node.parentElement?.closest("[data-item]");
+            return row ? Number(row.getAttribute("data-item")) : null;
+          },
+          renderedItems: () => new Set(rendered),
+          reveal: async (item, direction) => {
+            const shown = await reveal(item, direction);
+            if (shown) act(() => setRendered([item]));
+            return shown;
+          },
+        }),
+      [registerFindSource, rendered, reveal, dataCount]
     );
+    return (
+      <div id="list">
+        {rendered.map((item) => (
+          <p key={item} id={`item-${item}`} data-item={item}>
+            {item === phantom ? "blank" : `needle ${item}`}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
+  const currentId = () =>
+    [...(highlights.get("find-current") ?? [])].map((range) =>
+      range instanceof Range ? range.startContainer.parentElement?.id : null
+    );
+
+  it("counts unrendered items and brings one in to step onto it", async () => {
+    const reveal = vi.fn(() => Promise.resolve(true));
+    render(
+      <Page>
+        <p id="before">needle before</p>
+        <List initial={[0, 1]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("1 of 6");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(status().textContent).toBe("3 of 6");
+    expect(reveal).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    expect(reveal).toHaveBeenCalledWith(2, "forward");
+    await waitFor(() => expect(currentId()).toEqual(["item-2"]));
+    expect(status().textContent).toBe("4 of 6");
   });
 
-  it("degrades to No results when window.find is unavailable", async () => {
-    Object.defineProperty(window, "find", {
-      configurable: true,
-      value: undefined,
+  it("steps past an item that renders without its match", async () => {
+    const reveal = vi.fn(() => Promise.resolve(true));
+    render(
+      <Page>
+        <List initial={[0]} phantom={1} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+    expect(status().textContent).toBe("1 of 5");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
+      timeout: 3000,
     });
-    const { input } = renderFindBand();
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
-    );
+    expect(reveal.mock.calls).toEqual([
+      [1, "forward"],
+      [2, "forward"],
+    ]);
+    // Unrendered again, item 1 counts its data match again.
+    expect(status().textContent).toBe("3 of 5");
   });
 
-  it("skips searching when the typed term extends a known miss", async () => {
-    const { input } = renderFindBand();
-
-    fireEvent.change(input, { target: { value: "needles" } });
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
+  it("steps past every match of an item that never renders", async () => {
+    const reveal = vi.fn((item: number) => Promise.resolve(item !== 1));
+    render(
+      <Page>
+        <List initial={[0]} dataCount={2} reveal={reveal} />
+      </Page>
     );
-    const callsAfterMiss = windowFind.mock.calls.length;
+    search("needle");
+    expect(status().textContent).toBe("1 of 9");
 
-    fireEvent.change(input, { target: { value: "needlesX" } });
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    fireEvent.keyDown(input(), { key: "Enter" });
 
-    expect(windowFind.mock.calls.length).toBe(callsAfterMiss);
-    expect(screen.getByText("No results").style.visibility).toBe("visible");
-  });
-
-  it("re-searches a known miss on explicit Enter", async () => {
-    const { input } = renderFindBand();
-
-    fireEvent.change(input, { target: { value: "needles" } });
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
-    );
-    const callsAfterMiss = windowFind.mock.calls.length;
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(windowFind.mock.calls.length).toBeGreaterThan(callsAfterMiss)
-    );
-  });
-
-  it("shows No results when a counter reports matches but the find misses", async () => {
-    const { input } = renderFindBand(vi.fn(), <MatchCounter count={3} />);
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(screen.getByText("No results").style.visibility).toBe("visible")
-    );
-    expect(screen.queryByText("0 of 3")).toBeNull();
-  });
-
-  it("refreshes the match count after counters re-register", async () => {
-    windowFind.mockImplementation(() => {
-      const textNode = screen.getByTestId("search-content").firstChild;
-      if (!textNode) return false;
-      const range = document.createRange();
-      range.setStart(textNode, 0);
-      range.setEnd(textNode, 6);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      return true;
+    await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
+      timeout: 3000,
     });
-    const ui = (count: number) => (
-      <Providers>
-        <FindBand onClose={vi.fn()} />
-        <MatchCounter count={count} />
-        <div data-testid="search-content">needle needle</div>
-      </Providers>
-    );
-    const { rerender } = render(ui(2));
-    const input = screen.getByPlaceholderText<HTMLInputElement>("Find");
-    input.value = "needle";
-
-    fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(screen.getByText("1 of 2")).toBeTruthy());
-
-    // Content changed: the counter re-registers with a new total
-    rerender(ui(5));
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() => expect(screen.getByText(/of 5/)).toBeTruthy());
-  });
-
-  it("shows the registered match count and current index", async () => {
-    windowFind.mockImplementation(() => {
-      const textNode = screen.getByTestId("search-content").firstChild;
-      if (!textNode) return false;
-      const range = document.createRange();
-      range.setStart(textNode, 0);
-      range.setEnd(textNode, 6);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      return true;
-    });
-    const { input } = renderFindBand(
-      vi.fn(),
-      <>
-        <MatchCounter count={2} />
-        <div data-testid="search-content">needle needle</div>
-      </>
-    );
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(screen.getByText("1 of 2").style.visibility).toBe("visible")
-    );
+    expect(reveal.mock.calls).toEqual([
+      [1, "forward"],
+      [2, "forward"],
+    ]);
   });
 });

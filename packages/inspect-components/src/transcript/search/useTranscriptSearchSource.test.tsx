@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   testAssistantMessage,
@@ -13,9 +13,8 @@ import {
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
   ExtendedFindProvider,
-  FindTargetProvider,
   useExtendedFind,
-  type FindDirection,
+  type FindSource,
 } from "@tsmono/react/components";
 
 import { TimelineEvent, TimelineSpan } from "../timeline/core";
@@ -105,7 +104,7 @@ function twoRowFixture() {
 }
 
 // =============================================================================
-// Test harness — mounts the hook and exposes the registered functions.
+// Test harness — mounts the hook and exposes the registered source.
 // =============================================================================
 
 interface HarnessOptions {
@@ -113,37 +112,23 @@ interface HarnessOptions {
   rows: SwimlaneRow[];
   selected: string;
   flattenedNodeIds?: string[];
+  /** Event panels rendered in the transcript's element. */
   panels?: { id: string; text: string }[];
   onSelect?: (key: string | null) => void;
   scrollToEvent?: (id: string) => void;
 }
 
-interface Harness {
-  countAll(term: string): number;
-  search(term: string, direction: FindDirection): Promise<boolean>;
-}
-
-/**
- * Render placeholder panels for the given event ids so `waitForEventInDOM`
- * (which polls `document.getElementById`) can complete. Panels listed here
- * are "reachable"; events whose id is omitted simulate the
- * filtered-out-of-the-rendered-tree case (e.g. nested under a collapsed
- * subtask span) — the hook's skip-the-whole-event logic depends on this
- * distinction.
- */
-function renderHarness(opts: HarnessOptions): Harness {
+function renderHarness(opts: HarnessOptions) {
   const flattened: EventNode[] = (opts.flattenedNodeIds ?? []).map(
     (id) => new EventNode(id, testInfoEvent({ uuid: id }), 0)
   );
-  const harness: Partial<Harness> = {};
+  const harness: { source?: FindSource } = {};
   const Probe = () => {
-    const { extendedFindTerm, countAllMatches } = useExtendedFind();
-    harness.countAll = countAllMatches;
-    harness.search = extendedFindTerm;
+    const { getFindSources } = useExtendedFind();
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
       scrollToEvent: opts.scrollToEvent ?? vi.fn(),
       getFlattenedNodes: () => flattened,
-      getVisibleRange: () => ({ startIndex: 0, endIndex: 0 }),
+      getElement: () => document.getElementById("transcript"),
     });
     useTranscriptSearchSource({
       events: opts.events,
@@ -152,118 +137,133 @@ function renderHarness(opts: HarnessOptions): Harness {
       onSelect: opts.onSelect ?? vi.fn(),
       viewNodesRef,
     });
+    harness.source = getFindSources().get("transcript-sample");
     return null;
   };
-  render(
+  const tree = () => (
     <ExtendedFindProvider>
-      <FindTargetProvider>
-        <Probe />
+      <Probe />
+      <p id="outside">wondering outside</p>
+      {/* An element outside the transcript sharing an event's id. */}
+      <div id="e2">
+        <span>wondering elsewhere</span>
+      </div>
+      <div id="transcript">
         {opts.panels?.map((p) => (
           <div key={p.id} id={p.id}>
-            {p.text}
+            <span>{p.text}</span>
           </div>
         ))}
-      </FindTargetProvider>
+      </div>
     </ExtendedFindProvider>
   );
-  const { countAll, search } = harness;
-  if (!countAll || !search) throw new Error("harness not ready");
-  return { ...harness, countAll, search };
+  const { rerender } = render(tree());
+  // The hook registers in an effect, after the probe's first render.
+  rerender(tree());
+  const registered = harness.source;
+  if (!registered) throw new Error("source not registered");
+  return { source: () => registered };
 }
+
+const textIn = (id: string) => document.getElementById(id)!.firstChild!;
 
 // =============================================================================
 // Tests
 // =============================================================================
 
+afterEach(cleanup);
+
 describe("useTranscriptSearchSource", () => {
-  it("counts matches across all rows", () => {
+  it("counts matches by event, across every row", () => {
     const { events, rows } = twoRowFixture();
-    const h = renderHarness({ events, rows, selected: "main" });
-    expect(h.countAll("wondering")).toBe(1);
-    expect(h.countAll("hello")).toBe(1);
-    expect(h.countAll("absent")).toBe(0);
+    const { source } = renderHarness({ events, rows, selected: "main" });
+    expect(source().countByItem("wondering")).toEqual([{ item: 1, count: 1 }]);
+    expect(source().countByItem("hello")).toEqual([{ item: 0, count: 1 }]);
+    expect(source().countByItem("absent")).toEqual([]);
   });
 
-  it("returns false from search when the term has no matches", async () => {
-    const { events, rows } = twoRowFixture();
-    const onSelect = vi.fn();
-    const h = renderHarness({ events, rows, selected: "main", onSelect });
-    let result: boolean | null = null;
-    await act(async () => {
-      result = await h.search("absent", "forward");
-    });
-    expect(result).toBe(false);
-    expect(onSelect).not.toHaveBeenCalled();
-  });
-
-  it("caches matches across repeated counter calls and invalidates on events change", () => {
-    let currentEvents: ModelEvent[] = [ev("e1", "wondering")];
-    const harness: Partial<Harness> = {};
-    const Probe = () => {
-      const { countAllMatches } = useExtendedFind();
-      harness.countAll = countAllMatches;
+  it("recounts when the events change", () => {
+    let events: ModelEvent[] = [ev("e1", "wondering")];
+    const Probe = ({ onSource }: { onSource: (s?: FindSource) => void }) => {
+      const { getFindSources } = useExtendedFind();
       const viewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
-      const { rows } = singleRowFixture(currentEvents);
       useTranscriptSearchSource({
-        events: currentEvents,
-        rows,
+        events,
+        rows: singleRowFixture(events).rows,
         selected: "main",
         onSelect: vi.fn(),
         viewNodesRef,
       });
+      onSource(getFindSources().get("transcript-sample"));
       return null;
     };
+    let source: FindSource | undefined;
     const tree = () => (
       <ExtendedFindProvider>
-        <FindTargetProvider>
-          <Probe />
-        </FindTargetProvider>
+        <Probe onSource={(s) => (source = s)} />
       </ExtendedFindProvider>
     );
     const { rerender } = render(tree());
-    expect(harness.countAll!("wondering")).toBe(1);
-    expect(harness.countAll!("wondering")).toBe(1); // hits the cache
-
-    currentEvents = [ev("e1", "wondering"), ev("e2", "wondering more")];
     rerender(tree());
-    expect(harness.countAll!("wondering")).toBe(2); // cache invalidated
+    expect(source?.countByItem("wondering")).toEqual([{ item: 0, count: 1 }]);
+
+    events = [ev("e1", "wondering"), ev("e2", "wondering more")];
+    rerender(tree());
+    rerender(tree());
+    expect(source?.countByItem("wondering")).toEqual([
+      { item: 0, count: 1 },
+      { item: 1, count: 1 },
+    ]);
   });
 
-  // The headline integration test. The skip-the-whole-event branch of
-  // searchFn (matches sharing an unreachable eventId are advanced past in
-  // one shot) is the most fragile invariant in the production code: a regression
-  // here makes find silently get stuck at the boundary between reachable and
-  // unreachable matches. By omitting `e2`'s panel from the rendered DOM, we
-  // simulate the deeply-nested-under-collapsed-subtask case that motivated
-  // the skip logic, and assert that one Next press lands on `e3`.
-  it("skips a reachable-but-unmounted event in a single press", async () => {
-    const e1 = ev("e1", "wondering one");
-    const e2 = ev("e2", "wondering two");
-    const e3 = ev("e3", "wondering three");
-    const { events, rows } = singleRowFixture([e1, e2, e3]);
-    const scrollToEvent = vi.fn();
-    const h = renderHarness({
+  it("maps rendered text to its event and lists the rendered events", () => {
+    const { events, rows } = twoRowFixture();
+    const { source } = renderHarness({
       events,
       rows,
       selected: "main",
-      flattenedNodeIds: ["e1", "e2", "e3"],
-      panels: [
-        { id: "e1", text: "wondering one" },
-        // e2 intentionally omitted — its panel never mounts
-        { id: "e3", text: "wondering three" },
-      ],
+      panels: [{ id: "e1", text: "hello" }],
+    });
+    expect(source().itemOf(textIn("e1").firstChild!)).toBe(0);
+    expect(source().itemOf(textIn("outside"))).toBe(null);
+    expect(source().itemOf(textIn("e2").firstChild!)).toBe(null);
+    expect([...source().renderedItems()]).toEqual([0]);
+    expect(source().anchor()?.id).toBe("transcript");
+  });
+
+  it("reveals an event in another row by switching to it and scrolling", async () => {
+    const { events, rows } = twoRowFixture();
+    const onSelect = vi.fn();
+    const scrollToEvent = vi.fn();
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      flattenedNodeIds: ["e2"],
+      panels: [{ id: "e2", text: "wondering" }],
+      onSelect,
       scrollToEvent,
     });
 
-    let result: boolean | null = null;
+    let revealed: boolean | null = null;
     await act(async () => {
-      result = await h.search("wondering", "forward");
+      revealed = await source().reveal(1, "forward");
     });
-    expect(result).toBe(true);
-    // Both e2 (skipped) and e3 (landed) are scrolled to; the production
-    // code calls scrollToEvent for each attempt. The contract that matters
-    // is the LAST scroll target.
-    const lastScroll = scrollToEvent.mock.calls.at(-1);
-    expect(lastScroll?.[0]).toBe("e3");
+
+    expect(revealed).toBe(true);
+    expect(onSelect).toHaveBeenCalledWith("main/sub");
+    expect(scrollToEvent).toHaveBeenCalledWith("e2");
+  });
+
+  it("reports an event that never renders", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    const { source } = renderHarness({ events, rows, selected: "main" });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(0, "forward");
+    });
+
+    expect(revealed).toBe(false);
   });
 });

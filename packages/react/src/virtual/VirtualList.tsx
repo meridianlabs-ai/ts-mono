@@ -12,11 +12,11 @@ import {
 } from "react";
 
 import {
+  cacheLastTerm,
   useExtendedFindOptional,
-  type ExtendedCountFn,
-  type ExtendedFindFn,
+  type FindSource,
+  type ItemMatchCount,
 } from "../components/ExtendedFindContext";
-import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
 import { useEventListener } from "../hooks/useEventListener";
@@ -58,27 +58,27 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
 
 // Lifted out of the component so the hot find-counter path is unit-testable
 // and lowercasing happens once, not per keystroke; `lowerTerm` pre-lowercased.
-export const countMatchesInTexts = (
+export const countMatchesByItem = (
   lowerTextsByItem: string[][],
   lowerTerm: string
-): number => {
-  // An empty term makes indexOf return its start position forever (pos += 0),
-  // so guard before the scan loop — this helper is exported and unit-tested
-  // directly, where the FindBand caller's own empty-term guard would not apply.
+): ItemMatchCount[] => {
+  // An empty term makes indexOf return its start position forever (pos += 0).
   if (lowerTerm.length === 0) {
-    return 0;
+    return [];
   }
-  let total = 0;
-  for (const texts of lowerTextsByItem) {
+  const counts: ItemMatchCount[] = [];
+  lowerTextsByItem.forEach((texts, item) => {
+    let count = 0;
     for (const lowerText of texts) {
       let pos = 0;
       while ((pos = lowerText.indexOf(lowerTerm, pos)) !== -1) {
-        total++;
+        count++;
         pos += lowerTerm.length;
       }
     }
-  }
-  return total;
+    if (count > 0) counts.push({ item, count });
+  });
+  return counts;
 };
 
 export function VirtualList<T>({
@@ -122,6 +122,7 @@ export function VirtualList<T>({
     externalScroll instanceof HTMLElement ? externalScroll : null;
   const internalScrollRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const bandRef = useRef<HTMLDivElement | null>(null);
   const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
 
   // Offset of the list within an external scroll parent. Content can sit
@@ -788,12 +789,9 @@ export function VirtualList<T>({
   const items = virtualizer.getVirtualItems();
   const startIndex = items[0]?.index ?? 0;
   const endIndex = items[items.length - 1]?.index ?? 0;
-  const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 });
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    const range = { startIndex, endIndex };
-    visibleRangeRef.current = range;
-    onVisibleRangeChange?.(range);
+    onVisibleRangeChange?.({ startIndex, endIndex });
   }, [startIndex, endIndex, onVisibleRangeChange]);
 
   useImperativeHandle(
@@ -860,47 +858,8 @@ export function VirtualList<T>({
   // provider mounted).
   const extendedFind = useExtendedFindOptional();
   const findContext = findScope === "none" ? null : extendedFind;
-  const searchInData = useCallback<ExtendedFindFn>(
-    (term, direction, onContentReady) => {
-      if (!term || data.length === 0) return Promise.resolve(false);
-      const isForward = direction === "forward";
-      const len = data.length;
-      const range = visibleRangeRef.current;
-      const current = isForward ? range.endIndex : range.startIndex;
-      const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
-      const prepared = prepareSearchTerm(term);
-      for (let offset = 1; offset < len; offset++) {
-        const i = isForward
-          ? (current + offset) % len
-          : (current - offset + len) % len;
-        const item = data[i];
-        if (item === undefined) continue;
-        const texts = getText(item);
-        const textArray = Array.isArray(texts) ? texts : [texts];
-        const hit = textArray.some((text) => {
-          const lower = text.toLowerCase();
-          if (lower.includes(prepared.simple)) return true;
-          if (prepared.unquoted && lower.includes(prepared.unquoted))
-            return true;
-          if (prepared.jsonEscaped && lower.includes(prepared.jsonEscaped))
-            return true;
-          return false;
-        });
-        if (hit) {
-          // Starting a new settle cancels the previous landing while retaining
-          // ownership of the auto-scroll guard until the find landing finishes.
-          settleScrollToIndex(i, "center");
-          setTimeout(onContentReady, 200);
-          return Promise.resolve(true);
-        }
-      }
-      return Promise.resolve(false);
-    },
-    [data, itemSearchText, settleScrollToIndex]
-  );
-
   // Pre-compute lowercased search text for every item once per data /
-  // accessor change, so the FindBand counter doesn't re-extract and
+  // accessor change, so the find counter doesn't re-extract and
   // re-lowercase the whole list on each keystroke. Skipped entirely when the
   // list doesn't participate in find — extraction can be expensive (default
   // accessor JSON.stringifies every item).
@@ -914,27 +873,38 @@ export function VirtualList<T>({
     });
   }, [data, itemSearchText, findContext]);
 
-  const countMatchesInData = useCallback<ExtendedCountFn>(
-    (term) => {
-      if (!term || precomputedSearchTexts.length === 0) return 0;
-      return countMatchesInTexts(precomputedSearchTexts, term.toLowerCase());
-    },
-    [precomputedSearchTexts]
-  );
+  // Identity matters: registering a new source makes the find band re-collect
+  // its matches, so it changes only when the searchable data does.
+  const findSource = useMemo<FindSource>(() => {
+    const renderedItems = () =>
+      new Set(virtualizer.getVirtualItems().map((item) => item.index));
+    return {
+      anchor: () => wrapperRef.current,
+      countByItem: cacheLastTerm((term) =>
+        countMatchesByItem(precomputedSearchTexts, term.toLowerCase())
+      ),
+      itemOf: (node) => {
+        const band = bandRef.current;
+        if (!band) return null;
+        let el = node instanceof Element ? node : node.parentElement;
+        while (el && el.parentElement !== band) el = el.parentElement;
+        return el instanceof HTMLElement ? Number(el.dataset.index) : null;
+      },
+      renderedItems,
+      reveal: (item) =>
+        new Promise<boolean>((resolve) => {
+          settleScrollToIndex(item, "center", () =>
+            resolve(renderedItems().has(item))
+          );
+        }),
+    };
+  }, [precomputedSearchTexts, virtualizer, settleScrollToIndex]);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!findContext) return;
-    const u1 = findContext.registerVirtualList(persistenceKey, searchInData);
-    const u2 = findContext.registerMatchCounter(
-      persistenceKey,
-      countMatchesInData
-    );
-    return () => {
-      u1();
-      u2();
-    };
-  }, [findContext, persistenceKey, searchInData, countMatchesInData]);
+    return findContext.registerFindSource(persistenceKey, findSource);
+  }, [findContext, persistenceKey, findSource]);
 
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
@@ -984,7 +954,10 @@ export function VirtualList<T>({
       }
     >
       <PaddingChunks height={topPaddingSpacer} prefix="top" />
-      <div style={{ position: "relative", height: renderedBandHeight }}>
+      <div
+        ref={bandRef}
+        style={{ position: "relative", height: renderedBandHeight }}
+      >
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;

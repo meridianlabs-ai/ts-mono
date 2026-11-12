@@ -1,24 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { countMatchesInTexts } from "../VirtualList";
+import { countMatchesByItem } from "../VirtualList";
 
-describe("countMatchesInTexts", () => {
-  it("counts every occurrence across items and fields", () => {
-    const texts = [["foo bar foo"], ["baz", "foofoo"]];
-    expect(countMatchesInTexts(texts, "foo")).toBe(4);
+describe("countMatchesByItem", () => {
+  it("counts every occurrence per item, across its fields", () => {
+    const texts = [["foo bar foo"], ["baz"], ["baz", "foofoo"]];
+    expect(countMatchesByItem(texts, "foo")).toEqual([
+      { item: 0, count: 2 },
+      { item: 2, count: 2 },
+    ]);
   });
 
-  it("counts overlapping-free, advancing by term length", () => {
-    expect(countMatchesInTexts([["aaaa"]], "aa")).toBe(2);
+  it("counts without overlap, advancing by term length", () => {
+    expect(countMatchesByItem([["aaaa"]], "aa")).toEqual([
+      { item: 0, count: 2 },
+    ]);
   });
 
-  it("returns 0 for no match or empty input", () => {
-    expect(countMatchesInTexts([["hello"]], "zzz")).toBe(0);
-    expect(countMatchesInTexts([], "x")).toBe(0);
+  it("returns nothing for no match or empty input", () => {
+    expect(countMatchesByItem([["hello"]], "zzz")).toEqual([]);
+    expect(countMatchesByItem([], "x")).toEqual([]);
   });
 
-  it("returns 0 for an empty term without spinning (empty-term guard)", () => {
-    expect(countMatchesInTexts([["aaaa"]], "")).toBe(0);
-    expect(countMatchesInTexts([["hello"], ["world"]], "")).toBe(0);
+  it("returns nothing for an empty term without spinning", () => {
+    expect(countMatchesByItem([["aaaa"]], "")).toEqual([]);
   });
 });

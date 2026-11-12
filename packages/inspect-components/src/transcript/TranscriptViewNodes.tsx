@@ -112,8 +112,8 @@ export interface TranscriptViewNodesHandle {
   scrollToEvent: (eventId: string) => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
-  /** Read-only accessor for the virtual list's currently-rendered visible range. */
-  getVisibleRange: () => { startIndex: number; endIndex: number };
+  /** The element holding the rendered event rows, null until mounted. */
+  getElement: () => HTMLElement | null;
 }
 
 // =============================================================================
@@ -430,17 +430,14 @@ export const TranscriptViewNodes = forwardRef<
     ]
   );
 
-  const visibleRangeRef = useRef<{ startIndex: number; endIndex: number }>({
-    startIndex: 0,
-    endIndex: 0,
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(
     ref,
     () => ({
       scrollToEvent,
       getFlattenedNodes: () => flattenedNodesLatest.current,
-      getVisibleRange: () => visibleRangeRef.current,
+      getElement: () => rootRef.current,
     }),
     [scrollToEvent, flattenedNodesLatest]
   );
@@ -901,7 +898,7 @@ export const TranscriptViewNodes = forwardRef<
 
   return (
     <StickyScrollProvider value={stickyScroll}>
-      <div>
+      <div ref={rootRef}>
         {turnAnchorIds.length > 0 && (
           <GoToTurnBar
             ref={goToTurnBarRef}
@@ -928,7 +925,6 @@ export const TranscriptViewNodes = forwardRef<
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
           selection={rowSelection}
-          visibleRangeRef={visibleRangeRef}
         />
       </div>
     </StickyScrollProvider>

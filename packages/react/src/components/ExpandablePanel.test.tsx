@@ -10,7 +10,7 @@ import {
 } from "../test/component-state-hooks";
 
 import { ExpandablePanel } from "./ExpandablePanel";
-import { FindTargetProvider } from "./FindTargetContext";
+import { FindTarget, FindTargetProvider } from "./FindTargetContext";
 
 // --- ResizeObserver shim ---
 // jsdom does not fire ResizeObserver callbacks, so showToggle stays false and
@@ -73,7 +73,7 @@ Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
 });
 
 const Wrapper: React.FC<{
-  findTarget: { term: string; eventId: string } | null;
+  findTarget: FindTarget | null;
   children: React.ReactNode;
 }> = ({ findTarget, children }) => {
   const [hooks] = useState(() => makeStateHooks());
@@ -110,17 +110,17 @@ describe("ExpandablePanel auto-expand on find target", () => {
     { name: "no target → truncated", target: null, expectTruncated: true },
     {
       name: "matching target → expanded",
-      target: { term: "wondering", eventId: "e1" },
+      target: { term: "wondering" },
       expectTruncated: false,
     },
     {
       name: "quoted target matching unquoted text → expanded",
-      target: { term: '"wondering"', eventId: "e1" },
+      target: { term: '"wondering"' },
       expectTruncated: false,
     },
     {
       name: "non-matching target → truncated",
-      target: { term: "absent-term-xyz", eventId: "e1" },
+      target: { term: "absent-term-xyz" },
       expectTruncated: true,
     },
   ])("$name", async ({ target, expectTruncated }) => {
@@ -138,7 +138,7 @@ describe("ExpandablePanel auto-expand on find target", () => {
 
   it("returns to truncated state when target clears", async () => {
     const hooks = makeStateHooks();
-    const tree = (target: { term: string; eventId: string } | null) => (
+    const tree = (target: FindTarget | null) => (
       <ComponentStateProvider hooks={hooks}>
         <FindTargetProvider value={target}>
           <ExpandablePanel id="p3" collapse={true} lines={5}>
@@ -147,9 +147,7 @@ describe("ExpandablePanel auto-expand on find target", () => {
         </FindTargetProvider>
       </ComponentStateProvider>
     );
-    const { rerender, container } = render(
-      tree({ term: "wondering", eventId: "e1" })
-    );
+    const { rerender, container } = render(tree({ term: "wondering" }));
     await waitFor(() => expect(isTruncated(container)).toBe(false));
     rerender(tree(null));
     await waitFor(() => expect(isTruncated(container)).toBe(true));
