@@ -36,11 +36,6 @@
    panel's bg. The inline-right toggle is a sibling of this wrapper, so it
    stays fully opaque. */
 .expandableTruncated {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 3rem),
-    transparent
-  );
   mask-image: linear-gradient(to bottom, black calc(100% - 3rem), transparent);
 }
 
