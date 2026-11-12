@@ -96,7 +96,7 @@ export const ThemeToggle = ({
         showArrow={false}
         hoverDelay={-1}
         closeOnMouseLeave={false}
-        offset={[0, 1]}
+        offset={1}
         className={styles.menu}
       >
         <div className={styles.headerRow}>

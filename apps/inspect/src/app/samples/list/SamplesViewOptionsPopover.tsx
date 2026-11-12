@@ -40,7 +40,7 @@ export const ViewOptionsPopover: FC<ViewOptionsPopoverProps> = ({
     showArrow={false}
     hoverDelay={-1}
     closeOnMouseLeave={false}
-    offset={[0, 1]}
+    offset={1}
   >
     <div className={clsx(styles.container, "text-size-small")}>
       {options.map((option) => (

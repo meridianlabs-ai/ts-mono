@@ -1,4 +1,5 @@
 export * from "./AsyncGate";
+export * from "./AnchoredPopover";
 export * from "./AutocompleteInput";
 export * from "./AnsiDisplay";
 export * from "./AppErrorBoundary";

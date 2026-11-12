@@ -1,4 +1,4 @@
-import { FC, useCallback, useRef } from "react";
+import { FC, useCallback, useState } from "react";
 
 import type { ScalarValue } from "@tsmono/inspect-common/query";
 import { PopOver } from "@tsmono/react/components";
@@ -49,7 +49,7 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
   anchorEl,
   placement = "bottom-end",
 }) => {
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [button, setButton] = useState<HTMLButtonElement | null>(null);
 
   const popover = useColumnFilterPopover({
     columnId,
@@ -72,7 +72,7 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
   return (
     <div className={styles.headerActions}>
       <ColumnFilterButton
-        ref={buttonRef}
+        ref={setButton}
         columnId={columnId}
         isActive={!!spec}
         onClick={(event) => {
@@ -86,8 +86,8 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
         setIsOpen={handlePopoverOpenChange}
         // When an anchorEl is intended, use it (even if still null) rather
         // than the funnel button.
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={anchorEl !== undefined ? anchorEl : buttonRef.current}
+        positionEl={anchorEl !== undefined ? anchorEl : button}
+        triggerEl={button}
         placement={placement}
         showArrow={true}
         hoverDelay={-1}
