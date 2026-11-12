@@ -11,8 +11,9 @@ const SKIPPED_TAGS = new Set([
 const escapeRegExp = (text: string): string =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Inline-block boxes (chips, badges, math) read as separate words.
 const isInlineDisplay = (display: string): boolean =>
-  display.startsWith("inline") || display === "contents";
+  display === "inline" || display === "contents";
 
 interface TextRun {
   text: string;

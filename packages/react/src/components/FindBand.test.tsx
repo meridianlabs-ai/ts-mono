@@ -14,6 +14,7 @@ import { stubFindHighlightApi } from "../test/dom-stubs";
 
 import {
   ExtendedFindProvider,
+  FindDirection,
   FindSource,
   useExtendedFind,
 } from "./ExtendedFindContext";
@@ -141,6 +142,15 @@ describe("FindBand", () => {
 
     expect(status().textContent).toBe("3 of 3");
     expect(selection.toString()).toBe("my selection");
+  });
+
+  it("searches a new term backward on Shift+Enter", () => {
+    render(<Page>{threeNeedles}</Page>);
+    fireEvent.change(input(), { target: { value: "needle" } });
+
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+
+    expect(status().textContent).toBe("3 of 3");
   });
 
   it("keeps the current match while the term grows, if it still matches", () => {
@@ -319,8 +329,8 @@ describe("FindBand with a find source", () => {
             return row ? Number(row.getAttribute("data-item")) : null;
           },
           renderedItems: () => new Set(rendered),
-          reveal: async (item, direction) => {
-            const shown = await reveal(item, direction);
+          reveal: async (item, direction, signal) => {
+            const shown = await reveal(item, direction, signal);
             if (shown) act(() => setRendered([item]));
             return shown;
           },
@@ -361,7 +371,7 @@ describe("FindBand with a find source", () => {
 
     fireEvent.keyDown(input(), { key: "Enter" });
 
-    expect(reveal).toHaveBeenCalledWith(2, "forward");
+    expect(reveal).toHaveBeenCalledWith(2, "forward", expect.any(AbortSignal));
     await waitFor(() => expect(currentId()).toEqual(["item-2"]));
     expect(status().textContent).toBe("4 of 6");
   });
@@ -381,12 +391,52 @@ describe("FindBand with a find source", () => {
     await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
       timeout: 3000,
     });
-    expect(reveal.mock.calls).toEqual([
+    expect(reveal.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       [1, "forward"],
       [2, "forward"],
     ]);
     // Unrendered again, item 1 counts its data match again.
     expect(status().textContent).toBe("3 of 5");
+  });
+
+  it("skips an item at once when the list reports it never renders", async () => {
+    const reveal = vi.fn((item: number) => Promise.resolve(item !== 1));
+    render(
+      <Page>
+        <List initial={[0]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+
+    // Well inside the settle wait that a rendered item gets for its text.
+    await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
+      timeout: 500,
+    });
+  });
+
+  it("aborts a reveal that a newer step takes over", () => {
+    const signals: AbortSignal[] = [];
+    const reveal = vi.fn(
+      (_item: number, _direction: FindDirection, signal: AbortSignal) => {
+        signals.push(signal);
+        return new Promise<boolean>(() => {});
+      }
+    );
+    render(
+      <Page>
+        <List initial={[0]} reveal={reveal} />
+      </Page>
+    );
+    search("needle");
+
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(signals.map((signal) => signal.aborted)).toEqual([false]);
+    fireEvent.keyDown(input(), { key: "Enter", shiftKey: true });
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(status().textContent).toBe("1 of 5");
   });
 
   it("steps past every match of an item that never renders", async () => {
@@ -404,7 +454,7 @@ describe("FindBand with a find source", () => {
     await waitFor(() => expect(currentId()).toEqual(["item-2"]), {
       timeout: 3000,
     });
-    expect(reveal.mock.calls).toEqual([
+    expect(reveal.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       [1, "forward"],
       [2, "forward"],
     ]);

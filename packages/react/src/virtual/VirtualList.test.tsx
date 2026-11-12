@@ -3,7 +3,11 @@ import { render } from "@testing-library/react";
 import { createRef, type ReactNode, type RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExtendedFindProvider } from "../components/ExtendedFindContext";
+import {
+  ExtendedFindProvider,
+  useExtendedFind,
+  type FindSource,
+} from "../components/ExtendedFindContext";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
@@ -14,6 +18,7 @@ import {
   makeStateHooks,
 } from "../test/component-state-hooks";
 
+import type { VirtualListHandle } from "./types";
 import { VirtualList } from "./VirtualList";
 
 const Wrapper: React.FC<{
@@ -531,6 +536,89 @@ describe("VirtualList embedded in a shared scroll container", () => {
       el.querySelectorAll<HTMLElement>("[data-item-index]")
     ).map((row) => Number(row.dataset.itemIndex));
     expect(Math.min(...indices)).toBeGreaterThan(0);
+    unmount();
+  });
+});
+
+describe("VirtualList scroll settling", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const mount = () => {
+    const scrollRef = createRef<HTMLDivElement>();
+    const listRef = createRef<VirtualListHandle>();
+    let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
+    const Probe = ({
+      onSources,
+    }: {
+      onSources: (get: () => ReadonlyMap<string, FindSource>) => void;
+    }) => {
+      onSources(useExtendedFind().getFindSources);
+      return null;
+    };
+    const view = render(
+      <Wrapper hooks={makeStateHooks()}>
+        <Probe onSources={(get) => (sources = get)} />
+        <div ref={scrollRef}>
+          <VirtualList<string>
+            ref={listRef}
+            persistenceKey="settle-list"
+            scrollRef={scrollRef}
+            data={["a", "b", "c"]}
+            renderRow={(_index: number, item: string) => <div>{item}</div>}
+          />
+        </div>
+      </Wrapper>
+    );
+    vi.advanceTimersByTime(50);
+    const source = () => sources?.().get("settle-list");
+    return { ...view, listRef, source };
+  };
+
+  it("finishes a settle that a newer one takes over", () => {
+    const { listRef, unmount } = mount();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    listRef.current?.scrollToIndex({
+      index: 1,
+      behavior: "auto",
+      onDone: first,
+    });
+    listRef.current?.scrollToIndex({
+      index: 2,
+      behavior: "auto",
+      onDone: second,
+    });
+
+    expect(first).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(200);
+    expect(second).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it("finishes a pending settle on unmount", () => {
+    const { listRef, unmount } = mount();
+    const onDone = vi.fn();
+    listRef.current?.scrollToIndex({ index: 2, behavior: "auto", onDone });
+
+    unmount();
+
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("ends a find reveal when its navigation is aborted", async () => {
+    const { source, unmount } = mount();
+    const controller = new AbortController();
+    const revealed = source()?.reveal(2, "forward", controller.signal);
+
+    controller.abort();
+
+    await expect(revealed).resolves.toBe(false);
     unmount();
   });
 });

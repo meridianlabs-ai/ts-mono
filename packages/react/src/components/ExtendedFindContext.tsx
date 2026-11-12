@@ -31,8 +31,12 @@ export interface FindSource {
   /** Items currently in the DOM, whether or not they contain a match. */
   renderedItems: () => ReadonlySet<number>;
   /** Brings an item into the DOM. Resolves true once it is rendered, false
-   *  if it never renders. */
-  reveal: (item: number, direction: FindDirection) => Promise<boolean>;
+   *  if it never renders or `signal` aborts (a newer navigation took over). */
+  reveal: (
+    item: number,
+    direction: FindDirection,
+    signal: AbortSignal
+  ) => Promise<boolean>;
 }
 
 /** Wraps a per-term computation so repeated calls for the same term (every

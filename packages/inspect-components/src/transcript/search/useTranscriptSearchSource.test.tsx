@@ -247,7 +247,11 @@ describe("useTranscriptSearchSource", () => {
 
     let revealed: boolean | null = null;
     await act(async () => {
-      revealed = await source().reveal(1, "forward");
+      revealed = await source().reveal(
+        1,
+        "forward",
+        new AbortController().signal
+      );
     });
 
     expect(revealed).toBe(true);
@@ -261,7 +265,11 @@ describe("useTranscriptSearchSource", () => {
 
     let revealed: boolean | null = null;
     await act(async () => {
-      revealed = await source().reveal(0, "forward");
+      revealed = await source().reveal(
+        0,
+        "forward",
+        new AbortController().signal
+      );
     });
 
     expect(revealed).toBe(false);

@@ -107,7 +107,7 @@ export function useTranscriptSearchSource(
         }
         return rendered;
       },
-      reveal: async (item, direction) => {
+      reveal: async (item, direction, signal) => {
         const eventId = events[item]?.uuid;
         const rowKey = eventId ? eventToRow.get(eventId) : undefined;
         if (!eventId || rowKey === undefined) return false;
@@ -123,6 +123,7 @@ export function useTranscriptSearchSource(
           onSelect(rowKey);
           if (!(await waitForRow(viewNodesRef, eventId))) return false;
         }
+        if (signal.aborted) return false;
         viewNodesRef.current?.scrollToEvent(eventId);
         return waitForEventInDOM(eventId);
       },

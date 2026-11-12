@@ -62,8 +62,12 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   };
 
   const search = (direction: FindDirection): void => {
-    // A term not yet searched (debounce pending) lands on its first match.
-    if (!applyTerm()) sessionRef.current?.step(direction);
+    // A term not yet searched (debounce pending) lands on its first match
+    // from the viewport; searching backward steps once more, onto the match
+    // before it.
+    if (!applyTerm() || direction === "backward") {
+      sessionRef.current?.step(direction);
+    }
   };
 
   const handleInputChange = useDebouncedCallback(() => {

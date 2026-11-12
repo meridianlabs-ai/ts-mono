@@ -40,6 +40,13 @@ describe("findTextMatches", () => {
     expect(texts(root, "bc")).toEqual([]);
   });
 
+  it("does not match across inline-block boxes", () => {
+    const root = mount(
+      '<p><span style="display: inline-block">user</span><span style="display: inline-block">name</span></p>'
+    );
+    expect(texts(root, "username")).toEqual([]);
+  });
+
   it("treats a term with regex syntax literally", () => {
     const root = mount("<p>a.b a*b (x)</p>");
     expect(texts(root, "a.b")).toEqual(["a.b"]);

@@ -473,12 +473,23 @@ export function VirtualList<T>({
   // Re-fires scrollToIndex each frame to absorb external chrome shifts TanStack won't reconcile on its own; bounded, and real user input cancels it.
   const settleFrameRef = useRef(0);
   const releaseFrameRef = useRef(0);
+  // The in-flight settleScrollToIndex's finish. Whatever takes the scroll over
+  // from it (a newer settle, a restore, unmount) runs it, so its onDone fires.
+  const settleFinishRef = useRef<(() => void) | null>(null);
+  const endSettle = useCallback(() => {
+    cancelAnimationFrame(settleFrameRef.current);
+    const finish = settleFinishRef.current;
+    settleFinishRef.current = null;
+    finish?.();
+  }, []);
+  // Returns a cancel that ends this settle early, if it is still running.
   const settleScrollToIndex = useCallback(
     (
       index: number,
       align?: "start" | "center" | "end",
       onDone?: () => void
-    ) => {
+    ): (() => void) => {
+      endSettle();
       const jump = () =>
         virtualizer.scrollToIndex(index, { align, behavior: "auto" });
       // Every exit path must release the auto-scroll guard (else persistence
@@ -487,6 +498,7 @@ export function VirtualList<T>({
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
       const finish = () => {
+        if (settleFinishRef.current === finish) settleFinishRef.current = null;
         const elNow = getScrollElement();
         if (elNow) lastAutoScrollTopRef.current = elNow.scrollTop;
         releaseFrameRef.current = requestAnimationFrame(() => {
@@ -494,13 +506,16 @@ export function VirtualList<T>({
         });
         onDone?.();
       };
+      const cancel = () => {
+        if (settleFinishRef.current === finish) endSettle();
+      };
       jump();
       const el = getScrollElement();
       if (!el) {
         finish();
-        return;
+        return cancel;
       }
-      cancelAnimationFrame(settleFrameRef.current);
+      settleFinishRef.current = finish;
       let frames = 0;
       let stable = 0;
       let lastTop = el.scrollTop;
@@ -522,11 +537,12 @@ export function VirtualList<T>({
         }
       };
       settleFrameRef.current = requestAnimationFrame(settle);
+      return cancel;
     },
-    [virtualizer, getScrollElement]
+    [virtualizer, getScrollElement, endSettle]
   );
   useUnmount(() => {
-    cancelAnimationFrame(settleFrameRef.current);
+    endSettle();
     cancelAnimationFrame(releaseFrameRef.current);
   });
   const lastInitialKeyRef = useRef<string | null>(null);
@@ -544,13 +560,13 @@ export function VirtualList<T>({
   // ref-backed converters, a fresh scale — as totals grow.
   const settleRestoreScroll = useCallback(
     (getTargetSpacerTop: () => number) => {
+      endSettle();
       // Guard bookkeeping mirrors settleScrollToIndex: every exit path —
       // including a missing scroll element — must book the guard release, or
       // the caller-taken auto-scroll guard leaks and persistence stays
       // silently dead for the rest of the mount.
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
-      cancelAnimationFrame(settleFrameRef.current);
       const el = getScrollElement();
       const keyAtStart = lastInitialKeyRef.current;
       const finish = () => {
@@ -599,7 +615,7 @@ export function VirtualList<T>({
       };
       settleFrameRef.current = requestAnimationFrame(settle);
     },
-    [getScrollElement]
+    [getScrollElement, endSettle]
   );
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
   // The no-snapshot "reset to top" is a one-shot per (re)key: re-firing on
@@ -891,11 +907,12 @@ export function VirtualList<T>({
         return el instanceof HTMLElement ? Number(el.dataset.index) : null;
       },
       renderedItems,
-      reveal: (item) =>
+      reveal: (item, _direction, signal) =>
         new Promise<boolean>((resolve) => {
-          settleScrollToIndex(item, "center", () =>
-            resolve(renderedItems().has(item))
+          const cancel = settleScrollToIndex(item, "center", () =>
+            resolve(!signal.aborted && renderedItems().has(item))
           );
+          signal.addEventListener("abort", cancel, { once: true });
         }),
     };
   }, [precomputedSearchTexts, virtualizer, settleScrollToIndex]);

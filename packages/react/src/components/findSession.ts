@@ -54,6 +54,7 @@ export class FindSession {
     inFlight: boolean;
   } | null = null;
   private navigation = 0;
+  private abortReveal: AbortController | null = null;
   private settleTimer: number | null = null;
   private frame: number | null = null;
   private observer: MutationObserver | null = null;
@@ -125,10 +126,10 @@ export class FindSession {
     });
   }
 
+  /** Re-collects the matches from the page and the sources, then publishes. */
   private rebuild(): void {
     const previous = this.currentRange();
     this.entries = this.term ? this.collect(this.term) : [];
-    const total = totalMatches(this.entries);
     if (this.current?.key.source === null && previous) {
       this.current.key = reanchorPageMatch(
         this.entries,
@@ -136,6 +137,13 @@ export class FindSession {
         previous
       );
     }
+    this.publish();
+  }
+
+  /** Resolves the current match against the collected matches, paints the
+   *  highlights, scrolls if a navigation is waiting, and reports status. */
+  private publish(): void {
+    const total = totalMatches(this.entries);
     if (this.current) {
       const ordinal = ordinalOf(this.entries, this.current.key);
       if (ordinal !== null) {
@@ -239,16 +247,20 @@ export class FindSession {
     const source =
       key.source === null ? undefined : this.options.sources().get(key.source);
     if (rangeOf(this.entries, key) || !source) {
-      this.rebuild();
+      this.publish();
       return;
     }
     this.revealing = { direction, skips, inFlight: true };
-    this.rebuild();
-    const settle = () => {
+    this.publish();
+    const settle = (rendered: boolean) => {
       if (navigation !== this.navigation || !this.revealing) return;
       this.revealing.inFlight = false;
       this.rebuild();
       if (this.currentRange()) return;
+      if (!rendered) {
+        this.skipUnrevealed(navigation);
+        return;
+      }
       this.settleTimer = window.setTimeout(() => {
         this.settleTimer = null;
         if (navigation !== this.navigation) return;
@@ -256,7 +268,10 @@ export class FindSession {
         this.skipUnrevealed(navigation);
       }, REVEAL_SETTLE_MS);
     };
-    source.reveal(key.item, direction).then(settle, settle);
+    this.abortReveal = new AbortController();
+    source
+      .reveal(key.item, direction, this.abortReveal.signal)
+      .then(settle, () => settle(false));
   }
 
   // The item never rendered, or rendered none of the text its data matched:
@@ -291,6 +306,8 @@ export class FindSession {
 
   private cancelNavigation(): void {
     this.navigation++;
+    this.abortReveal?.abort();
+    this.abortReveal = null;
     this.revealing = null;
     this.scrollPending = false;
     this.clearSettleTimer();
