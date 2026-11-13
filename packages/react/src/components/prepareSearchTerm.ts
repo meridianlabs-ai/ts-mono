@@ -12,11 +12,12 @@ export type PreparedSearchTerms = {
  */
 export function prepareSearchTerm(term: string): PreparedSearchTerms {
   const lower = term.toLowerCase();
-  if (!term.includes('"') && !term.includes(":")) return { simple: lower };
+  if (!/["\\:]/.test(term)) return { simple: lower };
   return {
     simple: lower,
     unquoted: lower.replace(/"/g, ""),
-    jsonEscaped: lower.replace(/"/g, '\\"'),
+    // As the term appears inside a JSON string (stringified tool arguments).
+    jsonEscaped: JSON.stringify(lower).slice(1, -1),
   };
 }
 

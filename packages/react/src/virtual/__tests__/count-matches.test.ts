@@ -32,6 +32,13 @@ describe("countMatchesByItem", () => {
     ]);
   });
 
+  it("counts a term with a backslash in JSON-escaped data", () => {
+    const args = JSON.stringify({ path: String.raw`C:\temp` }).toLowerCase();
+    expect(countMatchesByItem([[args]], String.raw`C:\temp`)).toEqual([
+      { item: 0, count: 1 },
+    ]);
+  });
+
   it("returns nothing for an empty term without spinning", () => {
     expect(countMatchesByItem([["aaaa"]], "")).toEqual([]);
   });
