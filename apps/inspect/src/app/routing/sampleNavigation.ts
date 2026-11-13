@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
-import { navigateAndForget } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
@@ -75,7 +74,7 @@ export const useSampleNavigationActions = () => {
         );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
-        navigateAndForget(navigate, url);
+        navigate(url);
       }
     },
     [logPath, navigate, sampleTabId, prefix]
@@ -143,7 +142,7 @@ export const useSamplesGridNavigationAction = () => {
 
   const navigateToSampleDetail = useCallback(
     (logFile: string, sampleId: string | number, epoch: number) => {
-      navigateAndForget(navigate, getSampleDetailUrl(logFile, sampleId, epoch));
+      navigate(getSampleDetailUrl(logFile, sampleId, epoch));
     },
     [navigate, getSampleDetailUrl]
   );
@@ -211,12 +210,12 @@ export const useLogSampleNavigationActions = () => {
 
   // Navigate to previous sample
   const onPrevious = useCallback(() => {
-    if (previousRoute) navigateAndForget(navigate, previousRoute);
+    if (previousRoute) navigate(previousRoute);
   }, [previousRoute, navigate]);
 
   // Navigate to next sample
   const onNext = useCallback(() => {
-    if (nextRoute) navigateAndForget(navigate, nextRoute);
+    if (nextRoute) navigate(nextRoute);
   }, [nextRoute, navigate]);
 
   return {

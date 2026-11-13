@@ -14,6 +14,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
+import { TYPE_CHECKPOINT } from "../transform/utils";
 import { EventNode } from "../types";
 
 import {
@@ -441,8 +442,23 @@ function collectFromContent(
   }
   const emittedBranchedFroms = new Set<string>();
 
+  // Checkpoint spans arrive unrolled as raw span_begin/span_end events and
+  // the turns inside them nest under the checkpoint node. Child spans must
+  // nest there too, or discard_checkpoint_span leaves them after every turn.
+  const openCheckpointIds: string[] = [];
+
   for (const item of content) {
     if (item.type === "event") {
+      if (
+        item.event.event === "span_begin" &&
+        item.event.type === TYPE_CHECKPOINT
+      ) {
+        openCheckpointIds.push(item.event.id);
+      } else if (item.event.event === "span_end") {
+        const index = openCheckpointIds.lastIndexOf(item.event.id);
+        if (index !== -1) openCheckpointIds.splice(index, 1);
+      }
+
       // Skip the spawning ToolEvent when viewing a sub-agent's own content.
       // Match the specific agent_span_id so we only skip the tool that
       // spawned this exact agent, not any other agent-spawning tool.
@@ -519,7 +535,7 @@ function collectFromContent(
         span_id: item.id,
         type: item.spanType,
         timestamp: item.startTime().toISOString(),
-        parent_id: null,
+        parent_id: openCheckpointIds.at(-1) ?? null,
         pending: false,
         working_start: 0,
         uuid: item.id,

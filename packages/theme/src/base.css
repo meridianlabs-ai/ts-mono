@@ -1,7 +1,6 @@
 :root {
   --bs-border-radius: 3px;
   --bs-border-radius-lg: 4px;
-  --bs-popover-max-width: 50%;
   --bs-code-color: #8b0000;
   /* Secondary/italic guidance text (e.g. "optional" next to the Reason
      label in the edit dialogs). Bootstrap's --bs-secondary-color is
@@ -46,6 +45,14 @@
   /* Inspect Glass */
   --inspect-glass-color: #000000;
   --inspect-glass-opacity: 0.3;
+
+  /* Terminal session bodies stay dark in every theme (the recordings' ANSI
+     colors assume a dark background). */
+  --inspect-terminal-background: #2d2d2d;
+  --inspect-terminal-foreground: #cccccc;
+  /* The largest terminal text: the transcript's tool output size (0.9em of
+     the smaller size). Narrower rows fit their columns below it. */
+  --inspect-terminal-font-size: calc(var(--inspect-font-size-smaller) * 0.9);
 
   /* Tool messages — dedicated tokens so apps (and the vscode bridge) can
      re-skin tool calls/outputs/errors without patching component CSS.
@@ -434,28 +441,8 @@ body[class^="vscode-"] code {
   background-color: transparent;
 }
 
-body[class^="vscode-"] .popover.rendered-content,
 body[class^="vscode-"] .modal-dialog {
   border: solid 1px var(--bs-border-color);
-}
-
-body[class^="vscode-"] .popover-arrow::before {
-  border-left-color: var(--bs-border-color) !important;
-}
-
-body[class^="vscode-"]
-  [data-popper-placement^="bottom"]
-  > .popper-arrow-container
-  > div,
-body[class^="vscode-"]
-  [data-popper-placement^="left"]
-  > .popper-arrow-container
-  > div,
-body[class^="vscode-"]
-  [data-popper-placement^="right"]
-  > .popper-arrow-container
-  > div {
-  border-color: transparent transparent var(--bs-card-border-color) !important;
 }
 
 body[class^="vscode-"] .modal-content {
@@ -994,23 +981,6 @@ table.table {
 
 table.table.table-sm td {
   padding: 0.1em;
-}
-
-.popover.rendered-content {
-  display: flex;
-  flex-direction: column;
-  max-height: 80%;
-  max-width: 80%;
-  /** Do not define an overflow on the wrapper or your arrow to the element will disapear */
-}
-
-.popover.rendered-content .popover-header {
-  font-size: 0.8em;
-  font-weight: 400;
-}
-
-.popover.rendered-content .popover-body {
-  overflow: auto;
 }
 
 .modal-footer button {

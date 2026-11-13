@@ -41,7 +41,6 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useCopyToClipboard,
   useMountEffect,
   useProperty,
@@ -195,7 +194,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );
@@ -535,7 +534,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={transcriptFilterButtonRef.current}
       />
     </TabPanel>

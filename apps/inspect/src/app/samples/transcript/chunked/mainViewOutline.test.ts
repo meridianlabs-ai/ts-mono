@@ -29,7 +29,7 @@ import {
   labelForOutlineNode,
   type EventNode,
 } from "@tsmono/inspect-components/transcript";
-import { parsePackageName } from "@tsmono/util";
+import { jsonParse, parsePackageName } from "@tsmono/util";
 
 import { openZipFileFromBuffer } from "../../../../client/remote/remoteZipFile";
 import {
@@ -69,15 +69,12 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
   for (const entry of original.centralDirectory.keys()) {
     const match = /^samples\/(.+)_epoch_(\d+)\.json$/.exec(entry);
     if (!match) continue;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the .eval fixture on disk is the shape this suite is written against
-    const parsed = JSON.parse(
-      decoder.decode(await original.readFile(entry))
-    ) as {
+    const parsed = jsonParse<{
       id: string | number;
       epoch: number;
       events: Event[];
       attachments?: Record<string, string>;
-    };
+    }>(decoder.decode(await original.readFile(entry)));
     const skeletonEntry = `samples/${parsed.id}_epoch_${parsed.epoch}/skeleton.json`;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- see above
     const skeleton = JSON.parse(

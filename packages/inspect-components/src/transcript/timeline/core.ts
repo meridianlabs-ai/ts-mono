@@ -1368,6 +1368,11 @@ function hasToolCalls(event: ModelEvent): boolean {
  * foreign-prompt wrapping is skipped entirely (warmup calls are still
  * wrapped; they are identified independently of prompts).
  *
+ * A call whose recorded `origin` is not "agent" is utility and never sets
+ * the primary prompt. A call recorded as "agent" goes through the rules
+ * above, as a call with no `origin` does, since a bridged agent's warm-ups
+ * and helper calls are recorded as "agent".
+ *
  * Operates recursively on the entire span tree.
  */
 function wrapUtilityEvents(agent: TimelineSpan): void {
@@ -1377,7 +1382,7 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const item of agent.content) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
-      if (hasToolCalls(modelEvt)) {
+      if (hasToolCalls(modelEvt) && mayBeTurn(modelEvt)) {
         primaryPrompt = getSystemPromptForEvent(modelEvt);
         break;
       }
@@ -1405,6 +1410,11 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const [index, item] of agent.content.entries()) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
+
+      if (!mayBeTurn(modelEvt)) {
+        newContent.push(utilityWrapper(item, index));
+        continue;
+      }
 
       // Warmup/cache-priming call (max_tokens=1)
       if (isWarmupCall(modelEvt)) {
@@ -1435,6 +1445,21 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   for (const branch of agent.branches) {
     wrapUtilityEvents(branch);
   }
+}
+
+/**
+ * Whether a model call with this origin is one of its conversation's agent
+ * turns; a kind added later reads as not a turn.
+ */
+function isAgentTurn(origin: string | null | undefined): boolean {
+  return origin === "agent";
+}
+
+/**
+ * An agent turn by its recorded origin, or a call that records none.
+ */
+function mayBeTurn(event: ModelEvent): boolean {
+  return event.origin == null || isAgentTurn(event.origin);
 }
 
 function isWarmupCall(event: ModelEvent): boolean {

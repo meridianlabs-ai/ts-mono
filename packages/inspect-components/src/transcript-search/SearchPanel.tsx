@@ -508,10 +508,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         id={`recent-searches-${api.cacheKey}`}
         isOpen={isRecentOpen}
         setIsOpen={setIsRecentOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={recentButtonRef.current}
         placement="bottom-end"
-        offset={[0, 2]}
+        offset={2}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         showArrow={false}
@@ -726,7 +726,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response (#555): search results are not normalized
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -735,10 +735,7 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              ref.type === "event"
-              ? getEventUrl(ref.id)
-              : undefined;
+            : getEventUrl(ref.id);
         refs.push({
           id: ref.id,
           cite: ref.cite,

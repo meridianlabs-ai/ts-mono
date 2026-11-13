@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testApprovalEvent,
   testAssistantMessage,
   testChatCompletionChoice,
   testModelEvent,
@@ -31,8 +32,13 @@ import {
   ResizeObserverStub,
 } from "@tsmono/react/testing";
 
-import { computeToolEventIdsAtLevel } from "./hasToolEventsAtDepth";
+import { FocusTurnView } from "./FocusTurnView";
+import {
+  computeToolEventIdsAtLevel,
+  computeToolProposalIdsAtLevel,
+} from "./hasToolEventsAtDepth";
 import { buildEventNodes } from "./hooks/useEventNodes";
+import type { FocusTurnNavigation } from "./hooks/useFocusTurnNavigation";
 import { ModelEventView } from "./ModelEventView";
 import { recentInputMessages } from "./recentInputMessages";
 import { flatTree } from "./transform/flatten";
@@ -264,6 +270,24 @@ describe("host tool events in a bridged turn", () => {
     expect(recentFor(nodes, "model_result")).toEqual([]);
   });
 
+  it("covers a call handed over under a new id by the model's id in the output and by its own id in the scaffold's messages", () => {
+    const handed = { ...hostCall, id: "tok" };
+    const nodes = flatNodes([
+      proposingModel([hostCall, agentCall], null),
+      ...hostExecution("tok", null, false, "host_1"),
+      resultModel([handed, agentCall], null),
+    ]);
+    const index = nodes.indexOf(nodeFor(nodes, "model_propose"));
+
+    expect([...(computeToolProposalIdsAtLevel(nodes)[index] ?? [])]).toEqual([
+      "host_1",
+    ]);
+    expect([...toolEventIdsFor(nodes, "model_propose")]).toEqual(["tok"]);
+    expect(recentFor(nodes, "model_result").map((m) => m.id)).toEqual([
+      "result_agent_1",
+    ]);
+  });
+
   it("leaves a native turn as it was: every call and result has its event", () => {
     const nativeCall = testToolCall({ id: "native_1", function: "bash" });
     const nodes = flatNodes([
@@ -348,5 +372,172 @@ describe("ModelEventView with tool events at its level", () => {
 
     expect(screen.queryAllByText(/agent-listing/)).toEqual([]);
     expect(screen.queryAllByText(/host-notes\.txt/)).toEqual([]);
+  });
+});
+
+describe("FocusTurnView with a mixed turn", () => {
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    // jsdom has no scrollTo; the view scrolls to the top on mount.
+    Element.prototype.scrollTo = function () {};
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  const focusNav = (slice: EventNode[]): FocusTurnNavigation => ({
+    scrollRef: { current: null },
+    listHandle: { current: null },
+    slice,
+    checks: {},
+    resolvedEventId: null,
+    turnInfo: undefined,
+    turnIndex: 0,
+    totalTurns: 0,
+    navigableTurnCount: 1,
+    onPrev: () => {},
+    onNext: () => {},
+    canStepNext: false,
+    canStepPrev: false,
+    goToTurn: () => {},
+    laneCrumbs: [],
+    laneOptions: [],
+    focusTab: { tab: "", setTab: () => {} },
+    followingLatest: false,
+  });
+
+  /** Render `events` as a focused turn; the text of the model event's row. */
+  const focusedSummary = (events: Event[], modelId: string): string => {
+    render(
+      <ComponentStateProvider hooks={makeReactiveStateHooks()}>
+        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+          <ContentTrustProvider value="trusted">
+            <FocusTurnView nav={focusNav(flatNodes(events))} eventId={null} />
+          </ContentTrustProvider>
+        </ComponentNavigationProvider>
+      </ComponentStateProvider>
+    );
+    const row = document.getElementById(modelId);
+    if (!row) throw new Error(`no row for ${modelId}`);
+    return row.textContent;
+  };
+
+  it.each([
+    ["next to the host event", false],
+    ["next to the host call's span", true],
+  ])(
+    "keeps the agent-run call inline and leaves the host call to its panel (%s)",
+    (_where, nested) => {
+      const summary = focusedSummary(
+        [
+          proposingModel([hostCall, agentCall], null),
+          ...hostExecution("host_1", null, nested),
+        ],
+        "model_propose"
+      );
+
+      expect(summary).toContain("agent-listing");
+      expect(summary).not.toContain("host-notes.txt");
+    }
+  );
+
+  it("leaves a native call to its panel", () => {
+    const nativeCall = testToolCall({
+      id: "native_1",
+      function: "bash",
+      arguments: { cmd: "native-listing" },
+    });
+    const summary = focusedSummary(
+      [
+        proposingModel([nativeCall], null),
+        ...hostExecution("native_1", null, false),
+      ],
+      "model_propose"
+    );
+
+    expect(summary).not.toContain("native-listing");
+  });
+
+  it("shows a call handed over under a new id inline in a log that records no execution_id, as before the field", () => {
+    expect(
+      focusedSummary(
+        [
+          proposingModel([hostCall], null),
+          ...hostExecution("tok", null, false, "host_1"),
+        ],
+        "model_propose"
+      )
+    ).toContain("host-notes.txt");
+  });
+
+  it("leaves a call handed over under a new id to its panel, and keeps a scaffold call under the model's id that no tool ran", () => {
+    const events = [
+      proposingModel([hostCall], null),
+      testApprovalEvent({
+        ...at(),
+        uuid: "approval_tok",
+        approver: "auto",
+        call: hostCall,
+        execution_id: "tok",
+      }),
+      ...hostExecution("tok", null, false, "host_1"),
+    ];
+    expect(focusedSummary(events, "model_propose")).not.toContain(
+      "host-notes.txt"
+    );
+    cleanup();
+
+    const agentUnderModelId = { ...agentCall, id: "host_1" };
+    const summary = focusedSummary(
+      [
+        ...events,
+        testModelEvent({
+          ...at(),
+          uuid: "model_next",
+          input: [
+            testUserMessage({ id: "u1" }),
+            testAssistantMessage({
+              id: "a1",
+              content: "",
+              tool_calls: [agentUnderModelId],
+            }),
+          ],
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({ content: "done" }),
+              }),
+            ],
+          }),
+        }),
+      ],
+      "model_next"
+    );
+    expect(summary).toContain("agent-listing");
+  });
+
+  it("leaves a host-only call to its panel", () => {
+    const summary = focusedSummary(
+      [
+        proposingModel([hostCall], null),
+        ...hostExecution("host_1", null, false),
+      ],
+      "model_propose"
+    );
+
+    expect(summary).not.toContain("host-notes.txt");
+  });
+
+  it("still hides the previous turn's results, whose events are not in the slice", () => {
+    const summary = focusedSummary(
+      [resultModel([hostCall, agentCall], null)],
+      "model_result"
+    );
+
+    expect(summary).not.toContain("result of agent_1");
+    expect(summary).not.toContain("result of host_1");
+    expect(summary).toContain("done");
   });
 });

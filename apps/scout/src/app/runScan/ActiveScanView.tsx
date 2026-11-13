@@ -67,10 +67,7 @@ const getMetricLabel = (scanners: Record<string, ScannerSummary>): string => {
 
 const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   const { metrics, summary } = info;
-  // Date.now() is intentionally impure here - we need the current time to calculate
-  // live-updating elapsed/remaining durations. Safe for this client-only component.
-  // eslint-disable-next-line react-hooks/purity
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   // Update time every second for elapsed/remaining
   useInterval(() => setNow(Date.now()), 1000);
@@ -84,6 +81,9 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     (name) => getOwn(summary.scanners, name)?.metrics !== null
   );
   const metricLabel = hasMetrics ? getMetricLabel(summary.scanners) : "";
+  const hasUnscored = info.scanner_names.some(
+    (name) => (getOwn(summary.scanners, name)?.unscored ?? 0) > 0
+  );
 
   // Calculate scanner stats (iterate over scanner_names to show all rows from start)
   const scannerStats = info.scanner_names.map((name) => {
@@ -174,6 +174,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
                   <th className={styles.numeric}>validation</th>
                 )}
                 <th className={styles.numeric}>results</th>
+                {hasUnscored && <th className={styles.numeric}>unscored</th>}
                 <th className={styles.numeric}>errors</th>
                 <th className={styles.numeric}>tokens/scan</th>
                 <th className={styles.numeric}>tokens</th>
@@ -210,6 +211,11 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
                     <td className={styles.numeric}>
                       {scanner?.results || "-"}
                     </td>
+                    {hasUnscored && (
+                      <td className={styles.numeric}>
+                        {scanner?.unscored || "-"}
+                      </td>
+                    )}
                     <td className={styles.numeric}>{scanner?.errors || "-"}</td>
                     <td className={styles.numeric}>
                       {tokensPerScan ? tokensPerScan.toLocaleString() : "-"}

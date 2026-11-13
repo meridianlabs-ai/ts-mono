@@ -18,6 +18,8 @@ interface SelectToolProps {
   onClear: () => void;
   /** What the rows are, for the titles; the visible label stays `Select`. */
   item: SelectableItem;
+  /** Visually hide the label (icon only) at narrow viewport widths. */
+  collapseLabel?: boolean;
   className?: string;
 }
 
@@ -32,6 +34,7 @@ export const SelectTool: FC<SelectToolProps> = ({
   onToggle,
   onClear,
   item,
+  collapseLabel,
   className,
 }) => {
   const hasSelection = active && count > 0;
@@ -47,6 +50,7 @@ export const SelectTool: FC<SelectToolProps> = ({
         icon={active ? "selectionSelecting" : "selectionSelect"}
         latched={active}
         subtle
+        collapseLabel={collapseLabel}
         className={hasSelection ? styles.splitMain : undefined}
         title={title}
         aria-pressed={active}

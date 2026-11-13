@@ -88,11 +88,7 @@ const resolveSample = (
   }
 
   const target = sample.target;
-  const answer =
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    sample && sampleDescriptor
-      ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
-      : undefined;
+  const answer = sampleDescriptor.selectedScorerDescriptor(sample)?.answer();
   // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
   // summary branch is the one that renders — reading only the EvalSample side
   // left the whole limit item dead

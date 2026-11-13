@@ -1,0 +1,741 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  background-color: var(--vscode-sideBar-background);
+}
+
+/* Filling the window: over the sample's sticky header (1002), under dropdown
+   menus (1050; the agent picker's menu opens from the fill header) and the
+   expanded terminal (1060). */
+.viewFill {
+  position: fixed;
+  inset: 0;
+  z-index: 1030;
+  height: 100vh;
+}
+
+/* Sized to its rows, so the controls sit right under them; once the rows
+   need the view's whole height the stage shrinks and the controls stay at
+   the bottom. */
+.stage {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 14px;
+  overflow: hidden;
+}
+
+.stageScrolls {
+  overflow-y: auto;
+}
+
+/* Rows */
+
+.row {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--vscode-editor-background);
+  box-shadow: 0 0 0 1px var(--vscode-widget-border);
+  transition: box-shadow 120ms ease;
+}
+
+.rowFocused {
+  box-shadow:
+    0 0 0 2px var(--vscode-focusBorder),
+    0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  background-color: var(--vscode-sideBar-background);
+  font-size: 12px;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* An accent tint over the bar that fades: a session opening, or a command
+   landing in a row the user isn't watching. */
+.barFlash {
+  position: absolute;
+  inset: 0;
+  background-color: var(--vscode-focusBorder);
+  opacity: 0;
+  pointer-events: none;
+  animation: barFlash 600ms ease-out;
+}
+
+@keyframes barFlash {
+  0% {
+    opacity: 0;
+  }
+  17% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.newCommand {
+  color: var(--vscode-textLink-foreground);
+  font-weight: 700;
+  animation: newCommand 600ms ease-out forwards;
+}
+
+@keyframes newCommand {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.rowFocused .bar {
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-list-inactiveSelectionBackground);
+}
+
+.rowFolded .bar {
+  background-color: var(--vscode-editor-background);
+}
+
+.rowClosed .bar {
+  background-color: var(--bs-secondary-bg);
+}
+
+.barButton {
+  display: flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Layered over the bar's own background, so a focused or folded bar keeps
+   its tint under the hover. */
+.bar:hover:has(.barMain:enabled) {
+  background-image: linear-gradient(
+    var(--vscode-toolbar-hoverBackground),
+    var(--vscode-toolbar-hoverBackground)
+  );
+}
+
+.barButton:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.rowFocused .chevron,
+.rowFocused .sessionName {
+  color: var(--vscode-textLink-foreground);
+}
+
+.barMain {
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+  padding-right: 10px;
+  text-align: left;
+}
+
+.sessionName {
+  flex-shrink: 0;
+  font-family: var(--bs-font-monospace);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rowFolded .sessionName {
+  color: var(--vscode-foreground);
+}
+
+.lastCommand {
+  align-self: center;
+  flex: 0 1 auto;
+  min-width: 3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--bs-font-monospace);
+}
+
+.snippet {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--bs-font-monospace);
+}
+
+.barMeta {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.fullscreenButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fullscreenButton:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.bodyFrame {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: height 200ms cubic-bezier(0.2, 0, 0, 1);
+  background-color: var(--inspect-terminal-background);
+}
+
+.body {
+  height: 100%;
+  padding: 8px 8px 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* PlayerSync owns the scroll position; the browser's anchoring would move
+     it again when the player rewrites its lines. */
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  cursor: pointer;
+}
+
+/* Unfocused bodies keep full-contrast text; the inset shadow under the bar
+   is what quiets them. */
+.rowOpen .bodyFrame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 16px 14px -14px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+/* The player fits its columns to this box's width, so capping the width at
+   the columns in the terminal font at --inspect-terminal-font-size (plus the
+   player's 0.75em border each side) caps the text at that size. */
+.playerCap {
+  overflow: hidden;
+  max-width: calc(var(--terminal-cols) * 1ch + 1.5em);
+  font-family: var(--term-font-family, monospace);
+  font-size: var(--inspect-terminal-font-size);
+}
+
+.body :global(.asciinema-player-theme-asciinema) {
+  --term-color-background: var(--inspect-terminal-background);
+  --term-color-foreground: var(--inspect-terminal-foreground);
+}
+
+.body :global(.ap-player) {
+  background-color: var(--inspect-terminal-background);
+}
+
+.body :global(.ap-player .ap-overlay-start) {
+  display: none;
+}
+
+.body :global(.ap-term) {
+  cursor: text;
+  user-select: text;
+}
+
+.latest {
+  position: absolute;
+  right: 18px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: var(--inspect-terminal-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.latest:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Control strip and timeline */
+
+.controls {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px 4px 14px;
+  border-top: 1px solid var(--vscode-widget-border);
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+}
+
+.controlTools {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.playButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.playButton:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+  font-family: var(--bs-font-monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.readoutElapsed {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.readoutTotal {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.readoutNote {
+  flex-shrink: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 999px;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-textLink-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.controlSpacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.speedGroup {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.speedButton {
+  height: 22px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.speedButton + .speedButton {
+  border-left: 1px solid var(--vscode-widget-border);
+}
+
+.speedButtonActive {
+  background-color: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-textLink-foreground);
+  font-weight: 700;
+}
+
+.speedButton:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.timelineToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+}
+
+.timelineToggle:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.timelineChevron {
+  display: inline-flex;
+  font-size: 12px;
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.timelineChevronFolded {
+  transform: rotate(180deg);
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  user-select: none;
+}
+
+.laneLabels {
+  display: flex;
+  flex-direction: column;
+  padding-top: 22px;
+}
+
+.laneLabel {
+  height: 18px;
+  padding: 0 6px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.laneLabelFocused {
+  color: var(--vscode-textLink-foreground);
+  font-weight: 700;
+}
+
+.track {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.ruler {
+  position: relative;
+  height: 16px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.rulerLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.rulerLabel:first-child {
+  transform: none;
+}
+
+.rulerLabelEnd {
+  transform: translateX(-100%);
+}
+
+.lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 13px;
+}
+
+.lifetime {
+  position: absolute;
+  top: 4px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: var(--vscode-widget-border);
+}
+
+.focusSegment {
+  position: absolute;
+  top: 3px;
+  height: 7px;
+  border-radius: 2px;
+  background-color: var(--vscode-focusBorder);
+  opacity: 0.55;
+}
+
+/* A 7 px target around a 1 px line. */
+.tick {
+  position: absolute;
+  top: 1px;
+  width: 7px;
+  height: 11px;
+  margin-left: -3px;
+  cursor: pointer;
+}
+
+.tick::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  width: 1px;
+  height: 100%;
+  background-color: var(--vscode-foreground);
+  opacity: 0.7;
+}
+
+.tick:hover::before {
+  opacity: 1;
+  width: 2px;
+  left: 2.5px;
+}
+
+.tickChip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-6px, -110%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editor-foreground);
+  box-shadow: 0 0 0 1px var(--vscode-widget-border);
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tickChipLeft {
+  transform: translate(calc(-100% + 6px), -110%);
+}
+
+.playhead {
+  position: absolute;
+  top: 17px;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background-color: var(--vscode-editor-foreground);
+  pointer-events: none;
+}
+
+.foldedTrack {
+  position: relative;
+  flex: 1;
+  min-width: 60px;
+  height: 16px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.foldedTrack .lane {
+  top: 2px;
+}
+
+.foldedTrack .playhead {
+  top: 0;
+}
+
+.foldedFocus {
+  flex-shrink: 0;
+  font-family: var(--bs-font-monospace);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vscode-textLink-foreground);
+}
+
+.holdChip {
+  flex-shrink: 1;
+}
+
+.scrubChip {
+  flex-shrink: 1;
+  border-color: transparent;
+  background-color: var(--vscode-editor-foreground);
+  color: var(--vscode-editor-background);
+  font-family: var(--bs-font-monospace);
+  cursor: default;
+}
+
+.scrubChip:hover {
+  background-color: var(--vscode-editor-foreground);
+}
+
+@keyframes chipIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.foldedTimeline {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The full lanes slide up over the stage while the folded bar is hovered. */
+.peek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  z-index: 3;
+  padding: 6px 8px 4px 14px;
+  border-top: 1px solid var(--vscode-widget-border);
+  background-color: var(--vscode-editor-background);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.18);
+  animation: peekIn 150ms ease-out;
+}
+
+@keyframes peekIn {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .bar,
+  .bodyFrame {
+    transition: none;
+  }
+
+  .peek {
+    animation: none;
+  }
+
+  .timelineChevron {
+    transition: none;
+  }
+
+  /* The pulse becomes a steady tint for the same time. */
+  .barFlash {
+    animation: barFlashSteady 600ms steps(1, end);
+  }
+}
+
+@keyframes barFlashSteady {
+  0% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Agent picker (brief §9), rendered in the sample's tab toolbar. */
+.agentPickerLabel {
+  display: inline-flex;
+  gap: 0.35em;
+}
+
+.agentItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  min-width: 12em;
+}
+
+.agentSpawn {
+  color: var(--vscode-descriptionForeground);
+}
+
+.agentName {
+  flex: 1;
+}
+
+.agentCount {
+  color: var(--vscode-descriptionForeground);
+}

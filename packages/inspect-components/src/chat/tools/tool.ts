@@ -698,9 +698,7 @@ const extractInput = (
           ? `"${value}"`
           : typeof value === "object" || Array.isArray(value)
             ? JSON.stringify(value, undefined, 2)
-            : // Remaining cases are number | boolean | bigint | symbol | undefined
-              // — all safe for String().
-              // eslint-disable-next-line @typescript-eslint/no-base-to-string
+            : // eslint-disable-next-line @typescript-eslint/no-base-to-string -- objects are handled above, so value is a primitive or function, all safe for String()
               String(value);
     return `${key}: ${quotedValue}`;
   };

@@ -15,6 +15,7 @@ import { correctRetryTimestamps } from "../timeline/retryOrdering";
 import { attachSourceSpans } from "../timeline/timelineEventNodes";
 import { computeDefaultCollapsedIds } from "../transform/collapse";
 import { fixupEventStream } from "../transform/fixups";
+import { recordsExecutionIds } from "../transform/toolSentinels";
 import {
   eventFallbackIds,
   filterEmptySpans,
@@ -26,6 +27,9 @@ export interface EventNodesResult {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, true>;
   retryAttempts: Map<string, ModelEvent[]>;
+  /** Whether the sample's log records `execution_id` (`recordsExecutionIds`),
+   *  from `allEvents` so a lane or filtered view pairs as the sample does. */
+  recordsExecutionIds: boolean;
 }
 
 /**
@@ -75,7 +79,12 @@ export const buildEventNodes = (
   const eventNodes = filterEmptySpans(rawEventTree);
   const defaultCollapsedIds = computeDefaultCollapsedIds(eventNodes);
 
-  return { eventNodes, defaultCollapsedIds, retryAttempts };
+  return {
+    eventNodes,
+    defaultCollapsedIds,
+    retryAttempts,
+    recordsExecutionIds: recordsExecutionIds(allEvents),
+  };
 };
 
 export const useEventNodes = (

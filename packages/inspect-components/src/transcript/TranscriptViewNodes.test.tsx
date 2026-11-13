@@ -16,9 +16,12 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testApprovalEvent,
   testModelEvent,
   testSentinelEvent,
   testSpanBeginEvent,
+  testSpanEndEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import { ComponentStateProvider } from "@tsmono/react/state";
@@ -29,6 +32,7 @@ import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "./TranscriptViewNodes";
+import { treeifyEvents } from "./transform/treeify";
 import type { EventPanelCallbacks } from "./types";
 import { EventNode } from "./types";
 
@@ -36,6 +40,7 @@ import { EventNode } from "./types";
 // VirtualList ignores them), captured so the wrapper tests can invoke the armed
 // focus-URL builder directly.
 let capturedEventCallbacks: EventPanelCallbacks | undefined;
+const scrolledIndices: number[] = [];
 
 // Stub the virtual list at its imperative boundary: the behaviors under test
 // (current-turn stamping, goToTurn wiring) live entirely in
@@ -52,7 +57,8 @@ vi.mock("./TranscriptVirtualList", () => ({
     eventCallbacks?: EventPanelCallbacks;
   }) => {
     listHandle.current = {
-      scrollToIndex: ({ onDone }) => {
+      scrollToIndex: ({ index, onDone }) => {
+        scrolledIndices.push(index);
         onDone?.();
       },
       scrollTo: () => {},
@@ -77,7 +83,10 @@ const StateWrapper = ({ children }: { children: ReactNode }) => (
   </ComponentStateProvider>
 );
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  scrolledIndices.length = 0;
+});
 
 beforeEach(() => {
   // jsdom: keyboard nav gates on container visibility; rAF drives the
@@ -620,5 +629,148 @@ describe("TranscriptViewNodes sentinel spans", () => {
       "m1",
       "t1",
     ]);
+  });
+});
+
+describe("TranscriptViewNodes navigation to hidden events", () => {
+  const renderEvents = (
+    events: Parameters<typeof treeifyEvents>[0],
+    initialEventId: string | null = null
+  ) => {
+    const ref = createRef<TranscriptViewNodesHandle>();
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <div ref={scrollRef}>
+        <TranscriptViewNodes
+          ref={ref}
+          id="test"
+          eventNodes={treeifyEvents(events, 0)}
+          defaultCollapsedIds={{}}
+          initialEventId={initialEventId}
+          scrollRef={scrollRef}
+        />
+      </div>,
+      { wrapper: StateWrapper }
+    );
+    const rowIds = (indices: number[]) => {
+      const rows = ref.current?.getFlattenedNodes() ?? [];
+      return indices.map((i) => rows[i]?.id);
+    };
+    const scrollTargets = (eventId: string) => {
+      scrolledIndices.length = 0;
+      act(() => ref.current?.scrollToEvent(eventId));
+      return rowIds(scrolledIndices);
+    };
+    return { ref, rowIds, scrollTargets };
+  };
+
+  // Scoping a monitor's own calls to its span is execution pairing, which
+  // needs a sample that records `execution_id`: inspect records it only for a
+  // run a bridge handed over under a new id, as this auto-approval elsewhere,
+  // which pairs with no tool and stays hidden.
+  const monitorRejectsItsOwnCall = [
+    testApprovalEvent({
+      uuid: "elsewhere",
+      call: testToolCall({ id: "elsewhere" }),
+      approver: "auto",
+      execution_id: "elsewhere-run",
+    }),
+    testModelEvent({ uuid: "m-agent" }),
+    testApprovalEvent({
+      uuid: "a-agent",
+      call: testToolCall({ id: "c1" }),
+      approver: "human",
+    }),
+    testSpanBeginEvent({
+      id: "monitor",
+      uuid: "monitor-span",
+      name: "sentinel",
+      type: "sentinel",
+    }),
+    testModelEvent({ uuid: "m-monitor", span_id: "monitor", role: "monitor" }),
+    testApprovalEvent({
+      uuid: "a-monitor",
+      span_id: "monitor",
+      call: testToolCall({ id: "c1" }),
+      decision: "reject",
+      approver: "policy",
+    }),
+    testToolEvent({
+      uuid: "t-monitor",
+      span_id: "monitor",
+      id: "c1",
+      error: { type: "approval", message: "Rejected" },
+    }),
+    testSentinelEvent({
+      uuid: "s-agent",
+      span_id: "monitor",
+      step_id: "c1",
+      action: "proceed",
+    }),
+    testSpanEndEvent({ id: "monitor" }),
+    testToolEvent({ uuid: "t-agent", id: "c1" }),
+  ];
+
+  it("lands a monitor's approval for its own hidden call on the agent's tool", () => {
+    const { ref, scrollTargets } = renderEvents(monitorRejectsItsOwnCall);
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "m-agent",
+      "t-agent",
+    ]);
+    expect(scrollTargets("a-monitor")).toEqual(["t-agent"]);
+    expect(scrollTargets("t-monitor")).toEqual(["t-agent"]);
+    expect(scrollTargets("a-agent")).toEqual(["t-agent"]);
+  });
+
+  it("deep-links a monitor's approval for its own hidden call to the agent's tool", () => {
+    const { rowIds } = renderEvents(monitorRejectsItsOwnCall, "a-monitor");
+
+    expect(rowIds(scrolledIndices)).toEqual(["t-agent"]);
+  });
+
+  it("lands a nested monitor's step on the outermost visible tool", () => {
+    const { ref, scrollTargets } = renderEvents([
+      testModelEvent({ uuid: "m-agent" }),
+      testSpanBeginEvent({
+        id: "outer",
+        uuid: "outer-span",
+        name: "sentinel",
+        type: "sentinel",
+      }),
+      testModelEvent({ uuid: "m-monitor", span_id: "outer", role: "monitor" }),
+      testSpanBeginEvent({
+        id: "inner",
+        uuid: "inner-span",
+        name: "sentinel",
+        type: "sentinel",
+        parent_id: "outer",
+        span_id: "outer",
+      }),
+      testModelEvent({ uuid: "m-inner", span_id: "inner", role: "monitor" }),
+      testSentinelEvent({
+        uuid: "s-monitor",
+        span_id: "inner",
+        step_id: "c2",
+        action: "proceed",
+      }),
+      testSpanEndEvent({ id: "inner", span_id: "outer" }),
+      testToolEvent({ uuid: "t-monitor", span_id: "outer", id: "c2" }),
+      testSentinelEvent({
+        uuid: "s-agent",
+        span_id: "outer",
+        step_id: "c1",
+        action: "proceed",
+      }),
+      testSpanEndEvent({ id: "outer" }),
+      testToolEvent({ uuid: "t-agent", id: "c1" }),
+    ]);
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "m-agent",
+      "t-agent",
+    ]);
+    expect(scrollTargets("m-inner")).toEqual(["t-agent"]);
+    expect(scrollTargets("s-monitor")).toEqual(["t-agent"]);
   });
 });

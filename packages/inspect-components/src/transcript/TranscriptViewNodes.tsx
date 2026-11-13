@@ -28,7 +28,10 @@ import { isSelectableEvent } from "./selection/transcriptSelection";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { findCollapsedAncestors, flatTree } from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
-import { pairToolSentinels } from "./transform/toolSentinels";
+import {
+  pairToolSentinels,
+  treeRecordsExecutionIds,
+} from "./transform/toolSentinels";
 import {
   anchorIndexForEvent,
   anchorIndexForTurn,
@@ -122,6 +125,26 @@ const escapeAttr = (id: string): string =>
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
 
+// One hop can land on another hidden event: an approver's or monitor's own
+// call pairs its approval with a tool that the enclosing sentinel span hides,
+// and a nested monitor's step with a host the outer span hides. Follow the
+// redirects until an event has none (the first map wins at each hop); the
+// seen set guards against a cycle.
+const followRedirects = (
+  eventId: string,
+  redirects: readonly ReadonlyMap<string, string>[]
+): string => {
+  const seen = new Set<string>();
+  let id = eventId;
+  while (!seen.has(id)) {
+    seen.add(id);
+    const next = redirects.find((m) => m.has(id))?.get(id);
+    if (next === undefined) return id;
+    id = next;
+  }
+  return id;
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -190,27 +213,36 @@ export const TranscriptViewNodes = forwardRef<
     [collapsedTranscript, defaultCollapsedIds]
   );
 
+  // Decided once per sample (`useEventNodes`), so a lane pairs as the whole
+  // sample does; the nodes decide only for callers that render no sample.
+  const recordsExecutions =
+    eventNodeContext?.recordsExecutionIds ??
+    treeRecordsExecutionIds(eventNodes);
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
   const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
-    () => pairToolApprovals(eventNodes),
-    [eventNodes]
+    () => pairToolApprovals(eventNodes, recordsExecutions),
+    [eventNodes, recordsExecutions]
   );
   const {
     toolSentinels,
     standaloneSentinels,
     hiddenSentinelIds,
     sentinelScrollRedirects,
-  } = useMemo(() => pairToolSentinels(eventNodes), [eventNodes]);
+  } = useMemo(
+    () => pairToolSentinels(eventNodes, recordsExecutions),
+    [eventNodes, recordsExecutions]
+  );
 
   // Hidden approvals and sentinel events have no row of their own — retarget
   // navigation at the row that renders them inline.
   const redirectEventId = useCallback(
     (eventId: string) =>
-      approvalScrollRedirects.get(eventId) ??
-      sentinelScrollRedirects.get(eventId) ??
-      eventId,
+      followRedirects(eventId, [
+        approvalScrollRedirects,
+        sentinelScrollRedirects,
+      ]),
     [approvalScrollRedirects, sentinelScrollRedirects]
   );
   const scrollEventId = initialEventId
@@ -238,11 +270,18 @@ export const TranscriptViewNodes = forwardRef<
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
     () => ({
       ...eventNodeContext,
+      recordsExecutionIds: recordsExecutions,
       toolApprovals,
       toolSentinels,
       standaloneSentinels,
     }),
-    [eventNodeContext, toolApprovals, toolSentinels, standaloneSentinels]
+    [
+      eventNodeContext,
+      recordsExecutions,
+      toolApprovals,
+      toolSentinels,
+      standaloneSentinels,
+    ]
   );
 
   // Ranges span the VISIBLE rows, as the user sees them.

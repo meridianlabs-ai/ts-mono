@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { PopOver } from "@tsmono/react/components";
+import { AnchoredPopover } from "@tsmono/react/components";
 import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./EditableText.module.css";
@@ -248,16 +248,18 @@ export const EditableText: FC<EditableTextProps> = ({
       </div>
 
       {mru && mru.length > 0 && (
-        <PopOver
+        // Manual: the field opens the list on focus, which a click moves
+        // during its press, so light dismiss would close it on release. The
+        // field's blur and Escape handling close it instead.
+        <AnchoredPopover
           id="editable-text-mru-popover"
-          isOpen={showMruPopover}
-          setIsOpen={setShowMruPopover}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-          positionEl={spanRef.current}
+          open={showMruPopover}
+          onClose={() => setShowMruPopover(false)}
+          // eslint-disable-next-line react-hooks/refs -- anchor accepts null; AnchoredPopover renders nothing until the ref is set
+          anchor={spanRef.current}
+          mode="manual"
           placement="bottom-start"
-          hoverDelay={0}
-          showArrow={false}
-          offset={[0, 4]}
+          offset={4}
           className={clsx(styles.mruPopover, "text-size-smallest")}
         >
           <div className={styles.mruList}>
@@ -276,7 +278,7 @@ export const EditableText: FC<EditableTextProps> = ({
               </button>
             ))}
           </div>
-        </PopOver>
+        </AnchoredPopover>
       )}
     </>
   );

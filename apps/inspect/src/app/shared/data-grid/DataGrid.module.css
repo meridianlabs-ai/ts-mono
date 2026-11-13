@@ -25,7 +25,7 @@
 /* Keyboard focus ring for the sortable header control (mouse clicks don't
  * trigger :focus-visible, so this stays out of the way for pointer users). */
 .headerContent:focus-visible,
-.rotatedLabel:focus-visible {
+.rotatedSortTarget:focus-visible {
   outline: 2px solid var(--bs-primary);
   outline-offset: -2px;
   border-radius: 2px;
@@ -205,7 +205,7 @@
    * easier target to land on and travel along to the funnel. */
   height: 22px;
   width: 130px;
-  padding: 0 0.35rem;
+  padding-right: 0.35rem;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -221,6 +221,17 @@
   border-bottom: 1px solid var(--bs-border-color);
   transform: rotate(-45deg);
   transform-origin: bottom left;
+}
+
+/* The label's sort and drag target: everything but the filter funnel. */
+.rotatedSortTarget {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 0.35rem;
 }
 
 .rotatedLabel:hover {

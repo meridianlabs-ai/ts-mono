@@ -10,19 +10,19 @@
     "./playwright": "./playwright.js"
   },
   "dependencies": {
-    "@css-modules-kit/eslint-plugin": "^1.4.0",
+    "@css-modules-kit/eslint-plugin": "^1.4.1",
     "@eslint/compat": "^2.1.1",
-    "@eslint/css": "^2.0.0",
+    "@eslint/css": "^2.0.1",
     "@eslint/js": "^10.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-playwright": "^2.12.1",
+    "eslint-plugin-playwright": "^2.12.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "typescript-eslint": "^8.71.2"
+    "typescript-eslint": "^8.72.1"
   },
   "peerDependencies": {
     "eslint": "^10.0.0",

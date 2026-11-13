@@ -42,6 +42,7 @@ export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   total_tokens: "Total Tokens",
   total_time: "Total Time",
   message_count: "Messages",
+  messages_from: "Messages From",
   limit: "Limit",
   error: "Error",
   trust_content: "Trust Content",
@@ -73,6 +74,7 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   total_tokens: "Tokens spent in execution of task.",
   total_time: "Time required to execute task (seconds).",
   message_count: "Total messages in conversation.",
+  messages_from: "Model events whose conversation the messages are.",
   limit:
     'Limit that caused the task to exit (e.g. "tokens", "messages", etc.).',
   error: "Error message that terminated the task.",
@@ -189,10 +191,7 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
       }
       return String(value);
     } catch {
-      // printObject already threw on this value, so String() is the
-      // non-throwing last resort here; valueAsString (JSON.stringify) could
-      // throw again on the same object.
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- printObject already threw on this value; String() is the non-throwing last resort, where JSON.stringify could throw again
       return String(value);
     }
   };
@@ -576,6 +575,16 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       }
       return formatNumber(value);
     },
+  }),
+  messages_from: createColumn({
+    accessorKey: "messages_from",
+    header: "Messages From",
+    headerTitle: "Model events whose conversation the messages are.",
+    size: 200,
+    minSize: 80,
+    maxSize: 500,
+    cell: (value) => (value?.length ? value.join(", ") : "-"),
+    textValue: (value) => (value?.length ? value.join(", ") : "-"),
   }),
   limit: createColumn({
     accessorKey: "limit",

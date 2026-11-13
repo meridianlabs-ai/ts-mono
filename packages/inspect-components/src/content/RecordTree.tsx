@@ -292,11 +292,6 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!record) {
-    return [];
-  }
-
   // Apply any record processors
   if (recordProcessors.length > 0) {
     for (const processor of recordProcessors) {
@@ -357,8 +352,7 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (typeof value === "object" && value !== null) {
+  } else if (typeof value === "object") {
     processChildren = true;
     childCount = Object.keys(value).length;
     displayValue = `Object(${Object.keys(value).length})`;

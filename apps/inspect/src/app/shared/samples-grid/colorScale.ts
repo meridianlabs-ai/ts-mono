@@ -104,8 +104,7 @@ const isPaletteName = (s: string): s is ScoreColorPalette =>
 // categorical branch and producing a nonsense `{ kind: "categorical",
 // colors: { palette: undefined } }` shape).
 const isScaleObject = (s: WireScoreColorScale): s is ScoreColorScaleObject =>
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  typeof s === "object" && s !== null && "palette" in s;
+  typeof s === "object" && "palette" in s;
 
 /**
  * Lift a wire-shape scale into the internal `ResolvedScale` form.

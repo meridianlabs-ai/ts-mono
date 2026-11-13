@@ -31,7 +31,6 @@ export const ContentDataView: FC<ContentDataProps> = ({ id, contentData }) => {
   );
 
   if (!renderer) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { encrypted_content, ...record } = renderableData;
     return (
       <div className={clsx(styles.contentData)}>

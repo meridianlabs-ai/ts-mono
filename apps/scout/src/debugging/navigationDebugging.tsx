@@ -53,16 +53,8 @@ const wrapNavigate = (
     navigationLog(
       `navigate() ('${description}')\n\twindow.location.hash='${window.location.hash}'\n\trouter location: pathname='${location.pathname}' hash='${location.hash}'\nto\n\t${JSON.stringify(toOrDelta)}`
     );
-    // Returns void so callers never hold a floating promise: navigate()
-    // resolves when the router settles, and a rejection is a router-internal
-    // failure no caller can act on — surface it here instead.
-    const result =
-      typeof toOrDelta === "number"
-        ? navigate(toOrDelta)
-        : navigate(toOrDelta, options);
-    Promise.resolve(result).catch((error: unknown) => {
-      console.error(`navigate() ('${description}') failed:`, error);
-    });
+    if (typeof toOrDelta === "number") navigate(toOrDelta);
+    else navigate(toOrDelta, options);
   }
   return loggingNavigate;
 };

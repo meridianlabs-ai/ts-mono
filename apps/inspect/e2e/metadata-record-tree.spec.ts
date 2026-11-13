@@ -105,7 +105,7 @@ test("tab flips keep the tree usable", async ({ page, network }) => {
   await page.getByRole("tab", { name: "Messages" }).click();
   await expect(page.getByText("Hi there")).toBeVisible();
 
-  await page.getByRole("tab", { name: "Metadata" }).click();
+  await page.getByRole("tab", { name: "Info" }).click();
   await expect(tree.getByText("summary:", { exact: true })).toBeVisible();
   await expect(tree.getByText("key_000:", { exact: true })).toBeVisible();
 });

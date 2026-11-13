@@ -62,11 +62,12 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useChromeNavOwnership,
   useCopyToClipboard,
+  useDocumentTitleText,
   useElementHeight,
   useEventListener,
+  useProperty,
   useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
@@ -79,14 +80,16 @@ import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
   kSampleActivityTabId,
+  kSampleCommunicationTabId,
   kSampleErrorTabId,
+  kSampleInfoTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
-  kSampleMetdataTabId,
   kSampleRetriesTabId,
   kSampleScoringTabId,
+  kSampleTerminalsTabId,
   kSampleTranscriptTabId,
-  kSampleUsageTabId,
+  sampleTabAlias,
 } from "../../constants";
 import {
   kDefaultMessageRowOptions,
@@ -94,7 +97,7 @@ import {
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
-import { setDocumentTitle } from "../../state/actions";
+import { documentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -115,6 +118,9 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
+import { hasCommunicationEvents } from "./communication/communicationEntries";
+import { CommunicationView } from "./communication/CommunicationView";
+import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -122,6 +128,13 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { AgentPicker } from "./terminals/AgentPicker";
+import { storeCasts } from "./terminals/asciicast";
+import {
+  buildTerminalSample,
+  parseTerminalCasts,
+} from "./terminals/terminalModel";
+import { TerminalsView, type TerminalsResume } from "./terminals/TerminalsView";
 import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
@@ -169,10 +182,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [sample, evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);
@@ -246,12 +256,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  const hideFind = useStore((state) => state.appActions.hideFind);
+  const [communicationMultiline, setCommunicationMultiline] = useProperty(
+    "sample-communication",
+    "multiline",
+    { defaultValue: false }
+  );
   useUnmount(() => {
     clearSampleTab();
   });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
-  const effectiveSelectedTab = sampleTabId || selectedTab;
+  const routedTab = sampleTabId || selectedTab;
+  // Only samples whose agents communicated (inspect_swarm's swarms) get the
+  // Communication tab; chunked samples' shell events hide it too. A link to
+  // it on another sample shows the Transcript, with the Transcript's controls.
+  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
+  const aliasedTab = routedTab ? sampleTabAlias(routedTab) : routedTab;
+  const effectiveSelectedTab =
+    aliasedTab === kSampleCommunicationTabId && !hasCommunicationTab
+      ? kSampleTranscriptTabId
+      : aliasedTab;
 
   // The Messages tab's rows, assembled by the data layer. Which feed serves
   // the conversation (monolith fetch, chunked hydration, live stream) is
@@ -303,7 +328,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(url);
       }
     },
@@ -339,6 +363,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     []
   );
 
+  // The casts (multi-MB strings) parse once per store; a running sample's
+  // event polls only redo the join. Memoised for that identity, not speed.
+  const sampleStore = sample?.store;
+  const terminalCasts = useMemo(() => {
+    const casts = sampleStore ? storeCasts(sampleStore) : [];
+    return casts.length > 0 ? parseTerminalCasts(casts) : undefined;
+  }, [sampleStore]);
+  const terminalSample = useMemo(
+    () =>
+      terminalCasts
+        ? buildTerminalSample(terminalCasts, sampleEvents)
+        : undefined,
+    [terminalCasts, sampleEvents]
+  );
+  const [pickedTerminalAgent, setPickedTerminalAgent] = useState<string>();
+  const [terminalsFill, setTerminalsFill] = useState(false);
+  const terminalsKey = sample
+    ? sample.uuid || `${sample.id}:${sample.epoch}`
+    : undefined;
+  // Where this sample's terminals left off when the tab was last left.
+  const [terminalsResume, setTerminalsResume] = useState<{
+    key: string;
+    resume: TerminalsResume;
+  }>();
+  const terminalAgent = terminalSample
+    ? (terminalSample.agents.find(
+        (agent) => agent.id === pickedTerminalAgent
+      ) ?? terminalSample.agents[0])
+    : undefined;
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
     `${baseId}-${id}`,
@@ -397,11 +450,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     }
   };
 
+  // The print route has no Communication view, so that tab offers no print.
+  const printable =
+    !isVscode() &&
+    effectiveSelectedTab !== kSampleCommunicationTabId &&
+    !!printLogPath &&
+    !!printSampleId &&
+    !!printEpoch;
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  const printShortcutEnabled =
-    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
   useEventListener(
-    printShortcutEnabled ? document : null,
+    printable ? document : null,
     "keydown",
     (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
@@ -468,7 +526,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       return;
     }
     setSelectedTab(kSampleTranscriptTabId);
-    navigateAndForget(navigate, url);
+    navigate(url);
   };
 
   const api = getApi();
@@ -523,11 +581,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleEpoch: sample?.epoch ?? undefined,
     open: storedDock === undefined || storedDock === "scans",
   });
-  // Default the dock to Scans when the sample has them and this log has no
-  // stored choice — including "none": a user who closed the dock shouldn't
+  // Default the dock to Scans when the sample has scan results and this log
+  // has no stored choice — including "none": a user who closed the dock shouldn't
   // have it forced back open. Derived rather than persisted; nothing is
   // written until the user acts.
-  const rightDock = storedDock ?? (scans.hasScans ? "scans" : "none");
+  const rightDock = storedDock ?? (scans.hasResults ? "scans" : "none");
   const setRightDock = useCallback(
     (value: "none" | "search" | "scans") =>
       setPropertyValue("rail-dock", dockKey, value),
@@ -586,6 +644,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   //   [tab-specific view controls] | [shared sample actions] | [Search]
   const tools: ReactNode[] = [];
 
+  const terminalAgentPicker =
+    terminalSample && terminalAgent && terminalSample.agents.length > 1 ? (
+      <AgentPicker
+        key="sample-terminals-agent"
+        agents={terminalSample.agents}
+        selected={terminalAgent}
+        onSelect={setPickedTerminalAgent}
+      />
+    ) : null;
+  if (effectiveSelectedTab === kSampleTerminalsTabId && terminalSample) {
+    if (terminalAgentPicker) tools.push(terminalAgentPicker);
+    tools.push(
+      <ToolButton
+        key="sample-terminals-fill"
+        className={styles.fullscreenTool}
+        label="Fullscreen"
+        icon="fullscreen"
+        onClick={() => setTerminalsFill(true)}
+        subtle
+        collapseLabel
+      />
+    );
+  }
+
+  if (effectiveSelectedTab === kSampleCommunicationTabId) {
+    tools.push(
+      <CommunicationViewOptions
+        key="sample-communication-view"
+        multiline={communicationMultiline}
+        setMultiline={setCommunicationMultiline}
+      />
+    );
+  }
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -610,6 +702,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon={isCollapsed(collapsedMode) ? "expandAll" : "collapseAll"}
         onClick={toggleCollapsedMode}
         subtle
+        collapseLabel
       />
     );
   }
@@ -623,6 +716,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ref={optionsRef}
       latched={displayMode === "raw"}
       subtle
+      collapseLabel
     />
   );
 
@@ -635,7 +729,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
 
   if (evidence.tool) {
-    tools.push(<SelectTool key="sample-select" {...evidence.tool} />);
+    tools.push(
+      <SelectTool key="sample-select" {...evidence.tool} collapseLabel />
+    );
   }
 
   tools.push(
@@ -644,6 +740,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       label="Copy"
       icon={icon}
       subtle
+      collapseLabel
       dropdownClassName="text-size-smallest"
       heading={selected?.menu.heading}
       footer={selected?.menu.footer}
@@ -693,6 +790,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         label="Download"
         icon="download"
         subtle
+        collapseLabel
         dropdownClassName="text-size-smallest"
         heading={selected?.menu.heading}
         footer={selected?.menu.footer}
@@ -745,7 +843,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (!isVscode() && printLogPath && printSampleId && printEpoch) {
+  if (printable) {
     tools.push(
       <ToolButton
         key="sample-print-tool"
@@ -755,9 +853,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             ? `Print ${selected.count} selected ${selected.item}${selected.count === 1 ? "" : "s"}`
             : undefined
         }
-        icon="copy"
+        icon="print"
         onClick={handlePrintClick}
         subtle
+        collapseLabel
       />
     );
   }
@@ -791,6 +890,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const mountsAtDeepLink = !!(
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );
+  const onTerminalsTab =
+    effectiveSelectedTab === kSampleTerminalsTabId && !!terminalSample;
   // Shared with TranscriptPanel: while navigation owns the chrome (deep-link
   // mounts, f/h/j/k/l forces), the header's natural-scroll detection is fully
   // suppressed; a physical user gesture on the scroller hands ownership back.
@@ -809,6 +910,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
+
+  // The Terminals tab shows the header collapsed (the terminals want the
+  // height); it's derived rather than written into the header's scroll state,
+  // so leaving the tab shows that state again untouched. Leaving also ends
+  // fullscreen.
+  const sampleHeaderCollapsed = headerCollapsed || onTerminalsTab;
+  if (!onTerminalsTab && terminalsFill) setTerminalsFill(false);
 
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
   const headerHeight = useElementHeight(
@@ -928,7 +1036,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               <SampleSummaryView
                 parent_id={id}
                 sample={selectedSampleSummary}
-                collapsed={headerCollapsed}
+                collapsed={sampleHeaderCollapsed}
               />
             </div>
           </StickyScroll>
@@ -1073,6 +1181,61 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {hasCommunicationTab ? (
+              <TabPanel
+                key={kSampleCommunicationTabId}
+                id={kSampleCommunicationTabId}
+                className="sample-tab"
+                title="Communication"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleCommunicationTabId)}
+                selected={effectiveSelectedTab === kSampleCommunicationTabId}
+              >
+                <CommunicationView
+                  key={visitId}
+                  events={sampleEvents}
+                  multiline={communicationMultiline}
+                  onShown={hideFind}
+                />
+              </TabPanel>
+            ) : null}
+            {terminalSample ? (
+              <TabPanel
+                key={kSampleTerminalsTabId}
+                id={kSampleTerminalsTabId}
+                className="sample-tab"
+                title="Terminals"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleTerminalsTabId)}
+                selected={effectiveSelectedTab === kSampleTerminalsTabId}
+              >
+                <TerminalsView
+                  key={terminalsKey}
+                  id={`${baseId}-${id}-terminal-sessions`}
+                  sample={terminalSample}
+                  scrollRef={scrollRef}
+                  agentId={terminalAgent?.id}
+                  fill={
+                    terminalsFill
+                      ? {
+                          tools: terminalAgentPicker,
+                          onExit: () => setTerminalsFill(false),
+                        }
+                      : undefined
+                  }
+                  onFullscreen={() => setTerminalsFill(true)}
+                  resume={
+                    terminalsResume?.key === terminalsKey
+                      ? terminalsResume?.resume
+                      : undefined
+                  }
+                  onSuspend={(resume) =>
+                    terminalsKey &&
+                    setTerminalsResume({ key: terminalsKey, resume })
+                  }
+                />
+              </TabPanel>
+            ) : null}
             <TabPanel
               key={kSampleScoringTabId}
               id={kSampleScoringTabId}
@@ -1113,15 +1276,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 </div>
               </TabPanel>
             ) : null}
-            {sampleUsages.length > 0 ? (
-              <TabPanel
-                id={kSampleUsageTabId}
-                className={clsx("sample-tab")}
-                title="Usage"
-                onSelected={onSelectedTab}
-                href={sampleTabHref(kSampleUsageTabId)}
-                selected={effectiveSelectedTab === kSampleUsageTabId}
-              >
+            <TabPanel
+              id={kSampleInfoTabId}
+              className={clsx("sample-tab")}
+              title="Info"
+              onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleInfoTabId)}
+              selected={effectiveSelectedTab === kSampleInfoTabId}
+            >
+              {sampleUsages.length > 0 || sampleMetadatas.length > 0 ? (
                 <div
                   className={clsx(
                     styles.padded,
@@ -1130,29 +1293,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )}
                 >
                   {sampleUsages}
-                </div>
-              </TabPanel>
-            ) : null}
-            <TabPanel
-              id={kSampleMetdataTabId}
-              className={clsx("sample-tab")}
-              title="Metadata"
-              onSelected={onSelectedTab}
-              href={sampleTabHref(kSampleMetdataTabId)}
-              selected={effectiveSelectedTab === kSampleMetdataTabId}
-            >
-              {sampleMetadatas.length > 0 ? (
-                <div
-                  className={clsx(
-                    styles.padded,
-                    styles.fullWidth,
-                    styles.metadataPanel
-                  )}
-                >
                   {sampleMetadatas}
                 </div>
               ) : (
-                <NoContentsPanel text="No sample metadata available" />
+                <NoContentsPanel text="No sample usage or metadata available" />
               )}
             </TabPanel>
             {sample?.error && (
@@ -1447,14 +1591,20 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample.store).length > 0) {
+  // Asciicasts play in the Terminals tab rather than printing as (very long)
+  // strings in the store tree.
+  const castKeys = new Set(storeCasts(sample.store).map((cast) => cast.key));
+  const storeRecord = Object.fromEntries(
+    Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
+  );
+  if (Object.keys(storeRecord).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-store-${id}`}>
         <CardHeader label="Store" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-store-${id}`}
-            record={sample.store}
+            record={storeRecord}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}

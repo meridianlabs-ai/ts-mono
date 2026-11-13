@@ -14,7 +14,7 @@ test("scans page shows an empty grid when no scans exist", async ({ page }) => {
   // The only body row is the grid's empty-state message.
   const bodyRows = page.locator("tbody").getByRole("row");
   await expect(bodyRows).toHaveCount(1);
-  await expect(bodyRows).toHaveText(/^No /);
+  await expect(bodyRows).toHaveText("No scans in this directory.");
   await expect(page.locator("#scan-job-footer")).toContainText("0 items");
 });
 
