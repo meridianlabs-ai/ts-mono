@@ -128,8 +128,7 @@ const LongText: FC<CappedTextProps> = ({
 
   const toggle = () => {
     const notice = noticeRef.current;
-    const scroller =
-      notice && findScrollableParent(notice, { minScrollBuffer: 0 });
+    const scroller = notice && findScrollableParent(notice);
     const top = notice?.getBoundingClientRect().top;
     // Committed now so the new layout can be measured and adjusted before it
     // paints.
@@ -199,7 +198,7 @@ const layoutKey = (container: HTMLElement): string =>
 
 // How far down its scroll content `element` starts.
 const contentTop = (element: HTMLElement): number => {
-  const scroller = findScrollableParent(element, { minScrollBuffer: 0 });
+  const scroller = findScrollableParent(element);
   return scroller
     ? element.getBoundingClientRect().top -
         scroller.getBoundingClientRect().top +
