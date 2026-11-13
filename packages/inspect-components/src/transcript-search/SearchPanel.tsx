@@ -370,7 +370,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   }, [model, modelHistory.history, handleModelChange]);
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-unsearchable>
       <SidebarHeader
         icon="search"
         title={`Search: ${scope}`}
