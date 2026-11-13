@@ -129,6 +129,7 @@ describe("findTextMatches and the data-side count", () => {
     ["stale.\r\n\r\nThis turn", "this turn", 1],
     // Quotes and backslashes, as typed or JSON-escaped.
     ['say "foo" and foo', '"foo"', 2],
+    ["say hi", 'say " hi', 1],
     [JSON.stringify({ cmd: 'print("hi")' }), 'print("hi")', 1],
     [JSON.stringify({ path: String.raw`C:\temp` }), String.raw`C:\temp`, 1],
     [String.raw`C:\temp`, String.raw`C:\temp`, 1],

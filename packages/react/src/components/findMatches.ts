@@ -22,9 +22,9 @@ interface TextRun {
 }
 
 /**
- * Every occurrence of `term` in the page text under `root`, in document
- * order, compared as `normalizeFindText` does so the page agrees with counts
- * taken from data. Skips text a reader can't find: `data-unsearchable`
+ * Every occurrence of `term`, or of its other `searchVariants`, in the page
+ * text under `root`, in document order. Text is compared as
+ * `normalizeFindText` reads it, so the page agrees with counts from data. Skips text a reader can't find: `data-unsearchable`
  * subtrees, `user-select: none` (role labels, gutters), hidden elements and
  * non-text elements. Matches may cross element boundaries within one block
  * of text (syntax-highlight tokens, markdown emphasis), but never span two

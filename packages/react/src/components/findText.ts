@@ -1,20 +1,23 @@
 // Find compares text and terms in one normal form, so a list item's count
 // from its data equals the matches its rendered DOM shows.
 
-// CSS's collapsible whitespace, in runs other than a lone space (which
-// normalizes to itself).
-const WHITESPACE_RUN = / [ \t\n\r\f]+|[\t\n\r\f][ \t\n\r\f]*/g;
-const NON_ASCII_CODE_POINT = /[\u{80}-\u{10ffff}]/gu;
+// Markdown renders a line break as `<br>` and preformatted text keeps it, so
+// a match can't cross one on the page. A run with one stays a line break,
+// which no term from the single-line find input contains.
+const LINE_BREAK_RUN = /[ \t\f]*[\n\r][ \t\n\r\f]*/g;
+// Other runs of collapsible whitespace, except a lone space.
+const SPACE_RUN = / [ \t\f]+|[\t\f][ \t\f]*/g;
+const WHITESPACE_RUN = new RegExp(
+  `${LINE_BREAK_RUN.source}|${SPACE_RUN.source}`,
+  "g"
+);
+// The only code points folding can still change in a lowercased string.
+const FOLDABLE = /(?![\0-\x7f])\p{CWCM}/gu;
 
 const folds = new Map<string, string>();
 
-/**
- * One code point's case fold, of the same length so offsets into folded text
- * are offsets into the original. Lowercasing the uppercase folds variants
- * together (ς and σ, ſ and s) as a case-insensitive RegExp does, and also
- * folds Turkish ı and İ to i. A code point whose uppercase is longer (ß, SS)
- * keeps its lowercase.
- */
+// Lowercasing the uppercase folds ς to σ and ſ to s, as an `iu` RegExp does.
+// Each fold keeps its length, so offsets into folded text stay valid.
 const foldCodePoint = (char: string): string => {
   let folded = folds.get(char);
   if (folded === undefined) {
@@ -28,21 +31,12 @@ const foldCodePoint = (char: string): string => {
 };
 
 // Folding a lowercased code point gives the same result as folding the
-// original, so the native lowercase does the ASCII work. Replacing İ first
+// original, so the native lowercase does most of the work. Replacing İ first
 // keeps the lowercase the same length.
 const foldCase = (text: string): string =>
   /[^\0-\x7f]/.test(text)
-    ? text
-        .replaceAll("İ", "i")
-        .toLowerCase()
-        .replace(NON_ASCII_CODE_POINT, foldCodePoint)
+    ? text.replaceAll("İ", "i").toLowerCase().replace(FOLDABLE, foldCodePoint)
     : text.toLowerCase();
-
-// The viewer shows a line break in text as one (markdown renders it as
-// `<br>`, preformatted text keeps it), and a match can't cross a `<br>` on the
-// page. So a run with a line break stays one, which no term from the
-// single-line find input contains.
-const collapseRun = (run: string): string => (/[\n\r]/.test(run) ? "\n" : " ");
 
 /**
  * Text as Find compares it: case folded, with each run of whitespace read as
@@ -58,7 +52,7 @@ export function normalizeFindText(text: string, offsets?: number[]): string {
     }
     for (let i = from; i < text.length; i++) offsets.push(i);
   }
-  return foldCase(text).replace(WHITESPACE_RUN, collapseRun);
+  return foldCase(text).replace(LINE_BREAK_RUN, "\n").replace(SPACE_RUN, " ");
 }
 
 /**
@@ -70,11 +64,12 @@ export function normalizeFindText(text: string, offsets?: number[]): string {
 export function searchVariants(term: string): string[] {
   const simple = normalizeFindText(term);
   if (!/["\\:]/.test(term)) return simple ? [simple] : [];
-  return [
+  const variants = new Set([
     simple,
-    simple.replace(/"/g, ""),
+    normalizeFindText(simple.replace(/"/g, "")),
     JSON.stringify(simple).slice(1, -1),
-  ].filter((variant) => variant.length > 0);
+  ]);
+  return [...variants].filter((variant) => variant.length > 0);
 }
 
 export interface FindHit {
