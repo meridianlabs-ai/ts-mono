@@ -37,7 +37,7 @@ import { isNewTabClick } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
-import { isRecord, isVscode } from "@tsmono/util";
+import { isButtonActivation, isRecord, isVscode } from "@tsmono/util";
 
 import { useStableValue } from "../useStableValue";
 
@@ -797,6 +797,8 @@ export function DataGrid<TRow extends RowData>({
       ) {
         return;
       }
+      // Enter and Space press a focused button (a column filter's funnel).
+      if (isButtonActivation(e)) return;
 
       const rowCount = rows.length;
       if (rowCount === 0) return;
@@ -828,6 +830,9 @@ export function DataGrid<TRow extends RowData>({
       });
       if (target === null) return;
       e.preventDefault();
+      // Take focus off a button (a funnel) the selection moved away from, so
+      // a following Enter or Space activates the row rather than the button.
+      e.currentTarget.focus({ preventScroll: true });
       if (target === currentIndex) return;
 
       const targetRow = rows[target];
