@@ -31,7 +31,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
   popoverState,
   suggestions = [],
 }) => {
-  const chipRef = useRef<HTMLDivElement | null>(null);
+  const chipRef = useRef<HTMLButtonElement | null>(null);
 
   const {
     isOpen,

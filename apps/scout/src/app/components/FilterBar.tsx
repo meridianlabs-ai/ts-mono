@@ -78,7 +78,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   onVisibleColumnsChange,
 }) => {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
 
   const handleFilterChange = useCallback(

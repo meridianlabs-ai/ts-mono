@@ -41,7 +41,7 @@ test("transcripts page renders grid with data", async ({ page, network }) => {
   await expect(page.locator("#transcripts-footer")).toContainText("2 items");
 });
 
-test("the add-filter popover opens with its column picker focused", async ({
+test("the add-filter chip opens from the keyboard with its column picker focused, and Escape returns focus to it", async ({
   page,
   network,
 }) => {
@@ -58,13 +58,16 @@ test("the add-filter popover opens with its column picker focused", async ({
   await page.goto("/#/transcripts");
   await expect(page.getByText("my-task").first()).toBeVisible();
 
-  await page.getByTitle("Add a new filter").click();
+  const addFilter = page.getByRole("button", { name: "Add", exact: true });
+  await addFilter.focus();
+  await page.keyboard.press("Enter");
   const picker = page.getByRole("combobox").filter({
     has: page.getByRole("option", { name: "Select column..." }),
   });
   await expect(picker).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(picker).toBeHidden();
+  await expect(addFilter).toBeFocused();
 });
 
 test("transcripts page shows an empty grid when no transcripts exist", async ({
