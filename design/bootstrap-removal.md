@@ -379,9 +379,19 @@ artifact viewers, the loading, error and pending pages) uses Tailwind classes
 such as `p-4`, `px-3`, `gap-3`, `mb-3`, `rounded` and `border`, which
 Bootstrap also defines as `!important` utilities with different values
 (`.p-4` is 1.5rem in Bootstrap and 1rem in Tailwind). After PR 5 Tailwind's
-values apply there. Classes whose values match, such as `overflow-hidden`
-or `text-center`, don't change. I found this by reading hawk's source
-(checkout from 2026-09-13) and haven't checked it in a running hawk.
+values apply there, except where the reset sets the same property on that
+element: the `tsmono.reset` layer orders after Tailwind's `utilities`, so
+`h2.mb-1` gets the reset's 0.5rem, `p.mt-1` and `ul.mt-2` get 0, and
+`button.rounded` loses its radius. Bootstrap's `!important` utilities used
+to hide this. PR 7 removes it by scoping the reset to the viewer. I found
+this by reading hawk's source (checkout from 2026-09-13) and haven't
+checked it in a running hawk.
+
+VS Code hosts older than 1.104 inject their default webview styles
+unlayered, so there they beat the layered reset and components (body font
+size, `code`, link colours on tabs rendered as `<a>`). From 1.104 VS Code
+wraps them in `@layer vscode-default`, which orders before ours. PR 5 raised
+inspect_vscode's minimum to 1.104.
 
 Model output can carry Bootstrap classes too. The HTML sanitizer keeps
 `class` attributes and markdown renders with `html: true`, so a message
