@@ -6,38 +6,64 @@ import {
   useRef,
 } from "react";
 
-// The search context provides global search assistance. We generally use the
-// browser to perform searches using 'find', but this allows for virtual lists
-// and other virtualized components to register themselves to be notified when a
-// search is requested and no matches are found. In this case, they can 'look ahead'
-// and scroll an item into view if it is likely/certain to contain the search term.
-
 export type FindDirection = "forward" | "backward";
 
-// Find will call this when an extended find is requested
-export type ExtendedFindFn = (
-  term: string,
-  direction: FindDirection,
-  onContentReady: () => void
-) => Promise<boolean>;
+export interface ItemMatchCount {
+  item: number;
+  count: number;
+}
 
-// Count total matches across all data items
-export type ExtendedCountFn = (term: string) => number;
-
-// The context provides an extended search function and a way for the active
-// virtual lists to register themselves.
-interface ExtendedFindContextType {
-  extendedFindTerm: (
-    term: string,
-    direction: FindDirection
+/**
+ * A virtualized list's side of find. Its items may not be rendered, so the
+ * list counts matches in its data and scrolls an item into the DOM on
+ * request. The find band highlights matches in rendered items itself.
+ */
+export interface FindSource {
+  /** An element at the list's place in the page: matches in the page before
+   *  it are numbered before the list's. Null while the list isn't mounted. */
+  anchor: () => Element | null;
+  /** Data-side match counts by item, in ascending item order, omitting
+   *  items without a match. Includes items that aren't rendered. */
+  countByItem: (term: string) => readonly ItemMatchCount[];
+  /** The item a rendered DOM node belongs to, or null if it isn't inside one
+   *  of this list's items. */
+  itemOf: (node: Node) => number | null;
+  /** Items currently in the DOM, whether or not they contain a match. */
+  renderedItems: () => ReadonlySet<number>;
+  /** Brings an item into the DOM. Resolves true once it is rendered, false
+   *  if it never renders. Aborting `signal` (a newer find navigation) stops
+   *  its scroll. Rejects if another scroll takes over first. */
+  reveal: (
+    item: number,
+    direction: FindDirection,
+    signal: AbortSignal
   ) => Promise<boolean>;
-  registerVirtualList: (id: string, searchFn: ExtendedFindFn) => () => void;
-  countAllMatches: (term: string) => number;
-  registerMatchCounter: (id: string, countFn: ExtendedCountFn) => () => void;
-  // Bumped on every counter (un)registration. Counters re-register when
-  // their underlying data changes, so this doubles as a cheap content
-  // version for invalidating cached countAllMatches results.
-  getMatchCountersVersion: () => number;
+}
+
+/** Wraps a computation so repeated calls with the same arguments (every
+ *  re-collect while the band is open) reuse the last result. */
+export function cacheLastCall<A extends unknown[], T>(
+  compute: (...args: A) => T
+): (...args: A) => T {
+  let last: { args: A; value: T } | null = null;
+  return (...args) => {
+    if (
+      !last ||
+      last.args.length !== args.length ||
+      last.args.some((arg, i) => !Object.is(arg, args[i]))
+    ) {
+      last = { args, value: compute(...args) };
+    }
+    return last.value;
+  };
+}
+
+interface ExtendedFindContextType {
+  registerFindSource: (id: string, source: FindSource) => () => void;
+  getFindSources: () => ReadonlyMap<string, FindSource>;
+  /** Notifies on every (un)registration. Sources re-register when their data
+   *  changes, so this is also the signal that counts may have changed. */
+  subscribeFindSources: (listener: () => void) => () => void;
 }
 
 const ExtendedFindContext = createContext<ExtendedFindContextType | null>(null);
@@ -49,88 +75,38 @@ interface ExtendedFindProviderProps {
 export const ExtendedFindProvider = ({
   children,
 }: ExtendedFindProviderProps) => {
-  const virtualLists = useRef<Map<string, ExtendedFindFn>>(new Map());
-  const matchCounters = useRef<Map<string, ExtendedCountFn>>(new Map());
-  const matchCountersVersion = useRef(0);
+  const sources = useRef<Map<string, FindSource>>(new Map());
+  const listeners = useRef<Set<() => void>>(new Set());
 
-  const extendedFindTerm = useCallback(
-    async (term: string, direction: FindDirection): Promise<boolean> => {
-      for (const [, searchFn] of virtualLists.current) {
-        const found = await new Promise<boolean>((resolve) => {
-          let callbackFired = false;
-
-          const onContentReady = () => {
-            if (!callbackFired) {
-              callbackFired = true;
-              resolve(true);
-            }
-          };
-
-          searchFn(term, direction, onContentReady)
-            .then((found) => {
-              if (!found && !callbackFired) {
-                callbackFired = true;
-                resolve(false);
-              }
-            })
-            .catch(() => {
-              if (!callbackFired) {
-                callbackFired = true;
-                resolve(false);
-              }
-            });
-        });
-
-        if (found) {
-          return true;
-        }
-      }
-      return false;
-    },
-    []
-  );
-
-  const registerVirtualList = useCallback(
-    (id: string, searchFn: ExtendedFindFn): (() => void) => {
-      virtualLists.current.set(id, searchFn);
-      return () => {
-        virtualLists.current.delete(id);
-      };
-    },
-    []
-  );
-
-  const countAllMatches = useCallback((term: string): number => {
-    let total = 0;
-    for (const [, countFn] of matchCounters.current) {
-      total += countFn(term);
-    }
-    return total;
+  const notify = useCallback(() => {
+    for (const listener of listeners.current) listener();
   }, []);
 
-  const registerMatchCounter = useCallback(
-    (id: string, countFn: ExtendedCountFn): (() => void) => {
-      matchCounters.current.set(id, countFn);
-      matchCountersVersion.current++;
+  const registerFindSource = useCallback(
+    (id: string, source: FindSource): (() => void) => {
+      sources.current.set(id, source);
+      notify();
       return () => {
-        matchCounters.current.delete(id);
-        matchCountersVersion.current++;
+        sources.current.delete(id);
+        notify();
       };
     },
-    []
+    [notify]
   );
 
-  const getMatchCountersVersion = useCallback(
-    () => matchCountersVersion.current,
-    []
-  );
+  const getFindSources = useCallback(() => sources.current, []);
+
+  const subscribeFindSources = useCallback((listener: () => void) => {
+    listeners.current.add(listener);
+    return () => {
+      listeners.current.delete(listener);
+    };
+  }, []);
 
   const contextValue: ExtendedFindContextType = {
-    extendedFindTerm,
-    registerVirtualList,
-    countAllMatches,
-    registerMatchCounter,
-    getMatchCountersVersion,
+    registerFindSource,
+    getFindSources,
+    subscribeFindSources,
   };
 
   return (
@@ -143,7 +119,9 @@ export const ExtendedFindProvider = ({
 export const useExtendedFind = (): ExtendedFindContextType => {
   const context = useExtendedFindOptional();
   if (!context) {
-    throw new Error("useSearch must be used within a SearchProvider");
+    throw new Error(
+      "useExtendedFind must be used within an ExtendedFindProvider"
+    );
   }
   return context;
 };

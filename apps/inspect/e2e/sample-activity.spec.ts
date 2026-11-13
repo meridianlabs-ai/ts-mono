@@ -345,10 +345,11 @@ test("state outlines win over the Turns column seam in both themes", async ({
   await expect(failed).toHaveClass(/spanHovered/);
   await expect.poll(outline).toEqual(hoverLight);
 
-  // Dark theme is the `data-bs-theme` attribute the theme bootstrap writes
-  // on <html>; the same precedence must hold there.
+  // Dark theme is the `data-bs-theme` attribute and inline color-scheme the
+  // theme bootstrap writes on <html>; the same precedence must hold there.
   await page.evaluate(() => {
     document.documentElement.setAttribute("data-bs-theme", "dark");
+    document.documentElement.style.colorScheme = "dark";
   });
   await expect.poll(outline).toEqual(hoverDark);
   await page.mouse.move(0, 0);

@@ -108,12 +108,21 @@ export interface TranscriptViewNodesProps {
 }
 
 export interface TranscriptViewNodesHandle {
-  /** Scroll to an event by its ID. Expands collapsed ancestors first if needed. */
-  scrollToEvent: (eventId: string) => void;
+  /** Scroll to an event by its ID. Expands collapsed ancestors first if
+   *  needed. Returns a cancel that stops the scroll if it's still settling.
+   *  `onDone` fires once the scroll ends (landed, or the event couldn't be
+   *  found); `onAbandon` instead if another scroll takes over first. */
+  scrollToEvent: (
+    eventId: string,
+    callbacks?: { onDone?: () => void; onAbandon?: () => void }
+  ) => () => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
-  /** Read-only accessor for the virtual list's currently-rendered visible range. */
-  getVisibleRange: () => { startIndex: number; endIndex: number };
+  /** The element holding the rendered event rows, null until mounted. */
+  getElement: () => HTMLElement | null;
+  /** The event whose row renders this event: itself, or the tool event an
+   *  approval or sentinel is shown inside. */
+  rowEventId: (eventId: string) => string;
 }
 
 // =============================================================================
@@ -330,7 +339,11 @@ export const TranscriptViewNodes = forwardRef<
   // single choke point stamping the current turn, so a j/k/f fired before
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
-    (index: number, onDone?: () => void) => {
+    (
+      index: number,
+      onDone?: () => void,
+      onAbandon?: () => void
+    ): (() => void) => {
       onProgrammaticScroll?.(true);
       const rowId = flattenedNodesLatest.current[index]?.id;
       if (rowId !== undefined) {
@@ -344,41 +357,43 @@ export const TranscriptViewNodes = forwardRef<
       const handle = listHandle.current;
       if (!handle) {
         onDone?.();
-        return;
+        return () => {};
       }
-      handle.scrollToIndex({
+      return handle.scrollToIndex({
         index,
         align: "start",
         behavior: "auto",
         onDone,
+        onAbandon,
       });
     },
     [onProgrammaticScroll, flattenedNodesLatest, turnLookupLatest]
   );
 
   const scrollToEvent = useCallback(
-    (targetId: string) => {
+    (
+      targetId: string,
+      callbacks?: { onDone?: () => void; onAbandon?: () => void }
+    ): (() => void) => {
       const eventId = redirectEventId(targetId);
       // Imperative jumps are navigation too: collapse the chrome even when
       // the URL doesn't change (re-click) and the deep-link effect won't run.
       onHeadroomSetHidden?.(true);
-      const tryScroll = (idx: number) => {
+      const tryScroll = (idx: number): (() => void) => {
         if (listHandle.current) {
-          scrollRowToTop(idx);
-        } else {
-          onProgrammaticScroll?.(true);
-          const el = scrollRef?.current?.querySelector(
-            `[id="${escapeAttr(eventId)}"]`
-          );
-          el?.scrollIntoView({ block: "start", behavior: "auto" });
+          return scrollRowToTop(idx, callbacks?.onDone, callbacks?.onAbandon);
         }
+        onProgrammaticScroll?.(true);
+        const el = scrollRef?.current?.querySelector(
+          `[id="${escapeAttr(eventId)}"]`
+        );
+        el?.scrollIntoView({ block: "start", behavior: "auto" });
+        callbacks?.onDone?.();
+        return () => {};
       };
 
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
-      if (idx !== -1) {
-        tryScroll(idx);
-        return;
-      }
+      if (idx !== -1) return tryScroll(idx);
 
       // Hidden in a collapsed region: expand ancestors in ONE batched update
       // (sequential toggles clobber each other while the store is unseeded),
@@ -392,20 +407,34 @@ export const TranscriptViewNodes = forwardRef<
         onExpandNodes(collapsedAncestors);
         // After the next render, the flat list will include the event.
         // Retry up to 3 frames in case React batching pushes the commit later.
+        let cancelled = false;
+        // Once a scroll starts (or the retries give up), it reports itself.
+        let started = false;
+        let cancelScroll = () => {};
         const retryScroll = (attemptsLeft: number) => {
+          if (cancelled) return;
           const newIdx = flattenedNodesLatest.current.findIndex(
             (e) => e.id === eventId
           );
           if (newIdx !== -1) {
-            tryScroll(newIdx);
+            started = true;
+            cancelScroll = tryScroll(newIdx);
             return;
           }
           if (attemptsLeft > 0) {
             requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
+          } else {
+            started = true;
+            callbacks?.onDone?.();
           }
         };
         requestAnimationFrame(() => retryScroll(3));
-        return;
+        return () => {
+          if (cancelled) return;
+          cancelled = true;
+          cancelScroll();
+          if (!started) callbacks?.onAbandon?.();
+        };
       }
 
       // Fall back to direct DOM scroll.
@@ -414,6 +443,8 @@ export const TranscriptViewNodes = forwardRef<
         `[id="${escapeAttr(eventId)}"]`
       );
       el?.scrollIntoView({ block: "start", behavior: "auto" });
+      callbacks?.onDone?.();
+      return () => {};
     },
     [
       redirectEventId,
@@ -430,19 +461,17 @@ export const TranscriptViewNodes = forwardRef<
     ]
   );
 
-  const visibleRangeRef = useRef<{ startIndex: number; endIndex: number }>({
-    startIndex: 0,
-    endIndex: 0,
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(
     ref,
     () => ({
       scrollToEvent,
       getFlattenedNodes: () => flattenedNodesLatest.current,
-      getVisibleRange: () => visibleRangeRef.current,
+      getElement: () => rootRef.current,
+      rowEventId: redirectEventId,
     }),
-    [scrollToEvent, flattenedNodesLatest]
+    [scrollToEvent, flattenedNodesLatest, redirectEventId]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a
@@ -901,7 +930,7 @@ export const TranscriptViewNodes = forwardRef<
 
   return (
     <StickyScrollProvider value={stickyScroll}>
-      <div>
+      <div ref={rootRef}>
         {turnAnchorIds.length > 0 && (
           <GoToTurnBar
             ref={goToTurnBarRef}
@@ -928,7 +957,6 @@ export const TranscriptViewNodes = forwardRef<
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
           selection={rowSelection}
-          visibleRangeRef={visibleRangeRef}
         />
       </div>
     </StickyScrollProvider>

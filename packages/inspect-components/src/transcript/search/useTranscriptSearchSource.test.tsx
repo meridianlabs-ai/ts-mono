@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   testAssistantMessage,
@@ -13,9 +13,8 @@ import {
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
   ExtendedFindProvider,
-  FindTargetProvider,
   useExtendedFind,
-  type FindDirection,
+  type FindSource,
 } from "@tsmono/react/components";
 
 import { TimelineEvent, TimelineSpan } from "../timeline/core";
@@ -105,7 +104,7 @@ function twoRowFixture() {
 }
 
 // =============================================================================
-// Test harness — mounts the hook and exposes the registered functions.
+// Test harness — mounts the hook and exposes the registered source.
 // =============================================================================
 
 interface HarnessOptions {
@@ -113,37 +112,33 @@ interface HarnessOptions {
   rows: SwimlaneRow[];
   selected: string;
   flattenedNodeIds?: string[];
+  /** Event panels rendered in the transcript's element. */
   panels?: { id: string; text: string }[];
   onSelect?: (key: string | null) => void;
-  scrollToEvent?: (id: string) => void;
+  scrollToEvent?: TranscriptViewNodesHandle["scrollToEvent"];
+  rowEventId?: (eventId: string) => string;
 }
 
-interface Harness {
-  countAll(term: string): number;
-  search(term: string, direction: FindDirection): Promise<boolean>;
-}
-
-/**
- * Render placeholder panels for the given event ids so `waitForEventInDOM`
- * (which polls `document.getElementById`) can complete. Panels listed here
- * are "reachable"; events whose id is omitted simulate the
- * filtered-out-of-the-rendered-tree case (e.g. nested under a collapsed
- * subtask span) — the hook's skip-the-whole-event logic depends on this
- * distinction.
- */
-function renderHarness(opts: HarnessOptions): Harness {
+function renderHarness(opts: HarnessOptions) {
   const flattened: EventNode[] = (opts.flattenedNodeIds ?? []).map(
     (id) => new EventNode(id, testInfoEvent({ uuid: id }), 0)
   );
-  const harness: Partial<Harness> = {};
+  const harness: {
+    source?: FindSource;
+    view?: TranscriptViewNodesHandle | null;
+  } = {};
   const Probe = () => {
-    const { extendedFindTerm, countAllMatches } = useExtendedFind();
-    harness.countAll = countAllMatches;
-    harness.search = extendedFindTerm;
+    const { getFindSources } = useExtendedFind();
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
-      scrollToEvent: opts.scrollToEvent ?? vi.fn(),
+      scrollToEvent:
+        opts.scrollToEvent ??
+        ((_id, callbacks) => {
+          callbacks?.onDone?.();
+          return () => {};
+        }),
       getFlattenedNodes: () => flattened,
-      getVisibleRange: () => ({ startIndex: 0, endIndex: 0 }),
+      getElement: () => document.getElementById("transcript"),
+      rowEventId: opts.rowEventId ?? ((eventId) => eventId),
     });
     useTranscriptSearchSource({
       events: opts.events,
@@ -152,118 +147,310 @@ function renderHarness(opts: HarnessOptions): Harness {
       onSelect: opts.onSelect ?? vi.fn(),
       viewNodesRef,
     });
+    harness.source = getFindSources().get("transcript-sample");
+    harness.view = viewNodesRef.current;
     return null;
   };
-  render(
+  const tree = () => (
     <ExtendedFindProvider>
-      <FindTargetProvider>
-        <Probe />
+      <Probe />
+      <p id="outside">wondering outside</p>
+      {/* An element outside the transcript sharing an event's id. */}
+      <div id="e2">
+        <span>wondering elsewhere</span>
+      </div>
+      <div id="transcript">
         {opts.panels?.map((p) => (
           <div key={p.id} id={p.id}>
-            {p.text}
+            <span>{p.text}</span>
           </div>
         ))}
-      </FindTargetProvider>
+      </div>
     </ExtendedFindProvider>
   );
-  const { countAll, search } = harness;
-  if (!countAll || !search) throw new Error("harness not ready");
-  return { ...harness, countAll, search };
+  const { rerender } = render(tree());
+  // The hook registers in an effect, after the probe's first render.
+  rerender(tree());
+  const registered = harness.source;
+  if (!registered) throw new Error("source not registered");
+  return {
+    source: () => registered,
+    // A row switch or remount gives the view new redirects.
+    setRowEventId: (rowEventId: (eventId: string) => string) => {
+      if (harness.view) harness.view.rowEventId = rowEventId;
+    },
+  };
 }
+
+const textIn = (id: string) => document.getElementById(id)!.firstChild!;
 
 // =============================================================================
 // Tests
 // =============================================================================
 
+afterEach(cleanup);
+
 describe("useTranscriptSearchSource", () => {
-  it("counts matches across all rows", () => {
+  it("counts matches by event, across every row", () => {
     const { events, rows } = twoRowFixture();
-    const h = renderHarness({ events, rows, selected: "main" });
-    expect(h.countAll("wondering")).toBe(1);
-    expect(h.countAll("hello")).toBe(1);
-    expect(h.countAll("absent")).toBe(0);
+    const { source } = renderHarness({ events, rows, selected: "main" });
+    expect(source().countByItem("wondering")).toEqual([{ item: 1, count: 1 }]);
+    expect(source().countByItem("hello")).toEqual([{ item: 0, count: 1 }]);
+    expect(source().countByItem("absent")).toEqual([]);
   });
 
-  it("returns false from search when the term has no matches", async () => {
-    const { events, rows } = twoRowFixture();
-    const onSelect = vi.fn();
-    const h = renderHarness({ events, rows, selected: "main", onSelect });
-    let result: boolean | null = null;
-    await act(async () => {
-      result = await h.search("absent", "forward");
+  it("counts an event shown inside another event's row under that row", () => {
+    // An approval (e2) renders inline in its tool's row (e1).
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e2", "wondering approval"),
+    ]);
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      rowEventId: (eventId) => (eventId === "e2" ? "e1" : eventId),
     });
-    expect(result).toBe(false);
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
   });
 
-  it("caches matches across repeated counter calls and invalidates on events change", () => {
-    let currentEvents: ModelEvent[] = [ev("e1", "wondering")];
-    const harness: Partial<Harness> = {};
-    const Probe = () => {
-      const { countAllMatches } = useExtendedFind();
-      harness.countAll = countAllMatches;
+  it("recounts when the view's redirects change", () => {
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e2", "wondering approval"),
+    ]);
+    const { source, setRowEventId } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+    });
+    expect(source().countByItem("wondering")).toHaveLength(2);
+
+    setRowEventId((eventId) => (eventId === "e2" ? "e1" : eventId));
+
+    expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
+  });
+
+  it("reveals an event shown inside another row once that row renders", async () => {
+    const { events, rows } = singleRowFixture([
+      ev("e1", "wondering tool"),
+      ev("e3", "wondering approval"),
+    ]);
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering tool wondering approval" }],
+      rowEventId: (eventId) => (eventId === "e3" ? "e1" : eventId),
+    });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(
+        1,
+        "forward",
+        new AbortController().signal
+      );
+    });
+
+    expect(revealed).toBe(true);
+  });
+
+  it("reveals an approval in another row through the row that renders it", async () => {
+    // The sub row holds a tool (e2) and its approval (e3), shown inline.
+    const e1 = ev("e1", "hello");
+    const e2 = ev("e2", "wondering tool");
+    const e3 = ev("e3", "wondering approval");
+    const sub = new TimelineSpan({
+      id: "sub",
+      name: "sub",
+      spanType: "agent",
+      content: [new TimelineEvent(e2), new TimelineEvent(e3)],
+    });
+    const main = new TimelineSpan({
+      id: "main",
+      name: "main",
+      spanType: "agent",
+      content: [new TimelineEvent(e1), sub],
+    });
+    const onSelect = vi.fn();
+    const { source } = renderHarness({
+      events: [e1, e2, e3],
+      rows: [makeRow("main", main, 0), makeRow("main/sub", sub, 1)],
+      selected: "main",
+      // The approval is hidden from the row list, as in the real view.
+      flattenedNodeIds: ["e2"],
+      panels: [{ id: "e2", text: "wondering tool wondering approval" }],
+      rowEventId: (eventId) => (eventId === "e3" ? "e2" : eventId),
+      onSelect,
+    });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(
+        2,
+        "forward",
+        new AbortController().signal
+      );
+    });
+
+    expect(onSelect).toHaveBeenCalledWith("main/sub");
+    expect(revealed).toBe(true);
+  });
+
+  it("recounts when the events change", () => {
+    let events: ModelEvent[] = [ev("e1", "wondering")];
+    const Probe = ({ onSource }: { onSource: (s?: FindSource) => void }) => {
+      const { getFindSources } = useExtendedFind();
       const viewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
-      const { rows } = singleRowFixture(currentEvents);
       useTranscriptSearchSource({
-        events: currentEvents,
-        rows,
+        events,
+        rows: singleRowFixture(events).rows,
         selected: "main",
         onSelect: vi.fn(),
         viewNodesRef,
       });
+      onSource(getFindSources().get("transcript-sample"));
       return null;
     };
+    let source: FindSource | undefined;
     const tree = () => (
       <ExtendedFindProvider>
-        <FindTargetProvider>
-          <Probe />
-        </FindTargetProvider>
+        <Probe onSource={(s) => (source = s)} />
       </ExtendedFindProvider>
     );
     const { rerender } = render(tree());
-    expect(harness.countAll!("wondering")).toBe(1);
-    expect(harness.countAll!("wondering")).toBe(1); // hits the cache
-
-    currentEvents = [ev("e1", "wondering"), ev("e2", "wondering more")];
     rerender(tree());
-    expect(harness.countAll!("wondering")).toBe(2); // cache invalidated
+    expect(source?.countByItem("wondering")).toEqual([{ item: 0, count: 1 }]);
+
+    events = [ev("e1", "wondering"), ev("e2", "wondering more")];
+    rerender(tree());
+    rerender(tree());
+    expect(source?.countByItem("wondering")).toEqual([
+      { item: 0, count: 1 },
+      { item: 1, count: 1 },
+    ]);
   });
 
-  // The headline integration test. The skip-the-whole-event branch of
-  // searchFn (matches sharing an unreachable eventId are advanced past in
-  // one shot) is the most fragile invariant in the production code: a regression
-  // here makes find silently get stuck at the boundary between reachable and
-  // unreachable matches. By omitting `e2`'s panel from the rendered DOM, we
-  // simulate the deeply-nested-under-collapsed-subtask case that motivated
-  // the skip logic, and assert that one Next press lands on `e3`.
-  it("skips a reachable-but-unmounted event in a single press", async () => {
-    const e1 = ev("e1", "wondering one");
-    const e2 = ev("e2", "wondering two");
-    const e3 = ev("e3", "wondering three");
-    const { events, rows } = singleRowFixture([e1, e2, e3]);
-    const scrollToEvent = vi.fn();
-    const h = renderHarness({
+  it("maps rendered text to its event and lists the rendered events", () => {
+    const { events, rows } = twoRowFixture();
+    const { source } = renderHarness({
       events,
       rows,
       selected: "main",
-      flattenedNodeIds: ["e1", "e2", "e3"],
-      panels: [
-        { id: "e1", text: "wondering one" },
-        // e2 intentionally omitted — its panel never mounts
-        { id: "e3", text: "wondering three" },
-      ],
+      panels: [{ id: "e1", text: "hello" }],
+    });
+    expect(source().itemOf(textIn("e1").firstChild!)).toBe(0);
+    expect(source().itemOf(textIn("outside"))).toBe(null);
+    expect(source().itemOf(textIn("e2").firstChild!)).toBe(null);
+    expect([...source().renderedItems()]).toEqual([0]);
+    expect(source().anchor()?.id).toBe("transcript");
+  });
+
+  it("reveals an event in another row by switching to it and scrolling", async () => {
+    const { events, rows } = twoRowFixture();
+    const onSelect = vi.fn();
+    const cancelScroll = vi.fn();
+    const scrollToEvent = vi.fn(
+      (_id: string, callbacks?: { onDone?: () => void }) => {
+        callbacks?.onDone?.();
+        return cancelScroll;
+      }
+    );
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      flattenedNodeIds: ["e2"],
+      panels: [{ id: "e2", text: "wondering" }],
+      onSelect,
       scrollToEvent,
     });
 
-    let result: boolean | null = null;
+    let revealed: boolean | null = null;
     await act(async () => {
-      result = await h.search("wondering", "forward");
+      revealed = await source().reveal(
+        1,
+        "forward",
+        new AbortController().signal
+      );
     });
-    expect(result).toBe(true);
-    // Both e2 (skipped) and e3 (landed) are scrolled to; the production
-    // code calls scrollToEvent for each attempt. The contract that matters
-    // is the LAST scroll target.
-    const lastScroll = scrollToEvent.mock.calls.at(-1);
-    expect(lastScroll?.[0]).toBe("e3");
+
+    expect(revealed).toBe(true);
+    expect(onSelect).toHaveBeenCalledWith("main/sub");
+    expect(scrollToEvent).toHaveBeenCalledWith("e2", expect.anything());
+    expect(cancelScroll).not.toHaveBeenCalled();
+  });
+
+  it("stops its scroll when the find navigation is aborted", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    const cancelScroll = vi.fn();
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering" }],
+      scrollToEvent: (_id, callbacks) => {
+        callbacks?.onDone?.();
+        return cancelScroll;
+      },
+    });
+    const controller = new AbortController();
+
+    await act(async () => {
+      await source().reveal(0, "forward", controller.signal);
+    });
+    controller.abort();
+
+    expect(cancelScroll).toHaveBeenCalledOnce();
+  });
+
+  it("waits for its scroll to land, and rejects if another scroll takes over", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    let callbacks: { onDone?: () => void; onAbandon?: () => void } = {};
+    const { source } = renderHarness({
+      events,
+      rows,
+      selected: "main",
+      panels: [{ id: "e1", text: "wondering" }],
+      scrollToEvent: (_id, given) => {
+        callbacks = given ?? {};
+        return () => {};
+      },
+    });
+
+    let settled: string | null = null;
+    const revealed = source()
+      .reveal(0, "forward", new AbortController().signal)
+      .then(
+        () => (settled = "resolved"),
+        () => (settled = "rejected")
+      );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(settled).toBe(null);
+
+    callbacks.onAbandon?.();
+    await act(async () => {
+      await revealed;
+    });
+    expect(settled).toBe("rejected");
+  });
+
+  it("reports an event that never renders", async () => {
+    const { events, rows } = singleRowFixture([ev("e1", "wondering")]);
+    const { source } = renderHarness({ events, rows, selected: "main" });
+
+    let revealed: boolean | null = null;
+    await act(async () => {
+      revealed = await source().reveal(
+        0,
+        "forward",
+        new AbortController().signal
+      );
+    });
+
+    expect(revealed).toBe(false);
   });
 });

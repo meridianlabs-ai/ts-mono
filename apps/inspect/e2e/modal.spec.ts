@@ -3,6 +3,8 @@
  * only a browser does: focus inside the dialog, an inert page behind it, and
  * Escape and backdrop dismissal that return focus to the opener.
  */
+import { testStoreEvent } from "@tsmono/inspect-common/testing";
+
 import { expect, test } from "./fixtures/app";
 import { serveEvalLog } from "./fixtures/serve-log";
 import { createEvalLog, createEvalSample } from "./fixtures/test-data";
@@ -146,4 +148,82 @@ test("a modal doesn't inherit styles from the page that opens it", async ({
   expect(await title.evaluate((el) => getComputedStyle(el).cursor)).toBe(
     "auto"
   );
+});
+
+// A `script -T` recording: header line, then the bytes the timing file meters.
+const session = (stamp: string, text: string) => {
+  const header =
+    'Script started on 2026-01-01 00:00:00+00:00 [COLUMNS="40" LINES="6"]\n';
+  const output = `${header}${text}\r\n`;
+  return {
+    [`user_${stamp}.input`]: header,
+    [`user_${stamp}.output`]: output,
+    [`user_${stamp}.timing`]: `O 0.05 ${output.length - header.length}\n`,
+  };
+};
+
+test("the human-baseline lightbox is modal, takes the arrow keys from the sample navigation, and closes on Escape from the player", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [
+        createEvalSample({
+          id: 1,
+          messages: [{ role: "user", content: "Run it", source: "input" }],
+          events: [
+            testStoreEvent({
+              changes: [
+                {
+                  op: "add",
+                  path: "/HumanAgentState:logs",
+                  value: {
+                    ...session("1700000000_000001", "first"),
+                    ...session("1700000000_000002", "second"),
+                  },
+                  replaced: null,
+                },
+              ],
+            }),
+          ],
+        }),
+        // A second sample, so ArrowRight would otherwise step to it.
+        sample(2),
+      ],
+    }),
+    LOG_FILE
+  );
+  await page.goto(
+    `/#/logs/${encodeURIComponent(LOG_FILE)}/samples/sample/1/1/transcript`
+  );
+
+  const thumb = page.getByRole("button", { name: /^Terminal Session 1/ });
+  await thumb.click();
+  const first = page.getByRole("dialog", { name: "Terminal Session 1" });
+  await expect(first).toBeVisible();
+  await expect(first.getByRole("button", { name: "Close" })).toBeFocused();
+  // Past the last control, focus goes to the browser's own UI (<body> here),
+  // never to the page.
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press("Tab");
+    expect(
+      await first.evaluate((dialog) => {
+        const active = document.activeElement;
+        return active === document.body || dialog.contains(active);
+      })
+    ).toBe(true);
+  }
+
+  await page.keyboard.press("ArrowRight");
+  const second = page.getByRole("dialog", { name: "Terminal Session 2" });
+  await expect(second).toBeVisible();
+  await expect(page).toHaveURL(/\/sample\/1\/1\//);
+
+  // The player cancels Escape when it has focus.
+  await second.locator(".ap-player").click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(thumb).toBeFocused();
 });

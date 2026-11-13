@@ -75,8 +75,6 @@ interface TranscriptVirtualListComponentProps {
   /** Evidence selection, present while selection mode is on: each non-structural
    *  row gets a header checkbox. */
   selection?: ListRowSelection;
-  /** External ref filled with the virtual list's visible range, for find machinery. */
-  visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
 
 /**
@@ -105,7 +103,6 @@ export const TranscriptVirtualListComponent: FC<
   eventCallbacks,
   eventNodeContext,
   selection,
-  visibleRangeRef,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
   // (`running || eventNodes.length > 100`) skipped virtualization for short
@@ -331,9 +328,6 @@ export const TranscriptVirtualListComponent: FC<
       findScope="none"
       showProgress={showFooter}
       components={components}
-      onVisibleRangeChange={(range) => {
-        if (visibleRangeRef) visibleRangeRef.current = range;
-      }}
     />
   ) : (
     <div ref={nonVirtualGridRef}>
