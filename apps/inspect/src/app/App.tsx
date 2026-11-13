@@ -1,4 +1,3 @@
-import "bootstrap/dist/css/bootstrap.css";
 import "@tsmono/theme/tokens";
 import "@tsmono/theme/reset";
 import "@tsmono/theme/components";

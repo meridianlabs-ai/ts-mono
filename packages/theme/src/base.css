@@ -283,12 +283,15 @@ body:not([class^="vscode-"]) a[role="tab"] {
   grid-template-rows: max-content max-content 1fr;
 }
 
-a {
-  color: var(--bs-link-color);
-}
+/* In the reset layer so component classes such as .nav-link still win. */
+@layer tsmono.reset {
+  a {
+    color: var(--bs-link-color);
+  }
 
-a:hover {
-  color: var(--bs-link-hover-color);
+  a:hover {
+    color: var(--bs-link-hover-color);
+  }
 }
 
 .app-main-grid.single-file-mode {
