@@ -3570,7 +3570,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3603,7 +3603,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
