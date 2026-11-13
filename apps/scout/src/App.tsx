@@ -6,6 +6,7 @@
 // theme overrides Bootstrap's defaults.
 import "bootstrap/dist/css/bootstrap.min.css";
 import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
 
 import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
