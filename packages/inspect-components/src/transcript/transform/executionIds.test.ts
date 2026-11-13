@@ -283,6 +283,24 @@ describe("a log whose runs record execution_id (inspect_ai#6370)", () => {
       ]);
     });
 
+    it("keeps each tool's approvals with its own run of one handout when the second run's result is rejected", () => {
+      // The read_copy review escalates before it approves; only the second
+      // result check rejects. Activity hides the escalation the rejection
+      // overruled, as the transcript puts both on the second run.
+      const events = sample("bridge_run_twice_escalated");
+      expect(transcript(events)).toEqual({
+        runs: {
+          "run 1": run(undefined, "result 1", ["approval 1"]),
+          "run 2": run(undefined, "result 2", ["approval 2", "approval 3"]),
+        },
+        standaloneSteps: [],
+        standaloneApprovals: [],
+      });
+      expect(activity(events)).toEqual([
+        ["Tool result", "mcp__host__read_file: notes.txt", "rejected"],
+      ]);
+    });
+
     // The scaffold loses the first response and asks again, so the call id
     // is handed out twice and a run matching both grants names neither.
     it("pairs no handout's records with a run that matched two handouts, and its result by the call id when it ran once", () => {

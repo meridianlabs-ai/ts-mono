@@ -927,7 +927,8 @@ const collectSentinelDecisions = (
     scope: string,
     id: string,
     chain: CallChain,
-    stage: ChainStage
+    stage: ChainStage,
+    tool: ToolEvent
   ): CallSlot => {
     const filled = (s: CallSlot) => s.tool !== undefined;
     const slots = executions.get(chainKey(spanId, `${scope}\u0000${id}`));
@@ -935,6 +936,16 @@ const collectSentinelDecisions = (
     const open = slots.find((s) => !filled(s));
     if (open) return open;
     const slot = takeRun(chain, stage, id, filled);
+    // A handout is approved once per bridged tool, before any run, so every
+    // approval joined the first run's slot. A further run takes those of its
+    // own tool, as the transcript pairs them (`pairToolApprovals`).
+    for (const other of slots) {
+      if (other.tool?.function === tool.function) continue;
+      const own = (approval: ApprovalEvent) =>
+        approval.call.function === tool.function;
+      slot.approvals.push(...other.approvals.filter(own));
+      other.approvals = other.approvals.filter((approval) => !own(approval));
+    }
     slots.push(slot);
     return slot;
   };
@@ -1045,7 +1056,14 @@ const collectSentinelDecisions = (
       const filled = (s: CallSlot) => s.tool !== undefined;
       const slot =
         event.execution_id != null
-          ? executionRun(event.span_id, scope, event.execution_id, chain, stage)
+          ? executionRun(
+              event.span_id,
+              scope,
+              event.execution_id,
+              chain,
+              stage,
+              event
+            )
           : proposalId !== event.id
             ? executionSlot(
                 event.span_id,
