@@ -428,18 +428,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/components/EditableText.tsx": {
-    "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/components/FilterBar.tsx": {
     "react-hooks/refs": {
       "count": 1
