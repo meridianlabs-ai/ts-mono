@@ -12,6 +12,14 @@
       "types": "./src/reset.d.ts",
       "default": "./src/reset.css"
     },
+    "./components": {
+      "types": "./src/components.d.ts",
+      "default": "./src/components.css"
+    },
+    "./utilities": {
+      "types": "./src/utilities.d.ts",
+      "default": "./src/utilities.css"
+    },
     "./base": {
       "types": "./src/base.d.ts",
       "default": "./src/base.css"

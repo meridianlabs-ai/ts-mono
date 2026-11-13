@@ -369,6 +369,23 @@ So PR 5 names the layers under one namespace, `@layer tsmono.reset,
 tsmono.components`, so they never merge with a host's layers. I worked out
 the hawk ordering from the layer rules. I didn't run it in hawk.
 
+Hawk's own markup also shares class names with Bootstrap's utilities. Its
+TSX uses Tailwind classes such as `p-4`, `px-3`, `gap-2`, `mb-3`, `shadow`,
+`rounded`, `border`, `text-center` and `overflow-auto`, and Bootstrap
+defines the same names as `!important` utilities (`.p-4` is 1.5rem in
+Bootstrap and 1rem in Tailwind). While the library build loads Bootstrap,
+Bootstrap's values probably win on hawk's own pages. `utilities.css` copies
+only the seven utilities the viewers use, so PR 5 hands those classes back
+to Tailwind. That may change hawk's spacing, so compare hawk's own pages
+before and after PR 5, not just the embedded viewers. I found this by
+reading hawk's source and haven't checked it in a running hawk.
+
+Model output can carry Bootstrap classes too. The HTML sanitizer keeps
+`class` attributes and markdown renders with `html: true`, so a message
+containing `<table class="table">` or `<span class="badge">` is styled by
+Bootstrap today and won't be after PR 5. That is arguably better, but list
+it in PR 5.
+
 Stopping the leak means scoping the reset to the viewer in library builds,
 for example `@scope ([data-tsmono-viewer])` with `:scope` standing in for
 `body`. That is a separate PR after PR 5, for three reasons:
@@ -401,7 +418,7 @@ before first paint, not for Bootstrap. It can keep its name.
 | --- | --- | --- | --- |
 | 1 | `tokens.css`; the variable completeness check; fix the five undefined names | `full` vs (Bootstrap without its variable blocks + `tokens.css`): zero diff. Two of the five fixes change rendering, listed in the PR | ~200 lines |
 | 2 | `reset.css` | `full` vs (`noreboot` + `reset.css`): zero diff | ~420 lines |
-| 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap without the copied rules + both files): zero diff, including hover and focus states | ~420 lines |
+| 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap emptied + all four copies): zero diff, including forced hover, focus-visible and active states | ~760 lines (each component brings its `--bs-*-*` variables) |
 | 4 | Delete the `base.css` rules for components nothing renders | `full` vs branch: zero diff | −150 lines |
 | 5 | Delete the Bootstrap imports and the `bootstrap` / `@types/bootstrap` dependencies; put `reset.css` and `components.css` in `tsmono.*` layers | Every diff is listed in the PR and either accepted or fixed | ~30 lines + fixes |
 | 6 | Remove the `:global(.btn)` doubling and the `!important`s that only beat Bootstrap, one file at a time | Zero diff per file | ~15 CSS modules |
@@ -420,20 +437,24 @@ or accept it in the PR.
 ### Verification
 
 - **Computed-style comparison.** A verify-log-viewer drive spec
-  (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-copies.spec.ts`)
-  with one case per copy: PR 1 added `tokens.css`, PR 2 `reset.css` (it
-  deletes from Bootstrap every rule in `bootstrap-reboot.css`). It covers
-  inspect only, in light, dark and both readable variants, with
-  `::before`/`::after` and every token's resolved value. PR 3 adds its own
-  case and:
-  - forced `:hover` and `:focus-visible` states;
-  - a dialog and a running eval;
-  - scout, which loads `bootstrap.min.css`.
+  (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-copies.spec.ts`).
+  PRs 1 and 2 gated each copy separately. Since PR 3 it empties Bootstrap's
+  stylesheet and compares the four copies alone against Bootstrap as shipped,
+  which is what PR 5 ships, apart from layers. It covers inspect in light,
+  dark and both readable variants, with `::before`/`::after`, every token's
+  resolved value, and forced `:hover`, `:focus-visible` and `:active` on
+  interactive elements. Half the copied classes never render on those
+  screens (dialog buttons and forms, spinners, pagination), so a second case
+  renders a fixture page with markup for every copied class and fails if
+  one is missing. Scout was checked with a local copy of the spec, because
+  it loads `bootstrap.min.css`.
 - **Variable completeness.** A check that every `var(--bs-*)` in the repo
   resolves to a name defined in a theme file or CSS module, or has a
-  fallback. `--bs-body-text-align` is the one deliberate exception: Reboot
-  reads it and Bootstrap never defines it. It replaces Bootstrap as the source of truth, and it would have
-  caught the five undefined names.
+  fallback. Three names Bootstrap reads but never defines
+  (`--bs-body-text-align`, `--bs-nav-link-font-size`,
+  `--bs-breadcrumb-font-size`) are the deliberate exceptions. It replaces
+  Bootstrap as the source of truth, and it would have caught the five
+  undefined names.
 - **Screenshots.** Before and after, light and dark, for the inspect log
   list, samples list, transcript, messages, a scoring tab and a dialog, and
   for scout scans, a scan result, the transcripts list and a transcript. They
@@ -458,8 +479,8 @@ them changes the plan.
 
 ## Size and risk
 
-Six PRs, plus an optional seventh. PRs 2 and 3 are the largest, at around 420 lines each, but
-most of it is copied CSS. Implementation is a few days. Verification takes
+Six PRs, plus an optional seventh. PRs 2 and 3 are the largest, at about
+420 and 760 lines, but nearly all of it is copied CSS. Implementation is a few days. Verification takes
 as long again: two apps, two themes plus the readable variant, VS Code, and
 hawk for PR 5.
 
