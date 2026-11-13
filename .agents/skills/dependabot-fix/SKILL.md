@@ -165,7 +165,7 @@ no user to ask, so wherever this skill says to ask, defer instead:
   soak is the whole point of the setting, and the alert will fix cleanly next
   round. Overriding is the user's call for cases where the exposure outweighs
   the supply-chain risk. Note any deferred alert in the PR.
-- Some packages are pinned low on purpose (e.g. `react-popper>react` scoping,
-  `esbuild`). Don't "clean up" existing overrides while fixing alerts.
+- Some packages are pinned low on purpose (e.g. `esbuild`). Don't "clean up"
+  existing overrides while fixing alerts.
 - An unfixable alert (no patched version, or patch requires an incompatible
   major) should be reported to the user, not papered over with a dismiss.
