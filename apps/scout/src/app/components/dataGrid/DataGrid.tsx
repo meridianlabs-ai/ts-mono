@@ -28,6 +28,7 @@ import {
 } from "@tsmono/inspect-components/columnFilter";
 import { Icon } from "@tsmono/react/icons";
 import { openRouteInNewTab } from "@tsmono/react/routing";
+import { isButtonActivation } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import type { FilterType } from "../../../state/store";
@@ -392,6 +393,9 @@ export function DataGrid<
   // Keyboard navigation handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      // Enter and Space press a focused button (a column header, a filter's
+      // funnel) rather than open or select the focused row.
+      if (isButtonActivation(e)) return;
       if (rows.length === 0) return;
 
       // Find the currently focused row index
