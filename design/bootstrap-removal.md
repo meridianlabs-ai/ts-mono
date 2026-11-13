@@ -1,7 +1,8 @@
 # Removing the Bootstrap CSS dependency
 
-Status: proposal. Nothing here is implemented. Measurements are from `main`
-at `b4b6753f` (2026-11-12).
+Status: PRs 1–5 are done; PR 6 and the optional PR 7 remain. Measurements
+in the analysis sections are from `main` at `b4b6753f` (2026-11-12), before
+PR 1.
 
 Both apps import all of `bootstrap@5.3.8` CSS: `apps/inspect/src/app/App.tsx`
 imports `bootstrap.css`, and `apps/scout/src/App.tsx` and the scout dataframe
@@ -223,12 +224,10 @@ read by:
 ### Files and load order
 
 Four new files in `packages/theme`, imported by both `App.tsx` files and the
-scout dataframe e2e fixture. Until PR 5 they sit right after Bootstrap and
-before Prism and `base.css`, so `base.css` keeps overriding them as it
-overrides Bootstrap today:
+scout dataframe e2e fixture, where Bootstrap's import was. They load before
+Prism and `base.css`:
 
 ```ts
-import "bootstrap/dist/css/bootstrap.css"; // removed in PR 5
 import "@tsmono/theme/tokens";
 import "@tsmono/theme/reset";
 import "@tsmono/theme/components";
@@ -242,7 +241,8 @@ import "@tsmono/theme/vscode";
 
 `tokens.css` defines every `--bs-*` name that we or Bootstrap's own rules
 read, under the current names, with values copied from Bootstrap's light and
-dark blocks. PR 5 drops the names only Bootstrap's uncopied rules read.
+dark blocks. PR 5 dropped the 33 names that only Bootstrap's uncopied rules
+read.
 Colours use `light-dark()`:
 
 ```css
@@ -301,13 +301,10 @@ rules with the same selectors and declarations, only reformatted. Don't wrap
 it in `:where()`. Reboot's `pre code { color: inherit }` beats
 `code { color: ... }` only on specificity.
 
-Until PR 5, `reset.css` loads after Bootstrap's component and utility rules,
-where Reboot used to load before them. A few Reboot rules tie on specificity
-with those rules, so the later one now wins: `[hidden]` over `.d-*`,
-`[type=search]` and `[type=button]` appearance over `.form-control`,
-`.form-select` and friends, `[type=button]:not(:disabled)` cursor over
-`.nav-link.disabled`. Nothing in the repo combines them today, and PR 5's
-`tsmono.reset` layer puts the reset back underneath.
+`reset.css` is in the `tsmono.reset` layer, below `tsmono.components`, so
+component classes beat reset rules whatever their specificity. `base.css`
+keeps its own `a` and `a:hover` colour rules in the same layer. Unlayered,
+they would beat the layered `.nav-link` colours.
 
 ### Components and utilities
 
@@ -366,25 +363,27 @@ the embedded viewer, `reset`'s `ul { padding-left }` and
 and `.btn` rules.
 
 So PR 5 names the layers under one namespace, `@layer tsmono.reset,
-tsmono.components`, so they never merge with a host's layers. I worked out
+tsmono.components`, so they never merge with a host's layers. In hawk the
+`tsmono` layer orders after Tailwind's, so our reset and components still
+beat Tailwind's layered utilities, as unlayered Bootstrap did. I worked out
 the hawk ordering from the layer rules. I didn't run it in hawk.
 
-Hawk's own markup also shares class names with Bootstrap's utilities. Its
-TSX uses Tailwind classes such as `p-4`, `px-3`, `gap-2`, `mb-3`, `shadow`,
-`rounded`, `border`, `text-center` and `overflow-auto`, and Bootstrap
-defines the same names as `!important` utilities (`.p-4` is 1.5rem in
-Bootstrap and 1rem in Tailwind). While the library build loads Bootstrap,
-Bootstrap's values probably win on hawk's own pages. `utilities.css` copies
-only the seven utilities the viewers use, so PR 5 hands those classes back
-to Tailwind. That may change hawk's spacing, so compare hawk's own pages
-before and after PR 5, not just the embedded viewers. I found this by
-reading hawk's source and haven't checked it in a running hawk.
+Hawk's own markup also shares class names with Bootstrap's utilities. Hawk
+loads each viewer's stylesheet only on that viewer's routes (`EvalPage`,
+`ScanPage`, lazy-loaded in `AppRouter.tsx`), so its list pages never had
+Bootstrap. On the viewer routes, hawk's chrome (`EvalSetStatusBar`, the
+artifact viewers, the loading, error and pending pages) uses Tailwind classes
+such as `p-4`, `px-3`, `gap-3`, `mb-3`, `rounded` and `border`, which
+Bootstrap also defines as `!important` utilities with different values
+(`.p-4` is 1.5rem in Bootstrap and 1rem in Tailwind). After PR 5 Tailwind's
+values apply there. Classes whose values match, such as `overflow-hidden`
+or `text-center`, don't change. I found this by reading hawk's source
+(checkout from 2026-09-13) and haven't checked it in a running hawk.
 
 Model output can carry Bootstrap classes too. The HTML sanitizer keeps
 `class` attributes and markdown renders with `html: true`, so a message
 containing `<table class="table">` or `<span class="badge">` is styled by
-Bootstrap today and won't be after PR 5. That is arguably better, but list
-it in PR 5.
+Bootstrap before PR 5 and isn't after it.
 
 Stopping the leak means scoping the reset to the viewer in library builds,
 for example `@scope ([data-tsmono-viewer])` with `:scope` standing in for
@@ -429,25 +428,26 @@ with rules missing, because Bootstrap would still supply them. That's why
 the gates for PRs 1–3 compare against Bootstrap with the copied part
 deleted. The experiment's `noreboot` variant is the model for PR 2.
 
-The PR 5 diffs come from cascade order: rules that lose to Bootstrap today
-start to apply. The layer experiment below found the first ones (TabSet
-tabs shrink). Fix each one by deleting the module rule that never applied,
-or accept it in the PR.
+The PR 5 diffs came from cascade order: rules that lost to Bootstrap started
+to apply. At rest only TabSet's `.pillSmall` padding changed the rendering,
+and PR 5 deleted it. The others are hover, focus and active styles where a
+module rule now beats `.btn:hover`, `.btn:active` or `.nav-link:hover`. PR 5
+lists them and keeps them.
 
 ### Verification
 
-- **Computed-style comparison.** A verify-log-viewer drive spec
-  (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-copies.spec.ts`).
-  PRs 1 and 2 gated each copy separately. Since PR 3 it empties Bootstrap's
-  stylesheet and compares the four copies alone against Bootstrap as shipped,
-  which is what PR 5 ships, apart from layers. It covers inspect in light,
-  dark and both readable variants, with `::before`/`::after`, every token's
-  resolved value, and forced `:hover`, `:focus-visible` and `:active` on
-  interactive elements. Half the copied classes never render on those
-  screens (dialog buttons and forms, spinners, pagination), so a second case
-  renders a fixture page with markup for every copied class and fails if
-  one is missing. Scout was checked with a local copy of the spec, because
-  it loads `bootstrap.min.css`.
+- **Computed-style comparison.** For PRs 1–3, a verify-log-viewer drive
+  spec, `bootstrap-copies.spec.ts`, which PR 5 deleted along with Bootstrap.
+  PRs 1 and 2 gated each copy separately. PR 3 emptied Bootstrap's
+  stylesheet and compared the four copies alone against Bootstrap as
+  shipped. PR 5 compared `main` and the branch in two dev servers instead,
+  element by element, with screenshots, and PR 6 needs the same comparison.
+  Both covered inspect and scout in light, dark and both readable variants,
+  with `::before`/`::after` and forced `:hover`, `:focus`, `:focus-visible`
+  and `:active` on interactive elements. Half the copied classes never
+  render on those screens (dialog buttons and forms, spinners, pagination),
+  so PR 3's spec also rendered a fixture page with markup for every copied
+  class.
 - **Variable completeness.** A check that every `var(--bs-*)` in the repo
   resolves to a name defined in a theme file or CSS module, or has a
   fallback. Three names Bootstrap reads but never defines
