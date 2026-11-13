@@ -27,6 +27,9 @@ const sourceFiles = (dir: string): string[] =>
 // A read with a fallback (`var(--bs-x, ...)`) is allowed to be undefined.
 const READ = /(?<=var\(\s*)--bs-[\w-]+(?=\s*\))/g;
 const DEFINITION = /--bs-[\w-]+(?=["']?\s*:)/g;
+// Reboot reads it for right-to-left builds and Bootstrap never defines it, so
+// text-align falls back to its initial value.
+const DELIBERATELY_UNDEFINED = new Set(["--bs-body-text-align"]);
 
 test("every --bs-* variable read without a fallback is defined", () => {
   const files = ["apps", "packages"].flatMap((dir) =>
@@ -45,7 +48,7 @@ test("every --bs-* variable read without a fallback is defined", () => {
   }
 
   const undefinedReads = [...reads]
-    .filter(([name]) => !defined.has(name))
+    .filter(([name]) => !defined.has(name) && !DELIBERATELY_UNDEFINED.has(name))
     .map(([name, readers]) => `${name}: ${[...readers].join(", ")}`);
 
   expect(reads.size).toBeGreaterThan(0);

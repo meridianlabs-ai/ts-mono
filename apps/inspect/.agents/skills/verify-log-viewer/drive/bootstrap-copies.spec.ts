@@ -1,12 +1,21 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { basename } from "node:path";
 
-import { expect, Page, test } from "@playwright/test";
+import { Browser, expect, Page, test } from "@playwright/test";
 
 import { isRecord } from "@tsmono/util";
 
-// Gate for tokens.css (design/bootstrap-removal.md, PR 1): Bootstrap minus its
-// variable blocks plus tokens.css must match Bootstrap as shipped. Run with -g "tokens.css".
+// Gates for the copies of Bootstrap in packages/theme (design/bootstrap-removal.md):
+// Bootstrap minus the copied part plus our copy must match Bootstrap as shipped.
+// Run one with -g "tokens.css" or -g "reset.css".
+
+const rebootCss = readFileSync(
+  createRequire(import.meta.url).resolve(
+    "bootstrap/dist/css/bootstrap-reboot.css"
+  ),
+  "utf8"
+);
 
 const THEMES = ["light", "dark", "readable-light", "readable-dark"] as const;
 const SAMPLE_TABS = ["transcript", "messages", "scoring", "metadata", "info"];
@@ -41,9 +50,40 @@ const PROPS = [
   "font-size",
   "font-weight",
   "line-height",
+  "font-style",
+  "letter-spacing",
+  "text-transform",
+  "text-align",
+  "vertical-align",
+  "white-space",
+  "overflow-wrap",
+  "list-style-type",
+  "cursor",
+  "appearance",
+  "box-sizing",
+  "border-collapse",
+  "caption-side",
+  "scroll-behavior",
+  "top",
+  "bottom",
+  "float",
+  "clear",
+  "resize",
+  "outline-offset",
+  "word-break",
+  "min-width",
+  "overflow-y",
+  "border-top-right-radius",
+  "border-bottom-left-radius",
+  "-webkit-text-size-adjust",
+  "-webkit-tap-highlight-color",
   "margin-top",
+  "margin-right",
   "margin-bottom",
+  "margin-left",
   "padding-top",
+  "padding-right",
+  "padding-bottom",
   "padding-left",
   "display",
   "position",
@@ -67,7 +107,16 @@ interface StyleDiff {
   element: string;
   prop: string;
   bootstrap: string;
-  tokens: string;
+  copy: string;
+}
+
+// What to delete from Bootstrap: its :root / [data-bs-theme] variable blocks,
+// or every rule of another stylesheet (matched by selector and @media).
+type Strip = { variables: true } | { rules: string };
+
+interface Gate {
+  copy: string;
+  strip: Strip;
 }
 
 interface Measurement {
@@ -119,9 +168,11 @@ const discoverScreens = async (page: Page): Promise<Screen[]> => {
 const measureInPage = async ({
   props,
   pseudoProps,
+  gate,
 }: {
   props: string[];
   pseudoProps: string[];
+  gate: Gate;
 }): Promise<Measurement> => {
   const styleFor = (id: string) => {
     const style = [...document.querySelectorAll("style")].find((element) =>
@@ -131,10 +182,10 @@ const measureInPage = async ({
     return style;
   };
   const bootstrap = styleFor("bootstrap/dist/css/bootstrap.css");
-  const tokens = styleFor("packages/theme/src/tokens.css");
-  const originals = [bootstrap.textContent, tokens.textContent] as const;
+  const copy = styleFor(gate.copy);
+  const originals = [bootstrap.textContent, copy.textContent] as const;
 
-  const tokenNames = [...(tokens.sheet?.cssRules ?? [])].flatMap((rule) =>
+  const tokenNames = [...(copy.sheet?.cssRules ?? [])].flatMap((rule) =>
     rule instanceof CSSStyleRule
       ? [...rule.style].filter((name) => name.startsWith("--"))
       : []
@@ -153,20 +204,72 @@ const measureInPage = async ({
       requestAnimationFrame(() => requestAnimationFrame(resolve))
     );
 
-  const apply = async (withTokens: boolean, stripBootstrap: boolean) => {
+  const selectorParts = (selectorText: string) =>
+    selectorText.match(/(?:[^,(]|\([^)]*\))+/g)?.map((part) => part.trim()) ??
+    [];
+  const styleRules = (rules: CSSRuleList) =>
+    [...rules].flatMap((rule) =>
+      rule instanceof CSSMediaRule
+        ? [...rule.cssRules].flatMap((inner) =>
+            inner instanceof CSSStyleRule
+              ? [{ rule: inner, media: rule.conditionText }]
+              : []
+          )
+        : rule instanceof CSSStyleRule
+          ? [{ rule, media: "" }]
+          : []
+    );
+
+  const stripRules = (sheet: CSSStyleSheet, css: string) => {
+    const source = new CSSStyleSheet();
+    source.replaceSync(css);
+    // Counts, not a set: Reboot repeats selectors across rules (`button`
+    // is in four), and each occurrence must be removed.
+    const remaining = new Map<string, number>();
+    for (const { rule, media } of styleRules(source.cssRules)) {
+      if (rule.parentRule === null && isVariableBlock(rule)) continue;
+      for (const part of selectorParts(rule.selectorText)) {
+        const key = `${media}|${part}`;
+        remaining.set(key, (remaining.get(key) ?? 0) + 1);
+      }
+    }
+    for (const { rule, media } of styleRules(sheet.cssRules)) {
+      const kept = selectorParts(rule.selectorText).filter((part) => {
+        const key = `${media}|${part}`;
+        const count = remaining.get(key) ?? 0;
+        if (count === 0) return true;
+        remaining.set(key, count - 1);
+        return false;
+      });
+      rule.selectorText = kept.length > 0 ? kept.join(", ") : ":not(*)";
+    }
+    const missing = [...remaining].filter(([, count]) => count > 0);
+    if (missing.length > 0) {
+      throw new Error(`not found in Bootstrap: ${missing.join("; ")}`);
+    }
+  };
+
+  const apply = async (withCopy: boolean, stripBootstrap: boolean) => {
     bootstrap.textContent = originals[0];
-    tokens.textContent = withTokens ? originals[1] : "";
+    copy.textContent = withCopy ? originals[1] : "";
     const sheet = bootstrap.sheet;
-    if (stripBootstrap && sheet) {
+    if (stripBootstrap && sheet && "variables" in gate.strip) {
       for (let i = sheet.cssRules.length - 1; i >= 0; i--) {
         const rule = sheet.cssRules[i];
         if (rule && isVariableBlock(rule)) sheet.deleteRule(i);
       }
     }
+    if (stripBootstrap && sheet && "rules" in gate.strip) {
+      stripRules(sheet, gate.strip.rules);
+    }
     await nextFrame();
   };
 
-  const elements = [...document.body.querySelectorAll("*")].filter(
+  const elements = [
+    document.documentElement,
+    document.body,
+    ...document.body.querySelectorAll("*"),
+  ].filter(
     (element) =>
       !["SCRIPT", "STYLE"].includes(element.tagName) &&
       element.getClientRects().length > 0
@@ -235,7 +338,7 @@ const measureInPage = async ({
           element: element ? label(element) : where,
           prop: rest.join(" "),
           bootstrap: value,
-          tokens: other,
+          copy: other,
         },
       ];
     });
@@ -244,22 +347,22 @@ const measureInPage = async ({
     await apply(false, false);
     const asShipped = snapshot();
     await apply(true, true);
-    const withTokens = snapshot();
+    const withCopy = snapshot();
     await apply(false, true);
     const stripped = snapshot();
     return {
       elements: elements.length,
       tokens: tokenNames.length,
-      diffs: diff(asShipped, withTokens),
+      diffs: diff(asShipped, withCopy),
       strippedDiffs: diff(asShipped, stripped).length,
     };
   } finally {
     bootstrap.textContent = originals[0];
-    tokens.textContent = originals[1];
+    copy.textContent = originals[1];
   }
 };
 
-const measureScreen = async (page: Page, screen: Screen) => {
+const measureScreen = async (page: Page, screen: Screen, gate: Gate) => {
   await page.goto("about:blank");
   await page.goto(`/${screen.hash}`);
   // No single element marks every screen as loaded, so wait until the DOM
@@ -279,49 +382,74 @@ const measureScreen = async (page: Page, screen: Screen) => {
   return page.evaluate(measureInPage, {
     props: PROPS,
     pseudoProps: PSEUDO_PROPS,
+    gate,
   });
 };
+
+const measureAllScreens = async (
+  browser: Browser,
+  theme: (typeof THEMES)[number],
+  gate: Gate
+) => {
+  const context = await browser.newContext({
+    colorScheme: theme.endsWith("dark") ? "dark" : "light",
+  });
+  await context.addInitScript(
+    (settings) => localStorage.setItem("inspect-view-user-settings", settings),
+    settingsFor(theme)
+  );
+  const page = await context.newPage();
+  const screens = await discoverScreens(page);
+  const results: (Measurement & { screen: string })[] = [];
+  for (const screen of screens) {
+    results.push({
+      screen: screen.name,
+      ...(await measureScreen(page, screen, gate)),
+    });
+  }
+  await context.close();
+  writeFileSync(
+    test.info().outputPath("measurements.json"),
+    JSON.stringify(results, null, 1)
+  );
+  return results;
+};
+
+const firstDiffs = (results: (Measurement & { screen: string })[]) =>
+  results.flatMap((r) =>
+    r.diffs.slice(0, 20).map((d) => ({ screen: r.screen, ...d }))
+  );
 
 test.describe("tokens.css replaces Bootstrap's variable blocks", () => {
   for (const theme of THEMES) {
     test(`no computed-style change (${theme})`, async ({ browser }) => {
       test.setTimeout(10 * 60_000);
-      const context = await browser.newContext({
-        colorScheme: theme.endsWith("dark") ? "dark" : "light",
+      const results = await measureAllScreens(browser, theme, {
+        copy: "packages/theme/src/tokens.css",
+        strip: { variables: true },
       });
-      await context.addInitScript(
-        (settings) =>
-          localStorage.setItem("inspect-view-user-settings", settings),
-        settingsFor(theme)
-      );
-      const page = await context.newPage();
-
-      const screens = await discoverScreens(page);
-      const results: (Measurement & { screen: string })[] = [];
-      for (const screen of screens) {
-        results.push({
-          screen: screen.name,
-          ...(await measureScreen(page, screen)),
-        });
-      }
-      await context.close();
-
-      writeFileSync(
-        test.info().outputPath("measurements.json"),
-        JSON.stringify(results, null, 1)
-      );
-
-      // The comparison only means something if stripping the variable
-      // blocks without tokens.css visibly breaks every screen.
+      // The comparison only means something if stripping without the copy
+      // visibly breaks every screen.
       expect(results.filter((r) => r.strippedDiffs === 0)).toEqual([]);
       expect(results.filter((r) => r.elements === 0 || r.tokens === 0)).toEqual(
         []
       );
-      expect(
-        results.flatMap((r) =>
-          r.diffs.slice(0, 20).map((d) => ({ screen: r.screen, ...d }))
-        )
-      ).toEqual([]);
+      expect(firstDiffs(results)).toEqual([]);
+    });
+  }
+});
+
+test.describe("reset.css replaces Bootstrap's Reboot", () => {
+  for (const theme of THEMES) {
+    test(`no computed-style change (${theme})`, async ({ browser }) => {
+      test.setTimeout(10 * 60_000);
+      const results = await measureAllScreens(browser, theme, {
+        copy: "packages/theme/src/reset.css",
+        strip: { rules: rebootCss },
+      });
+      expect(results.filter((r) => r.strippedDiffs === 0)).toEqual([]);
+      expect(results.filter((r) => r.elements === 0)).toEqual([]);
+      expect(firstDiffs(results)).toEqual([]);
     });
   }
 });

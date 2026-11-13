@@ -86,7 +86,7 @@ replaced the text of Bootstrap's `<style>` element on each loaded screen
 with one of three variants:
 
 - `full`: Bootstrap as shipped.
-- `noreboot`: Bootstrap with every Reboot selector removed (the 75 rules of
+- `noreboot`: Bootstrap with every Reboot selector removed (the 76 rules of
   `bootstrap-reboot.css`, removed by selector, so `h1, .h1` keeps `.h1`).
 - `vars`: only Bootstrap's `:root` / `[data-bs-theme]` variable blocks.
 
@@ -127,7 +127,7 @@ when a class sets `display`. Model output rendered as markdown or HTML can
 also contain `blockquote`, `kbd`, `mark`, `sub`/`sup` and `dl`. None of the
 measured logs exercised those, and nothing in the repo styles `blockquote`.
 
-So the reset should be **all 75 Reboot rules, copied verbatim**, not a
+So the reset should be **all 76 Reboot rules, copied verbatim**, not a
 selection. It is about 420 lines and costs nothing to keep.
 
 Screens not covered: dialogs (#847 is rewriting them), running evals
@@ -296,10 +296,18 @@ this in Chrome.
 
 ### Reset
 
-`reset.css` is Bootstrap 5.3.8's Reboot without the variable blocks: all 75
-rules, verbatim, with the same specificity. Don't wrap it in `:where()`.
-Reboot's `pre code { color: inherit }` beats `code { color: ... }` only
-on specificity.
+`reset.css` is Bootstrap 5.3.8's Reboot without the variable blocks: all 76
+rules with the same selectors and declarations, only reformatted. Don't wrap
+it in `:where()`. Reboot's `pre code { color: inherit }` beats
+`code { color: ... }` only on specificity.
+
+Until PR 5, `reset.css` loads after Bootstrap's component and utility rules,
+where Reboot used to load before them. A few Reboot rules tie on specificity
+with those rules, so the later one now wins: `[hidden]` over `.d-*`,
+`[type=search]` and `[type=button]` appearance over `.form-control`,
+`.form-select` and friends, `[type=button]:not(:disabled)` cursor over
+`.nav-link.disabled`. Nothing in the repo combines them today, and PR 5's
+`tsmono.reset` layer puts the reset back underneath.
 
 ### Components and utilities
 
@@ -411,11 +419,13 @@ or accept it in the PR.
 
 ### Verification
 
-- **Computed-style comparison.** PR 1 added it as a verify-log-viewer drive
-  spec (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-tokens.spec.ts`).
-  It covers inspect only, in light, dark and both readable variants, with
-  `::before`/`::after` and every token's resolved value. PRs 2 and 3 add
-  their own variants to it, and PR 3 adds:
+- **Computed-style comparison.** A verify-log-viewer drive spec
+  (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-copies.spec.ts`)
+  with one case per copy: PR 1 added `tokens.css`, PR 2 `reset.css` (it
+  deletes from Bootstrap every rule in `bootstrap-reboot.css`). It covers
+  inspect only, in light, dark and both readable variants, with
+  `::before`/`::after` and every token's resolved value. PR 3 adds its own
+  case and:
   - forced `:hover` and `:focus-visible` states;
   - a dialog and a running eval;
   - scout, which loads `bootstrap.min.css`.

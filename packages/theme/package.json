@@ -8,6 +8,10 @@
       "types": "./src/tokens.d.ts",
       "default": "./src/tokens.css"
     },
+    "./reset": {
+      "types": "./src/reset.d.ts",
+      "default": "./src/reset.css"
+    },
     "./base": {
       "types": "./src/base.d.ts",
       "default": "./src/base.css"
