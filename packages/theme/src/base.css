@@ -725,31 +725,6 @@ pre[class*="language-"] {
   margin-bottom: 0.5em;
 }
 
-[aria-expanded="false"] .hide-when-collapsed {
-  display: none;
-}
-
-[aria-expanded="true"] .hide-when-expanded {
-  opacity: 0 !important;
-}
-
-[aria-expanded="true"] .no-bottom-padding-when-expanded {
-  padding-bottom: 0 !important;
-}
-
-[aria-expanded="true"] .zerowidth-when-expanded {
-  height: 0px !important;
-  width: 0px !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
-[aria-expanded="true"] .zeroheight-when-expanded {
-  height: 0px !important;
-}
-
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3,
@@ -772,33 +747,6 @@ pre[class*="language-"] {
   font-weight: 400;
   margin-top: 0em;
   margin-bottom: 0em;
-}
-
-.no-highlight,
-.no-highlight:hover,
-.no-highlight:active {
-  color: inherit;
-}
-
-.toggle-rotated:before {
-  transition: transform 0.3s linear;
-}
-
-[aria-expanded="false"] .toggle-rotated:before {
-  transform: none;
-}
-
-[aria-expanded="true"] .toggle-rotated:before {
-  transform: rotate(90deg);
-}
-
-.fadeout-when-not-collapsed:not(.collapsed) {
-  opacity: 0 !important;
-}
-
-.do-not-collapse-self {
-  display: block;
-  height: auto !important;
 }
 
 [data-tooltip] {
