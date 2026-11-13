@@ -240,8 +240,9 @@ import "@tsmono/theme/vscode";
 
 ### Tokens
 
-`tokens.css` defines every `--bs-*` name we or the copied CSS read, under the
-current names, with values copied from Bootstrap's light and dark blocks.
+`tokens.css` defines every `--bs-*` name that we or Bootstrap's own rules
+read, under the current names, with values copied from Bootstrap's light and
+dark blocks. PR 5 drops the names only Bootstrap's uncopied rules read.
 Colours use `light-dark()`:
 
 ```css
@@ -390,7 +391,7 @@ before first paint, not for Bootstrap. It can keep its name.
 
 | PR | Change | Gate | Size |
 | --- | --- | --- | --- |
-| 1 | `tokens.css`; the variable completeness check; fix the five undefined names | `full` vs (Bootstrap without its variable blocks + `tokens.css`): zero diff. The five fixes are intended changes, listed in the PR | ~200 lines |
+| 1 | `tokens.css`; the variable completeness check; fix the five undefined names | `full` vs (Bootstrap without its variable blocks + `tokens.css`): zero diff. Two of the five fixes change rendering, listed in the PR | ~200 lines |
 | 2 | `reset.css` | `full` vs (`noreboot` + `reset.css`): zero diff | ~420 lines |
 | 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap without the copied rules + both files): zero diff, including hover and focus states | ~420 lines |
 | 4 | Delete the `base.css` rules for components nothing renders | `full` vs branch: zero diff | −150 lines |
@@ -410,14 +411,14 @@ or accept it in the PR.
 
 ### Verification
 
-- **Computed-style comparison.** Commit the script from this investigation
-  under `apps/inspect/scripts/` in PR 1. Extend it before relying on it:
-  - more properties (`position`, `z-index`, `flex-wrap`, `overflow`,
-    `text-overflow`, `box-shadow`, `background-image`, `animation`);
-  - `::before`/`::after`;
+- **Computed-style comparison.** PR 1 added it as a verify-log-viewer drive
+  spec (`apps/inspect/.agents/skills/verify-log-viewer/drive/bootstrap-tokens.spec.ts`).
+  It covers inspect only, in light, dark and both readable variants, with
+  `::before`/`::after` and every token's resolved value. PRs 2 and 3 add
+  their own variants to it, and PR 3 adds:
   - forced `:hover` and `:focus-visible` states;
-  - the readable theme variant;
-  - a dialog and a running eval.
+  - a dialog and a running eval;
+  - scout, which loads `bootstrap.min.css`.
 - **Variable completeness.** A check that every `var(--bs-*)` in the repo
   resolves to a name defined in a theme file or CSS module, or has a
   fallback. `--bs-body-text-align` is the one deliberate exception: Reboot
@@ -496,11 +497,13 @@ ends with CSS we own and nothing to ban, so I'd do that.
 
 ## Pre-existing bugs found while measuring
 
-These are independent of the migration. PR 1 fixes the first group, since
-it defines the token values.
+These are independent of the migration.
 
-- Five names are referenced but defined nowhere. Each falls back to the
-  property's initial or inherited value today:
+- Five names were referenced but defined nowhere, so each fell back to the
+  property's initial or inherited value. PR 1 pointed MessageBand and
+  ScanPanelTitle at the tokens they name (`--bs-danger-*`,
+  `--bs-secondary-color`) and replaced the other three with the value they
+  rendered as (`transparent`, `inherit`):
   - `--bs-body-background`: `base.css`, 3 uses (Bootstrap's name is
     `--bs-body-bg`).
   - `--bs-error-bg-subtle` and `--bs-error-text-emphasis`:

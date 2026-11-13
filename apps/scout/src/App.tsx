@@ -5,6 +5,7 @@
 // Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
 // theme overrides Bootstrap's defaults.
 import "bootstrap/dist/css/bootstrap.min.css";
+import "@tsmono/theme/tokens";
 
 import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
