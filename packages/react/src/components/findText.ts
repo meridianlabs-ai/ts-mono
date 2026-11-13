@@ -1,16 +1,13 @@
 // Find compares text and terms in one normal form, so a list item's count
 // from its data equals the matches its rendered DOM shows.
 
+// Runs of collapsible whitespace other than a lone space. Neither alternative
+// can fail after its first character, so a long run is scanned once.
+const WHITESPACE_RUN = / [ \t\n\r\f]+|[\t\n\r\f][ \t\n\r\f]*/g;
 // Markdown renders a line break as `<br>` and preformatted text keeps it, so
 // a match can't cross one on the page. A run with one stays a line break,
 // which no term from the single-line find input contains.
-const LINE_BREAK_RUN = /[ \t\f]*[\n\r][ \t\n\r\f]*/g;
-// Other runs of collapsible whitespace, except a lone space.
-const SPACE_RUN = / [ \t\f]+|[\t\f][ \t\f]*/g;
-const WHITESPACE_RUN = new RegExp(
-  `${LINE_BREAK_RUN.source}|${SPACE_RUN.source}`,
-  "g"
-);
+const collapseRun = (run: string): string => (/[\n\r]/.test(run) ? "\n" : " ");
 // The only code points folding can still change in a lowercased string.
 const FOLDABLE = /(?![\0-\x7f])\p{CWCM}/gu;
 
@@ -52,7 +49,7 @@ export function normalizeFindText(text: string, offsets?: number[]): string {
     }
     for (let i = from; i < text.length; i++) offsets.push(i);
   }
-  return foldCase(text).replace(LINE_BREAK_RUN, "\n").replace(SPACE_RUN, " ");
+  return foldCase(text).replace(WHITESPACE_RUN, collapseRun);
 }
 
 /**

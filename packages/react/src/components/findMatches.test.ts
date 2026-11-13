@@ -102,6 +102,17 @@ describe("findTextMatches", () => {
   });
 });
 
+describe("normalizeFindText", () => {
+  it("collapses a long run of spaces or tabs in linear time", () => {
+    for (const space of [" ", "\t"]) {
+      const offsets: number[] = [];
+      const text = `a${space.repeat(500_000)}b`;
+      expect(normalizeFindText(text, offsets)).toBe("a b");
+      expect(offsets).toEqual([0, 1, 500_001]);
+    }
+  });
+});
+
 describe("findTextMatches and the data-side count", () => {
   const dataCount = (text: string, term: string) =>
     countMatchesByItem([[normalizeFindText(text)]], term)[0]?.count ?? 0;
