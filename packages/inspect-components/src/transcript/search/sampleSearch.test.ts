@@ -230,8 +230,8 @@ describe("findAllMatches", () => {
 
   // The viewer's page Find collapses whitespace and folds case this way, so
   // a row's count matches what it shows once rendered.
-  it("matches across whitespace runs and folds case as the page does", () => {
-    const events: Event[] = [modelEv("e1", "ΟΔΟΣ hello  \n  world")];
+  it("matches across runs of spaces and folds case as the page does", () => {
+    const events: Event[] = [modelEv("e1", "ΟΔΟΣ hello \t  world")];
     const map = new Map([["e1", "main"]]);
     expect(findAllMatches(events, "hello world", map)).toHaveLength(1);
     expect(findAllMatches(events, "σ", map)).toHaveLength(1);

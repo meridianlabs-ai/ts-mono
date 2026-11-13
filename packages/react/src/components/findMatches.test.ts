@@ -50,20 +50,17 @@ describe("findTextMatches", () => {
     expect(texts(root, "username")).toEqual([]);
   });
 
-  it("reads a run of whitespace as one space, preformatted or not", () => {
-    const root = mount(
-      "<p>hello  world</p><p>line one\nline two</p><pre>a  b\nc</pre>"
-    );
-    expect(findTextMatches(root, "one line")).toHaveLength(1);
-    expect(texts(root, "a b c")).toEqual(["a  b\nc"]);
+  it("reads spaces and tabs as one space, preformatted or not", () => {
+    const root = mount("<p>hello  world</p><pre>a \t b</pre>");
+    expect(texts(root, "a b")).toEqual(["a \t b"]);
     expect(texts(root, "hello world")).toEqual(["hello  world"]);
   });
 
-  it("does not match across a blank line", () => {
-    const root = mount("<pre>one\n\ntwo\n \t\nthree</pre>");
+  it("does not match across a line break in the text", () => {
+    const root = mount("<p>line one\nline two</p><pre>one  \r\n  two</pre>");
+    expect(texts(root, "one line")).toEqual([]);
     expect(texts(root, "one two")).toEqual([]);
-    expect(texts(root, "two three")).toEqual([]);
-    expect(texts(root, "three")).toEqual(["three"]);
+    expect(texts(root, "two")).toEqual(["two", "two"]);
   });
 
   it("treats a term with regex syntax literally", () => {
@@ -123,12 +120,12 @@ describe("findTextMatches and the data-side count", () => {
     ["ΟΔΟΣ", "ς", 1],
     ["ſtate", "S", 1],
     ["STRASSE und Straße", "straße", 1],
-    // Whitespace runs and line breaks read as one space.
+    // Runs of spaces and tabs read as one space; a line break stays one.
     ["hello   world", "hello world", 1],
     ["hello world", "hello   world", 1],
-    ["line one\nline two", "one line", 1],
     ["tab\tseparated", "tab separated", 1],
-    ["stale.\n\nThis turn", "stale. this", 0],
+    ["line one\nline two", "one line", 0],
+    ["stale.\r\n\r\nThis turn", "stale. this", 0],
     ["stale.\r\n\r\nThis turn", "this turn", 1],
     // Quotes and backslashes, as typed or JSON-escaped.
     ['say "foo" and foo', '"foo"', 2],

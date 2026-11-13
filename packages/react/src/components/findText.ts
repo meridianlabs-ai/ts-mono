@@ -38,16 +38,16 @@ const foldCase = (text: string): string =>
         .replace(NON_ASCII_CODE_POINT, foldCodePoint)
     : text.toLowerCase();
 
-// A run with a blank line in it usually renders as a paragraph break, which a
-// match can't cross on the page, so it stays a line break that no normalized
-// term contains.
-const collapseRun = (run: string): string =>
-  run.indexOf("\n") === run.lastIndexOf("\n") ? " " : "\n";
+// The viewer shows a line break in text as one (markdown renders it as
+// `<br>`, preformatted text keeps it), and a match can't cross a `<br>` on the
+// page. So a run with a line break stays one, which no term from the
+// single-line find input contains.
+const collapseRun = (run: string): string => (/[\n\r]/.test(run) ? "\n" : " ");
 
 /**
  * Text as Find compares it: case folded, with each run of whitespace read as
- * one space however the page renders it (a run with a blank line, as one line
- * break). Pass `offsets` to get each character's index in `text`.
+ * one space, or as one line break if it has one, however the page renders
+ * it. Pass `offsets` to get each character's index in `text`.
  */
 export function normalizeFindText(text: string, offsets?: number[]): string {
   if (offsets) {
