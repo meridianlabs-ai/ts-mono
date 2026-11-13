@@ -13,6 +13,7 @@ import {
   useProperty,
   useResizeObserver,
 } from "@tsmono/react/hooks";
+import { identity } from "@tsmono/util";
 
 import styles from "./cappedText.module.css";
 
@@ -55,7 +56,9 @@ const LongText: FC<CappedTextProps> = ({
   text,
   render,
   renderPlain,
-  toPlainText = (full) => full,
+  // Not an inline arrow: React Compiler can't lower one here and leaves the
+  // whole component uncompiled.
+  toPlainText = identity,
 }) => {
   const [headOnly, setHeadOnly] = useCollapsedState(
     textKey(text),
