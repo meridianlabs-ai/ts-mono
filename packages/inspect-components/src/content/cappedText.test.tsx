@@ -23,6 +23,7 @@ import {
 
 import { ToolOutput } from "../chat/tools/ToolOutput";
 
+import { CappedText } from "./cappedText";
 import { DisplayModeContext } from "./DisplayModeContext";
 import { RenderedText } from "./RenderedText";
 
@@ -130,6 +131,26 @@ describe("text past 250K characters", () => {
     expect(container.querySelector("pre.tool-output")?.textContent).toContain(
       "TAIL-MARKER"
     );
+  });
+
+  it("leaves the hidden text unprepared until the reader asks for all of it", () => {
+    const text = `${"x".repeat(250_000)}TAIL-MARKER`;
+    const toPlainText = vi.fn((all: string) => all);
+    render(
+      withProviders(
+        <CappedText
+          text={text}
+          render={(head) => head}
+          renderPlain={(all) => <pre>{all}</pre>}
+          toPlainText={toPlainText}
+        />,
+        makeReactiveStateStore().hooks
+      )
+    );
+    expect(toPlainText).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(toPlainText).toHaveBeenCalledWith(text);
   });
 
   it("counts a few hidden characters exactly", () => {

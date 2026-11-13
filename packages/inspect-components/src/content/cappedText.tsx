@@ -80,12 +80,14 @@ const LongText: FC<CappedTextProps> = ({
     height: number;
   } | null>(null);
   const head = text.slice(0, kMaxInlineChars);
-  const shown = plain.present(toPlainText(text));
+  // Prepared only while shown: a capped row remounts as a list scrolls, and
+  // preparing megabytes for the head view would undo the cap.
+  const shown = headOnly ? null : plain.present(toPlainText(text));
 
   // Whether all of the text, laid out in `view`, ends where the browser can
   // still lay it out: past its limit, the end of the text and everything
   // after it can't be scrolled to.
-  const fits = (view: HTMLElement): boolean => {
+  const fits = (view: HTMLElement, shown: string): boolean => {
     const container = textContainer(view);
     // The length tells apart the text's display modes (raw keeps escapes).
     if (
@@ -119,12 +121,16 @@ const LongText: FC<CappedTextProps> = ({
 
   // Whether the shown text still fits, going back to the head when not.
   const check = (view: HTMLElement): boolean => {
-    if (fits(view)) {
+    if (shown === null || fits(view, shown)) {
       return true;
     }
     giveUp();
     return false;
   };
+
+  // The check of the latest commit, which has the shown text once `toggle`
+  // shows it.
+  const latestCheck = useLatestRef(check);
 
   const toggle = () => {
     const notice = noticeRef.current;
@@ -142,8 +148,7 @@ const LongText: FC<CappedTextProps> = ({
       if (measured.current) {
         measured.current.layout = "";
       }
-      if (view && !fits(view)) {
-        giveUp();
+      if (view && !latestCheck.current(view)) {
         return;
       }
       // Everything after this text moved down.
@@ -165,7 +170,7 @@ const LongText: FC<CappedTextProps> = ({
 
   return (
     <>
-      {headOnly ? (
+      {shown === null ? (
         render(head)
       ) : (
         <FullText ref={fullRef} check={check}>
