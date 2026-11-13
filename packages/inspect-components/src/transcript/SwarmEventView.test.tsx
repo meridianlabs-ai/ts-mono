@@ -79,7 +79,7 @@ describe("SwarmEventView", () => {
         findAllMatches(events, term, new Map([["u-1", "row"]]))
       ).toHaveLength(1);
 
-      const { container } = renderView(event, { term, eventId: "u-1" });
+      const { container } = renderView(event, { term });
       await waitFor(() => {
         expect(panelExpanded(container)).toBe(true);
       });

@@ -10,6 +10,11 @@
   --inspect-hint-foreground: var(--bs-secondary-color);
   --inspect-find-background: var(--bs-body-bg);
   --inspect-find-foreground: var(--bs-body-color);
+  /* Find highlights: every match is tinted and keeps its text colour; the
+     current match gets an opaque fill and dark text in both themes. */
+  --inspect-find-match-bg: rgba(255, 210, 0, 0.4);
+  --inspect-find-current-bg: #ff9632;
+  --inspect-find-current-fg: #1f2328;
   --inspect-input-background: var(--bs-body-bg);
   --inspect-input-foreground: var(--bs-body-color);
   --inspect-input-border: var(--bs-light-border-subtle);
@@ -134,6 +139,7 @@
 
 :root[data-bs-theme="dark"] {
   --inspect-tool-output-bg: #14171c;
+  --inspect-find-match-bg: rgba(255, 196, 0, 0.3);
 
   --inspect-msg-label-bg: #2a2a2e;
   --inspect-msg-label-bg-hover: #33333a;
@@ -1418,12 +1424,20 @@ pre[class*="language-"] {
 }
 /* END PrismJS */
 
-/* Use this very carefully, find relies upon checking the
-document selection to determine if it should skip a find match
-so disabling selection can break that functionality */
+/* Find skips text that can't be selected, so this also hides it from find. */
 .hideSelection {
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+/* Find matches, registered by @tsmono/react's find band. */
+::highlight(find-match) {
+  background-color: var(--inspect-find-match-bg);
+}
+
+::highlight(find-current) {
+  background-color: var(--inspect-find-current-bg);
+  color: var(--inspect-find-current-fg);
 }
