@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 
+import { countMatchesByItem } from "../virtual/VirtualList";
+
 import { findTextMatches } from "./findMatches";
+import { normalizeFindText } from "./findText";
 
 const mount = (html: string): HTMLElement => {
   const root = document.createElement("div");
@@ -47,17 +50,20 @@ describe("findTextMatches", () => {
     expect(texts(root, "username")).toEqual([]);
   });
 
-  it("matches whitespace as it renders", () => {
+  it("reads a run of whitespace as one space, preformatted or not", () => {
     const root = mount(
-      "<p>hello  world</p><p>line one\nline two</p><pre>a  b</pre>"
+      "<p>hello  world</p><p>line one\nline two</p><pre>a  b\nc</pre>"
     );
-    expect(findTextMatches(root, "hello world")).toHaveLength(1);
     expect(findTextMatches(root, "one line")).toHaveLength(1);
-    // Preformatted text keeps its spaces.
-    expect(findTextMatches(root, "a b")).toHaveLength(0);
-    expect(texts(root, "a  b")).toEqual(["a  b"]);
-    const [range] = findTextMatches(root, "hello world");
-    expect(range?.toString()).toBe("hello  world");
+    expect(texts(root, "a b c")).toEqual(["a  b\nc"]);
+    expect(texts(root, "hello world")).toEqual(["hello  world"]);
+  });
+
+  it("does not match across a blank line", () => {
+    const root = mount("<pre>one\n\ntwo\n \t\nthree</pre>");
+    expect(texts(root, "one two")).toEqual([]);
+    expect(texts(root, "two three")).toEqual([]);
+    expect(texts(root, "three")).toEqual(["three"]);
   });
 
   it("treats a term with regex syntax literally", () => {
@@ -96,5 +102,42 @@ describe("findTextMatches", () => {
 
   it("returns nothing for an empty term", () => {
     expect(findTextMatches(mount("<p>abc</p>"), "")).toEqual([]);
+  });
+});
+
+describe("findTextMatches and the data-side count", () => {
+  const dataCount = (text: string, term: string) =>
+    countMatchesByItem([[normalizeFindText(text)]], term)[0]?.count ?? 0;
+
+  const domCount = (tag: "p" | "pre", text: string, term: string) => {
+    const block = document.createElement(tag);
+    block.textContent = text;
+    return findTextMatches(mount(block.outerHTML), term).length;
+  };
+
+  it.each([
+    // Case folding where toLowerCase and a case-insensitive RegExp differ.
+    ["İstanbul", "istanbul", 1],
+    ["ıi", "I", 2],
+    ["ΟΔΟΣ", "σ", 1],
+    ["ΟΔΟΣ", "ς", 1],
+    ["ſtate", "S", 1],
+    ["STRASSE und Straße", "straße", 1],
+    // Whitespace runs and line breaks read as one space.
+    ["hello   world", "hello world", 1],
+    ["hello world", "hello   world", 1],
+    ["line one\nline two", "one line", 1],
+    ["tab\tseparated", "tab separated", 1],
+    ["stale.\n\nThis turn", "stale. this", 0],
+    ["stale.\r\n\r\nThis turn", "this turn", 1],
+    // Quotes and backslashes, as typed or JSON-escaped.
+    ['say "foo" and foo', '"foo"', 2],
+    [JSON.stringify({ cmd: 'print("hi")' }), 'print("hi")', 1],
+    [JSON.stringify({ path: String.raw`C:\temp` }), String.raw`C:\temp`, 1],
+    [String.raw`C:\temp`, String.raw`C:\temp`, 1],
+  ])("counts %j for %j the same in data and DOM", (text, term, expected) => {
+    expect(dataCount(text, term)).toBe(expected);
+    expect(domCount("p", text, term)).toBe(expected);
+    expect(domCount("pre", text, term)).toBe(expected);
   });
 });

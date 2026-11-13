@@ -18,9 +18,10 @@ import {
   type ItemMatchCount,
 } from "../components/ExtendedFindContext";
 import {
-  findVariantPositions,
+  findVariantHits,
+  normalizeFindText,
   searchVariants,
-} from "../components/prepareSearchTerm";
+} from "../components/findText";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
 import { useEventListener } from "../hooks/useEventListener";
@@ -61,19 +62,18 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
 }
 
 // Lifted out of the component so the hot find-counter path is unit-testable
-// and lowercasing the texts happens once, not per keystroke. Counts the same
-// quote variants as the transcript's data search.
+// and normalizing the texts happens once, not per keystroke.
 export const countMatchesByItem = (
-  lowerTextsByItem: string[][],
+  normalizedTextsByItem: string[][],
   term: string
 ): ItemMatchCount[] => {
   if (term.length === 0) return [];
   const variants = searchVariants(term);
   const counts: ItemMatchCount[] = [];
-  lowerTextsByItem.forEach((texts, item) => {
+  normalizedTextsByItem.forEach((texts, item) => {
     let count = 0;
-    for (const lowerText of texts) {
-      count += findVariantPositions(lowerText, variants).length;
+    for (const text of texts) {
+      count += findVariantHits(text, variants).length;
     }
     if (count > 0) counts.push({ item, count });
   });
@@ -892,9 +892,9 @@ export function VirtualList<T>({
   // provider mounted).
   const extendedFind = useExtendedFindOptional();
   const findContext = findScope === "none" ? null : extendedFind;
-  // Pre-compute lowercased search text for every item once per data /
+  // Pre-compute normalized search text for every item once per data /
   // accessor change, so the find counter doesn't re-extract and
-  // re-lowercase the whole list on each keystroke. Skipped entirely when the
+  // re-normalize the whole list on each keystroke. Skipped entirely when the
   // list doesn't participate in find — extraction can be expensive (default
   // accessor JSON.stringifies every item).
   const precomputedSearchTexts = useMemo(() => {
@@ -903,7 +903,7 @@ export function VirtualList<T>({
     return data.map((item) => {
       const texts = getText(item);
       const textArray = Array.isArray(texts) ? texts : [texts];
-      return textArray.map((t) => t.toLowerCase());
+      return textArray.map((t) => normalizeFindText(t));
     });
   }, [data, itemSearchText, findContext]);
 

@@ -1,5 +1,9 @@
 import type { Event } from "@tsmono/inspect-common/types";
-import { findVariantPositions, searchVariants } from "@tsmono/react/components";
+import {
+  findVariantHits,
+  normalizeFindText,
+  searchVariants,
+} from "@tsmono/react/components";
 
 import { extractEventFields } from "../eventText";
 import { TimelineSpan } from "../timeline/core";
@@ -95,8 +99,8 @@ export function findAllMatches(
     const fields = extractEventFields(event);
     let fieldIndex = 0;
     for (const [fieldKey, text] of fields) {
-      const positions = findVariantPositions(text.toLowerCase(), variants);
-      for (let i = 0; i < positions.length; i++) {
+      const hits = findVariantHits(normalizeFindText(text), variants);
+      for (let i = 0; i < hits.length; i++) {
         out.push({
           rowKey,
           eventId: uuid,

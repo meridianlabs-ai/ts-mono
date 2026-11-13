@@ -227,4 +227,13 @@ describe("findAllMatches", () => {
     expect(matches).toHaveLength(2);
     expect(matches.map((m) => m.occurrenceIndex)).toEqual([0, 1]);
   });
+
+  // The viewer's page Find collapses whitespace and folds case this way, so
+  // a row's count matches what it shows once rendered.
+  it("matches across whitespace runs and folds case as the page does", () => {
+    const events: Event[] = [modelEv("e1", "ΟΔΟΣ hello  \n  world")];
+    const map = new Map([["e1", "main"]]);
+    expect(findAllMatches(events, "hello world", map)).toHaveLength(1);
+    expect(findAllMatches(events, "σ", map)).toHaveLength(1);
+  });
 });
