@@ -773,7 +773,7 @@ body {
 
 .log :not(pre) > code[class*="language-"],
 .log pre[class*="language-"] {
-  background-color: var(--bs-body-background);
+  background-color: transparent;
 }
 
 .workspace pre[class*="language-"] {
@@ -783,7 +783,7 @@ body {
 
 .workspace :not(pre) > code[class*="language-"],
 .workspace pre[class*="language-"] {
-  background-color: var(--bs-body-background);
+  background-color: transparent;
 }
 
 .tbd {
@@ -878,7 +878,7 @@ pre[class*="language-"] {
   border-left: solid var(--bs-accordion-active-bg) 2px;
   border-right: solid var(--bs-accordion-active-bg) 2px;
   border-top: solid var(--bs-accordion-active-bg) 2px;
-  background-color: var(--bs-body-background);
+  background-color: transparent;
   color: var(--bs-body-color);
 }
 
