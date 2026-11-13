@@ -721,10 +721,8 @@ interface CallSlot {
   tool?: ToolEvent;
   /** An approval or a `tool_call` decision stopped the call before it ran. */
   stopped?: boolean;
-  /** The id of the run an event in the slot names: its ToolEvent's id, which
-   *  a bridge that handed the call over under a new id records as its
-   *  approvals' and checks' `execution_id` (inspect_ai#6370), and otherwise
-   *  the model's id. */
+  /** The id of the run an event in the slot names: the `execution_id` its
+   *  approvals and checks record (`runIdOf`), and otherwise the model's id. */
   execution?: string;
   /** The `execution_id` a bridge's `tool_call` check of the run records. */
   checkedAs?: string;
@@ -825,7 +823,8 @@ const bridgeConversationSpan = (
  *  in sync: a run under its `proposalIdOf` names the call proposed under it
  *  only when nothing could be confused (`findProposal`); an approval or
  *  step that records its `execution_id` judges the execution under that id
- *  and nothing else; otherwise a `tool_call` step judges the next tool with
+ *  (`runIdOf`) and nothing else, each run of one handout in turn;
+ *  otherwise a `tool_call` step judges the next tool with
  *  its id, a `tool_result` step one that ran before it; an agent bridge's
  *  check judges only a call the bridge ran on the host, and a native check
  *  never does; a bridge's check with no host run in the chain it took
@@ -901,8 +900,9 @@ const collectSentinelDecisions = (
     slot.execution ??= id;
     return slot;
   };
-  /** Slots of runs under an id other than the model's, by that id. */
-  const executions = new Map<string, CallSlot>();
+  /** Slots of runs under an id other than the model's, by that id: one per
+   *  run, as a bridged call's handout runs once per bridged tool it denotes. */
+  const executions = new Map<string, CallSlot[]>();
   /** The slot of the run under `id`, which is not the model's id in
    *  `chain`: the one an earlier event naming it took, else a new one. */
   const executionSlot = (
@@ -914,8 +914,28 @@ const collectSentinelDecisions = (
     skip?: (slot: CallSlot) => boolean
   ): CallSlot => {
     const key = chainKey(spanId, `${scope}\u0000${id}`);
-    let slot = executions.get(key);
-    if (!slot) executions.set(key, (slot = takeRun(chain, stage, id, skip)));
+    const slots = executions.get(key);
+    if (slots) return slots[0]!;
+    const slot = takeRun(chain, stage, id, skip);
+    executions.set(key, [slot]);
+    return slot;
+  };
+  /** The slot of a ToolEvent that records `execution_id`: the execution's
+   *  until a run fills it, then one of its own for each further run. */
+  const executionRun = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string,
+    chain: CallChain,
+    stage: ChainStage
+  ): CallSlot => {
+    const filled = (s: CallSlot) => s.tool !== undefined;
+    const slots = executions.get(chainKey(spanId, `${scope}\u0000${id}`));
+    if (!slots) return executionSlot(spanId, scope, id, chain, stage, filled);
+    const open = slots.find((s) => !filled(s));
+    if (open) return open;
+    const slot = takeRun(chain, stage, id, filled);
+    slots.push(slot);
     return slot;
   };
   /** By chain key, the host runs whose bridge recorded the model's id as
@@ -1024,9 +1044,18 @@ const collectSentinelDecisions = (
       // With two cursors, a slot ahead of this one may already hold a run.
       const filled = (s: CallSlot) => s.tool !== undefined;
       const slot =
-        proposalId !== event.id
-          ? executionSlot(event.span_id, scope, event.id, chain, stage, filled)
-          : takeRun(chain, stage, event.id, filled);
+        event.execution_id != null
+          ? executionRun(event.span_id, scope, event.execution_id, chain, stage)
+          : proposalId !== event.id
+            ? executionSlot(
+                event.span_id,
+                scope,
+                event.id,
+                chain,
+                stage,
+                filled
+              )
+            : takeRun(chain, stage, event.id, filled);
       slot.tool = event;
       slot.order = index;
       if (recordedProposalId(event) === event.id) {
@@ -1055,26 +1084,38 @@ const collectSentinelDecisions = (
       } else if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, scope, step.stepId);
-        const slot = takeRun(
-          chain,
-          "checks",
-          step.stepId,
-          (slot) => slot.stopped === true || ranOnHost(slot)
-        );
+        const skip = (slot: CallSlot) =>
+          slot.stopped === true || ranOnHost(slot);
+        const slot =
+          step.executionId !== undefined
+            ? executionSlot(
+                event.span_id,
+                scope,
+                step.executionId,
+                chain,
+                "checks",
+                skip
+              )
+            : takeRun(chain, "checks", step.stepId, skip);
         holdNativeCall(step, slot, index);
         nativeCalls.push({ step, chain, order: index });
       } else if (step.stage === "tool_result") {
         // Only a call that ran has a result to judge, though the run may
         // have failed.
         const chain = chainFor(event.span_id, scope, step.stepId);
+        const skip = (slot: CallSlot) => didNotRun(slot) || ranOnHost(slot);
         slotOfStep.set(
           step,
-          takeRun(
-            chain,
-            "results",
-            step.stepId,
-            (slot) => didNotRun(slot) || ranOnHost(slot)
-          )
+          step.executionId !== undefined
+            ? executionSlot(
+                event.span_id,
+                scope,
+                step.executionId,
+                chain,
+                "results",
+                skip
+              )
+            : takeRun(chain, "results", step.stepId, skip)
         );
       } else {
         const producer = latestModel.get(conversationOf(event.span_id));
@@ -1161,14 +1202,10 @@ const collectSentinelDecisions = (
       unpairedBridgeChecks.push(check);
       continue;
     }
-    const named =
-      execution === undefined ? undefined : executions.get(execution);
     const slot =
       execution === undefined
         ? chain.slots.find((s) => openTo(s, step.stepId) && judges(step, s))
-        : named && judges(step, named)
-          ? named
-          : undefined;
+        : executions.get(execution)?.find((s) => judges(step, s));
     if (slot) pairBridgeCheck(step, slot, order);
     else unpairedBridgeChecks.push(check);
   }
@@ -1200,9 +1237,7 @@ const collectSentinelDecisions = (
       step.stage !== "tool_call"
         ? undefined
         : named
-          ? ownCall(named)
-            ? named
-            : undefined
+          ? named.find(ownCall)
           : chain.slots.find((s) => openTo(s, step.stepId) && ownCall(s));
     if (proposal) {
       taken.add(proposal);

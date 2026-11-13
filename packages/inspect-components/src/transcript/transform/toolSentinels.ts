@@ -71,13 +71,24 @@ export const recordedProposalId = (event: ToolEvent): string | undefined => {
 
 /**
  * The id of the execution a tool-stage sentinel event or an approval judged,
- * which is that execution's `ToolEvent.id`: the `execution_id` a bridge
- * records when it handed the call over under an id other than the model's
- * (inspect_ai#6370), else the model's id.
+ * which `runIdOf` names its runs by: its `execution_id`, else the model's id.
  */
 export const executionIdOf = (event: SentinelEvent | ApprovalEvent): string =>
   event.execution_id ??
   (event.event === "sentinel" ? event.step_id : event.call.id);
+
+/**
+ * The id a check's or approval's `execution_id` names a run by. A ToolEvent
+ * that records `execution_id` (inspect_ai#6370) is named by it: a native
+ * run's own, or the handout of a bridged call, which every run of that
+ * handout shares. Before that field, `execution_id` was the ToolEvent's own
+ * id, which a bridge recorded when it handed a call over under a new one. A
+ * minted id never equals a call id, so the two meanings never meet: a run
+ * that records none (an older log, or a host run that matched two handouts'
+ * grants) is named only by its id.
+ */
+export const runIdOf = (tool: ToolEvent): string =>
+  tool.execution_id ?? tool.id;
 
 /** Whether a ToolEvent records a call that failed or never ran. */
 export const toolFailed = (event: ToolEvent): boolean =>
@@ -274,7 +285,7 @@ export interface ProposalRun {
   /** Its position in recording order: its ToolEvent's, or its first record's. */
   order: number;
   tool?: ToolEvent;
-  /** Approvals paired with the run. Only those whose `execution_id` is the run's ToolEvent id name its proposal. */
+  /** Approvals paired with the run. Only those whose `execution_id` names the run (`runIdOf`) name its proposal. */
   approvals: readonly ApprovalEvent[];
 }
 
@@ -306,7 +317,7 @@ const approvedProposal = ({
     approvals
       .filter(
         (approval) =>
-          approval.execution_id === tool.id &&
+          approval.execution_id === runIdOf(tool) &&
           approval.call.function === tool.function
       )
       .map((approval) => approval.call)
@@ -358,7 +369,7 @@ export interface SentinelStep {
   id: string;
   stage: SentinelEvent["stage"];
   stepId: string;
-  /** The `execution_id` the step's events record: the id of the ToolEvent it judged, when not `stepId`. */
+  /** The `execution_id` the step's events record, which names the run it judged (`runIdOf`). */
   executionId?: string;
   /** One row per check in tree order; a superseded event stands in for the decision it names. */
   rows: SentinelRow[];
@@ -807,6 +818,12 @@ const conversationOfStep = (
   return bySpan.get(recorded)?.key ?? conversation.key;
 };
 
+/** The tools a step may judge, by `runKey` of their id and of `runIdOf`. */
+interface ToolIndex {
+  toolsById: Map<string, ToolEntry[]>;
+  toolsByExecution: Map<string, ToolEntry[]>;
+}
+
 /** Keys the tools a step may judge: by id, scope, conversation and whether a bridge ran them on the host. */
 const runKey = (
   id: string,
@@ -818,13 +835,18 @@ const runKey = (
 
 /**
  * The ToolEvent a tool-stage step judged, among those in the step's scope
- * and conversation whose id is the step's execution id, skipping tools that
- * already host a step of the same stage. A bridge's check judges only a call
- * the bridge ran on the host, and a native check only a native call, though
- * they share ids (a call the bridged agent inherited, for example).
+ * and conversation, skipping tools that already host a step of the same
+ * stage. A bridge's check judges only a call the bridge ran on the host, and
+ * a native check only a native call, though they share ids (a call the
+ * bridged agent inherited, for example).
  *
- * A step that records its `execution_id` names its tool: the one such tool,
- * or none. Otherwise the step's id is the model's:
+ * A step that records its `execution_id` names its runs (`runIdOf`,
+ * `toolsByExecution`). One handout of a bridged call runs once per bridged
+ * tool it denotes, and the bridge checks it once per tool, so a step takes
+ * the first such run no step of its stage holds yet. A step whose
+ * `execution_id` is a ToolEvent's own id (a log from before ToolEvents
+ * recorded it) names the one such tool, or none. Otherwise the step's id is
+ * the model's, and it judged a run under that id (`toolsById`):
  * - A bridge hands over only a call nothing stopped, and records no
  *   `execution_id` for an attempt it never handed over, so a bridge step
  *   with none judged the one run under the model's id, in any recording
@@ -838,7 +860,7 @@ const runKey = (
  *   `tool_result` step the last one before it.
  */
 const hostTool = (
-  toolsByRun: Map<string, ToolEntry[]>,
+  { toolsById, toolsByExecution }: ToolIndex,
   step: SentinelStep,
   { order, scope }: StepEvents,
   conversation: string,
@@ -848,17 +870,23 @@ const hostTool = (
 ): ToolEntry | undefined => {
   const unclaimed = (t: ToolEntry) =>
     !claimed.has(`${step.stage}\u0000${t.node.id}`);
-  const candidates =
-    toolsByRun.get(
-      runKey(step.executionId ?? step.stepId, scope, conversation, bridge)
-    ) ?? [];
-  const sole = () => {
+  const sole = (candidates: ToolEntry[]) => {
     const [only, other] = candidates;
     return only && !other && unclaimed(only) ? only : undefined;
   };
-  if (step.executionId !== undefined) return sole();
+  if (step.executionId !== undefined) {
+    const runs =
+      toolsByExecution.get(
+        runKey(step.executionId, scope, conversation, bridge)
+      ) ?? [];
+    return runs[0]?.node.event.execution_id != null
+      ? runs.find(unclaimed)
+      : sole(runs);
+  }
+  const candidates =
+    toolsById.get(runKey(step.stepId, scope, conversation, bridge)) ?? [];
   const stopped = step.stage === "tool_call" && stopsCall(step);
-  if (bridge) return stopped || discarded ? undefined : sole();
+  if (bridge) return stopped || discarded ? undefined : sole(candidates);
   const open = candidates.filter(
     (t) => unclaimed(t) && (!stopped || toolFailed(t.node.event))
   );
@@ -886,7 +914,7 @@ export function pairToolSentinels(
 
 /**
  * Pairs tool-stage steps to their ToolEvent (`executionIdOf` ==
- * `ToolEvent.id`, see `hostTool`), so the
+ * `runIdOf`, see `hostTool`), so the
  * tool panel renders them inline. Each sentinel span holds one step; events
  * outside a span group by conversation, stage and execution id. Steps with no tool render
  * as one row at their span or first event. A tool shows the call it ran as
@@ -1011,17 +1039,28 @@ function pairToolSentinelsByExecution(
   const hiddenSentinelIds = new Set<string>();
   const sentinelScrollRedirects = new Map<string, string>();
   const claimed = new Set<string>();
-  const toolsByRun = new Map<string, ToolEntry[]>();
-  for (const entry of tools) {
+  const toolIndex: ToolIndex = {
+    toolsById: new Map(),
+    toolsByExecution: new Map(),
+  };
+  const index = (
+    byKey: Map<string, ToolEntry[]>,
+    id: string,
+    entry: ToolEntry
+  ) => {
     const key = runKey(
-      entry.node.event.id,
+      id,
       entry.scope,
       entry.conversation,
       isBridgeTool(entry.node.event)
     );
-    const runs = toolsByRun.get(key);
+    const runs = byKey.get(key);
     if (runs) runs.push(entry);
-    else toolsByRun.set(key, [entry]);
+    else byKey.set(key, [entry]);
+  };
+  for (const entry of tools) {
+    index(toolIndex.toolsById, entry.node.event.id, entry);
+    index(toolIndex.toolsByExecution, runIdOf(entry.node.event), entry);
   }
 
   // Every step is built before any pairs, since a later sibling's check can
@@ -1051,7 +1090,7 @@ function pairToolSentinelsByExecution(
     const { nodes, span } = events;
     const tool = kToolStages.has(step.stage)
       ? hostTool(
-          toolsByRun,
+          toolIndex,
           step,
           events,
           conversation,
@@ -1083,14 +1122,14 @@ function pairToolSentinelsByExecution(
   const runsById = new Map<string, number>();
   for (const { node, conversation, proposals: key } of tools) {
     if (key === undefined) continue;
-    const runKey = `${conversation}\u0000${node.event.id}`;
+    const runKey = `${conversation}\u0000${runIdOf(node.event)}`;
     runsById.set(runKey, (runsById.get(runKey) ?? 0) + 1);
   }
   for (const { node, order: at, conversation, proposals: key } of tools) {
     const paired = toolSentinels.get(node.id);
     if (key === undefined || !paired) continue;
     const tool = node.event;
-    const runKey = `${conversation}\u0000${tool.id}`;
+    const runKey = `${conversation}\u0000${runIdOf(tool)}`;
     const index = isBridgeTool(tool) ? proposals : nativeProposals;
     const found = findProposal(index.get(key), {
       tool,
