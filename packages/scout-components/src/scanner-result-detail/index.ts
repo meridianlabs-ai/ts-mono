@@ -11,5 +11,5 @@ export {
   isStringValue,
 } from "./types";
 export type { ScanResultInput, ValueType } from "./types";
-export { ValidationResult } from "./ValidationResult";
-export { Value } from "./Value";
+export { ValidationResult, validationSearchText } from "./ValidationResult";
+export { Value, valueSearchText } from "./Value";
