@@ -390,8 +390,10 @@ checked it in a running hawk.
 VS Code hosts older than 1.104 inject their default webview styles
 unlayered, so there they beat the layered reset and components (body font
 size, `code`, link colours on tabs rendered as `<a>`). From 1.104 VS Code
-wraps them in `@layer vscode-default`, which orders before ours. PR 5 raised
-inspect_vscode's minimum to 1.104.
+wraps them in `@layer vscode-default`, which orders before ours. The viewer
+ships with the inspect_ai package, so an extension minimum can't keep it off
+older hosts. PR 5 accepts these differences on VS Code older than 1.104
+(August 2025).
 
 Model output can carry Bootstrap classes too. The HTML sanitizer keeps
 `class` attributes and markdown renders with `html: true`, so a message
