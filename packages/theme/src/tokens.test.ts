@@ -27,9 +27,13 @@ const sourceFiles = (dir: string): string[] =>
 // A read with a fallback (`var(--bs-x, ...)`) is allowed to be undefined.
 const READ = /(?<=var\(\s*)--bs-[\w-]+(?=\s*\))/g;
 const DEFINITION = /--bs-[\w-]+(?=["']?\s*:)/g;
-// Reboot reads it for right-to-left builds and Bootstrap never defines it, so
-// text-align falls back to its initial value.
-const DELIBERATELY_UNDEFINED = new Set(["--bs-body-text-align"]);
+// Bootstrap reads these but never defines them (they are optional Sass
+// settings), so each property falls back to its initial or inherited value.
+const DELIBERATELY_UNDEFINED = new Set([
+  "--bs-body-text-align",
+  "--bs-nav-link-font-size",
+  "--bs-breadcrumb-font-size",
+]);
 
 test("every --bs-* variable read without a fallback is defined", () => {
   const files = ["apps", "packages"].flatMap((dir) =>

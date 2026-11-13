@@ -7,6 +7,8 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "@tsmono/theme/tokens";
 import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 
 import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
