@@ -339,6 +339,16 @@ describe("FindBand", () => {
     expect(highlighted("find-current")).toEqual(["c"]);
   });
 
+  it("counts and closes in a browser without the Highlight API", () => {
+    vi.unstubAllGlobals();
+    const { rerender } = render(<Page>{threeNeedles}</Page>);
+    search("needle");
+    expect(status().textContent).toBe("1 of 3");
+
+    rerender(<Page open={false}>{threeNeedles}</Page>);
+    expect(screen.queryByPlaceholderText("Find")).toBeNull();
+  });
+
   it("sets the find target, and clears it and the highlights on close", () => {
     const { rerender } = render(<Page>{threeNeedles}</Page>);
     search("needle");

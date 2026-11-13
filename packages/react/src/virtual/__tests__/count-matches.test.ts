@@ -22,6 +22,16 @@ describe("countMatchesByItem", () => {
     expect(countMatchesByItem([], "x")).toEqual([]);
   });
 
+  it("counts a quoted term in JSON-escaped data, once per occurrence", () => {
+    const args = JSON.stringify({ cmd: 'print("hi")' }).toLowerCase();
+    expect(
+      countMatchesByItem([[args], ['print("hi")']], 'print("hi")')
+    ).toEqual([
+      { item: 0, count: 1 },
+      { item: 1, count: 1 },
+    ]);
+  });
+
   it("returns nothing for an empty term without spinning", () => {
     expect(countMatchesByItem([["aaaa"]], "")).toEqual([]);
   });

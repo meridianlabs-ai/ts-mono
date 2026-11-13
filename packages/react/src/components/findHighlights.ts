@@ -18,11 +18,17 @@ export function paintFindHighlights(
 }
 
 export function clearFindHighlights(): void {
+  if (!supported()) return;
   CSS.highlights.delete(FIND_MATCH_HIGHLIGHT);
   CSS.highlights.delete(FIND_CURRENT_HIGHLIGHT);
 }
 
+// Without the API (Safari before 17.2, older webviews) Find still counts and
+// scrolls but paints nothing, rather than throwing out of the view.
+const supported = () => typeof CSS !== "undefined" && "highlights" in CSS;
+
 function setHighlight(name: string, ranges: readonly Range[]): void {
+  if (!supported()) return;
   if (ranges.length === 0) {
     CSS.highlights.delete(name);
   } else {

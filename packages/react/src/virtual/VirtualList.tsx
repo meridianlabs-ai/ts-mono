@@ -17,6 +17,10 @@ import {
   type FindSource,
   type ItemMatchCount,
 } from "../components/ExtendedFindContext";
+import {
+  findVariantPositions,
+  searchVariants,
+} from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
 import { useEventListener } from "../hooks/useEventListener";
@@ -57,24 +61,19 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
 }
 
 // Lifted out of the component so the hot find-counter path is unit-testable
-// and lowercasing happens once, not per keystroke; `lowerTerm` pre-lowercased.
+// and lowercasing the texts happens once, not per keystroke. Counts the same
+// quote variants as the transcript's data search.
 export const countMatchesByItem = (
   lowerTextsByItem: string[][],
-  lowerTerm: string
+  term: string
 ): ItemMatchCount[] => {
-  // An empty term makes indexOf return its start position forever (pos += 0).
-  if (lowerTerm.length === 0) {
-    return [];
-  }
+  if (term.length === 0) return [];
+  const variants = searchVariants(term);
   const counts: ItemMatchCount[] = [];
   lowerTextsByItem.forEach((texts, item) => {
     let count = 0;
     for (const lowerText of texts) {
-      let pos = 0;
-      while ((pos = lowerText.indexOf(lowerTerm, pos)) !== -1) {
-        count++;
-        pos += lowerTerm.length;
-      }
+      count += findVariantPositions(lowerText, variants).length;
     }
     if (count > 0) counts.push({ item, count });
   });
@@ -916,7 +915,7 @@ export function VirtualList<T>({
     return {
       anchor: () => wrapperRef.current,
       countByItem: cacheLastCall((term: string) =>
-        countMatchesByItem(precomputedSearchTexts, term.toLowerCase())
+        countMatchesByItem(precomputedSearchTexts, term)
       ),
       itemOf: (node) => {
         const band = bandRef.current;
