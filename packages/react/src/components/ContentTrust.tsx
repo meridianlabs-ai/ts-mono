@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { revealHiddenCharacters } from "@tsmono/util";
+import { identity, revealHiddenCharacters } from "@tsmono/util";
 
 import styles from "./ContentTrust.module.css";
 import {
@@ -29,7 +29,7 @@ interface PlainText {
 // The same object every render, so callers' compiled caches keyed on it hit.
 const trustedPlainText: PlainText = {
   trusted: true,
-  present: (text) => text,
+  present: identity,
   className: undefined,
 };
 
