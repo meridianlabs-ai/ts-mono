@@ -207,8 +207,10 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
 
   // Handle row click to toggle selection
   const handleRowClick = (e: React.MouseEvent) => {
-    // Don't toggle if clicking on interactive elements
     const target = e.target;
+    // React bubbles clicks from this card's modals, which portal to <body>.
+    if (!(target instanceof Node) || !e.currentTarget.contains(target)) return;
+    // Don't toggle if clicking on interactive elements
     if (
       target instanceof Element &&
       (target.closest("button") ||
