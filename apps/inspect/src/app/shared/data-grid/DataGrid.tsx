@@ -830,6 +830,9 @@ export function DataGrid<TRow extends RowData>({
       });
       if (target === null) return;
       e.preventDefault();
+      // Take focus off a button (a funnel) the selection moved away from, so
+      // a following Enter or Space activates the row rather than the button.
+      e.currentTarget.focus({ preventScroll: true });
       if (target === currentIndex) return;
 
       const targetRow = rows[target];

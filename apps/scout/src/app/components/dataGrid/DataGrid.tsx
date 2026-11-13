@@ -486,6 +486,10 @@ export function DataGrid<
           return;
       }
 
+      // Take focus off a button (a header, a funnel) the selection moved away
+      // from, so a following Enter or Space acts on the row, not the button.
+      e.currentTarget.focus({ preventScroll: true });
+
       // Handle arrow key navigation
       if (newFocusedIndex !== focusedIndex && newFocusedIndex !== -1) {
         const newRow = rows[newFocusedIndex];

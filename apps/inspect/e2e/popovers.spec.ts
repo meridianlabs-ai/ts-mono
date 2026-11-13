@@ -55,7 +55,7 @@ const box = async (locator: Locator) => {
   return b;
 };
 
-test("a column filter opens with its input focused, Escape returns focus to the funnel, Enter reopens it, and arrows still move the selection", async ({
+test("a column filter opens with its input focused, Escape returns focus to the funnel, Enter reopens it, and arrows then Enter open a row", async ({
   page,
   network,
 }) => {
@@ -82,6 +82,8 @@ test("a column filter opens with its input focused, Escape returns focus to the 
   await expect(funnel).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("row", { selected: true })).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/samples\/sample\//);
 });
 
 test("a toolbar menu is tall enough to show every item, and an outside click closes it", async ({
