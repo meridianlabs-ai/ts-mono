@@ -86,6 +86,19 @@ describe("useArrowStepper", () => {
     document.body.removeChild(input);
   });
 
+  it("stands down while a modal dialog is open", () => {
+    const onNext = vi.fn();
+    render(<Harness onNext={onNext} />);
+    const dialog = document.createElement("dialog");
+    document.body.append(dialog);
+    dialog.showModal();
+
+    const event = press("ArrowRight");
+    expect(onNext).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    dialog.remove();
+  });
+
   it("lets modified arrows pass through untouched", () => {
     const onPrev = vi.fn();
     const onNext = vi.fn();
