@@ -291,14 +291,6 @@ a:hover {
   color: var(--bs-link-hover-color);
 }
 
-.modal {
-  --bs-modal-margin: 0.25rem;
-}
-
-.modal-backdrop {
-  --bs-backdrop-opacity: 0.4;
-}
-
 .app-main-grid.single-file-mode {
   grid-template-rows: max-content max-content 1fr;
 }
@@ -386,12 +378,9 @@ body[class^="vscode-"] {
   --bs-tertiary-bg: var(--vscode-list-hoverBackground);
   --bs-primary-text-emphasis: var(--vscode-editorLink-activeForeground);
   --bs-card-bg: var(--vscode-editor-background);
-  --bs-table-bg: var(--vscode-editor-background);
   --bs-light-bg-subtle: var(--vscode-sideBar-background);
   --bs-light-border-subtle: var(--vscode-sideBarSectionHeader-border);
   --bs-body-color: var(--vscode-editor-foreground);
-  --bs-table-color: var(--vscode-editor-foreground);
-  --bs-accordion-btn-color: var(--vscode-editor-foreground);
   --bs-emphasis-color: var(--vscode-editor-foreground);
   --bs-navbar-brand-color: var(--vscode-editor-foreground);
   --bs-navbar-brand-hover-color: var(--vscode-editor-foreground);
@@ -438,21 +427,8 @@ html.vscode .sample-input {
   -webkit-line-clamp: 4 !important;
 }
 
-body[class^="vscode-"] .modal-backdrop {
-  --bs-backdrop-opacity: 0.15;
-  --bs-backdrop-bg: var(--vscode-editor-foreground);
-}
-
 body[class^="vscode-"] code {
   background-color: transparent;
-}
-
-body[class^="vscode-"] .modal-dialog {
-  border: solid 1px var(--bs-border-color);
-}
-
-body[class^="vscode-"] .modal-content {
-  background-clip: unset;
 }
 
 body[class^="vscode-"] .multi-score-label {
@@ -477,12 +453,6 @@ body[class^="vscode-"] .task-title {
 body[class^="vscode-"] .task-model {
   margin-top: 0.2rem;
   font-size: 0.9rem;
-}
-
-body[class^="vscode-"] .accordion-button::after {
-  --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='black'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-  background: white;
-  mask-image: var(--bs-accordion-btn-icon);
 }
 
 .copy-button i.bi,
@@ -513,81 +483,6 @@ body[class^="vscode-"] .btn-primary {
   --bs-btn-disabled-opacity: 0.8;
 }
 
-/* Inside modal dialogs (edit tags / edit metadata / scoring detail)
-   the editor-tuned `--vscode-editorGroup-border` reads as nearly
-   invisible against dark themes — chip strips, the metadata grid,
-   and form-control inputs all lose their visual containers. Re-point
-   `--bs-border-color` to a widget-grade border so anything Bootstrap
-   styles with the border-color token (chip outlines, input borders,
-   table dividers, etc.) becomes legible. The fallback chain prefers
-   widget/editorWidget borders (typically tuned by themes for popups)
-   and only drops back to editorGroup-border if nothing else is set. */
-body[class^="vscode-"] .modal {
-  --bs-border-color: var(
-    --vscode-widget-border,
-    var(--vscode-editorWidget-border, var(--vscode-editorGroup-border))
-  );
-  /* Error banner inside dialogs: the global vscode block only re-points
-     `--bs-danger-bg-subtle` (at the diff-editor red wash), leaving
-     `--bs-danger-text-emphasis` and `--bs-danger-border-subtle` at
-     Bootstrap's light-mode dark-red values — unreadable on a VS Code
-     dark dialog. Use the editor's input-validation tokens (designed
-     for exactly this purpose: a tinted background with readable
-     foreground and a visible border) with a fallback to
-     `errorForeground` for themes that only define the foreground.
-     Also re-point `--bs-danger` so the required-field asterisk picks
-     up the same readable red. */
-  --bs-danger: var(--vscode-errorForeground);
-  --bs-danger-bg-subtle: var(
-    --vscode-inputValidation-errorBackground,
-    var(--vscode-diffEditor-removedTextBackground)
-  );
-  --bs-danger-text-emphasis: var(
-    --vscode-inputValidation-errorForeground,
-    var(--vscode-errorForeground)
-  );
-  --bs-danger-border-subtle: var(
-    --vscode-inputValidation-errorBorder,
-    var(--vscode-errorForeground)
-  );
-  /* Change-tracking summary in the dialog footer uses these tokens
-     for the italic body, the "Adding" / "Editing" lines, and the
-     "No tags yet —" placeholder inside the chip box. Bootstrap's
-     light-mode values are unreadable on a dark VS Code modal; remap
-     to descriptionForeground (matches the hint label) plus the
-     editor's source-control accent colors so the categories stay
-     distinguishable. (Removing already inherits the readable red
-     from `--bs-danger` re-pointed above.) */
-  --bs-secondary-color: var(--vscode-descriptionForeground);
-  --bs-success-text-emphasis: var(
-    --vscode-gitDecoration-addedResourceForeground,
-    var(--vscode-charts-green)
-  );
-  --bs-warning-text-emphasis: var(
-    --vscode-gitDecoration-modifiedResourceForeground,
-    var(--vscode-charts-yellow)
-  );
-}
-
-/* Form-control inputs inside dialogs (Author, Reason, "Add a tag…",
-   "Add a key…") should look like native VS Code inputs rather than
-   editor-background panes: surface the input background/foreground
-   tokens, and use the input placeholder token so the placeholder
-   text stays readable in dark themes. */
-body[class^="vscode-"] .modal .form-control {
-  background-color: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border-color: var(
-    --vscode-input-border,
-    var(--vscode-widget-border, var(--vscode-editorGroup-border))
-  );
-}
-
-body[class^="vscode-"] .modal .form-control::placeholder {
-  color: var(--vscode-input-placeholderForeground);
-  opacity: 1;
-}
-
 /* Mirror .btn-primary for .btn-secondary so Cancel buttons and the
    "+ Add" pill (both rendered with Bootstrap's btn-secondary) read as
    native VS Code secondary buttons rather than the washed-out
@@ -612,15 +507,6 @@ body[class^="vscode-"] .navbar-brand {
 
 body[class^="vscode-"] .navbar-text {
   --bs-navbar-color: var(--vscode-sideBarSectionHeader-foreground);
-}
-
-body[class^="vscode-"] .accordion-item {
-  --bs-accordion-active-bg: var(--vscode-list-inactiveSelectionBackground);
-}
-
-body[class^="vscode-"] .card-header {
-  --bs-border-color: var(--vscode-editorGroup-border);
-  --bs-card-border-color: var(--vscode-editorGroup-border);
 }
 
 body[class^="vscode-"] .card {
@@ -839,16 +725,6 @@ pre[class*="language-"] {
   margin-bottom: 0.5em;
 }
 
-.card-header {
-  padding: 0.1em 1em 0.1em 1em;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.btn .btn-link {
-  cursor: pointer;
-}
-
 [aria-expanded="false"] .hide-when-collapsed {
   display: none;
 }
@@ -872,35 +748,6 @@ pre[class*="language-"] {
 
 [aria-expanded="true"] .zeroheight-when-expanded {
   height: 0px !important;
-}
-
-.accordion-item:not(.no-highlight) .accordion-button:not(.collapsed) {
-  border-left: solid var(--bs-accordion-active-bg) 2px;
-  border-right: solid var(--bs-accordion-active-bg) 2px;
-  border-top: solid var(--bs-accordion-active-bg) 2px;
-  background-color: transparent;
-  color: var(--bs-body-color);
-}
-
-.accordion-item .accordion-button {
-  border-left: solid var(--bs-body-bg) 2px;
-  border-right: solid var(--bs-body-bg) 2px;
-  border-top: solid var(--bs-body-bg) 2px;
-  background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
-}
-
-.accordion-button[aria-expanded="true"] .giant-text-when-expanded {
-  font-weight: 500;
-  font-size: 0.9rem !important;
-  flex-grow: 40;
-  padding-top: 0rem;
-  padding-bottom: 0rem;
-}
-
-.accordion-button[aria-expanded="true"] .full-flex-basis-when-expanded {
-  flex-basis: content !important;
-  flex-shrink: 1;
 }
 
 .markdown-content h1,
@@ -927,34 +774,6 @@ pre[class*="language-"] {
   margin-bottom: 0em;
 }
 
-.accordion-item:not(.no-highlight) .collapse.show.highlight-when-expanded,
-.accordion-item:not(.no-highlight) .collapsing.highlight-when-expanded,
-.accordion-item:not(.no-highlight)
-  .accordion-button[aria-expanded="true"].highlight-when-expanded {
-  border-left: solid var(--bs-accordion-active-bg) 2px;
-  border-right: solid var(--bs-accordion-active-bg) 2px;
-  border-bottom: solid var(--bs-accordion-active-bg) 2px;
-}
-
-.accordion-item.no-highlight .accordion-button {
-  background-color: var(--bs-body-bg);
-}
-
-.accordion-button.toggle-rotated:after {
-  background-size: 0.8em;
-  height: 0.8em;
-  width: 0.8em;
-}
-
-.accordion-header > :last-child::after,
-.accordion-button:last-child:after {
-  color: white !important;
-}
-
-.card .accordion-button.toggle-rotated:after {
-  margin-right: 1rem;
-}
-
 .no-highlight,
 .no-highlight:hover,
 .no-highlight:active {
@@ -975,23 +794,6 @@ pre[class*="language-"] {
 
 .fadeout-when-not-collapsed:not(.collapsed) {
   opacity: 0 !important;
-}
-
-table.table {
-  width: unset;
-}
-
-.table > :not(caption) > * > * {
-  background-color: unset;
-}
-
-table.table.table-sm td {
-  padding: 0.1em;
-}
-
-.modal-footer button {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.8em;
 }
 
 .do-not-collapse-self {
