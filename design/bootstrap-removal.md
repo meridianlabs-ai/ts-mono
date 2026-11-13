@@ -4,11 +4,12 @@ Status: PRs 1–5 are done; PR 6 and the optional PR 7 remain. Measurements
 in the analysis sections are from `main` at `b4b6753f` (2026-11-12), before
 PR 1.
 
-Both apps import all of `bootstrap@5.3.8` CSS: `apps/inspect/src/app/App.tsx`
-imports `bootstrap.css`, and `apps/scout/src/App.tsx` and the scout dataframe
-e2e fixture import `bootstrap.min.css`. We use no Bootstrap JavaScript:
+Before PR 5 both apps imported all of `bootstrap@5.3.8` CSS:
+`apps/inspect/src/app/App.tsx` imported `bootstrap.css`, and
+`apps/scout/src/App.tsx` and the scout dataframe e2e fixture imported
+`bootstrap.min.css`. We used no Bootstrap JavaScript:
 nothing imports `bootstrap/dist/js` or uses `data-bs-*` behaviour attributes,
-and `@types/bootstrap` is an unused dev dependency. `bootstrap-icons` is a
+and `@types/bootstrap` was an unused dev dependency. `bootstrap-icons` is a
 separate package and out of scope.
 
 ## Recommendation
@@ -185,7 +186,9 @@ Bootstrap doesn't load first. `main.tsx` imports modules that import
 server and a production build, about 250 CSS-module class selectors
 (`AsyncGate`, `PulsingDots`, `AutocompleteInput`, `CopyButton`, `TabSet`,
 ...) come before Bootstrap in `index.css`. Bootstrap wins every
-equal-specificity tie with those modules. As a result:
+equal-specificity tie with those modules. The library build that hawk embeds
+is different: its entry imports `App.tsx` first, so the modules come after
+Bootstrap and win those ties. As a result, in the standalone apps:
 
 - Some selectors double a class to out-specify Bootstrap, such as
   `:global(.btn).toolButton` (16 selectors in 7 files, plus 2
@@ -429,10 +432,13 @@ the gates for PRs 1–3 compare against Bootstrap with the copied part
 deleted. The experiment's `noreboot` variant is the model for PR 2.
 
 The PR 5 diffs came from cascade order: rules that lost to Bootstrap started
-to apply. At rest only TabSet's `.pillSmall` padding changed the rendering,
-and PR 5 deleted it. The others are hover, focus and active styles where a
-module rule now beats `.btn:hover`, `.btn:active` or `.nav-link:hover`. PR 5
-lists them and keeps them.
+to apply. At rest only TabSet's `.pillSmall` padding and NavPills' `.pill`
+padding and font size would have changed the standalone rendering, and PR 5
+deleted them. In the library build those two had applied, so hawk's small
+tabs and pills grow to the standalone size. The others are hover, focus,
+active and disabled styles where a module rule now beats `.btn:hover`,
+`.btn:active`, `.nav-link:hover` or `.form-control:disabled`. PR 5 lists them
+and keeps them.
 
 ### Verification
 

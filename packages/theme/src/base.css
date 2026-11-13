@@ -1,6 +1,5 @@
 :root {
   --bs-border-radius: 3px;
-  --bs-border-radius-lg: 4px;
   --bs-code-color: #8b0000;
   /* Secondary/italic guidance text (e.g. "optional" next to the Reason
      label in the edit dialogs). Bootstrap's --bs-secondary-color is

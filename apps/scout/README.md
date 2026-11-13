@@ -70,5 +70,5 @@ committed.
 ## Tech stack
 
 React 19, TypeScript, Vite, react-router, zustand, TanStack
-(Query/Table/Virtual), Bootstrap 5, vitest + MSW, Playwright. AG Grid remains
+(Query/Table/Virtual), vitest + MSW, Playwright. AG Grid remains
 in the dataframe view only — new tables use TanStack Table.

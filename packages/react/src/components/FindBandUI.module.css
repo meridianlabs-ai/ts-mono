@@ -42,9 +42,6 @@
   color: var(--bs-danger, #dc3545);
 }
 
-/* `.btn` stays global (bootstrap); keep it in the compound selector so
-   specificity still beats bootstrap's `.btn:hover` etc. regardless of
-   stylesheet order. */
 .findBand .next:global(.btn),
 .findBand .prev:global(.btn) {
   padding: 0;
