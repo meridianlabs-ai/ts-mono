@@ -41,6 +41,8 @@ import { EventNode } from "./types";
 // focus-URL builder directly.
 let capturedEventCallbacks: EventPanelCallbacks | undefined;
 const scrolledIndices: number[] = [];
+// Replaces the stub list's scroll for a test that needs to hold it open.
+let listScrollToIndex: VirtualListHandle["scrollToIndex"] | undefined;
 
 // Stub the virtual list at its imperative boundary: the behaviors under test
 // (current-turn stamping, goToTurn wiring) live entirely in
@@ -57,9 +59,10 @@ vi.mock("./TranscriptVirtualList", () => ({
     eventCallbacks?: EventPanelCallbacks;
   }) => {
     listHandle.current = {
-      scrollToIndex: ({ index, onDone }) => {
-        scrolledIndices.push(index);
-        onDone?.();
+      scrollToIndex: (options) => {
+        scrolledIndices.push(options.index);
+        if (listScrollToIndex) return listScrollToIndex(options);
+        options.onDone?.();
         return () => {};
       },
       scrollTo: () => {},
@@ -87,6 +90,7 @@ const StateWrapper = ({ children }: { children: ReactNode }) => (
 afterEach(() => {
   cleanup();
   scrolledIndices.length = 0;
+  listScrollToIndex = undefined;
 });
 
 beforeEach(() => {
@@ -775,5 +779,144 @@ describe("TranscriptViewNodes navigation to hidden events", () => {
     ]);
     expect(scrollTargets("m-inner")).toEqual(["t-agent"]);
     expect(scrollTargets("s-monitor")).toEqual(["t-agent"]);
+  });
+});
+
+describe("TranscriptViewNodes scrollToEvent settling", () => {
+  // m3 sits inside agent span s1, collapsed unless `expands` lets the
+  // expansion through.
+  const renderNodes = (expands: boolean) => {
+    const eventNodes = [
+      model("m1"),
+      model("m2"),
+      agentSpan("s1", [model("m3", 1)]),
+      model("m4"),
+    ];
+    const scrollRef = createRef<HTMLDivElement>();
+    const handleRef = createRef<TranscriptViewNodesHandle>();
+    const Harness = () => {
+      const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+        s1: true,
+      });
+      const onExpandNodes = (ids: string[]) => {
+        if (!expands) return;
+        setCollapsed((prev) => {
+          const next = { ...prev };
+          for (const id of ids) next[id] = false;
+          return next;
+        });
+      };
+      return (
+        <div ref={scrollRef}>
+          <TranscriptViewNodes
+            id="test"
+            ref={handleRef}
+            eventNodes={eventNodes}
+            defaultCollapsedIds={{}}
+            scrollRef={scrollRef}
+            initialEventId={null}
+            collapsedTranscript={collapsed}
+            onExpandNodes={onExpandNodes}
+          />
+        </div>
+      );
+    };
+    render(<Harness />, { wrapper: StateWrapper });
+    return handleRef.current!;
+  };
+
+  const callbacks = () => ({ onDone: vi.fn(), onAbandon: vi.fn() });
+
+  // The expansion retry runs on rAF, stubbed onto setTimeout.
+  const flushFrames = () =>
+    act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+  // A list scroll that stays in flight until cancelled, which abandons it.
+  const holdListScroll = () => {
+    const cancel = vi.fn();
+    listScrollToIndex = ({ onAbandon }) => {
+      return () => {
+        cancel();
+        onAbandon?.();
+      };
+    };
+    return cancel;
+  };
+
+  it("abandons a collapsed-event scroll cancelled before its retry runs", async () => {
+    const handle = renderNodes(true);
+    const cb = callbacks();
+
+    let cancel = () => {};
+    act(() => {
+      cancel = handle.scrollToEvent("m3", cb);
+    });
+    cancel();
+    await flushFrames();
+
+    expect(cb.onAbandon).toHaveBeenCalledOnce();
+    expect(cb.onDone).not.toHaveBeenCalled();
+    expect(scrolledIndices).toEqual([]);
+  });
+
+  it("reports done when the collapsed event never appears", async () => {
+    const handle = renderNodes(false);
+    const cb = callbacks();
+
+    act(() => {
+      handle.scrollToEvent("m3", cb);
+    });
+    await flushFrames();
+
+    expect(cb.onDone).toHaveBeenCalledOnce();
+    expect(cb.onAbandon).not.toHaveBeenCalled();
+  });
+
+  it("reports done after a direct DOM scroll to an event outside the list", () => {
+    const handle = renderNodes(true);
+    const cb = callbacks();
+
+    act(() => {
+      handle.scrollToEvent("not-an-event", cb);
+    });
+
+    expect(cb.onDone).toHaveBeenCalledOnce();
+    expect(cb.onAbandon).not.toHaveBeenCalled();
+  });
+
+  it("passes cancel through to the list's scroll", () => {
+    const listCancel = holdListScroll();
+    const handle = renderNodes(true);
+    const cb = callbacks();
+
+    let cancel = () => {};
+    act(() => {
+      cancel = handle.scrollToEvent("m2", cb);
+    });
+    cancel();
+
+    expect(listCancel).toHaveBeenCalledOnce();
+    expect(cb.onAbandon).toHaveBeenCalledOnce();
+    expect(cb.onDone).not.toHaveBeenCalled();
+  });
+
+  it("passes cancel through to the list's scroll after the retry starts it", async () => {
+    const listCancel = holdListScroll();
+    const handle = renderNodes(true);
+    const cb = callbacks();
+
+    let cancel = () => {};
+    act(() => {
+      cancel = handle.scrollToEvent("m3", cb);
+    });
+    await flushFrames();
+    expect(scrolledIndices).not.toEqual([]);
+    cancel();
+
+    expect(listCancel).toHaveBeenCalledOnce();
+    expect(cb.onAbandon).toHaveBeenCalledOnce();
+    expect(cb.onDone).not.toHaveBeenCalled();
   });
 });
