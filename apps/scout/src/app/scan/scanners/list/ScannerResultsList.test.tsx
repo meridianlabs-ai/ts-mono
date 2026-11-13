@@ -50,21 +50,31 @@ const AppConfigGate = ({ children }: PropsWithChildren) => {
   return data ? <>{children}</> : null;
 };
 
-const result = (uuid: string, explanation: string, label: string) => ({
+const result = (
+  uuid: string,
+  fields: Record<string, string | number | null>
+) => ({
   uuid,
   value: "true",
   value_type: "boolean",
   input_type: "transcript",
-  explanation,
-  label,
+  explanation: null,
+  label: null,
+  scan_error: null,
+  validation_result: null,
+  validation_target: null,
   transcript_source_id: `hidden-source-${uuid}`,
   transcript_metadata: "{}",
   transcript_task_set: "popularity",
   transcript_task_id: 7,
   transcript_model: "mockllm/model",
+  ...fields,
 });
 
-it("counts Find matches in the text each result row shows", async () => {
+const renderResults = async (
+  rows: ReturnType<typeof result>[],
+  firstText: string
+) => {
   server.use(
     http.get("/api/v2/app-config", () =>
       HttpResponse.json<AppConfig>(createAppConfig())
@@ -83,10 +93,7 @@ it("counts Find matches in the text each result row shows", async () => {
                 <ScannerResultsList
                   id="results"
                   selectedScan={createStatus()}
-                  columnTable={from([
-                    result("a", "The model refused twice.", "refusal"),
-                    result("b", "No refusal here.", "compliance"),
-                  ])}
+                  columnTable={from(rows)}
                 />
               </MemoryRouter>
             </ExtendedFindProvider>
@@ -95,17 +102,70 @@ it("counts Find matches in the text each result row shows", async () => {
       </AppConfigGate>
     </Wrapper>
   );
-  expect(await screen.findByText("No refusal here.")).toBeTruthy();
+  expect(await screen.findByText(firstText)).toBeTruthy();
   const source = sources?.().get("results");
   if (!source) throw new Error("expected the results to register for Find");
+  return source;
+};
+
+const expectRenderedCounts = (source: FindSource, terms: string[]) => {
+  for (const term of terms) {
+    const counts = source.countByItem(term);
+    expect(counts.length).toBeGreaterThan(0);
+    expect(counts).toEqual(domCountByItem(source, document.body, term));
+  }
+};
+
+it("counts Find matches in the text each result row shows", async () => {
+  const source = await renderResults(
+    [
+      result("a", {
+        explanation: "The model refused twice.",
+        label: "refusal",
+      }),
+      result("b", { explanation: "No refusal here.", label: "compliance" }),
+    ],
+    "No refusal here."
+  );
 
   // Field names and values the rows never show.
   expect(source.countByItem("transcriptSourceId")).toEqual([]);
   expect(source.countByItem("hidden-source")).toEqual([]);
 
-  for (const term of ["refus", "popularity/7", "mockllm", "true"]) {
-    const counts = source.countByItem(term);
-    expect(counts.length).toBeGreaterThan(0);
-    expect(counts).toEqual(domCountByItem(source, document.body, term));
-  }
+  expectRenderedCounts(source, ["refus", "popularity/7", "mockllm", "true"]);
+});
+
+it("counts table values, validation targets and errors as they render", async () => {
+  const source = await renderResults(
+    [
+      result("obj", {
+        explanation: "Object value.",
+        value: JSON.stringify({ verdict: "pass", tokens: 3, extra: [1, 2] }),
+        value_type: "object",
+        validation_result: "true",
+        validation_target: JSON.stringify("pass-target"),
+      }),
+      result("arr", {
+        explanation: "Array value.",
+        value: JSON.stringify(["alpha", "beta"]),
+        value_type: "array",
+      }),
+      result("err", {
+        explanation: "Errored.",
+        scan_error: "upstream timeout",
+      }),
+    ],
+    "Errored."
+  );
+
+  expect(source.countByItem("validationTarget")).toEqual([]);
+  expectRenderedCounts(source, [
+    "verdict",
+    "pass",
+    "tokens",
+    "[1]",
+    "alpha",
+    "timeout",
+    "—",
+  ]);
 });

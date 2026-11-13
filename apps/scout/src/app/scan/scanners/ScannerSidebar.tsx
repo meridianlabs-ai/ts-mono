@@ -130,8 +130,7 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
   );
 };
 
-/** The text a scanner row renders, one string per block, so Find can count
- *  matches in rows that aren't mounted. */
+// One string per rendered block: Find never matches across blocks.
 const entrySearchText = (entry: ScanResultsOutlineEntry): string[] => {
   const texts = [entry.title];
   if (entry.params && entry.params.length > 0) {

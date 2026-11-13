@@ -69,7 +69,9 @@ position leaks between samples.
 ## Find integration
 
 Lists register a `FindSource` with `ExtendedFindContext` under their
-`persistenceKey` (`findScope: "none"` opts out). The find band highlights
+`persistenceKey`. Every list passes `itemSearchText`: an accessor returning
+each item's text as its row renders it, one string per block, or `null` to
+stay out of Find. The find band highlights
 matches in rendered rows itself, with the CSS Custom Highlight API. The
 source counts matches per item from the in-memory data for rows that aren't
 rendered, maps a DOM node to its item, and reveals an item through

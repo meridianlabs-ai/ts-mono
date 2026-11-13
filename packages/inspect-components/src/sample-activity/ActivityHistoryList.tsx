@@ -241,8 +241,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   );
 };
 
-/** The text a history row renders, one string per block, so Find can count
- *  matches in rows that aren't mounted. */
+// One string per rendered block: Find never matches across blocks.
 const activityRowSearchText = (
   row: ActivityHistoryRow,
   canOpenEvent: boolean
