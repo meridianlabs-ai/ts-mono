@@ -42,14 +42,14 @@
   color: var(--bs-danger, #dc3545);
 }
 
-.findBand .next:global(.btn),
-.findBand .prev:global(.btn) {
+.findBand .next,
+.findBand .prev {
   padding: 0;
   border: none;
   background: none;
 }
 
-.findBand .close:global(.btn) {
+.findBand .close {
   padding: 0;
   border: none;
   background: none;
