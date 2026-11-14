@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeFindText } from "../../components/findText";
 import { countMatchesByItem } from "../VirtualList";
 
 describe("countMatchesByItem", () => {
@@ -23,7 +24,7 @@ describe("countMatchesByItem", () => {
   });
 
   it("counts a quoted term in JSON-escaped data, once per occurrence", () => {
-    const args = JSON.stringify({ cmd: 'print("hi")' }).toLowerCase();
+    const args = normalizeFindText(JSON.stringify({ cmd: 'print("hi")' }));
     expect(
       countMatchesByItem([[args], ['print("hi")']], 'print("hi")')
     ).toEqual([
@@ -33,7 +34,9 @@ describe("countMatchesByItem", () => {
   });
 
   it("counts a term with a backslash in JSON-escaped data", () => {
-    const args = JSON.stringify({ path: String.raw`C:\temp` }).toLowerCase();
+    const args = normalizeFindText(
+      JSON.stringify({ path: String.raw`C:\temp` })
+    );
     expect(countMatchesByItem([[args]], String.raw`C:\temp`)).toEqual([
       { item: 0, count: 1 },
     ]);

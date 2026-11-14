@@ -20,7 +20,7 @@ export * from "./Modal";
 export * from "./NoContentsPanel";
 export * from "./NonIdealState";
 export * from "./PopOver";
-export * from "./prepareSearchTerm";
+export * from "./findText";
 export * from "./Preformatted";
 export * from "./ProgressBar";
 export * from "./PulsingDots";

@@ -89,7 +89,9 @@ const longContent = (
     {Array.from({ length: 50 }).map((_, i) => (
       <p key={i}>Line {i}: lorem ipsum dolor sit amet</p>
     ))}
-    <p data-testid="needle-paragraph">{"contains the wondering\n    needle"}</p>
+    <p data-testid="needle-paragraph">
+      {"contains the wondering  \t needle\nand more"}
+    </p>
   </div>
 );
 
@@ -119,9 +121,14 @@ describe("ExpandablePanel auto-expand on find target", () => {
       expectTruncated: false,
     },
     {
-      name: "target matching text across a line break → expanded",
+      name: "target matching text across a run of spaces → expanded",
       target: { term: "wondering needle" },
       expectTruncated: false,
+    },
+    {
+      name: "target spanning a line break, which find can't match → truncated",
+      target: { term: "needle and" },
+      expectTruncated: true,
     },
     {
       name: "non-matching target → truncated",
