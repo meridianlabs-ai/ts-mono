@@ -5,20 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  js-yaml: ^4.3.2
-  esbuild: ^0.28.2
-  nanoid@3: ^3.3.18
-  dompurify: ^3.4.16
-  '@babel/core': ^7.29.6
-  undici: ^8.12.2
-  zod: ^4.6.6
-  seroval: ~1.6.11
-  seroval-plugins: ~1.6.11
-  source-map-js: ^1.2.2
-  postcss-selector-parser: ^7.1.6
   minimatch@3: ^5.1.9
-  brace-expansion@2: ^2.1.7
-  brace-expansion@5: ^5.0.12
   glob@13: ^14.0.2
 
 patchedDependencies:
@@ -573,8 +560,8 @@ importers:
         specifier: ^0.0.9
         version: 0.0.9
       asciinema-player:
-        specifier: ^3.17.0
-        version: 3.17.0
+        specifier: ^3.18.0
+        version: 3.18.0
       bootstrap-icons:
         specifier: ^1.13.2
         version: 1.13.2
@@ -582,7 +569,7 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       dompurify:
-        specifier: ^3.4.16
+        specifier: ^3.4.17
         version: 3.4.17
       lodash-es:
         specifier: ^4.18.1
@@ -987,7 +974,7 @@ packages:
     resolution: {integrity: sha512-UPUVSyXbOh627KiCIGQSgwWzGeBKLkaJ9PJEdrngIwMSzxLR4jS4+f1f1jb7VzBbg8nFLaYotvVPFCTqdrmTAg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.29.6
+      '@babel/core': ^7.0.0
 
   '@babel/helper-string-parser@7.29.11':
     resolution: {integrity: sha512-snZbO7MEDOof+hvNa97EjEY7qD7h2kwvQr5AJC3ZhQudKW5dnej6k3kP9NQV88hJwaS8vDqRLFo9rivLEhle2g==}
@@ -1852,8 +1839,8 @@ packages:
   '@redocly/config@0.22.0':
     resolution: {integrity: sha512-gAy93Ddo01Z3bHuVdPWfCwzgfaYgMdaZPcfL7JZ7hWJoK9V0lXDbigTWkhiPFAaLWzbOJ+kbUQG1+XwIm0KRGQ==}
 
-  '@redocly/openapi-core@1.34.19':
-    resolution: {integrity: sha512-o/0VgsBXgwcY1lyeqcVtSGdTQAPnVggo0fbFVPlxl5XVDKUcVH0OLRqt3CbkwByT5FU305E0iE0O7MzThjDblw==}
+  '@redocly/openapi-core@1.34.24':
+    resolution: {integrity: sha512-jDFMu4zirFVOF9nEWCT31s7OzzVhkxZkb4lO3yZhkdPXAOspLo10ED9thVgm6gtI0dJBTLa+mNP0IYeZpVSYGA==}
     engines: {node: '>=18.17.0', npm: '>=9.5.0'}
 
   '@remix-run/route-pattern@0.22.1':
@@ -2959,8 +2946,8 @@ packages:
     resolution: {integrity: sha512-BNoCY6SXXPQ7gF2opIP4GBE+Xw7U+pHMYKuzjgCN3GwiaIR09UUeKfheyIry77QtrCBlC0KK0q5/TER/tYh3PQ==}
     engines: {node: '>= 0.4'}
 
-  asciinema-player@3.17.0:
-    resolution: {integrity: sha512-JbjNJmA2TLIeYNaOEja+kVSzXadKoqpIzVVmfBGNj2DmdtE/vExBCnkE8NYEcpaQcDvUYg8Ltt0urT80frACmw==}
+  asciinema-player@3.18.0:
+    resolution: {integrity: sha512-5gpt2ipFcy4NKmgkv+c/QXnJ9zMicxqWROCOuJqgwwtiYKM8Qe9hnDOvfqke5bW6M2DW/seO3uQYkQ0xeUUVtw==}
 
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
@@ -4436,7 +4423,7 @@ packages:
     resolution: {integrity: sha512-+reiwp/lYxiyctSrdvX7OQ1YLrcbWYgBiZrhSFL+V43b0/DGRLNVSDyZINbQe+tWplPOI2fw2dPrdv6hcc09kQ==}
     engines: {node: '>=10'}
     peerDependencies:
-      seroval: ~1.6.11
+      seroval: ^1.0
 
   seroval@1.6.12:
     resolution: {integrity: sha512-CqbIVfk/7GL3ITwZI55lcPbpQbjHZ2DD5cUj4iH7E9YsCfHNJV1mx7yNp86Z84w5IpmkZZS/2s5vPOWmVWSdQg==}
@@ -4490,9 +4477,6 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
-
-  solid-js@1.9.14:
-    resolution: {integrity: sha512-sAEXC0Kk0S1EDg+8ysEWJDbYhA3RRoEjwuySUGlKIemeo0I5YZfOyumNjNs9Sv3y2nmhD+0rW66ag2HsMuQiGQ==}
 
   solid-js@1.9.18:
     resolution: {integrity: sha512-CHGO5YFk6Y9m/1YSxVtKnXfrW7JD3Tmof8HmR4z6TmCPsS8efo8LnzIR8CQh3cUvffqYm6DWyBFfk8dQw1CNQQ==}
@@ -4748,7 +4732,7 @@ packages:
       '@microsoft/api-extractor': '>=7'
       '@rspack/core': ^1
       '@vue/language-core': ^3.1.5
-      esbuild: ^0.28.2
+      esbuild: '*'
       rolldown: '*'
       rollup: '>=3'
       typescript: '>=4'
@@ -4827,7 +4811,7 @@ packages:
     peerDependencies:
       '@types/node': ^20.19.0 || >=22.12.0
       '@vitejs/devtools': ^0.7.1 || ^0.8.0
-      esbuild: ^0.28.2
+      esbuild: ^0.27.0 || ^0.28.0
       jiti: '>=1.21.0'
       less: ^4.0.0
       sass: ^1.70.0
@@ -5028,7 +5012,7 @@ packages:
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      zod: ^4.6.6
+      zod: ^3.25.0 || ^4.0.0
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
@@ -5884,7 +5868,7 @@ snapshots:
 
   '@redocly/config@0.22.0': {}
 
-  '@redocly/openapi-core@1.34.19(supports-color@10.2.2)':
+  '@redocly/openapi-core@1.34.24(supports-color@10.2.2)':
     dependencies:
       '@redocly/ajv': 8.11.2
       '@redocly/config': 0.22.0
@@ -6030,11 +6014,6 @@ snapshots:
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.18)
       solid-js: 1.9.18
 
-  '@solid-primitives/refs@1.1.4(solid-js@1.9.14)':
-    dependencies:
-      '@solid-primitives/utils': 6.4.1(solid-js@1.9.14)
-      solid-js: 1.9.14
-
   '@solid-primitives/refs@1.1.4(solid-js@1.9.18)':
     dependencies:
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.18)
@@ -6063,10 +6042,6 @@ snapshots:
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.18)
       solid-js: 1.9.18
 
-  '@solid-primitives/transition-group@1.1.2(solid-js@1.9.14)':
-    dependencies:
-      solid-js: 1.9.14
-
   '@solid-primitives/transition-group@1.1.2(solid-js@1.9.18)':
     dependencies:
       solid-js: 1.9.18
@@ -6075,10 +6050,6 @@ snapshots:
     dependencies:
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.18)
       solid-js: 1.9.18
-
-  '@solid-primitives/utils@6.4.1(solid-js@1.9.14)':
-    dependencies:
-      solid-js: 1.9.14
 
   '@solid-primitives/utils@6.4.1(solid-js@1.9.18)':
     dependencies:
@@ -6900,11 +6871,9 @@ snapshots:
       get-intrinsic: 1.3.0
       is-array-buffer: 3.0.5
 
-  asciinema-player@3.17.0:
+  asciinema-player@3.18.0:
     dependencies:
-      '@babel/runtime': 7.29.7
-      solid-js: 1.9.14
-      solid-transition-group: 0.2.3(solid-js@1.9.14)
+      solid-js: 1.9.18
 
   assertion-error@2.0.1: {}
 
@@ -8191,7 +8160,7 @@ snapshots:
 
   openapi-typescript@7.13.0(@typescript/typescript6@6.0.2):
     dependencies:
-      '@redocly/openapi-core': 1.34.19(supports-color@10.2.2)
+      '@redocly/openapi-core': 1.34.24(supports-color@10.2.2)
       ansi-colors: 4.1.3
       change-case: 5.4.4
       parse-json: 8.3.0
@@ -8629,12 +8598,6 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  solid-js@1.9.14:
-    dependencies:
-      csstype: 3.2.3
-      seroval: 1.6.12
-      seroval-plugins: 1.6.12(seroval@1.6.12)
-
   solid-js@1.9.18:
     dependencies:
       csstype: 3.2.3
@@ -8650,12 +8613,6 @@ snapshots:
     dependencies:
       '@corvu/utils': 0.4.2(solid-js@1.9.18)
       solid-js: 1.9.18
-
-  solid-transition-group@0.2.3(solid-js@1.9.14):
-    dependencies:
-      '@solid-primitives/refs': 1.1.4(solid-js@1.9.14)
-      '@solid-primitives/transition-group': 1.1.2(solid-js@1.9.14)
-      solid-js: 1.9.14
 
   solid-transition-group@0.2.3(solid-js@1.9.18):
     dependencies:
