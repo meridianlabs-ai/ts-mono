@@ -1,13 +1,10 @@
-:global(.btn).toolButton {
-  background-color: var(--bs-light-border-subtle);
-}
-
-:global(.btn).toolButton.bodyColor {
-  background-color: var(--bs-light);
-}
-
 .toolButton {
+  background-color: var(--bs-light-border-subtle);
   white-space: nowrap;
+}
+
+.toolButton.bodyColor {
+  background-color: var(--bs-light);
 }
 
 .toolButton i {

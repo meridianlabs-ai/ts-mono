@@ -624,7 +624,7 @@ body {
 }
 
 .nav-link.active {
-  border-bottom-width: 0 !important;
+  border-bottom-width: 0;
 }
 
 .workspace {
