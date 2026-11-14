@@ -452,18 +452,18 @@ active and disabled styles where a module rule now beats `.btn:hover`,
 `.btn:active`, `.nav-link:hover` or `.form-control:disabled`. PR 5 lists them
 and keeps them.
 
-PR 6 removed the 15 `:global(.btn)` and 2 `:global(.nav)` doublings. It
-also removed the `!important` from four rules whose only competitor was a
+PR 6 removed the 15 `:global(.btn)` and 2 `:global(.nav)` doublings. It also
+removed the `!important` from four rules whose only competitor was a
 Bootstrap rule they tied on specificity: scout's footer spinner
-(`.spinner-border`), scout's scan tabs (`.nav`, `.nav-link`) and
-`base.css` `.nav-link.active` (`.nav-tabs .nav-link`). Load order already
-decided those ties in their favour on the screens measured with Bootstrap
-loaded. The other `!important`s beat our own rules (`.text-size-*`, the
-prism overrides, TabSet's `.tabTools .btn`) or nothing, and stay. Dropping the doubling would also have revived
-two background colours that lost to `.btn.toolButton` (SelectScorer's
-button and the ANSI raw-output toggle), so PR 6 deleted them, and
-SelectTool's `.splitClear` became `.group .splitClear` to keep its tie with
-`.tabTools .btn`.
+(`.spinner-border`), scout's scan tabs (`.nav`, `.nav-link`) and `base.css`
+`.nav-link.active` (`.nav-tabs .nav-link`). Load order already decided those
+ties in their favour on the screens measured with Bootstrap loaded. The
+other `!important`s beat our own rules (`.text-size-*`, the prism overrides,
+TabSet's `.tabTools .btn`), size VS Code web components or beat nothing, and
+stay. Dropping the doubling would also have revived two background colours
+that lost to `.btn.toolButton` (SelectScorer's button and the ANSI
+raw-output toggle), so PR 6 deleted them, and SelectTool's `.splitClear`
+became `.group .splitClear` to keep its tie with `.tabTools .btn`.
 
 ### Verification
 

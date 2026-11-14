@@ -9,8 +9,9 @@
 }
 
 /* Icon-only segment: flex-centre the glyph and stretch to the text segment's
-   height so the two segments read as one split button. `.group` keeps its
-   padding ahead of `.tabTools .btn` (TabSet) and `.tab-tools .btn` (inspect). */
+   height so the two segments read as one split button. `.group` matches the
+   specificity of `.tabTools .btn` (TabSet) and `.tab-tools .btn` (inspect),
+   so this padding still wins their tie on load order. */
 .group .splitClear {
   display: inline-flex;
   align-items: center;

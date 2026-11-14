@@ -73,7 +73,7 @@
   color: var(--bs-body-color);
 }
 
-.sortButton i {
+.sortWrapper .sortButton i {
   margin-right: 0;
 }
 
