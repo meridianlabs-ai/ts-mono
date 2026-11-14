@@ -52,6 +52,7 @@ describe("VirtualList live-finish scroll-to-top", () => {
       scrollRef,
       data: ["a", "b", "c"],
       renderRow: (_index: number, item: string) => <div>{item}</div>,
+      itemSearchText: null,
       scrollToTopOnFinish: true,
     };
     const hooks = makeHooks();
@@ -189,6 +190,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
             scrollRef={scrollRef}
             data={["a", "b", "c"]}
             renderRow={(_i, item) => <div>{item}</div>}
+            itemSearchText={null}
             {...props}
           />
         </div>
@@ -263,6 +265,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
       scrollRef,
       data: ["a", "b", "c"],
       renderRow: (_i: number, item: string) => <div>{item}</div>,
+      itemSearchText: null,
     };
     const view = render(
       <Wrapper hooks={hooks}>
@@ -339,6 +342,7 @@ describe("VirtualList persist flush on unmount", () => {
             scrollRef={scrollRef}
             data={["a", "b", "c"]}
             renderRow={(_index: number, item: string) => <div>{item}</div>}
+            itemSearchText={null}
             live={false}
           />
         </div>
@@ -420,6 +424,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
           scrollRef={scrollRef}
           data={["a", "b", "c"]}
           renderRow={(_index: number, item: string) => <div>{item}</div>}
+          itemSearchText={null}
           live={false}
           embedded={true}
           {...props}
@@ -518,6 +523,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
           id="own-scroller"
           data={data}
           renderRow={(_index: number, item: string) => <div>{item}</div>}
+          itemSearchText={null}
           live={false}
           embedded={true}
         />
@@ -570,6 +576,7 @@ describe("VirtualList scroll settling", () => {
             scrollRef={scrollRef}
             data={["a", "b", "c"]}
             renderRow={(_index: number, item: string) => <div>{item}</div>}
+            itemSearchText={(item: string) => item}
           />
         </div>
       </Wrapper>

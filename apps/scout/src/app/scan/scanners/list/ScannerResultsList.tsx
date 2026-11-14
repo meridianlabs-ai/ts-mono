@@ -33,7 +33,7 @@ import {
 import { ScannerResultsGroup } from "./ScannerResultsGroup";
 import { ScannerResultsHeader } from "./ScannerResultsHeader";
 import styles from "./ScannerResultsList.module.css";
-import { ScannerResultsRow } from "./ScannerResultsRow";
+import { ScannerResultsRow, scanResultSearchText } from "./ScannerResultsRow";
 
 export interface GridDescriptor {
   gridStyle: Record<string, string>;
@@ -382,6 +382,14 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     [gridDescriptor]
   );
 
+  const itemSearchText = useCallback(
+    (entry: ScanResultSummary | ResultGroup) =>
+      isResultGroup(entry)
+        ? entry.label
+        : scanResultSearchText(entry, gridDescriptor),
+    [gridDescriptor]
+  );
+
   let noContentMessage: string | undefined = undefined;
   if (!isLoading && scannerSummaries.length === 0) {
     noContentMessage = "No scan results are available.";
@@ -414,6 +422,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           ref={listHandle}
           data={rows}
           renderRow={renderRow}
+          itemSearchText={itemSearchText}
           smoothScroll={false}
         />
       )}
