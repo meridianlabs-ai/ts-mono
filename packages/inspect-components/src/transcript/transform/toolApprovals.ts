@@ -20,6 +20,7 @@ import {
   isConversationNode,
   isSentinelSpan,
   kBridgeCheckSpan,
+  runIdOf,
   stopsCall,
   toolFailed,
   treeRecordsExecutionIds,
@@ -98,12 +99,15 @@ const stepNodes = (span: EventNode): SentinelNode[] => {
 };
 
 /**
- * Pairs each approval chain to the ToolEvent whose id is its execution id
- * (`executionIdOf`), in the same sentinel span and conversation
+ * Pairs each approval chain to the ToolEvent its execution id names
+ * (`executionIdOf`, `runIdOf`), in the same sentinel span and conversation
  * (`isConversationNode`): an approver's or monitor's own calls run inside the
  * span that called it, and a delegated or sibling agent's calls in its own
  * conversation, under ids the agent's calls may share. A chain that records
- * its `execution_id` pairs with the one such tool, or none.
+ * its `execution_id` pairs with the one such tool, or none. A bridged call's
+ * handout can run once per bridged tool it denotes, and is approved once per
+ * tool, so among several runs of one handout an approval pairs with the run
+ * of the tool it reviewed.
  *
  * Otherwise its id is the model's, which calls on different turns can share.
  * A chain is the escalations up to the decision that ends them, and is
@@ -127,7 +131,8 @@ function pairToolApprovalsByExecution(
   eventNodes: EventNode[]
 ): ToolApprovalPairing {
   const chains = new Map<string, ApprovalNode[]>();
-  const toolsOf = new Map<string, string[]>();
+  /** By scope and `runIdOf`, the tools an approval's `execution_id` may name. */
+  const toolsOf = new Map<string, EventNode<ToolEvent>[]>();
   const lastTool = new Map<string, EventNode<ToolEvent>>();
   const waiting = new Map<string, ApprovalNode[]>();
   const named: { node: ApprovalNode; key: string }[] = [];
@@ -189,9 +194,10 @@ function pairToolApprovalsByExecution(
           if (chain) chains.set(n.id, chain);
           waiting.set(key, queue.flat());
         }
-        const tools = toolsOf.get(key);
-        if (tools) tools.push(n.id);
-        else toolsOf.set(key, [n.id]);
+        const runKey = `${scope}\u0000${runIdOf(n.event)}`;
+        const tools = toolsOf.get(runKey);
+        if (tools) tools.push(tool);
+        else toolsOf.set(runKey, [tool]);
         lastTool.set(key, tool);
       } else if (
         isSentinelSpan(n) &&
@@ -243,8 +249,12 @@ function pairToolApprovalsByExecution(
     }
   }
   for (const { node, key } of named) {
-    const [only, other] = toolsOf.get(key) ?? [];
-    if (only && !other) append(only, [node]);
+    const runs = toolsOf.get(key) ?? [];
+    const [only, other] =
+      runs.length > 1 && runs[0]?.event.execution_id != null
+        ? runs.filter((run) => run.event.function === node.event.call.function)
+        : runs;
+    if (only && !other) append(only.id, [node]);
     else unpaired.push(node);
   }
   // Whether an output was discarded is known only once a later sibling's
