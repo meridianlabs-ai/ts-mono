@@ -65,9 +65,8 @@
   white-space: nowrap;
 }
 
-/* Dropdown panel - rendered via portal */
 .dropdown {
-  z-index: 10000;
+  width: anchor-size(width);
   background: var(
     --vscode-dropdown-background,
     var(--vscode-input-background, #252526)

@@ -17,6 +17,7 @@ import {
   testSentinelEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
+  testSubtaskEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -2475,7 +2476,11 @@ describe("sentinel decisions", () => {
       proposes(4, "c1", "curl https://example.com", "m-3"),
       sentinelSpan("s3", 5.1),
       check("s3", 5.2, "c1", "", "reject", { factory: "no_network" }),
-      toolFor("c1", 5.3, { ...rejectedByApproval, uuid: "t-3" }),
+      toolFor("c1", 5.3, {
+        ...rejectedByApproval,
+        uuid: "t-3",
+        arguments: { cmd: "curl https://example.com" },
+      }),
     ];
     const data = deriveActivityData({ events });
 
@@ -2505,7 +2510,11 @@ describe("sentinel decisions", () => {
       proposes(0, "c1", "curl https://example.com", "m-1"),
       sentinelSpan("s1", 1.1),
       check("s1", 1.2, "c1", "", "reject", { factory: "no_network" }),
-      toolFor("c1", 1.3, { ...rejectedByApproval, uuid: "t-1" }),
+      toolFor("c1", 1.3, {
+        ...rejectedByApproval,
+        uuid: "t-1",
+        arguments: { cmd: "curl https://example.com" },
+      }),
       proposes(2, "c1", "ls", "m-2"),
       sentinelSpan("s2", 3.1),
       check("s2", 3.2, "c1", "", "proceed"),
@@ -2568,7 +2577,11 @@ describe("sentinel decisions", () => {
       approval(1.15, "approve", "curl https://example.com"),
       sentinelSpan("s1", 1.2),
       check("s1", 1.25, "c1", "", "reject", { factory: "no_network" }),
-      toolFor("c1", 1.3, { ...rejectedByApproval, uuid: "t-2" }),
+      toolFor("c1", 1.3, {
+        ...rejectedByApproval,
+        uuid: "t-2",
+        arguments: { cmd: "curl https://example.com" },
+      }),
     ];
     const data = deriveActivityData({ events });
 
@@ -2589,10 +2602,14 @@ describe("sentinel decisions", () => {
       proposesTwice("curl https://example.com", "cat notes.txt"),
       sentinelSpan("s1", 1.1),
       check("s1", 1.15, "c1", "", "reject", { factory: "no_network" }),
-      toolFor("c1", 1.2, { ...rejectedByApproval, uuid: "t-1" }),
+      toolFor("c1", 1.2, {
+        ...rejectedByApproval,
+        uuid: "t-1",
+        arguments: { cmd: "curl https://example.com" },
+      }),
       sentinelSpan("s2", 1.25),
       check("s2", 1.3, "c1", "", "proceed"),
-      toolFor("c1", 1.35, { uuid: "t-2" }),
+      toolFor("c1", 1.35, { uuid: "t-2", arguments: { cmd: "cat notes.txt" } }),
       sentinelSpan("s3", 1.9),
       check("s3", 2, "c1", "", "terminate", {
         stage: "tool_result",
@@ -2617,7 +2634,7 @@ describe("sentinel decisions", () => {
         uuid: "t-1",
         error: { type: "parsing", message: "Error parsing arguments" },
       }),
-      toolFor("c1", 1.2, { uuid: "t-2" }),
+      toolFor("c1", 1.2, { uuid: "t-2", arguments: { cmd: "cat notes.txt" } }),
       sentinelSpan("s1", 1.9),
       check("s1", 2, "c1", "", "terminate", {
         stage: "tool_result",
@@ -2692,13 +2709,21 @@ describe("sentinel decisions", () => {
         agentBegin,
         proposes(0, "c1", "curl https://example.com", "m-1"),
         spanless("s-1", 1.1, kAgent, "reject"),
-        toolFor("c1", 1.2, { ...rejectedByApproval, uuid: "t-1" }),
+        toolFor("c1", 1.2, {
+          ...rejectedByApproval,
+          uuid: "t-1",
+          arguments: { cmd: "curl https://example.com" },
+        }),
         proposes(2, "c1", "ls", "m-2"),
         spanless("s-2", 3.1, kAgent, "proceed"),
         toolFor("c1", 3.2, { uuid: "t-2" }),
         proposes(4, "c1", "wget https://example.com", "m-3"),
         spanless("s-3", 5.1, kAgent, "reject"),
-        toolFor("c1", 5.2, { ...rejectedByApproval, uuid: "t-3" }),
+        toolFor("c1", 5.2, {
+          ...rejectedByApproval,
+          uuid: "t-3",
+          arguments: { cmd: "wget https://example.com" },
+        }),
       ];
       const data = deriveActivityData({ events });
 
@@ -2850,5 +2875,1127 @@ describe("sentinel decisions", () => {
       ["m-1", kRunStart + 2],
       ["monitor", kRunStart + 1.95],
     ]);
+  });
+
+  describe("an agent bridge's checks", () => {
+    // Inspect records `execution_id` only for a run a bridge handed over
+    // under a new id, so a sample pairs by execution only with one; this
+    // auto-approval of such a run elsewhere pairs with no call and draws
+    // no row.
+    const handedOverElsewhere = testApprovalEvent({
+      uuid: "elsewhere",
+      timestamp: iso(0.01),
+      span_id: kAgent,
+      approver: "auto",
+      decision: "approve",
+      call: testToolCall({ id: "elsewhere", function: "bash" }),
+      execution_id: "elsewhere-run",
+    });
+    const bridgeSpan = (id: string, at: number) =>
+      testSpanBeginEvent({
+        id,
+        name: "sentinel_bridge",
+        type: "sentinel",
+        parent_id: kAgent,
+        timestamp: iso(at),
+      });
+    const hostToolFor = (
+      callId: string,
+      at: number,
+      overrides: Partial<ToolEvent> = {}
+    ): ToolEvent =>
+      toolFor(callId, at, {
+        metadata: {
+          bridge: {
+            server: "host",
+            tool: "bash",
+            function: "mcp__host__bash",
+            proposal_id: callId,
+            grant: "consumed",
+          },
+        },
+        ...overrides,
+      });
+
+    it("keeps a bridge's result check off a native call under the same id, which the native check keeps", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposes(0, "c1", "cat notes.txt"),
+        toolFor("c1", 1.1),
+        bridgeSpan("s1", 1.6),
+        check("s1", 1.7, "c1", "", "reject", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+        sentinelSpan("s2", 1.8),
+        check("s2", 1.9, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "leak_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", undefined, "rejected"],
+        ["Tool result", "bash: cat notes.txt", "terminated"],
+      ]);
+    });
+
+    it("pairs a bridge's call check with the host call it ran, past a native call under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat notes.txt", "cat host.txt"),
+        bridgeSpan("s1", 1.05),
+        ...layers("s1", "c1", "reject", { explanation: "host read" }),
+        toolFor("c1", 1.5, {
+          uuid: "t-1",
+          arguments: { cmd: "cat notes.txt" },
+        }),
+        hostToolFor("c1", 1.6, {
+          uuid: "t-2",
+          arguments: { cmd: "cat host.txt" },
+          ...rejectedByApproval,
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: cat host.txt", "rejected"],
+      ]);
+      expect(data.turns[0]).toMatchObject({ rejected: 1 });
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-1"]);
+    });
+
+    it("pairs a bridge's result check with the host call it ran, past a native call under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat notes.txt", "cat host.txt"),
+        toolFor("c1", 1.1, {
+          uuid: "t-1",
+          arguments: { cmd: "cat notes.txt" },
+        }),
+        hostToolFor("c1", 1.3, {
+          uuid: "t-2",
+          arguments: { cmd: "cat host.txt" },
+        }),
+        bridgeSpan("s1", 1.8),
+        check("s1", 1.9, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "leak_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat host.txt", "terminated"],
+      ]);
+    });
+
+    it("keeps a native call check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        { ...proposes(0, "c1", "cat host.txt"), requested_model: "client" },
+        bridgeSpan("s1", 1.05),
+        check("s1", 1.1, "c1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("c1", 1.3, { uuid: "t-host" }),
+        sentinelSpan("s2", 1.85),
+        check("s2", 1.9, "c1", "", "reject", { factory: "native_check" }),
+        toolFor("c1", 2, {
+          uuid: "t-native",
+          function: "native",
+          arguments: { cmd: "native-cmd" },
+          ...rejectedByApproval,
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "native: native-cmd", "rejected"],
+      ]);
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-host"]);
+    });
+
+    it("keeps a host run under the model's id when a native run under that id follows it", () => {
+      const events: Event[] = [
+        agentBegin,
+        handedOverElsewhere,
+        proposes(0, "c1", "cat a.txt"),
+        hostToolFor("c1", 1.1, {
+          uuid: "t-host",
+          arguments: { cmd: "cat host.txt" },
+        }),
+        toolFor("c1", 1.2, { uuid: "t-native" }),
+        bridgeSpan("s1", 1.5),
+        check("s1", 1.6, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat a.txt", "terminated"],
+      ]);
+    });
+
+    it("keeps a native call check that recorded before any tool off the host call that then ran first, and names it as it ran", () => {
+      const events: Event[] = [
+        agentBegin,
+        handedOverElsewhere,
+        proposesTwice("cat a.txt", "cat b.txt"),
+        sentinelSpan("s1", 1),
+        check("s1", 1.05, "c1", "", "modify", {
+          factory: "native_check",
+          modified: testToolCall({
+            id: "c1",
+            function: "bash",
+            arguments: { cmd: "cat a.safe" },
+          }),
+        }),
+        bridgeSpan("s2", 1.2),
+        check("s2", 1.25, "c1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("c1", 2, {
+          uuid: "t-host",
+          arguments: { cmd: "cat b.txt" },
+        }),
+        toolFor("c1", 2.1, {
+          uuid: "t-native",
+          arguments: { cmd: "cat a.safe" },
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      // Two calls were proposed under the id, so neither run's arguments
+      // say which one the native run was.
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: cat a.safe", "modified"],
+      ]);
+    });
+
+    it("leaves a native call check unpaired, and its call unnamed, when only a host call ran under its id", () => {
+      const events: Event[] = [
+        agentBegin,
+        handedOverElsewhere,
+        proposesTwice("cat a.txt", "cat b.txt"),
+        sentinelSpan("s1", 1),
+        check("s1", 1.05, "c1", "", "reject", { factory: "native_check" }),
+        hostToolFor("c1", 2, {
+          uuid: "t-host",
+          arguments: { cmd: "cat b.txt" },
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      // The check never judged the host call; the host run's arguments do
+      // not say which of the two proposals it was, so the other is unknown.
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", undefined, "rejected"],
+      ]);
+      expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["t-host"]);
+    });
+
+    it("keeps a native result check off a host call the bridge ran earlier under the same id", () => {
+      const events: Event[] = [
+        agentBegin,
+        proposesTwice("cat host.txt", "cat notes.txt"),
+        hostToolFor("c1", 1.1, {
+          uuid: "t-host",
+          arguments: { cmd: "cat host.txt" },
+        }),
+        bridgeSpan("s1", 1.65),
+        check("s1", 1.7, "c1", "", "terminate", {
+          stage: "tool_result",
+          factory: "bridge_check",
+        }),
+        toolFor("c1", 1.8, {
+          uuid: "t-native",
+          arguments: { cmd: "cat notes.txt" },
+        }),
+        sentinelSpan("s2", 2.35),
+        check("s2", 2.4, "c1", "", "reject", {
+          stage: "tool_result",
+          factory: "native_check",
+        }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool result", "bash: cat host.txt", "terminated"],
+        ["Tool result", "bash: cat notes.txt", "rejected"],
+      ]);
+    });
+
+    /** A bridge's rejection of a call its scaffold would run itself, which
+     *  records no ToolEvent. */
+    const ownCallRejected = (proposal: ModelEvent): Event[] => [
+      agentBegin,
+      proposal,
+      bridgeSpan("s1", 1.05),
+      ...layers("s1", "tok1", "reject", { explanation: "uses curl" }),
+    ];
+
+    it("names an unpaired bridge call check from the bridge generation that proposed its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected({
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "claude-sonnet-4-5",
+        }),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+    });
+
+    it("counts an unpaired bridge call rejection on the bridge turn that proposed it, past a reviewer's call", () => {
+      const events: Event[] = [
+        agentBegin,
+        {
+          ...proposes(0, "tok1", "curl https://example.com"),
+          requested_model: "client",
+        },
+        bridgeSpan("s1", 1.1),
+        modelCall({
+          start: 1.2,
+          duration: 0.5,
+          workingStart: 1.2,
+          spanId: "s1",
+          uuid: "reviewer",
+        }),
+        check("s1", 1.8, "tok1", "", "reject", { factory: "bridge_check" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", "bash: curl https://example.com", "rejected"],
+      ]);
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+      ).toEqual([
+        ["m-tok1", 1, kRunStart + 1.8],
+        ["reviewer", 0, kRunStart + 1.7],
+      ]);
+    });
+
+    it("never names an unpaired bridge call check from a native proposal under its id", () => {
+      const data = deriveActivityData({
+        events: ownCallRejected(
+          proposes(0, "tok1", "curl https://example.com")
+        ),
+      });
+
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", undefined, "rejected"],
+      ]);
+    });
+
+    describe("routed into a sub-agent", () => {
+      // A model event sink's `on_start` can run a bridged generation in a
+      // sub-agent's span; the bridge's check then records that conversation
+      // while its span stays under the outer agent.
+      const kSub = "sub";
+      const subBegin = testSpanBeginEvent({
+        id: kSub,
+        name: "explorer",
+        type: "agent",
+        parent_id: kAgent,
+        timestamp: iso(0.5),
+      });
+      const outerTurn = modelCall({
+        start: 0,
+        duration: 0.4,
+        workingStart: 0,
+        spanId: kAgent,
+        uuid: "outer",
+      });
+      const bridgeGeneration = (callId: string, cmd: string): ModelEvent => ({
+        ...proposes(1, callId, cmd, `m-${callId}`, kSub),
+        requested_model: "client",
+      });
+      const turnEnds = (data: ReturnType<typeof deriveActivityData>) =>
+        data.turns.map((turn) => [turn.model?.uuid, turn.end]);
+
+      it("names the host call a sub-agent's bridge check modified and counts it on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "modify", {
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+          hostToolFor("tok1", 2.3, { uuid: "t-host", span_id: kSub }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat secrets.txt", "modified"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.8],
+        ]);
+      });
+
+      it("names a sub-agent's own call its bridge check rejected and counts it on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "curl https://example.com"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "reject", {
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: curl https://example.com", "rejected"],
+        ]);
+        expect(
+          data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end])
+        ).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-tok1", 1, kRunStart + 2.2],
+        ]);
+      });
+
+      it("names the host call a sub-agent's bridge result check terminated", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          hostToolFor("tok1", 2.1, { uuid: "t-host", span_id: kSub }),
+          bridgeSpan("s1", 2.7),
+          check("s1", 2.8, "tok1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", "bash: cat secrets.txt", "terminated"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.8],
+        ]);
+      });
+
+      it("counts a sub-agent's bridge result check with no host call on the sub-agent's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          subBegin,
+          bridgeGeneration("tok1", "cat secrets.txt"),
+          bridgeSpan("s1", 2.1),
+          check("s1", 2.2, "tok1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: kSub,
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", undefined, "terminated"],
+        ]);
+        expect(turnEnds(data)).toEqual([
+          ["outer", kRunStart + 0.4],
+          ["m-tok1", kRunStart + 2.2],
+        ]);
+      });
+
+      it("pairs a bridge check whose recorded conversation is no span by its own span", () => {
+        const events: Event[] = [
+          agentBegin,
+          proposes(0, "c1", "cat host.txt"),
+          hostToolFor("c1", 1.1),
+          bridgeSpan("s1", 1.7),
+          check("s1", 1.8, "c1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            conversation: "sample-uuid",
+          }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool result", "bash: cat host.txt", "terminated"],
+        ]);
+      });
+    });
+
+    describe("a call handed over under a new id", () => {
+      /** The bridge's approval of the call, by the run it names. */
+      const approvalOf = (at: number, cmd: string, execution?: string): Event =>
+        testApprovalEvent({
+          uuid: `a-${execution ?? "c1"}`,
+          timestamp: iso(at),
+          span_id: kAgent,
+          approver: "human",
+          call: testToolCall({
+            id: "c1",
+            function: "bash",
+            arguments: { cmd },
+          }),
+          execution_id: execution,
+        });
+      const handedTool = (id: string, at: number): ToolEvent =>
+        hostToolFor(id, at, {
+          uuid: `t-${id}`,
+          metadata: {
+            bridge: {
+              server: "host",
+              tool: "bash",
+              function: "mcp__host__bash",
+              proposal_id: "c1",
+              grant: "consumed",
+            },
+          },
+        });
+      const resultCheck = (
+        span: string,
+        at: number,
+        action: NonNullable<SentinelEvent["action"]>,
+        execution?: string
+      ): Event[] => [
+        bridgeSpan(span, at),
+        check(span, at + 0.05, "c1", "", action, {
+          stage: "tool_result",
+          factory: "bridge_check",
+          execution_id: execution,
+        }),
+      ];
+      const rows = (events: Event[]) =>
+        deriveActivityData({ events }).rows.map((r) => [
+          r.lead,
+          r.mono,
+          r.tail,
+        ]);
+      const ran = (id: string, at: number, cmd: string): ToolEvent => ({
+        ...handedTool(id, at),
+        arguments: { cmd },
+      });
+      const modify = (
+        span: string,
+        at: number,
+        cmd: string,
+        execution?: string
+      ): Event[] => [
+        bridgeSpan(span, at),
+        check(span, at + 0.05, "c1", "", "modify", {
+          factory: "bridge_check",
+          execution_id: execution,
+          modified: testToolCall({
+            id: "c1",
+            function: "bash",
+            arguments: { cmd },
+          }),
+        }),
+      ];
+
+      it("names the call a run under the token checked from the output that proposed it again", () => {
+        const events: Event[] = [
+          agentBegin,
+          {
+            ...proposes(0, "c1", "cat a.txt", "m1"),
+            requested_model: "client",
+          },
+          handedTool("c1", 1.1),
+          ...resultCheck("s1", 1.6, "proceed"),
+          {
+            ...proposes(2, "c1", "cat b.txt", "m2"),
+            requested_model: "client",
+          },
+          approvalOf(3, "cat b.txt", "tok"),
+          handedTool("tok", 3.1),
+          ...resultCheck("s2", 3.6, "terminate", "tok"),
+        ];
+
+        expect(rows(events)).toEqual([
+          ["Tool result", "bash: cat b.txt", "terminated"],
+        ]);
+      });
+
+      describe("run twice from one output", () => {
+        const output = (): Event => ({
+          ...proposesTwice("cat a.txt", "cat b.txt"),
+          requested_model: "client",
+        });
+        const tools = {
+          model: ran("c1", 1.3, "cat a.txt"),
+          tok: ran("tok", 1.3, "cat b.txt"),
+        };
+        const results = {
+          model: resultCheck("s-model", 1.6, "terminate"),
+          tok: resultCheck("s-tok", 1.6, "reject", "tok"),
+        };
+
+        it.each([
+          ["model's id", "model's id", ["model", "tok"], ["model", "tok"]],
+          ["model's id", "token", ["model", "tok"], ["tok", "model"]],
+          ["token", "model's id", ["tok", "model"], ["model", "tok"]],
+          ["token", "token", ["tok", "model"], ["tok", "model"]],
+        ] as const)(
+          "names each result from its own run when the run under the %s starts first and the one under the %s completes first",
+          (_started, _completed, starts, completions) => {
+            const events: Event[] = [
+              agentBegin,
+              output(),
+              approvalOf(1, "cat a.txt"),
+              approvalOf(1.1, "cat b.txt", "tok"),
+              ...starts.map((run) => tools[run]),
+              ...completions.flatMap((run) => results[run]),
+            ];
+
+            const shown = rows(events);
+            expect(shown).toHaveLength(2);
+            expect(shown).toEqual(
+              expect.arrayContaining([
+                ["Tool result", "bash: cat a.txt", "terminated"],
+                ["Tool result", "bash: cat b.txt", "rejected"],
+              ])
+            );
+          }
+        );
+      });
+
+      it("keeps a run under the token that starts first off the slot an approval of the run under the model's id holds", () => {
+        const events: Event[] = [
+          agentBegin,
+          {
+            ...proposesTwice("cat a.txt", "cat b.txt"),
+            requested_model: "client",
+          },
+          approvalOf(1, "cat a.txt"),
+          { ...handedTool("tok", 1.3), arguments: { cmd: "cat b.txt" } },
+          ...resultCheck("s-tok", 1.6, "terminate", "tok"),
+        ];
+
+        expect(rows(events)).toEqual([
+          ["Tool result", "bash: cat b.txt", "terminated"],
+        ]);
+      });
+
+      describe("two distinct calls proposed under one id, with no approval policy", () => {
+        const output = (): Event => ({
+          ...proposesTwice("cat a.txt", "cat b.txt"),
+          requested_model: "client",
+        });
+
+        it("names the result a check terminated from the run under the token that started first", () => {
+          const events: Event[] = [
+            agentBegin,
+            output(),
+            ran("tok", 1.3, "cat b.txt"),
+            ...resultCheck("s-tok", 1.6, "terminate", "tok"),
+          ];
+
+          expect(rows(events)).toEqual([
+            ["Tool result", "bash: cat b.txt", "terminated"],
+          ]);
+        });
+
+        it("names each result from its own run when the run under the token starts first", () => {
+          const events: Event[] = [
+            agentBegin,
+            output(),
+            ran("tok", 1.3, "cat b.txt"),
+            ran("c1", 1.4, "cat a.txt"),
+            ...resultCheck("s-model", 1.6, "terminate"),
+            ...resultCheck("s-tok", 1.7, "reject", "tok"),
+          ];
+
+          expect(rows(events)).toEqual([
+            ["Tool result", "bash: cat a.txt", "terminated"],
+            ["Tool result", "bash: cat b.txt", "rejected"],
+          ]);
+        });
+
+        it("names each modified call from its own run, not from a proposal its records cannot tell apart", () => {
+          const events: Event[] = [
+            agentBegin,
+            output(),
+            ...modify("s-model", 1.05, "cat a.txt.safe"),
+            ...modify("s-tok", 1.15, "cat b.txt.safe", "tok"),
+            ran("tok", 1.3, "cat b.txt.safe"),
+            ran("c1", 1.4, "cat a.txt.safe"),
+          ];
+
+          expect(rows(events)).toEqual([
+            ["Tool call", "bash: cat a.txt.safe", "modified"],
+            ["Tool call", "bash: cat b.txt.safe", "modified"],
+          ]);
+        });
+      });
+
+      describe("two outputs outstanding together under one id", () => {
+        // As inspect_ai's bridge records them: after a warm-up call under
+        // `c1`, two outputs each propose `c1` before the scaffold runs either,
+        // a check modifies each, and the scaffold hands both back under
+        // their tokens. No approval policy records the original calls.
+        const output = (at: number, cmd: string, uuid: string): Event => ({
+          ...proposes(at, "c1", cmd, uuid),
+          requested_model: "client",
+        });
+        const outputs: Event[] = [
+          agentBegin,
+          output(0, "cat warm.txt", "m-warm"),
+          ...modify("s-warm", 1, "cat warm.safe"),
+          ran("c1", 1.2, "cat warm.safe"),
+          output(2, "cat a.txt", "m-a"),
+          ...modify("s-a", 3, "cat a.safe", "tok-a"),
+          output(4, "cat b.txt", "m-b"),
+        ];
+        const checkB = modify("s-b", 5, "cat b.safe", "tok-b");
+        const runs = {
+          a: ran("tok-a", 6, "cat a.safe"),
+          b: ran("tok-b", 6.1, "cat b.safe"),
+        };
+
+        it.each([
+          ["in reverse order", ["b", "a"]],
+          ["in order", ["a", "b"]],
+        ] as const)(
+          "names each modified call from its own run, not any output's proposal, when they run %s",
+          (_order, order) => {
+            const events = [
+              ...outputs,
+              ...checkB,
+              ...order.map((run) => runs[run]),
+            ];
+
+            expect(rows(events)).toEqual([
+              ["Tool call", "bash: cat warm.safe", "modified"],
+              ["Tool call", "bash: cat a.safe", "modified"],
+              ["Tool call", "bash: cat b.safe", "modified"],
+            ]);
+          }
+        );
+
+        it("names neither run from a proposal when a scaffold drops an undeclared argument from one and a check modifies the other", () => {
+          // The bridge lets a scaffold drop bookkeeping arguments the served
+          // tool does not declare, so A runs with B's proposed arguments.
+          const proposing = (
+            at: number,
+            uuid: string,
+            args: Record<string, string>
+          ): ModelEvent => {
+            const event = proposes(at, "c1", "", uuid);
+            return {
+              ...event,
+              requested_model: "client",
+              output: {
+                ...event.output,
+                choices: [
+                  testChatCompletionChoice({
+                    message: testAssistantMessage({
+                      tool_calls: [
+                        testToolCall({
+                          id: "c1",
+                          function: "mcp__host__bash",
+                          arguments: args,
+                        }),
+                      ],
+                    }),
+                    stop_reason: "tool_calls",
+                  }),
+                ],
+              },
+            };
+          };
+          const events: Event[] = [
+            agentBegin,
+            proposing(0, "m-a", { cmd: "echo a", toolSummary: "A" }),
+            bridgeSpan("s-a", 1),
+            check("s-a", 1.05, "c1", "", "proceed", {
+              factory: "bridge_check",
+            }),
+            proposing(2, "m-b", { cmd: "echo a" }),
+            ...modify("s-b", 3, "safe", "tok-b"),
+            ran("c1", 4, "echo a"),
+            ran("tok-b", 6, "safe"),
+            ...resultCheck("s-result", 7, "terminate", "tok-b"),
+          ];
+          const data = deriveActivityData({ events });
+
+          expect(
+            data.rows.map((r) => [r.lead, r.mono, r.tail, r.uuid])
+          ).toEqual([
+            ["Tool call", "bash: safe", "modified", "s-b:root"],
+            ["Tool result", "bash: safe", "terminated", "s-result:root"],
+          ]);
+          // No record ties B's decisions to an output, so neither counts on
+          // A's turn.
+          expect(
+            data.turns.map((turn) => [turn.model?.uuid, turn.rejected])
+          ).toEqual([
+            ["m-a", 0],
+            ["m-b", 0],
+          ]);
+        });
+
+        it("names only the call whose run's approval records it as proposed", () => {
+          const events = [
+            ...outputs,
+            approvalOf(4.9, "cat b.txt", "tok-b"),
+            ...checkB,
+            runs.b,
+            runs.a,
+          ];
+
+          expect(rows(events)).toEqual([
+            ["Tool call", "bash: cat warm.safe", "modified"],
+            ["Tool call", "bash: cat a.safe", "modified"],
+            ["Tool call", "bash: cat b.txt", "modified"],
+          ]);
+        });
+      });
+
+      it("keeps a monitor's own approved call under the agent's id off the agent's call", () => {
+        const events: Event[] = [
+          agentBegin,
+          handedOverElsewhere,
+          proposes(0, "c1", "cat notes.txt"),
+          testApprovalEvent({
+            uuid: "a-agent",
+            timestamp: iso(1),
+            span_id: kAgent,
+            approver: "human",
+            call: testToolCall({
+              id: "c1",
+              function: "bash",
+              arguments: { cmd: "cat notes.txt" },
+            }),
+          }),
+          sentinelSpan("s1", 1.05),
+          modelCall({
+            start: 1.1,
+            duration: 0.1,
+            workingStart: 1.1,
+            spanId: "s1",
+            role: "monitor",
+          }),
+          testApprovalEvent({
+            uuid: "a-monitor",
+            timestamp: iso(1.25),
+            span_id: "s1",
+            approver: "human",
+            call: testToolCall({ id: "c1", function: "lookup" }),
+          }),
+          toolFor("c1", 1.3, {
+            uuid: "t-monitor",
+            function: "lookup",
+            span_id: "s1",
+          }),
+          check("s1", 1.9, "c1", "", "reject"),
+          toolFor("c1", 2, { uuid: "t-agent", ...rejectedByApproval }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat notes.txt", "rejected"],
+        ]);
+        expect(
+          data.turns.flatMap((turn) => turn.tools.map((tool) => tool.uuid))
+        ).not.toContain("t-agent");
+      });
+    });
+
+    describe("calls of nested and sibling agents that share an id", () => {
+      const call = (id: string, cmd: string, fn = "bash") =>
+        testToolCall({ id, function: fn, arguments: { cmd } });
+      /** A model turn in `span` proposing `calls`: a bridge generation's,
+       *  unless `native`. */
+      const output = (
+        uuid: string,
+        at: number,
+        span: string,
+        calls: ReturnType<typeof call>[],
+        native = false
+      ): ModelEvent => {
+        const event = proposes(at, "unused", "", uuid, span);
+        return {
+          ...event,
+          requested_model: native ? null : "client",
+          output: {
+            ...event.output,
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({ tool_calls: calls }),
+                stop_reason: "tool_calls",
+              }),
+            ],
+          },
+        };
+      };
+      /** A tool that runs the agent `child`, whose events are `events`. */
+      const delegateTo = (
+        child: string,
+        at: number,
+        events: Event[]
+      ): Event[] => [
+        testSpanBeginEvent({
+          id: `${child}-tool`,
+          name: "delegate",
+          type: "tool",
+          parent_id: kAgent,
+          timestamp: iso(at),
+        }),
+        toolFor(`delegate-${child}`, at, {
+          uuid: `t-${child}-delegate`,
+          function: "delegate",
+          span_id: `${child}-tool`,
+        }),
+        testSpanBeginEvent({
+          id: child,
+          name: child,
+          type: "agent",
+          parent_id: `${child}-tool`,
+          timestamp: iso(at),
+        }),
+        ...events,
+      ];
+      /** A check's span in `parent`, as a bridge's or a native one. */
+      const spanIn = (id: string, at: number, parent: string, bridge = true) =>
+        testSpanBeginEvent({
+          id,
+          name: bridge ? "sentinel_bridge" : "sentinel",
+          type: "sentinel",
+          parent_id: parent,
+          timestamp: iso(at),
+        });
+      const rows = (events: Event[]) =>
+        deriveActivityData({ events }).rows.map((r) => [
+          r.lead,
+          r.mono,
+          r.tail,
+        ]);
+
+      it("names a parent's modified run under a token from the parent's proposal when a delegated agent proposed the same id", () => {
+        const events: Event[] = [
+          agentBegin,
+          output("m-first", 0, kAgent, [call("c0", "cat first.txt")]),
+          hostToolFor("c0", 1.1, {
+            uuid: "t-first",
+            arguments: { cmd: "cat first.txt" },
+          }),
+          output("m-second", 2, kAgent, [
+            call("delegate-child", "notes", "delegate"),
+            call("c1", "cat parent.txt"),
+          ]),
+          spanIn("s-parent-call", 3.1, kAgent),
+          check("s-parent-call", 3.15, "c1", "", "modify", {
+            factory: "bridge_check",
+            execution_id: "tok",
+            modified: call("c1", "cat parent.safe"),
+          }),
+          ...delegateTo("child", 3.2, [
+            output("m-child", 3.3, "child", [call("c1", "cat child.txt")]),
+            spanIn("s-child-call", 4.4, "child"),
+            check("s-child-call", 4.45, "c1", "", "reject", {
+              factory: "bridge_check",
+              conversation: "child",
+            }),
+            hostToolFor("c1", 4.5, {
+              uuid: "t-child",
+              span_id: "child",
+              arguments: { cmd: "cat child.txt" },
+              ...rejectedByApproval,
+            }),
+          ]),
+          hostToolFor("tok", 5, {
+            uuid: "t-parent",
+            arguments: { cmd: "cat parent.safe" },
+            metadata: {
+              bridge: {
+                server: "host",
+                tool: "bash",
+                function: "mcp__host__bash",
+                proposal_id: "c1",
+                grant: "consumed",
+              },
+            },
+          }),
+          spanIn("s-parent-result", 5.6, kAgent),
+          check("s-parent-result", 5.65, "c1", "", "terminate", {
+            stage: "tool_result",
+            factory: "bridge_check",
+            execution_id: "tok",
+          }),
+        ];
+
+        expect(rows(events)).toEqual([
+          ["Tool call", "bash: cat parent.txt", "modified"],
+          ["Tool call", "bash: cat child.txt", "rejected"],
+          ["Tool result", "bash: cat parent.txt", "terminated"],
+        ]);
+      });
+
+      it("names each sibling agent's checked call from its own proposal when they run in parallel under a shared id", () => {
+        // Both siblings' calls are recorded interleaved, the second sibling's
+        // first.
+        const nativeCheck = (
+          sibling: string,
+          at: number,
+          action: NonNullable<SentinelEvent["action"]>
+        ): Event[] => [
+          spanIn(`s-${sibling}`, at, sibling, false),
+          check(`s-${sibling}`, at + 0.05, "c1", "", action, {
+            conversation: sibling,
+          }),
+        ];
+        const events: Event[] = [
+          agentBegin,
+          output("m-parent", 0, kAgent, [
+            call("delegate-a", "a", "delegate"),
+            call("delegate-b", "b", "delegate"),
+          ]),
+          ...delegateTo("a", 1.1, []),
+          ...delegateTo("b", 1.1, []),
+          output("m-a", 1.2, "a", [call("c1", "cat a.txt")], true),
+          output("m-b", 1.2, "b", [call("c1", "cat b.txt")], true),
+          ...nativeCheck("b", 2.3, "modify"),
+          ...nativeCheck("a", 2.4, "modify"),
+          toolFor("c1", 2.5, {
+            uuid: "t-b",
+            span_id: "b",
+            arguments: { cmd: "cat b.safe" },
+          }),
+          toolFor("c1", 2.6, {
+            uuid: "t-a",
+            span_id: "a",
+            arguments: { cmd: "cat a.safe" },
+          }),
+        ];
+
+        expect(rows(events)).toEqual([
+          ["Tool call", "bash: cat b.txt", "modified"],
+          ["Tool call", "bash: cat a.txt", "modified"],
+        ]);
+      });
+    });
+
+    describe("under a public subtask", () => {
+      // `@subtask` opens a subtask span but leaves the agent span, which the
+      // bridge's check records as its conversation, unchanged.
+      const kTask = "task";
+      const taskBegin = testSpanBeginEvent({
+        id: kTask,
+        name: "research",
+        type: "subtask",
+        parent_id: kAgent,
+        timestamp: iso(0.5),
+      });
+      const subtaskEvent = testSubtaskEvent({
+        span_id: kTask,
+        timestamp: iso(0.6),
+      });
+      const outerTurn = modelCall({
+        start: 0,
+        duration: 0.4,
+        workingStart: 0,
+        spanId: kAgent,
+        uuid: "outer",
+      });
+      const taskGeneration: ModelEvent = {
+        ...proposes(1, "tok1", "cat blocked.txt", "m-task", kTask),
+        requested_model: "client",
+      };
+      const taskCheck = (action: NonNullable<SentinelEvent["action"]>) => [
+        { ...bridgeSpan("s1", 2.1), parent_id: kTask },
+        check("s1", 2.2, "tok1", "", action, {
+          factory: "bridge_check",
+          conversation: kAgent,
+        }),
+      ];
+      const turnSummary = (data: ReturnType<typeof deriveActivityData>) =>
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected, turn.end]);
+
+      it("names the subtask's rejected call and counts it on the subtask's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          taskBegin,
+          subtaskEvent,
+          taskGeneration,
+          ...taskCheck("reject"),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat blocked.txt", "rejected"],
+        ]);
+        expect(turnSummary(data)).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-task", 1, kRunStart + 2.2],
+        ]);
+      });
+
+      it("names the subtask's host call its check modified and keeps it on the subtask's turn", () => {
+        const events: Event[] = [
+          agentBegin,
+          outerTurn,
+          taskBegin,
+          subtaskEvent,
+          taskGeneration,
+          ...taskCheck("modify"),
+          hostToolFor("tok1", 2.3, { uuid: "t-host", span_id: kTask }),
+        ];
+        const data = deriveActivityData({ events });
+
+        expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+          ["Tool call", "bash: cat blocked.txt", "modified"],
+        ]);
+        expect(turnSummary(data)).toEqual([
+          ["outer", 0, kRunStart + 0.4],
+          ["m-task", 0, kRunStart + 2.8],
+        ]);
+      });
+    });
+
+    it("counts a rejected attempt on that attempt's turn, not the retry's, without naming a call the retry's id also names", () => {
+      // The bridge retries the generation without running the rejected
+      // attempt's calls, and the retry can reuse the id.
+      const retry: ModelEvent = {
+        ...proposes(3, "tok1", "cat allowed.txt", "m-retry"),
+        requested_model: "client",
+      };
+      const events: Event[] = [
+        agentBegin,
+        handedOverElsewhere,
+        {
+          ...proposes(0, "tok1", "cat blocked.txt"),
+          requested_model: "client",
+        },
+        bridgeSpan("s1", 1.1),
+        check("s1", 1.2, "tok1", "", "reject", { factory: "bridge_check" }),
+        retry,
+        bridgeSpan("s2", 4.1),
+        check("s2", 4.2, "tok1", "", "proceed", { factory: "bridge_check" }),
+        hostToolFor("tok1", 4.3, { uuid: "t-host" }),
+      ];
+      const data = deriveActivityData({ events });
+
+      // The retry proposed another call under the id, and the rejected
+      // attempt never ran, so no record of its own names its call.
+      expect(data.rows.map((r) => [r.lead, r.mono, r.tail])).toEqual([
+        ["Tool call", undefined, "rejected"],
+      ]);
+      expect(
+        data.turns.map((turn) => [turn.model?.uuid, turn.rejected])
+      ).toEqual([
+        ["m-tok1", 1],
+        ["m-retry", 0],
+      ]);
+    });
   });
 });

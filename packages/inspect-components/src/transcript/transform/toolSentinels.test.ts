@@ -702,6 +702,78 @@ describe("pairToolSentinels", () => {
     });
   });
 
+  it("in a sample that records execution_id, shows no proposal for a tool whose conversation proposed different calls under its id", () => {
+    const proposal = (id: string, cmd: string) =>
+      new EventNode(
+        id,
+        testModelEvent({
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({
+                  tool_calls: [testToolCall({ id: "dup", arguments: { cmd } })],
+                }),
+              }),
+            ],
+          }),
+        }),
+        0
+      );
+    const result = pairToolSentinels(
+      [
+        proposal("m1", "FIRST"),
+        span("span-1", [sentinel("s1", { step_id: "dup" })]),
+        tool("tool-1", "dup"),
+        proposal("m2", "SECOND"),
+        span("span-2", [sentinel("s2", { step_id: "dup" })]),
+        tool("tool-2", "dup"),
+      ],
+      true
+    );
+    expect(result.toolSentinels.get("tool-1")?.proposed).toBeUndefined();
+    expect(result.toolSentinels.get("tool-2")?.proposed).toBeUndefined();
+  });
+
+  it("in a sample that records execution_id, shows no proposal for calls that share an id in one model output, even one whose arguments match", () => {
+    const output = new EventNode(
+      "m1",
+      testModelEvent({
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                tool_calls: [
+                  testToolCall({ id: "dup", arguments: { cmd: "FIRST" } }),
+                  testToolCall({ id: "dup", arguments: { cmd: "SECOND" } }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      }),
+      0
+    );
+    const ran = (id: string, cmd: string) =>
+      new EventNode(id, testToolEvent({ id: "dup", arguments: { cmd } }), 0);
+    const result = pairToolSentinels(
+      [
+        output,
+        span("span-1", [sentinel("s1", { step_id: "dup" })]),
+        ran("tool-1", "SECOND"),
+        span("span-2", [sentinel("s2", { step_id: "dup" })]),
+        ran("tool-2", "FIRST"),
+        span("span-3", [sentinel("s3", { step_id: "dup" })]),
+        ran("tool-3", "THIRD"),
+      ],
+      true
+    );
+    // A scaffold may rewrite a call's arguments, so equal arguments do not
+    // identify the proposal a run ran.
+    for (const id of ["tool-1", "tool-2", "tool-3"]) {
+      expect(result.toolSentinels.get(id)?.proposed).toBeUndefined();
+    }
+  });
+
   it("leaves a before-call step standalone when no tool with its id follows it", () => {
     const result = pairToolSentinels([
       tool("tool-1", "dup"),
@@ -835,6 +907,111 @@ describe("pairToolSentinels with sentinel spans", () => {
     const result = pairToolSentinels([span, tool("tool-1", "call_1")]);
     expect(result.hiddenSentinelIds.size).toBe(0);
     expect(result.toolSentinels.size).toBe(0);
+  });
+});
+
+describe("pairToolSentinels with an agent bridge's checks", () => {
+  const nativeTool = (id: string) =>
+    new EventNode(
+      id,
+      testToolEvent({ id: "shared", function: "addition", result: "2" }),
+      0
+    );
+  const hostTool = (id: string) =>
+    new EventNode(
+      id,
+      testToolEvent({
+        id: "shared",
+        function: "read_file",
+        result: "contents",
+        metadata: {
+          bridge: {
+            server: "host",
+            tool: "read_file",
+            function: "mcp__host__read_file",
+            proposal_id: "shared",
+            grant: "consumed",
+          },
+        },
+      }),
+      0
+    );
+  const checkSpan = (
+    id: string,
+    name: "sentinel" | "sentinel_bridge",
+    children: EventNode[]
+  ) => {
+    const span = new EventNode(
+      id,
+      testSpanBeginEvent({ id, name, type: "sentinel" }),
+      0
+    );
+    span.children = children;
+    return span;
+  };
+  const resultCheck = (
+    id: string,
+    path: string,
+    action: NonNullable<SentinelEvent["action"]>,
+    explanation: string
+  ) =>
+    sentinel(id, {
+      step_id: "shared",
+      stage: "tool_result",
+      path,
+      factory: path,
+      function: "after",
+      action,
+      explanation,
+    });
+  const orphanChecks = () => [
+    resultCheck("human", "human", "proceed", "orphan approval"),
+    resultCheck("stop", "terminate_orphan", "terminate", "stop orphan"),
+  ];
+
+  it("shows a bridge's check of a result under a native call's id as its own row", () => {
+    const result = pairToolSentinels([
+      nativeTool("native"),
+      checkSpan("bridge-span", "sentinel_bridge", orphanChecks()),
+      checkSpan("native-span", "sentinel", []),
+    ]);
+
+    expect(result.toolSentinels.has("native")).toBe(false);
+    const standalone = result.standaloneSentinels.get("bridge-span");
+    expect(standalone && rowIds(standalone)).toEqual(["human", "stop"]);
+    expect(result.sentinelScrollRedirects.get("human")).toBe("bridge-span");
+  });
+
+  it("pairs a bridge's call and result checks with the host call it ran, past native calls under the same id", () => {
+    const result = pairToolSentinels([
+      checkSpan("call-span", "sentinel_bridge", [
+        sentinel("call", { step_id: "shared", action: "proceed" }),
+      ]),
+      nativeTool("native-1"),
+      hostTool("host"),
+      nativeTool("native-2"),
+      checkSpan("result-span", "sentinel_bridge", orphanChecks()),
+    ]);
+
+    const paired = result.toolSentinels.get("host");
+    expect(paired?.before && rowIds(paired.before)).toEqual(["call"]);
+    expect(paired?.after && rowIds(paired.after)).toEqual(["human", "stop"]);
+    expect(result.toolSentinels.has("native-1")).toBe(false);
+    expect(result.toolSentinels.has("native-2")).toBe(false);
+  });
+
+  it("pairs a native check with the native call when a bridge also checked its id", () => {
+    const result = pairToolSentinels([
+      nativeTool("native"),
+      checkSpan("bridge-span", "sentinel_bridge", orphanChecks()),
+      checkSpan("native-span", "sentinel", [
+        resultCheck("own", "", "proceed", "native result"),
+      ]),
+    ]);
+
+    const after = result.toolSentinels.get("native")?.after;
+    expect(after && rowIds(after)).toEqual(["own"]);
+    expect(result.standaloneSentinels.has("bridge-span")).toBe(true);
   });
 });
 

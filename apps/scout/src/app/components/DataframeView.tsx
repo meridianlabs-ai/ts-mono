@@ -189,7 +189,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
     if (
       target instanceof HTMLElement &&
       target.closest(
-        "input, textarea, select, [contenteditable=true], [role=dialog], [role=slider]"
+        "input, textarea, select, [contenteditable=true], dialog, [role=dialog], [role=slider]"
       )
     )
       return;

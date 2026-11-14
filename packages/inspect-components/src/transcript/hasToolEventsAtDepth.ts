@@ -1,3 +1,6 @@
+import type { ToolEvent } from "@tsmono/inspect-common/types";
+
+import { proposalIdOf } from "./transform/toolSentinels";
 import { EventNode } from "./types";
 
 /**
@@ -82,6 +85,25 @@ const noToolEvents: ReadonlySet<string> = new Set();
 export function computeToolEventIdsAtLevel(
   eventNodes: EventNode[]
 ): ReadonlySet<string>[] {
+  return toolIdsAtLevel(eventNodes, (event) => event.id);
+}
+
+/**
+ * For each event node, the model's ids (`proposalIdOf`) for the calls the
+ * tool events at its level ran, which the model's output names them by. A
+ * bridge may hand a call to its scaffold under a new id, which the tool event
+ * and the scaffold's messages carry (`computeToolEventIdsAtLevel`).
+ */
+export function computeToolProposalIdsAtLevel(
+  eventNodes: EventNode[]
+): ReadonlySet<string>[] {
+  return toolIdsAtLevel(eventNodes, proposalIdOf);
+}
+
+function toolIdsAtLevel(
+  eventNodes: EventNode[],
+  idOf: (event: ToolEvent) => string
+): ReadonlySet<string>[] {
   const levelKeys = new Array<string>(eventNodes.length);
   const idsByLevel = new Map<string, Set<string>>();
   const shallowerStack: { index: number; depth: number }[] = [];
@@ -110,7 +132,7 @@ export function computeToolEventIdsAtLevel(
         ids = new Set();
         idsByLevel.set(levelKey, ids);
       }
-      ids.add(node.event.id);
+      ids.add(idOf(node.event));
     }
   }
 

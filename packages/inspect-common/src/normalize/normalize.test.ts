@@ -584,6 +584,185 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  // Current inspect_ai accepts each of these with the defaulted fields omitted.
+  const communication = {
+    ...base,
+    event: "communication",
+    source: "test",
+    agent: "a",
+  };
+
+  it("communication: fills the defaults of each kind", () => {
+    expect(
+      normalizeEvent({ ...communication, kind: "read", channel: "c" })
+    ).toMatchObject({ nested: false, record_ids: [], data: {} });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "sent",
+        channel: "c",
+        send: { record: { kind: "message", sender: "a" } },
+      })
+    ).toMatchObject({
+      record_ids: [],
+      send: { record: { kind: "message", to: [], recipients: [] } },
+    });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "delivered",
+        channel: "c",
+        delivery: { seq: 1 },
+      })
+    ).toMatchObject({ delivery: { seq: 1, recipients: [] } });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news", duration: 1 },
+      })
+    ).toMatchObject({
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: [] },
+    });
+  });
+
+  const sent = (send: unknown) =>
+    normalizeEvent({ ...communication, kind: "sent", channel: "c", send });
+
+  it.each([
+    ["an empty send", {}],
+    ["a send that is not an object", true],
+    ["a null record", { record: null }],
+    ["a record that is not an object", { record: false }],
+    ["a record without a sender", { record: { kind: "message" } }],
+    [
+      "a rejection that is not an object",
+      { record: { kind: "message", sender: "a" }, rejected: true },
+    ],
+    [
+      "a rejection without a reason",
+      { record: { kind: "message", sender: "a" }, rejected: { control: "r" } },
+    ],
+  ])("communication: drops %s", (_, send) => {
+    expect(sent(send)).toMatchObject({ kind: "sent", send: null });
+  });
+
+  it("communication: keeps a valid send, filling its record's fields", () => {
+    expect(
+      sent({
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b", 1],
+          content: 7,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      })
+    ).toMatchObject({
+      send: {
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: [],
+          content: null,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      },
+    });
+  });
+
+  it("communication: drops what a reader cannot use in the other fields", () => {
+    expect(
+      normalizeEvent({
+        ...communication,
+        agent: 3,
+        kind: "delivered",
+        channel: 4,
+        record_ids: ["m-1", null],
+        delivery: { recipients: ["b", {}], seq: "1" },
+      })
+    ).toMatchObject({
+      agent: "",
+      channel: null,
+      record_ids: ["m-1"],
+      delivery: { recipients: ["b"], seq: null },
+    });
+    expect(
+      normalizeEvent({ ...communication, kind: "delivered", delivery: 1 })
+    ).toMatchObject({ delivery: null });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news" },
+      })
+    ).toMatchObject({ wait: null });
+  });
+
+  it("communication: keeps a complete send's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "sent",
+      channel: "c",
+      nested: false,
+      record_ids: ["m-1"],
+      data: {},
+      send: {
+        record: {
+          id: "m-1",
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: ["b"],
+          content: "hi",
+        },
+      },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: keeps a complete event's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "waited",
+      nested: false,
+      record_ids: [],
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: ["c"] },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: fills defaults on events nested in tool and subtask events", () => {
+    const nested = { ...communication, kind: "read", channel: "c" };
+    const filled = { event: "communication", record_ids: [], data: {} };
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "tool",
+        id: "call1",
+        function: "agent",
+        arguments: {},
+        result: "",
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "subtask",
+        name: "calc",
+        input: {},
+        result: null,
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+  });
+
   it("span_begin / span_end: fill ids and names", () => {
     expect(normalizeEvent({ ...base, event: "span_begin" })).toMatchObject({
       id: "",

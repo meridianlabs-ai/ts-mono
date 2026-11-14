@@ -602,6 +602,8 @@ export interface components {
              * @enum {string}
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -637,7 +639,7 @@ export interface components {
          *     ```yaml
          *     approvers:
          *       - name: human
-         *         tools: web_browser*, bash, pyhton
+         *         tools: bash*, python, text_editor
          *         choices: [approve, reject]
          *
          *       - name: human
@@ -1015,6 +1017,124 @@ export interface components {
         /** Citation */
         Citation: components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"];
         /**
+         * CommunicationDelivery
+         * @description For `delivered`, whom a record reached and in what order.
+         */
+        CommunicationDelivery: {
+            /** Recipients */
+            recipients: string[];
+            /** Seq */
+            seq?: number | null;
+        };
+        /**
+         * CommunicationEvent
+         * @description Communication between agents: a record sent or delivered, a read of what others communicated, or a wait for others.
+         *
+         *     Experimental: not yet a stable API.
+         */
+        CommunicationEvent: {
+            /** Agent */
+            agent: string;
+            /** Agent Span Id */
+            agent_span_id?: string | null;
+            /** Channel */
+            channel?: string | null;
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            delivery?: components["schemas"]["CommunicationDelivery"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "communication";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "sent" | "delivered" | "read" | "waited";
+            /** Loop Span Id */
+            loop_span_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Nested
+             * @default false
+             */
+            nested: boolean;
+            /** Pending */
+            pending?: boolean | null;
+            /** Record Ids */
+            record_ids: string[];
+            send?: components["schemas"]["CommunicationSend"] | null;
+            /** Source */
+            source: string;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            wait?: components["schemas"]["CommunicationWait"] | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
+         * CommunicationRecord
+         * @description For `sent`, what one agent communicated: a message, or a change to state other agents read.
+         */
+        CommunicationRecord: {
+            /** Content */
+            content?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Kind */
+            kind: string;
+            /** Recipients */
+            recipients: string[];
+            /** Reply To */
+            reply_to?: string | null;
+            /** Sender */
+            sender: string;
+            /** To */
+            to: string[];
+        };
+        /**
+         * CommunicationRejection
+         * @description For `sent`, why a record that was sent was not delivered.
+         */
+        CommunicationRejection: {
+            /** Control */
+            control: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * CommunicationSend
+         * @description For `sent`, the record an agent sent, and why it was refused if it was.
+         */
+        CommunicationSend: {
+            record: components["schemas"]["CommunicationRecord"];
+            rejected?: components["schemas"]["CommunicationRejection"] | null;
+        };
+        /**
+         * CommunicationWait
+         * @description For `waited`, an agent waiting for other agents.
+         */
+        CommunicationWait: {
+            /** Channels */
+            channels: string[];
+            /** Duration */
+            duration: number;
+            /** Id */
+            id?: string | null;
+            /** Outcome */
+            outcome: string;
+        };
+        /**
          * CompactionEvent
          * @description Compaction of conversation history.
          */
@@ -1210,7 +1330,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1546,6 +1666,8 @@ export interface components {
             status: "started" | "success" | "cancelled" | "error";
             /** Tags */
             tags: string[];
+            /** Total Samples */
+            total_samples?: number | null;
             /**
              * Version
              * @default 2
@@ -1651,7 +1773,7 @@ export interface components {
          */
         EvalRetryError: {
             /** Events */
-            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
             /** Message */
             message: string;
             /** Traceback */
@@ -1697,7 +1819,7 @@ export interface components {
             /** Error Retries */
             error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Files */
             files?: string[] | null;
@@ -1803,7 +1925,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -2132,7 +2254,7 @@ export interface components {
             started_at: string | "";
         };
         /** Event */
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /** EventData */
         EventData: {
             /** Epoch */
@@ -3428,7 +3550,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3485,7 +3607,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3659,6 +3781,8 @@ export interface components {
              * @enum {string}
              */
             event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Factory */
@@ -3949,6 +4073,41 @@ export interface components {
             working_time?: number | null;
         };
         /**
+         * SwarmEvent
+         * @description Evidence from an agent swarm (inspect_swarm) other than communication: a member's result, the final answer's selection, the swarm's ledger or its metrics.
+         *
+         *     The swarm defines `kind` and the format of `data`. Experimental: not yet a stable API.
+         */
+        SwarmEvent: {
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "swarm";
+            /** Kind */
+            kind: string;
+            /** Member */
+            member?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
          * TagsEdit
          * @description Edit action for tags.
          */
@@ -4226,6 +4385,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;

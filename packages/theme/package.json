@@ -4,6 +4,22 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./tokens": {
+      "types": "./src/tokens.d.ts",
+      "default": "./src/tokens.css"
+    },
+    "./reset": {
+      "types": "./src/reset.d.ts",
+      "default": "./src/reset.css"
+    },
+    "./components": {
+      "types": "./src/components.d.ts",
+      "default": "./src/components.css"
+    },
+    "./utilities": {
+      "types": "./src/utilities.d.ts",
+      "default": "./src/utilities.css"
+    },
     "./base": {
       "types": "./src/base.d.ts",
       "default": "./src/base.css"
@@ -28,10 +44,11 @@
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@tsmono/vitest-config": "workspace:*",
+    "@types/node": "^26.6.6",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.7.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.72.0",
-    "vitest": "^5.0.5"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   }
 }

@@ -1,289 +1,185 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isRecord } from "@tsmono/util";
+import { isRangeAboveView, scrollRangeIntoView } from "./findBandDom";
 
-import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
+// jsdom has no layout. Each scroller gets a box, and its scrollTo moves the
+// range and any nested scroller by the distance scrolled.
+interface Box {
+  top: number;
+  height: number;
+}
 
-// DOMRectList is array-like with item(); an array plus item() satisfies it.
-const rectList = (...rects: DOMRect[]): DOMRectList =>
-  Object.assign(rects, { item: (i: number) => rects[i] ?? null });
+const RANGE_HEIGHT = 20;
+let rangeTop = 0;
+const boxes = new Map<Element, Box>();
+const scrolls = new Map<Element, number>();
 
-describe("findScrollableParent", () => {
-  let container: HTMLDivElement;
+const scroller = (box: Box): HTMLDivElement => {
+  const el = document.createElement("div");
+  el.style.overflowY = "auto";
+  Object.defineProperty(el, "scrollHeight", { value: 10_000 });
+  Object.defineProperty(el, "clientHeight", { value: box.height });
+  el.getBoundingClientRect = () => new DOMRect(0, box.top, 400, box.height);
+  let scrollTop = 0;
+  Object.defineProperty(el, "scrollTop", { get: () => scrollTop });
+  el.scrollTo = vi.fn((options?: ScrollToOptions | number) => {
+    scrolls.set(el, (scrolls.get(el) ?? 0) + 1);
+    const top = typeof options === "number" ? options : (options?.top ?? 0);
+    const delta = top - scrollTop;
+    scrollTop = top;
+    rangeTop -= delta;
+    for (const inner of el.querySelectorAll("div")) {
+      const innerBox = boxes.get(inner);
+      if (innerBox) innerBox.top -= delta;
+    }
+  });
+  boxes.set(el, box);
+  return el;
+};
 
-  beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
+const mountRange = (...nest: HTMLDivElement[]): Range => {
+  let parent: HTMLElement = document.body;
+  for (const el of nest) {
+    parent.appendChild(el);
+    parent = el;
+  }
+  const text = document.createTextNode("needle");
+  parent.appendChild(text);
+  const range = document.createRange();
+  range.selectNodeContents(text);
+  range.getBoundingClientRect = () =>
+    new DOMRect(0, rangeTop, 50, RANGE_HEIGHT);
+  return range;
+};
+
+afterEach(() => {
+  document.body.innerHTML = "";
+  boxes.clear();
+  scrolls.clear();
+});
+
+describe("scrollRangeIntoView", () => {
+  it("leaves a range that is already in view alone", () => {
+    const outer = scroller({ top: 0, height: 600 });
+    const range = mountRange(outer);
+    rangeTop = 100;
+
+    scrollRangeIntoView(range);
+
+    expect(scrolls.get(outer)).toBeUndefined();
   });
 
-  afterEach(() => {
-    document.body.removeChild(container);
+  it("centres a clipped range in its scroller", () => {
+    const outer = scroller({ top: 0, height: 600 });
+    const range = mountRange(outer);
+    rangeTop = 1500;
+
+    scrollRangeIntoView(range);
+
+    expect(rangeTop).toBe((600 - RANGE_HEIGHT) / 2);
   });
 
-  test("returns null for null element", () => {
-    expect(findScrollableParent(null)).toBeNull();
+  it("scrolls the outer scroller when an inner one is off screen", () => {
+    // A code panel that scrolls on its own, below the outer viewport.
+    const outer = scroller({ top: 0, height: 600 });
+    const inner = scroller({ top: 1200, height: 200 });
+    const range = mountRange(outer, inner);
+    rangeTop = 1250;
+
+    scrollRangeIntoView(range);
+
+    expect(scrolls.get(inner)).toBeUndefined();
+    expect(rangeTop).toBeGreaterThanOrEqual(0);
+    expect(rangeTop + RANGE_HEIGHT).toBeLessThanOrEqual(600);
   });
 
-  test("returns null when no scrollable parent exists", () => {
-    const child = document.createElement("div");
-    container.appendChild(child);
-    expect(findScrollableParent(child)).toBeNull();
-  });
+  it("scrolls the inner scroller when the range is clipped inside it", () => {
+    const outer = scroller({ top: 0, height: 600 });
+    const inner = scroller({ top: 100, height: 200 });
+    const range = mountRange(outer, inner);
+    rangeTop = 900;
 
-  test("finds scrollable parent with overflow-y: auto", () => {
-    const scrollable = document.createElement("div");
-    scrollable.style.overflowY = "auto";
-    // Mock scrollHeight and clientHeight since jsdom doesn't compute them
-    Object.defineProperty(scrollable, "scrollHeight", { value: 500 });
-    Object.defineProperty(scrollable, "clientHeight", { value: 200 });
+    scrollRangeIntoView(range);
 
-    const child = document.createElement("div");
-    scrollable.appendChild(child);
-    container.appendChild(scrollable);
-
-    expect(findScrollableParent(child)).toBe(scrollable);
-  });
-
-  test("finds scrollable parent with overflow-y: scroll", () => {
-    const scrollable = document.createElement("div");
-    scrollable.style.overflowY = "scroll";
-    Object.defineProperty(scrollable, "scrollHeight", { value: 500 });
-    Object.defineProperty(scrollable, "clientHeight", { value: 200 });
-
-    const child = document.createElement("div");
-    scrollable.appendChild(child);
-    container.appendChild(scrollable);
-
-    expect(findScrollableParent(child)).toBe(scrollable);
-  });
-
-  test("skips elements that don't have enough scroll height", () => {
-    const notScrollable = document.createElement("div");
-    notScrollable.style.overflowY = "auto";
-    // scrollHeight - clientHeight = 50, which is less than default minScrollBuffer (100)
-    Object.defineProperty(notScrollable, "scrollHeight", { value: 250 });
-    Object.defineProperty(notScrollable, "clientHeight", { value: 200 });
-
-    const child = document.createElement("div");
-    notScrollable.appendChild(child);
-    container.appendChild(notScrollable);
-
-    expect(findScrollableParent(child)).toBeNull();
-  });
-
-  test("respects custom minScrollBuffer option", () => {
-    const scrollable = document.createElement("div");
-    scrollable.style.overflowY = "auto";
-    // scrollHeight - clientHeight = 50, which is >= minScrollBuffer of 30
-    Object.defineProperty(scrollable, "scrollHeight", { value: 250 });
-    Object.defineProperty(scrollable, "clientHeight", { value: 200 });
-
-    const child = document.createElement("div");
-    scrollable.appendChild(child);
-    container.appendChild(scrollable);
-
-    expect(findScrollableParent(child, { minScrollBuffer: 30 })).toBe(
-      scrollable
-    );
-  });
-
-  test("finds nearest scrollable parent when multiple exist", () => {
-    const outerScrollable = document.createElement("div");
-    outerScrollable.style.overflowY = "auto";
-    Object.defineProperty(outerScrollable, "scrollHeight", { value: 1000 });
-    Object.defineProperty(outerScrollable, "clientHeight", { value: 400 });
-
-    const innerScrollable = document.createElement("div");
-    innerScrollable.style.overflowY = "auto";
-    Object.defineProperty(innerScrollable, "scrollHeight", { value: 500 });
-    Object.defineProperty(innerScrollable, "clientHeight", { value: 200 });
-
-    const child = document.createElement("div");
-    innerScrollable.appendChild(child);
-    outerScrollable.appendChild(innerScrollable);
-    container.appendChild(outerScrollable);
-
-    expect(findScrollableParent(child)).toBe(innerScrollable);
-  });
-
-  test("handles non-HTMLElement by traversing to parent", () => {
-    const scrollable = document.createElement("div");
-    scrollable.style.overflowY = "auto";
-    Object.defineProperty(scrollable, "scrollHeight", { value: 500 });
-    Object.defineProperty(scrollable, "clientHeight", { value: 200 });
-
-    // Create an SVG element (Element but not HTMLElement)
-    const svgElement = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "svg"
-    );
-    scrollable.appendChild(svgElement);
-    container.appendChild(scrollable);
-
-    // SVG elements are Elements but not HTMLElements, so the function
-    // should traverse to find the scrollable HTMLElement parent
-    expect(findScrollableParent(svgElement)).toBe(scrollable);
+    expect(rangeTop).toBeGreaterThanOrEqual(100);
+    expect(rangeTop + RANGE_HEIGHT).toBeLessThanOrEqual(300);
   });
 });
 
-describe("scrollRangeToCenter", () => {
-  let container: HTMLDivElement;
-  let scrollable: HTMLDivElement;
-  let content: HTMLDivElement;
+describe("scrollRangeIntoView, horizontally", () => {
+  it("scrolls a wide panel sideways to a match past its right edge", () => {
+    const panel = document.createElement("div");
+    panel.style.overflowX = "auto";
+    Object.defineProperty(panel, "scrollWidth", { value: 5000 });
+    Object.defineProperty(panel, "clientWidth", { value: 400 });
+    panel.getBoundingClientRect = () => new DOMRect(0, 0, 400, 300);
+    let scrollLeft = 0;
+    Object.defineProperty(panel, "scrollLeft", { get: () => scrollLeft });
+    let rangeLeft = 1200;
+    panel.scrollTo = (options?: ScrollToOptions | number) => {
+      const left =
+        typeof options === "number" ? options : (options?.left ?? scrollLeft);
+      rangeLeft -= left - scrollLeft;
+      scrollLeft = left;
+    };
+    const range = mountRange(panel);
+    range.getBoundingClientRect = () => new DOMRect(rangeLeft, 100, 50, 20);
 
-  beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
+    scrollRangeIntoView(range);
 
-    scrollable = document.createElement("div");
-    scrollable.style.overflowY = "auto";
-    Object.defineProperty(scrollable, "scrollHeight", { value: 1000 });
-    Object.defineProperty(scrollable, "clientHeight", { value: 200 });
-    Object.defineProperty(scrollable, "scrollTop", {
-      value: 0,
-      writable: true,
-    });
+    expect(rangeLeft).toBeGreaterThanOrEqual(0);
+    expect(rangeLeft + 50).toBeLessThanOrEqual(400);
+  });
+});
 
-    content = document.createElement("div");
-    content.textContent = "Test content for selection";
-    scrollable.appendChild(content);
-    container.appendChild(scrollable);
+describe("scrollRangeIntoView, clipped by overflow: hidden", () => {
+  it("scrolls an ellipsized title to a match past its edge", () => {
+    const title = document.createElement("div");
+    // jsdom doesn't expand the `overflow` shorthand; browsers do.
+    title.style.overflowX = "hidden";
+    title.style.overflowY = "hidden";
+    Object.defineProperty(title, "scrollWidth", { value: 2000 });
+    Object.defineProperty(title, "clientWidth", { value: 300 });
+    title.getBoundingClientRect = () => new DOMRect(0, 0, 300, 20);
+    let scrollLeft = 0;
+    Object.defineProperty(title, "scrollLeft", { get: () => scrollLeft });
+    let rangeLeft = 900;
+    title.scrollTo = (options?: ScrollToOptions | number) => {
+      const left =
+        typeof options === "number" ? options : (options?.left ?? scrollLeft);
+      rangeLeft -= left - scrollLeft;
+      scrollLeft = left;
+    };
+    const range = mountRange(title);
+    range.getBoundingClientRect = () => new DOMRect(rangeLeft, 0, 50, 20);
+
+    scrollRangeIntoView(range);
+
+    expect(rangeLeft).toBeGreaterThanOrEqual(0);
+    expect(rangeLeft + 50).toBeLessThanOrEqual(300);
+  });
+});
+
+describe("isRangeAboveView", () => {
+  it("is true only above the innermost visible top", () => {
+    const outer = scroller({ top: 50, height: 600 });
+    const inner = scroller({ top: 100, height: 200 });
+    const range = mountRange(outer, inner);
+
+    rangeTop = 60;
+    expect(isRangeAboveView(range)).toBe(true);
+    rangeTop = 150;
+    expect(isRangeAboveView(range)).toBe(false);
   });
 
-  afterEach(() => {
-    document.body.removeChild(container);
-  });
+  it("counts a range above the outer scroller's top as above the view", () => {
+    // The inner panel is partly scrolled out past the outer viewport's top.
+    const outer = scroller({ top: 300, height: 600 });
+    const inner = scroller({ top: 100, height: 400 });
+    const range = mountRange(outer, inner);
 
-  test("does nothing when range has no client rects", () => {
-    const range = document.createRange();
-    // Empty range has no client rects
-    range.setStart(content, 0);
-    range.setEnd(content, 0);
-
-    // Mock getClientRects to return empty
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList());
-
-    // Should not throw
-    expect(() => scrollRangeToCenter(range)).not.toThrow();
-  });
-
-  test("calls scrollTo on scrollable parent", () => {
-    const range = document.createRange();
-    range.selectNodeContents(content);
-
-    // Mock the necessary methods
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList(new DOMRect(0, 300, 100, 20)));
-
-    const scrollToMock = vi.fn();
-    scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue(new DOMRect(0, 0, 400, 200));
-
-    scrollRangeToCenter(range);
-
-    expect(scrollToMock).toHaveBeenCalledOnce();
-    const options: unknown = scrollToMock.mock.calls[0]?.[0];
-    if (!isRecord(options)) throw new Error("scrollTo called without options");
-    expect(typeof options["top"]).toBe("number");
-    expect(options["behavior"]).toBe("auto");
-  });
-
-  test("uses smooth behavior when specified", () => {
-    const range = document.createRange();
-    range.selectNodeContents(content);
-
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList(new DOMRect(0, 300, 100, 20)));
-
-    const scrollToMock = vi.fn();
-    scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue(new DOMRect(0, 0, 400, 200));
-
-    scrollRangeToCenter(range, { behavior: "smooth" });
-
-    expect(scrollToMock).toHaveBeenCalledOnce();
-    const options: unknown = scrollToMock.mock.calls[0]?.[0];
-    if (!isRecord(options)) throw new Error("scrollTo called without options");
-    expect(typeof options["top"]).toBe("number");
-    expect(options["behavior"]).toBe("smooth");
-  });
-
-  test("falls back to scrollIntoView when no scrollable parent and fallback enabled", () => {
-    // Mock scrollIntoView globally on HTMLElement prototype since jsdom doesn't have it
-    const scrollIntoViewMock = vi.fn();
-    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
-
-    // Create element without scrollable parent
-    const standaloneDiv = document.createElement("div");
-    const textNode = document.createTextNode("Standalone text");
-    standaloneDiv.appendChild(textNode);
-    container.appendChild(standaloneDiv);
-
-    const range = document.createRange();
-    range.selectNode(textNode);
-
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList(new DOMRect(0, 500, 100, 20)));
-
-    scrollRangeToCenter(range, { fallbackToScrollIntoView: true });
-
-    expect(scrollIntoViewMock).toHaveBeenCalledWith({
-      behavior: "auto",
-      block: "center",
-    });
-  });
-
-  test("does not fall back to scrollIntoView when fallback disabled", () => {
-    // Create element without scrollable parent
-    const standaloneDiv = document.createElement("div");
-    standaloneDiv.textContent = "Standalone";
-    container.appendChild(standaloneDiv);
-
-    const range = document.createRange();
-    range.selectNodeContents(standaloneDiv);
-
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList(new DOMRect(0, 500, 100, 20)));
-
-    const scrollIntoViewMock = vi.fn();
-    standaloneDiv.scrollIntoView = scrollIntoViewMock;
-
-    scrollRangeToCenter(range, { fallbackToScrollIntoView: false });
-
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
-  });
-
-  test("clamps scroll position to minimum of 0", () => {
-    const range = document.createRange();
-    range.selectNodeContents(content);
-
-    // Position the selection near the top so calculated scroll would be negative
-    range.getClientRects = vi
-      .fn<() => DOMRectList>()
-      .mockReturnValue(rectList(new DOMRect(0, 10, 100, 20)));
-
-    const scrollToMock = vi.fn();
-    scrollable.scrollTo = scrollToMock;
-    scrollable.getBoundingClientRect = vi
-      .fn<() => DOMRect>()
-      .mockReturnValue(new DOMRect(0, 0, 400, 200));
-
-    scrollRangeToCenter(range);
-
-    expect(scrollToMock).toHaveBeenCalledWith({
-      top: 0, // Should be clamped to 0, not negative
-      behavior: "auto",
-    });
+    rangeTop = 200;
+    expect(isRangeAboveView(range)).toBe(true);
   });
 });

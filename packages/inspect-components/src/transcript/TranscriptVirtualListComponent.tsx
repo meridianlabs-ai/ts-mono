@@ -29,11 +29,16 @@ import { eventSearchText } from "./eventText";
 import {
   computeHasToolEventsAtDepth,
   computeToolEventIdsAtLevel,
+  computeToolProposalIdsAtLevel,
 } from "./hasToolEventsAtDepth";
 import { isSelectableEvent } from "./selection/transcriptSelection";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { computeVisualActionContext } from "./transcriptVisualActions";
+import {
+  proposalIdOf,
+  treeRecordsExecutionIds,
+} from "./transform/toolSentinels";
 import { kTranscriptScrollPaddingStart } from "./turnNavigation";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
@@ -70,8 +75,6 @@ interface TranscriptVirtualListComponentProps {
   /** Evidence selection, present while selection mode is on: each non-structural
    *  row gets a header checkbox. */
   selection?: ListRowSelection;
-  /** External ref filled with the virtual list's visible range, for find machinery. */
-  visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
 
 /**
@@ -100,7 +103,6 @@ export const TranscriptVirtualListComponent: FC<
   eventCallbacks,
   eventNodeContext,
   selection,
-  visibleRangeRef,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
   // (`running || eventNodes.length > 100`) skipped virtualization for short
@@ -134,8 +136,14 @@ export const TranscriptVirtualListComponent: FC<
     () => computeHasToolEventsAtDepth(eventNodes),
     [eventNodes]
   );
-  const toolEventIdsLookup = useMemo(
-    () => computeToolEventIdsAtLevel(eventNodes),
+  const recordsExecutions =
+    eventNodeContext?.recordsExecutionIds ??
+    treeRecordsExecutionIds(eventNodes);
+  const toolIdsLookup = useMemo(
+    () => ({
+      events: computeToolEventIdsAtLevel(eventNodes),
+      proposals: computeToolProposalIdsAtLevel(eventNodes),
+    }),
     [eventNodes]
   );
 
@@ -169,7 +177,12 @@ export const TranscriptVirtualListComponent: FC<
         turnInfo !== undefined && turnInfo.turnNumber !== prevTurnNumber;
       map.set(node.id, {
         hasToolEvents,
-        toolEventIds: toolEventIdsLookup[i],
+        toolEventIds: toolIdsLookup.events[i],
+        // A log without `execution_id` names output calls by tool event id,
+        // as before the field.
+        toolProposalIds: recordsExecutions
+          ? toolIdsLookup.proposals[i]
+          : undefined,
         turnInfo,
         turnIsAnchor,
         ...eventNodeContext,
@@ -182,7 +195,8 @@ export const TranscriptVirtualListComponent: FC<
   }, [
     eventNodes,
     hasToolEventsLookup,
-    toolEventIdsLookup,
+    toolIdsLookup,
+    recordsExecutions,
     turnMap,
     eventNodeContext,
   ]);
@@ -283,8 +297,10 @@ export const TranscriptVirtualListComponent: FC<
   const isBackfilling = backfilling === true;
   const toolsRunning = useMemo(
     () =>
-      running === true && !isBackfilling && transcriptToolsRunning(eventNodes),
-    [running, isBackfilling, eventNodes]
+      running === true &&
+      !isBackfilling &&
+      transcriptToolsRunning(eventNodes, recordsExecutions),
+    [running, isBackfilling, eventNodes, recordsExecutions]
   );
   const showFooter = isBackfilling || toolsRunning;
   const Footer = useCallback(
@@ -312,9 +328,6 @@ export const TranscriptVirtualListComponent: FC<
       findScope="none"
       showProgress={showFooter}
       components={components}
-      onVisibleRangeChange={(range) => {
-        if (visibleRangeRef) visibleRangeRef.current = range;
-      }}
     />
   ) : (
     <div ref={nonVirtualGridRef}>
@@ -363,7 +376,10 @@ export const renderTranscriptFooter = ({
 
 // True when the most recent model event requested tool calls that don't all
 // have a completed tool event yet (i.e. a tool is still executing).
-function transcriptToolsRunning(eventNodes: EventNode[]): boolean {
+function transcriptToolsRunning(
+  eventNodes: EventNode[],
+  recordsExecutions: boolean
+): boolean {
   let lastModelIdx = -1;
   for (let i = eventNodes.length - 1; i >= 0; i--) {
     if (eventNodes[i]?.event.event === "model") {
@@ -379,7 +395,9 @@ function transcriptToolsRunning(eventNodes: EventNode[]): boolean {
   const completedToolIds = new Set<string>();
   for (let i = lastModelIdx + 1; i < eventNodes.length; i++) {
     const ev = eventNodes[i]!.event;
-    if (ev.event === "tool" && !ev.pending) completedToolIds.add(ev.id);
+    if (ev.event === "tool" && !ev.pending) {
+      completedToolIds.add(recordsExecutions ? proposalIdOf(ev) : ev.id);
+    }
   }
   return toolCalls.some((call) => !completedToolIds.has(call.id));
 }

@@ -37,7 +37,7 @@ import { isNewTabClick } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
-import { isRecord, isVscode } from "@tsmono/util";
+import { isButtonActivation, isRecord, isVscode } from "@tsmono/util";
 
 import { useStableValue } from "../useStableValue";
 
@@ -797,6 +797,8 @@ export function DataGrid<TRow extends RowData>({
       ) {
         return;
       }
+      // Enter and Space press a focused button (a column filter's funnel).
+      if (isButtonActivation(e)) return;
 
       const rowCount = rows.length;
       if (rowCount === 0) return;
@@ -828,6 +830,9 @@ export function DataGrid<TRow extends RowData>({
       });
       if (target === null) return;
       e.preventDefault();
+      // Take focus off a button (a funnel) the selection moved away from, so
+      // a following Enter or Space activates the row rather than the button.
+      e.currentTarget.focus({ preventScroll: true });
       if (target === currentIndex) return;
 
       const targetRow = rows[target];
@@ -1348,46 +1353,46 @@ function RotatedHeaderCell<TRow extends RowData>({
       onDragLeave={onHeaderDragLeave}
       onDrop={(e) => onHeaderDrop(e, header.column.id)}
     >
-      {/* Sortable columns get role/tabIndex/onKeyDown from the spread below;
-          for the rest this is a drag handle, not a control. The conditional
-          spread is invisible to the a11y rules. */}
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className={clsx(
           styles.rotatedLabel,
           filterSpec && styles.rotatedLabelFiltered
         )}
-        // Native tooltip lives on the label (the outer cell is
-        // pointer-events: none, so a title there would never fire) — shows
-        // the full name when the narrow rotated label truncates it.
-        title={resolveHeaderTitle(columnDef)}
-        {...(header.column.getCanSort() && {
-          role: "button",
-          tabIndex: 0,
-          onKeyDown: makeSortKeyDownHandler(header),
-        })}
-        draggable
-        onDragStart={(e) =>
-          onHeaderDragStart(
-            e,
-            header.column.id,
-            resolveHeaderTitle(columnDef) ?? header.column.id
-          )
-        }
-        onDragEnd={onHeaderDragEnd}
-        onClick={header.column.getToggleSortingHandler()}
       >
-        <span className={styles.rotatedText}>{headerLabel}</span>
-        <SortIndicator sorted={sorted} sortOrder={sortOrder} />
+        {/* Sortable columns get role/tabIndex/onKeyDown from the spread
+            below; for the rest this is a drag handle, not a control. The
+            conditional spread is invisible to the a11y rules. */}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div
+          className={styles.rotatedSortTarget}
+          // Native tooltip lives on the label (the outer cell is
+          // pointer-events: none, so a title there would never fire) — shows
+          // the full name when the narrow rotated label truncates it.
+          title={resolveHeaderTitle(columnDef)}
+          {...(header.column.getCanSort() && {
+            role: "button",
+            tabIndex: 0,
+            onKeyDown: makeSortKeyDownHandler(header),
+          })}
+          draggable
+          onDragStart={(e) =>
+            onHeaderDragStart(
+              e,
+              header.column.id,
+              resolveHeaderTitle(columnDef) ?? header.column.id
+            )
+          }
+          onDragEnd={onHeaderDragEnd}
+          onClick={header.column.getToggleSortingHandler()}
+        >
+          <span className={styles.rotatedText}>{headerLabel}</span>
+          <SortIndicator sorted={sorted} sortOrder={sortOrder} />
+        </div>
         {columnDef.meta?.filterable && filterType && !hideColumnFilters && (
-          // The popover is portaled, but React events bubble through the
-          // component tree — so clicks inside the filter would reach the
-          // label's sort handler. Stop them here.
-          <span
-            className={styles.rotatedFilter}
-            role="presentation"
-            onClick={(e) => e.stopPropagation()}
-          >
+          // Beside the sort target rather than inside it: the filter's
+          // popover renders here, and Firefox won't let the mouse select
+          // text in an input inside a draggable element.
+          <span className={styles.rotatedFilter}>
             <ColumnFilterControl
               columnId={header.column.id}
               filterType={filterType}

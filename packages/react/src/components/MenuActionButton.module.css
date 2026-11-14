@@ -30,20 +30,7 @@
   cursor: not-allowed;
 }
 
-.backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
-}
-
 .menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 2px;
   background: var(
     --vscode-menu-background,
     var(--vscode-editorWidget-background)
@@ -51,7 +38,6 @@
   border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  z-index: 1001;
   min-width: 160px;
   overflow: hidden;
   padding: 4px 0;

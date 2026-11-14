@@ -1,6 +1,11 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
+import { installDialogStub, installPopoverStub } from "./src/test/dom-stubs";
+
+installPopoverStub();
+installDialogStub();
+
 afterEach(async () => {
   cleanup();
   // Flush React's scheduler before the file's jsdom environment can be torn

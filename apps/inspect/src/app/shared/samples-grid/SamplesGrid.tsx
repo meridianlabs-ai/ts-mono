@@ -1,10 +1,16 @@
-import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
+import type {
+  ColumnSizingState,
+  RowData,
+  SortingState,
+} from "@tanstack/react-table";
 import {
+  KeyboardEvent,
   ReactElement,
   RefObject,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -14,6 +20,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 
 import type { ValueComparator } from "../../log-list/listing/types";
 import {
@@ -22,15 +29,14 @@ import {
 } from "../../log-list/listing/useLogsListingQuery";
 import { ExtendedColumnDef } from "../data-grid/columnTypes";
 import { DataGrid } from "../data-grid/DataGrid";
+import { buildSearchIndex, findMatches } from "../data-grid/findMatches";
 
-import { SampleRow } from "./types";
+export const kListModeRowHeight = 70;
+export const kGridModeRowHeight = 30;
 
-const kListModeRowHeight = 70;
-const kGridModeRowHeight = 30;
-
-interface SamplesGridProps {
-  rowData: SampleRow[];
-  columnDefs: ExtendedColumnDef<SampleRow>[];
+interface SamplesGridProps<TRow extends RowData> {
+  rowData: TRow[];
+  columnDefs: ExtendedColumnDef<TRow>[];
   /** Controlled column visibility keyed by column id; missing entries
    *  default to visible. */
   columnVisibility?: Record<string, boolean>;
@@ -52,19 +58,19 @@ interface SamplesGridProps {
    *  `sorting`. */
   columnSizing?: ColumnSizingState;
   onColumnSizingChange?: (sizing: ColumnSizingState) => void;
-  getRowId: (row: SampleRow) => string;
+  getRowId: (row: TRow) => string;
   /** Row id that should be selected and scrolled into view. */
   selectedRowId?: string;
   /** Report selection moves instead of applying them — the caller owns
    *  selection and feeds it back through `selectedRowId` (see DataGrid's
    *  `onSelectedRowChange`). */
-  onRowSelect?: (row: SampleRow) => void;
+  onRowSelect?: (row: TRow) => void;
   /** Forwarded to the DataGrid's scroll container so the title bar can
    *  collapse on scroll. */
   scrollRef?: RefObject<HTMLDivElement | null>;
-  onRowOpen: (row: SampleRow) => void;
+  onRowOpen: (row: TRow) => void;
   /** Row link target (see DataGrid's `getRowHref`). */
-  getRowHref?: (row: SampleRow) => string | undefined;
+  getRowHref?: (row: TRow) => string | undefined;
   loading?: boolean;
   /**
    * Controlled column filters. When provided, the grid renders funnel state
@@ -98,18 +104,30 @@ interface SamplesGridProps {
    * cross-sample navigation off the grid's single source of truth rather than
    * re-deriving it from the unfiltered input.
    */
-  onDisplayedRowsChange?: (rows: SampleRow[]) => void;
+  onDisplayedRowsChange?: (rows: TRow[]) => void;
+  /** Accessible name for the grid (see DataGrid's `ariaLabel`). */
+  ariaLabel?: string;
+  /** Focus the grid on mount (see DataGrid's `autoFocus`). */
+  autoFocus?: boolean;
+  /**
+   * Ctrl/Cmd+F opens a find band over the grid, ahead of any page-level
+   * find: it searches the displayed rows' column values (not just what the
+   * cells show) and moves the selection through the matches through
+   * `onRowSelect`, hiding no rows. Render the grid in a positioned box.
+   */
+  findable?: boolean;
 }
 
 /**
  * Shared samples grid: a `DataGrid` wrapper that runs client-side sort over
- * its rows via the same listing query the log list uses. Per-column filtering
- * is dual-mode: uncontrolled (no `columnFilters` prop — local state, applied
- * client-side; SamplesPanel's cross-log mode) or controlled (the owner
- * filters upstream — on the samples tab via the filtrex FILTER string, which
- * is also the persistence).
+ * its rows via the same listing query the log list uses. Generic over the
+ * row type, so other in-memory grids (a sample's communication) reuse it.
+ * Per-column filtering is dual-mode: uncontrolled (no `columnFilters` prop —
+ * local state, applied client-side; SamplesPanel's cross-log mode) or
+ * controlled (the owner filters upstream — on the samples tab via the filtrex
+ * FILTER string, which is also the persistence).
  */
-export const SamplesGrid = ({
+export const SamplesGrid = <TRow extends RowData>({
   rowData,
   columnDefs,
   columnVisibility,
@@ -131,7 +149,10 @@ export const SamplesGrid = ({
   applyFiltersClientSide,
   hideColumnFilters,
   onDisplayedRowsChange,
-}: SamplesGridProps): ReactElement => {
+  ariaLabel = "Samples",
+  autoFocus = true,
+  findable = false,
+}: SamplesGridProps<TRow>): ReactElement => {
   const rowHeight = multiline ? kListModeRowHeight : kGridModeRowHeight;
 
   const [localSorting, setLocalSorting] = useState<SortingState>(
@@ -165,7 +186,7 @@ export const SamplesGrid = ({
 
   // Listing-query accessors derived from the column defs.
   const columnsById = useMemo(() => {
-    const map = new Map<string, ExtendedColumnDef<SampleRow>>();
+    const map = new Map<string, ExtendedColumnDef<TRow>>();
     for (const col of columnDefs) {
       if (col.id) map.set(col.id, col);
     }
@@ -173,7 +194,7 @@ export const SamplesGrid = ({
   }, [columnDefs]);
 
   const getValue = useCallback(
-    (row: SampleRow, columnId: string): unknown => {
+    (row: TRow, columnId: string): unknown => {
       const col = columnsById.get(columnId);
       if (col && "accessorFn" in col && typeof col.accessorFn === "function") {
         return col.accessorFn(row, 0);
@@ -203,7 +224,7 @@ export const SamplesGrid = ({
   );
   const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
 
-  const { items } = useLogsListingQuery<SampleRow>({
+  const { items } = useLogsListingQuery<TRow>({
     rows: rowData,
     filter,
     orderBy,
@@ -233,29 +254,102 @@ export const SamplesGrid = ({
     [onColumnFilterChange]
   );
 
+  // Find, as the log list's grid does it, over this grid's displayed rows.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findTerm, setFindTerm] = useState("");
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const searchColumns = columnDefs.filter(
+    (col) => col.id === undefined || columnVisibility?.[col.id] !== false
+  );
+  const matchesOf = (term: string) =>
+    findMatches(buildSearchIndex(items, searchColumns, getRowId), term);
+  const matchIds = findOpen ? matchesOf(findTerm) : [];
+  const activeMatch =
+    selectedRowId === undefined ? -1 : matchIds.indexOf(selectedRowId);
+
+  const selectMatch = (ids: string[], index: number) => {
+    const id = ids[index];
+    const row = items.find((item) => getRowId(item) === id);
+    if (row) onRowSelect?.(row);
+  };
+  const stepMatch = (back: boolean) => {
+    const count = matchIds.length;
+    if (count === 0) return;
+    const next =
+      activeMatch < 0 ? (back ? count - 1 : 0) : activeMatch + (back ? -1 : 1);
+    selectMatch(matchIds, (next + count) % count);
+  };
+  const handleFindTermChange = () => {
+    const term = findInputRef.current?.value ?? "";
+    setFindTerm(term);
+    selectMatch(matchesOf(term), 0);
+  };
+  const closeFind = () => {
+    setFindOpen(false);
+    setFindTerm("");
+  };
+  const openFind = () => {
+    setFindOpen(true);
+    setTimeout(() => {
+      findInputRef.current?.focus();
+      findInputRef.current?.select();
+    });
+  };
+  const handleFindKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      closeFind();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      stepMatch(e.shiftKey);
+    }
+  };
+  useFindBandShortcut(openFind, {
+    onClose: closeFind,
+    isOpen: findOpen,
+    enabled: findable,
+    preempt: true,
+  });
+
   return (
-    <DataGrid<SampleRow>
-      data={items}
-      columns={columnDefs}
-      getRowId={getRowId}
-      columnVisibility={columnVisibility}
-      sorting={sorting}
-      onSortingChange={handleSortingChange}
-      columnFilters={effectiveFilters}
-      onColumnFilterChange={handleColumnFilterChange}
-      hideColumnFilters={hideColumnFilters}
-      columnSizing={columnSizing}
-      onColumnSizingChange={handleColumnSizingChange}
-      selectedRowId={selectedRowId}
-      onSelectedRowChange={onRowSelect}
-      scrollRef={scrollRef}
-      onRowActivate={onRowOpen}
-      getRowHref={getRowHref}
-      rowHeight={rowHeight}
-      multiline={multiline}
-      loading={loading}
-      autoFocus
-      ariaLabel="Samples"
-    />
+    <>
+      {findOpen ? (
+        <FindBandUI
+          inputRef={findInputRef}
+          value={findTerm}
+          onChange={handleFindTermChange}
+          onKeyDown={handleFindKeyDown}
+          onClose={closeFind}
+          onPrevious={() => stepMatch(true)}
+          onNext={() => stepMatch(false)}
+          disableNav={matchIds.length === 0}
+          noResults={!!findTerm && matchIds.length === 0}
+          matchCount={findTerm ? matchIds.length : undefined}
+          matchIndex={findTerm && activeMatch >= 0 ? activeMatch : undefined}
+        />
+      ) : null}
+      <DataGrid<TRow>
+        data={items}
+        columns={columnDefs}
+        getRowId={getRowId}
+        columnVisibility={columnVisibility}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
+        columnFilters={effectiveFilters}
+        onColumnFilterChange={handleColumnFilterChange}
+        hideColumnFilters={hideColumnFilters}
+        columnSizing={columnSizing}
+        onColumnSizingChange={handleColumnSizingChange}
+        selectedRowId={selectedRowId}
+        onSelectedRowChange={onRowSelect}
+        scrollRef={scrollRef}
+        onRowActivate={onRowOpen}
+        getRowHref={getRowHref}
+        rowHeight={rowHeight}
+        multiline={multiline}
+        loading={loading}
+        autoFocus={autoFocus}
+        ariaLabel={ariaLabel}
+      />
+    </>
   );
 };

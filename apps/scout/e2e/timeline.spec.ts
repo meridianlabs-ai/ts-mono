@@ -207,12 +207,9 @@ test("transcript without timeline data shows the event list without a swimlane",
 // Characterization: punch-down view stack
 // ---------------------------------------------------------------------------
 
-// NOTE: punch-down only supports branches reachable through the root span's
-// branch tree whose fork anchor is a direct content event of the parent
-// (`spliceToTimeline`/`ancestorChain` walk `branches`, not `content`) — a
-// branch attached to a nested agent span crashes on punch-down. This
-// scenario therefore attaches the branch (and its anchor) to the root span.
-function createRootBranchScenario(): MessagesEventsResponse {
+// The branch hangs off the nested Build agent rather than the root, the shape
+// `timeline_branch()` produces inside a subagent.
+function createNestedBranchScenario(): MessagesEventsResponse {
   const rootEvt = createModelEvent({
     uuid: "evt-root-1",
     startSec: 0,
@@ -240,8 +237,8 @@ function createRootBranchScenario(): MessagesEventsResponse {
   const anchorEvt = createAnchorEvent({
     anchorId: "fork-1",
     uuid: "evt-anchor-1",
-    atSec: 6,
-    spanId: "transcript",
+    atSec: 9,
+    spanId: "build",
   });
   const branchEvt = createModelEvent({
     uuid: "evt-branch-1",
@@ -283,7 +280,6 @@ function createRootBranchScenario(): MessagesEventsResponse {
     span_type: "agent",
     content: [
       { type: "event", event: "evt-root-1" },
-      { type: "event", event: "evt-anchor-1" },
       createTimelineSpan({
         id: "explore",
         name: "Explore",
@@ -294,20 +290,23 @@ function createRootBranchScenario(): MessagesEventsResponse {
         id: "build",
         name: "Build",
         span_type: "agent",
-        content: [{ type: "event", event: "evt-build-1" }],
-      }),
-    ],
-    branches: [
-      createTimelineSpan({
-        id: "branch-1",
-        name: "branch",
-        span_type: "branch",
-        branched_from: "fork-1",
         content: [
-          { type: "event", event: "evt-branch-1" },
-          { type: "event", event: "evt-sb-retry" },
-          { type: "event", event: "evt-retry-1" },
-          { type: "event", event: "evt-se-retry" },
+          { type: "event", event: "evt-build-1" },
+          { type: "event", event: "evt-anchor-1" },
+        ],
+        branches: [
+          createTimelineSpan({
+            id: "branch-1",
+            name: "branch",
+            span_type: "branch",
+            branched_from: "fork-1",
+            content: [
+              { type: "event", event: "evt-branch-1" },
+              { type: "event", event: "evt-sb-retry" },
+              { type: "event", event: "evt-retry-1" },
+              { type: "event", event: "evt-se-retry" },
+            ],
+          }),
         ],
       }),
     ],
@@ -317,9 +316,9 @@ function createRootBranchScenario(): MessagesEventsResponse {
     messages: [{ role: "user", content: "Help me refactor this code" }],
     events: [
       rootEvt,
-      anchorEvt,
       evt1,
       evt2,
+      anchorEvt,
       branchEvt,
       branchSpanBegin,
       branchInnerEvt,
@@ -333,13 +332,13 @@ test("punch-down opens a branch as a standalone timeline and back returns", asyn
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(network, createRootBranchScenario());
+  setupTranscriptWithTimeline(network, createNestedBranchScenario());
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
   await expect(swimlane).toBeVisible();
 
-  // Reveal the branch row via the root row's branch marker.
+  // Reveal the branch row via the Build row's branch marker.
   const branchMarker = swimlane
     .getByRole("button", { name: "Toggle branches" })
     .first();

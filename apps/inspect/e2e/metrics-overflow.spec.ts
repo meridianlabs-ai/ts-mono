@@ -220,7 +220,11 @@ test("a scorer name too long for the dialog wraps instead of truncating", async 
   await expect(cell).toBeVisible();
   expect(await cell.evaluate(isEllipsized)).toBe(false);
 
-  const dialogBounds = await dialog.boundingBox();
+  // The visible frame, not the <dialog>, which covers the viewport.
+  const dialogBounds = await dialog
+    .getByRole("heading", { name: "Scoring Detail" })
+    .locator("../..")
+    .boundingBox();
   expect(dialogBounds).not.toBeNull();
   expect(dialogBounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   expect((await cell.boundingBox())!.height).toBeGreaterThan(kWrappedHeight);

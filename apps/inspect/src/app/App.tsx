@@ -1,4 +1,7 @@
-import "bootstrap/dist/css/bootstrap.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";

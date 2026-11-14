@@ -13,10 +13,22 @@ import { nullProtoRecord } from "@tsmono/util";
 // Direct file imports keep this module React-free (the usage barrel pulls
 // in component modules).
 import {
+  addProposal,
+  agreedCall,
+  approvalStopped,
   buildSentinelSteps,
+  findProposal,
   instanceLabel,
+  isBridgeTool,
+  kBridgeCheckSpan,
+  proposalIdOf,
+  recordedProposalId,
+  recordsExecutionIds,
+  stopsCall,
+  toolFailed,
 } from "../transcript/transform/toolSentinels";
 import type {
+  ProposalIndex,
   SentinelNode,
   SentinelStep,
 } from "../transcript/transform/toolSentinels";
@@ -562,9 +574,6 @@ const resultSize = (result: ToolEvent["result"]): number => {
   return size;
 };
 
-const toolFailed = (event: ToolEvent): boolean =>
-  event.error != null || event.failed === true;
-
 /** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
 const completedEpoch = (event: Event): number | undefined =>
   "completed" in event && typeof event.completed === "string"
@@ -672,6 +681,8 @@ interface SentinelDecision {
   producer?: ModelEvent;
   /** The call never ran, so it takes a ghost slot in its turn. */
   ghost: boolean;
+  /** The span whose conversation the step belongs to. */
+  spanId: string | null | undefined;
 }
 
 interface SentinelDecisions {
@@ -694,8 +705,575 @@ const kCountedVerdicts = new Set<SentinelStep["verdict"]>([
   "escalate",
 ]);
 
-/** One proposed call and the events recorded for it. */
+/** One run of a call under an id and the events recorded for it. */
 interface CallSlot {
+  /** The key of its chain, under which its conversation's outputs proposed
+   *  the calls it may have run (`findProposal`). */
+  key: string;
+  /** A bridge generation's output made the slot, whose scaffold may run its
+   *  call itself. */
+  bridged?: boolean;
+  /** Position of the slot's ToolEvent, else of its first record. */
+  order?: number;
+  /** In recording order. A run's approvals are one chain, or one per
+   *  bridged tool its call could denote (`findProposal`). */
+  approvals: ApprovalEvent[];
+  tool?: ToolEvent;
+  /** An approval or a `tool_call` decision stopped the call before it ran. */
+  stopped?: boolean;
+  /** The id of the run an event in the slot names: its ToolEvent's id, which
+   *  a bridge that handed the call over under a new id records as its
+   *  approvals' and checks' `execution_id` (inspect_ai#6370), and otherwise
+   *  the model's id. */
+  execution?: string;
+  /** The `execution_id` a bridge's `tool_call` check of the run records. */
+  checkedAs?: string;
+}
+
+/** The runs under one id in one conversation, a slot per call the latest
+ *  model output proposed under it. Ids can repeat across turns, so each
+ *  stage takes the slots in order, passing slots another run holds
+ *  (`CallSlot.execution`). Slots pair a run's records; which call a run ran
+ *  as proposed is named only when nothing could be confused
+ *  (`findProposal`). */
+interface CallChain {
+  key: string;
+  slots: CallSlot[];
+  /** The bridge generation whose output made the chain, which a rejection
+   *  of any of its calls discards whole (`BridgeOutputs`). */
+  output?: ModelEvent;
+  approvals: number;
+  checks: number;
+  /** Native and host ToolEvents keep separate cursors: a native check holds
+   *  its slot for the native run, which a host run under another id must
+   *  not push past. */
+  tools: number;
+  hostTools: number;
+  results: number;
+}
+
+type ChainStage = "approvals" | "checks" | "tools" | "hostTools" | "results";
+
+/** The next slot `stage` has not taken, past those `skip` says never reached
+ *  it; a stage with no proposal left takes a fresh slot. */
+const takeSlot = (
+  chain: CallChain,
+  stage: ChainStage,
+  skip?: (slot: CallSlot) => boolean
+): CallSlot => {
+  let slot = chain.slots[chain[stage]];
+  while (slot && skip?.(slot)) slot = chain.slots[++chain[stage]];
+  if (!slot) chain.slots.push((slot = { key: chain.key, approvals: [] }));
+  chain[stage] += 1;
+  return slot;
+};
+
+const approvalsStopped = (slot: CallSlot): boolean =>
+  slot.approvals.some(approvalStopped);
+
+/** Records an event of the slot at `at`, which places a slot with no
+ *  ToolEvent. */
+const place = (slot: CallSlot, at: number) => {
+  if (!slot.tool) slot.order = Math.min(slot.order ?? at, at);
+};
+
+/** A call stopped before it ran, or whose arguments never parsed, has no
+ *  result; an escalation older builds let through ran despite its step. */
+const didNotRun = (slot: Pick<CallSlot, "tool" | "stopped">): boolean =>
+  !slot.tool ||
+  (toolFailed(slot.tool) &&
+    (slot.stopped === true || slot.tool.error?.type === "parsing"));
+
+/** A call a bridge ran on the host, which only the bridge's checks judge. */
+const ranOnHost = (slot: Pick<CallSlot, "tool">): boolean =>
+  !!slot.tool && isBridgeTool(slot.tool);
+
+/** The span an agent bridge's check belongs to. The conversation it records
+ *  is the nearest agent span, while rows key on the nearest agent, subtask
+ *  or solver span, so it only settles which agent the check belongs to when
+ *  the check's own span is outside that agent: a model event sink's
+ *  `on_start` can run the bridged generation in a sub-agent while the
+ *  check's span stays under the outer agent. Inside it (a subtask under the
+ *  agent), or when the conversation names no span (the sample's uuid), the
+ *  check's span decides. */
+const bridgeConversationSpan = (
+  event: SentinelEvent,
+  spans: Map<string, SpanInfo>
+): string | null | undefined => {
+  if (!spans.has(event.conversation)) return event.span_id;
+  const visited = new Set<string>();
+  for (let id = event.span_id; id && !visited.has(id);) {
+    if (id === event.conversation) return event.span_id;
+    visited.add(id);
+    id = spans.get(id)?.parentId;
+  }
+  return event.conversation;
+};
+
+/** Each sentinel step counts once, by the decision that took effect —
+ *  nested configurations record a decision per layer. Pairing runs in
+ *  recording order within each conversation: `conversationOf` keys an
+ *  event's span, or for an agent bridge's check the conversation it
+ *  recorded (`bridgeConversationSpan`). Only a sample whose log records
+ *  `execution_id` (`recordsExecutionIds`) pairs here; any other pairs in
+ *  `collectSentinelDecisionsLegacy`, as before the field.
+ *
+ *  This pairs separately from `pairToolSentinels`, which works on the event
+ *  tree; this pass also needs approvals and each call's proposing model
+ *  call, in one pass over a flat list. Both name a run's proposal with
+ *  `findProposal`, given every approval joined to the run. Keep the rules
+ *  in sync: a run under its `proposalIdOf` names the call proposed under it
+ *  only when nothing could be confused (`findProposal`); an approval or
+ *  step that records its `execution_id` judges the execution under that id
+ *  and nothing else; otherwise a `tool_call` step judges the next tool with
+ *  its id, a `tool_result` step one that ran before it; an agent bridge's
+ *  check judges only a call the bridge ran on the host, and a native check
+ *  never does; a bridge's check with no host run in the chain it took
+ *  judges, in a log that records `execution_id`, the one host run under the
+ *  model's id, else takes a slot of the latest output proposing its id
+ *  before it, which a retry after a rejection replaces, and names its call
+ *  the same way; a `tool_call` check with none of an output the bridge
+ *  discarded judges no run (`BridgeOutputs`). Calls made inside a sentinel span (a monitor's or
+ *  approver's own) pair only with events in that span. */
+const collectSentinelDecisions = (
+  events: Event[],
+  spans: Map<string, SpanInfo>,
+  conversationOf: (spanId: string | null | undefined) => string
+): SentinelDecisions => {
+  const steps = buildSentinelSteps(events);
+  const chains = new Map<string, CallChain>();
+  /** The nearest sentinel span enclosing a span, or "" outside any. */
+  const scopeOf = (spanId: string | null | undefined): string => {
+    const visited = new Set<string>();
+    for (let id = spanId; id && !visited.has(id);) {
+      visited.add(id);
+      const span = spans.get(id);
+      if (span?.type === TYPE_SENTINEL) return id;
+      id = span?.parentId;
+    }
+    return "";
+  };
+  /** The scope of the calls a step judges: the one its own span is in. */
+  const scopeOfStep = (event: SentinelEvent): string => {
+    const span = spans.get(event.span_id ?? "");
+    return scopeOf(
+      span?.type === TYPE_SENTINEL ? span.parentId : event.span_id
+    );
+  };
+  const chainKey = (spanId: string | null | undefined, id: string) =>
+    `${conversationOf(spanId)}\u0000${id}`;
+  const newChain = (
+    key: string,
+    slots: CallSlot[],
+    output?: ModelEvent
+  ): CallChain => ({
+    key,
+    slots,
+    output,
+    approvals: 0,
+    checks: 0,
+    tools: 0,
+    hostTools: 0,
+    results: 0,
+  });
+  const chainFor = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string
+  ) => {
+    const key = chainKey(spanId, `${scope}\u0000${id}`);
+    let chain = chains.get(key);
+    if (!chain) chains.set(key, (chain = newChain(key, [])));
+    return chain;
+  };
+  /** Whether the slot is free for, or held by, the run under `id`. */
+  const openTo = (slot: CallSlot, id: string): boolean =>
+    slot.execution === undefined || slot.execution === id;
+  /** The next slot `stage` has not taken that no other run holds, which the
+   *  run under `id` then holds. */
+  const takeRun = (
+    chain: CallChain,
+    stage: ChainStage,
+    id: string,
+    skip: (slot: CallSlot) => boolean = () => false
+  ): CallSlot => {
+    const slot = takeSlot(chain, stage, (s) => !openTo(s, id) || skip(s));
+    slot.execution ??= id;
+    return slot;
+  };
+  /** Slots of runs under an id other than the model's, by that id. */
+  const executions = new Map<string, CallSlot>();
+  /** The slot of the run under `id`, which is not the model's id in
+   *  `chain`: the one an earlier event naming it took, else a new one. */
+  const executionSlot = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string,
+    chain: CallChain,
+    stage: ChainStage,
+    skip?: (slot: CallSlot) => boolean
+  ): CallSlot => {
+    const key = chainKey(spanId, `${scope}\u0000${id}`);
+    let slot = executions.get(key);
+    if (!slot) executions.set(key, (slot = takeRun(chain, stage, id, skip)));
+    return slot;
+  };
+  /** By chain key, the host runs whose bridge recorded the model's id as
+   *  both their id and their proposal's (`recordedProposalId`). */
+  const modelIdRuns = new Map<string, CallSlot[]>();
+  /** By chain key, the calls the conversation's outputs proposed: all of
+   *  them, those of bridge generations, whose calls only a scaffold runs,
+   *  and the rest, whose calls a native run may have run. */
+  const proposals: ProposalIndex<ModelEvent> = new Map();
+  const bridgedProposals: ProposalIndex<ModelEvent> = new Map();
+  const nativeProposals: ProposalIndex<ModelEvent> = new Map();
+  const latestModel = new Map<string, ModelEvent>();
+  const slotOfStep = new Map<SentinelStep, CallSlot>();
+  const producerOfStep = new Map<SentinelStep, ModelEvent>();
+  const overruledApprovals = new Set<ApprovalEvent>();
+  const blockedTools = new Set<ToolEvent>();
+  const discardedOutputs = new Set<ModelEvent>();
+  const discard = (chain: CallChain) => {
+    if (chain.output) discardedOutputs.add(chain.output);
+  };
+  const bridgeChecks: {
+    step: SentinelStep;
+    chain: CallChain;
+    /** The `executions` key of the execution the step names. */
+    execution?: string;
+    order: number;
+  }[] = [];
+  const spanOfBridgeStep = new Map<SentinelStep, string | null | undefined>();
+  const nativeCalls: { step: SentinelStep; chain: CallChain; order: number }[] =
+    [];
+  /** Steps that judged a call with no slot of their own: the bridge's own
+   *  call it never ran on the host, or a native call no native run holds. */
+  const unslotted = new Map<
+    SentinelStep,
+    { slot: CallSlot; bridgedOnly: boolean }
+  >();
+  const holdNativeCall = (step: SentinelStep, slot: CallSlot, at: number) => {
+    place(slot, at);
+    slotOfStep.set(step, slot);
+    if (stopsCall(step)) slot.stopped = true;
+  };
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
+
+  for (const [index, event] of events.entries()) {
+    if (event.event === "model") {
+      // Monitors' own calls run inside the sentinel span.
+      if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
+      latestModel.set(conversationOf(event.span_id), event);
+      const fresh = new Map<string, ToolCall[]>();
+      for (const choice of event.output.choices) {
+        for (const call of choice.message.tool_calls ?? []) {
+          let calls = fresh.get(call.id);
+          if (!calls) fresh.set(call.id, (calls = []));
+          calls.push(call);
+        }
+      }
+      for (const [id, calls] of fresh) {
+        const key = chainKey(
+          event.span_id,
+          `${scopeOf(event.span_id)}\u0000${id}`
+        );
+        const bridged = !!event.requested_model;
+        chains.set(
+          key,
+          newChain(
+            key,
+            calls.map(() => ({ key, bridged, approvals: [] })),
+            bridged ? event : undefined
+          )
+        );
+        for (const call of calls) {
+          addProposal(proposals, key, call, event, index);
+          addProposal(
+            bridged ? bridgedProposals : nativeProposals,
+            key,
+            call,
+            event,
+            index
+          );
+        }
+      }
+    } else if (event.event === "approval") {
+      const scope = scopeOf(event.span_id);
+      const chain = chainFor(event.span_id, scope, event.call.id);
+      const slot =
+        event.execution_id != null
+          ? executionSlot(
+              event.span_id,
+              scope,
+              event.execution_id,
+              chain,
+              "approvals"
+            )
+          : takeRun(chain, "approvals", event.call.id);
+      place(slot, index);
+      slot.approvals.push(event);
+      if (approvalStopped(event)) slot.stopped = true;
+    } else if (event.event === "tool") {
+      const scope = scopeOf(event.span_id);
+      const proposalId = proposalIdOf(event);
+      const chain = chainFor(event.span_id, scope, proposalId);
+      const stage = isBridgeTool(event) ? "hostTools" : "tools";
+      // With two cursors, a slot ahead of this one may already hold a run.
+      const filled = (s: CallSlot) => s.tool !== undefined;
+      const slot =
+        proposalId !== event.id
+          ? executionSlot(event.span_id, scope, event.id, chain, stage, filled)
+          : takeRun(chain, stage, event.id, filled);
+      slot.tool = event;
+      slot.order = index;
+      if (recordedProposalId(event) === event.id) {
+        const runs = modelIdRuns.get(chain.key);
+        if (runs) runs.push(slot);
+        else modelIdRuns.set(chain.key, [slot]);
+      }
+    } else if (event.event === "sentinel") {
+      const step = steps.get(event);
+      if (!step) continue;
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      const scope = scopeOfStep(event);
+      if (toolStage && isBridgeCheck(event)) {
+        const spanId = bridgeConversationSpan(event, spans);
+        spanOfBridgeStep.set(step, spanId);
+        bridgeChecks.push({
+          step,
+          chain: chainFor(spanId, scope, step.stepId),
+          execution:
+            step.executionId === undefined
+              ? undefined
+              : chainKey(spanId, `${scope}\u0000${step.executionId}`),
+          order: index,
+        });
+      } else if (step.stage === "tool_call") {
+        // A call its approval stopped never reached the sentinel.
+        const chain = chainFor(event.span_id, scope, step.stepId);
+        const slot = takeRun(
+          chain,
+          "checks",
+          step.stepId,
+          (slot) => slot.stopped === true || ranOnHost(slot)
+        );
+        holdNativeCall(step, slot, index);
+        nativeCalls.push({ step, chain, order: index });
+      } else if (step.stage === "tool_result") {
+        // Only a call that ran has a result to judge, though the run may
+        // have failed.
+        const chain = chainFor(event.span_id, scope, step.stepId);
+        slotOfStep.set(
+          step,
+          takeRun(
+            chain,
+            "results",
+            step.stepId,
+            (slot) => didNotRun(slot) || ranOnHost(slot)
+          )
+        );
+      } else {
+        const producer = latestModel.get(conversationOf(event.span_id));
+        if (producer) producerOfStep.set(step, producer);
+      }
+    }
+  }
+
+  // A native call check takes its slot before the call runs, so a host run
+  // of another proposal under its id can fill that slot later. Such a check
+  // moves to a native run it can still judge, else pairs with nothing.
+  const nativeHeld = new Set(
+    nativeCalls.map(({ step }) => slotOfStep.get(step))
+  );
+  for (const { step, chain, order } of nativeCalls) {
+    const held = slotOfStep.get(step);
+    if (!held || !ranOnHost(held)) continue;
+    nativeHeld.delete(held);
+    slotOfStep.delete(step);
+    held.stopped = approvalsStopped(held);
+    const slot = chain.slots.find(
+      (s) =>
+        !!s.tool &&
+        !ranOnHost(s) &&
+        !nativeHeld.has(s) &&
+        s.stopped !== true &&
+        openTo(s, step.stepId)
+    );
+    if (slot) {
+      nativeHeld.add(slot);
+      holdNativeCall(step, slot, order);
+    } else {
+      unslotted.set(step, {
+        slot: { key: chain.key, order, approvals: [] },
+        bridgedOnly: false,
+      });
+    }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<CallSlot>>();
+  const takenFor = (stage: SentinelStep["stage"]) => {
+    let taken = bridgeTaken.get(stage);
+    if (!taken) bridgeTaken.set(stage, (taken = new Set()));
+    return taken;
+  };
+  const judges = (step: SentinelStep, s: CallSlot) =>
+    ranOnHost(s) &&
+    !takenFor(step.stage).has(s) &&
+    (step.stage === "tool_call" || !didNotRun(s));
+  const pairBridgeCheck = (step: SentinelStep, slot: CallSlot, at: number) => {
+    takenFor(step.stage).add(slot);
+    place(slot, at);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && step.executionId !== undefined) {
+      slot.checkedAs = step.executionId;
+    }
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
+  };
+  for (const { step, chain, execution } of bridgeChecks) {
+    if (
+      step.stage === "tool_call" &&
+      execution === undefined &&
+      stopsCall(step)
+    ) {
+      discard(chain);
+    }
+  }
+  /** A `tool_call` check of an output the bridge discarded, which judged a
+   *  call that never ran: it never takes the run under the model's id. Only
+   *  the check that stopped its own call still pairs with a host run in its
+   *  output's chain, as it always has. */
+  const ofDiscarded = ({ step, chain, execution }: (typeof bridgeChecks)[0]) =>
+    step.stage === "tool_call" &&
+    execution === undefined &&
+    !!chain.output &&
+    discardedOutputs.has(chain.output);
+  const unpairedBridgeChecks: typeof bridgeChecks = [];
+  for (const check of bridgeChecks) {
+    const { step, chain, execution, order } = check;
+    if (ofDiscarded(check) && !stopsCall(step)) {
+      unpairedBridgeChecks.push(check);
+      continue;
+    }
+    const named =
+      execution === undefined ? undefined : executions.get(execution);
+    const slot =
+      execution === undefined
+        ? chain.slots.find((s) => openTo(s, step.stepId) && judges(step, s))
+        : named && judges(step, named)
+          ? named
+          : undefined;
+    if (slot) pairBridgeCheck(step, slot, order);
+    else unpairedBridgeChecks.push(check);
+  }
+  // A later output proposing the id replaces the chain a check took, though
+  // the run it judged may land in the replacement. From a bridge that
+  // records `execution_id`, a check with none judged the run under its own
+  // id, so once the chains have paired, it takes that run when exactly one
+  // ran under the model's id (`modelIdRuns`) and no check of its stage holds
+  // it.
+  for (const check of unpairedBridgeChecks) {
+    const { step, chain, execution, order } = check;
+    const taken = takenFor(step.stage);
+    const named =
+      execution === undefined ? undefined : executions.get(execution);
+    const [only, other] =
+      execution === undefined && !ofDiscarded(check)
+        ? (modelIdRuns.get(chain.key) ?? [])
+        : [];
+    if (only && !other && judges(step, only)) {
+      pairBridgeCheck(step, only, order);
+      continue;
+    }
+    // A bridge's own call runs in its scaffold, with no ToolEvent, under an
+    // id the bridge issued. Only bridge generations set `requested_model`,
+    // so a native proposal under the id never names it.
+    const ownCall = (s: CallSlot) =>
+      !s.tool && s.bridged === true && !taken.has(s);
+    const proposal =
+      step.stage !== "tool_call"
+        ? undefined
+        : named
+          ? ownCall(named)
+            ? named
+            : undefined
+          : chain.slots.find((s) => openTo(s, step.stepId) && ownCall(s));
+    if (proposal) {
+      taken.add(proposal);
+      place(proposal, order);
+      unslotted.set(step, { slot: proposal, bridgedOnly: true });
+    }
+  }
+
+  const proposalOf = (slot: CallSlot, index: ProposalIndex<ModelEvent>) =>
+    slot.order === undefined
+      ? undefined
+      : findProposal(index.get(slot.key), {
+          order: slot.order,
+          tool: slot.tool,
+          approvals: slot.approvals,
+        });
+
+  const byOutcome = new Map<SentinelEvent, SentinelDecision>();
+  for (const step of steps.values()) {
+    const { effective: decider, outcome } = step;
+    if (!decider || !outcome || !kCountedVerdicts.has(step.verdict)) continue;
+    const slot = slotOfStep.get(step);
+    const tool = slot?.tool;
+    // A modified call ran (as its replacement) and draws its own span.
+    const ghost =
+      step.stage === "tool_call" &&
+      step.verdict !== "modify" &&
+      (!tool || toolFailed(tool));
+    for (const approval of slot?.approvals ?? []) {
+      overruledApprovals.add(approval);
+    }
+    if (ghost && tool) blockedTools.add(tool);
+    const other = unslotted.get(step);
+    // A slot with no host run holds a native step's call.
+    const proposal = slot
+      ? proposalOf(
+          slot,
+          tool && isBridgeTool(tool) ? proposals : nativeProposals
+        )
+      : other &&
+        proposalOf(
+          other.slot,
+          other.bridgedOnly ? bridgedProposals : nativeProposals
+        );
+    byOutcome.set(outcome.event, {
+      step,
+      decider,
+      // A run whose records cannot tell which call it ran as proposed is
+      // named as it ran.
+      call:
+        proposal?.call ??
+        slot?.tool ??
+        agreedCall(
+          (slot ?? other?.slot)?.approvals.map((approval) => approval.call) ??
+            []
+        ),
+      producer: proposal?.output ?? producerOfStep.get(step),
+      ghost,
+      spanId: spanOfBridgeStep.has(step)
+        ? spanOfBridgeStep.get(step)
+        : outcome.event.span_id,
+    });
+  }
+  return { byOutcome, overruledApprovals, blockedTools };
+};
+
+// Logs that record no `execution_id` pair with origin/main's rules, kept
+// verbatim below (renamed) so their Activity renders as it always has.
+
+/** One proposed call and the events recorded for it. */
+interface LegacyCallSlot {
   call?: ToolCall;
   producer?: ModelEvent;
   approval?: ApprovalEvent;
@@ -707,23 +1285,23 @@ interface CallSlot {
 /** The calls under one id in one conversation, from the latest model output
  *  that proposed it. Ids can repeat across turns, so each stage takes the
  *  slots in order, as `pairToolSentinels` hands tools their proposals. */
-interface CallChain {
-  slots: CallSlot[];
+interface LegacyCallChain {
+  slots: LegacyCallSlot[];
   approvals: number;
   checks: number;
   tools: number;
   results: number;
 }
 
-type ChainStage = "approvals" | "checks" | "tools" | "results";
+type LegacyChainStage = "approvals" | "checks" | "tools" | "results";
 
 /** The next slot `stage` has not taken, past those `skip` says never reached
  *  it; a stage with no proposal left takes a fresh slot. */
-const takeSlot = (
-  chain: CallChain,
-  stage: ChainStage,
-  skip?: (slot: CallSlot) => boolean
-): CallSlot => {
+const takeLegacySlot = (
+  chain: LegacyCallChain,
+  stage: LegacyChainStage,
+  skip?: (slot: LegacyCallSlot) => boolean
+): LegacyCallSlot => {
   let slot = chain.slots[chain[stage]];
   while (slot && skip?.(slot)) slot = chain.slots[++chain[stage]];
   if (!slot) chain.slots.push((slot = {}));
@@ -731,37 +1309,31 @@ const takeSlot = (
   return slot;
 };
 
-const approvalStopped = (approval: ApprovalEvent): boolean =>
-  approval.decision !== "approve" && approval.decision !== "modify";
-
-/** A call stopped before it ran, or whose arguments never parsed, has no
- *  result; an escalation older builds let through ran despite its step. */
-const didNotRun = (slot: CallSlot): boolean =>
-  !slot.tool ||
-  (toolFailed(slot.tool) &&
-    (slot.stopped === true || slot.tool.error?.type === "parsing"));
-
 /** Each sentinel step counts once, by the decision that took effect —
  *  nested configurations record a decision per layer. Pairing runs in
  *  recording order within each conversation: `conversationOf` keys an
- *  event's span.
+ *  event's span, or for an agent bridge's check the conversation it
+ *  recorded (`bridgeConversationSpan`).
  *
  *  This pairs separately from `pairToolSentinels`, which works on the event
  *  tree and scans tools per step; this pass also needs approvals and each
  *  call's proposing model call, in one pass over a flat list. Keep the rules
  *  in sync: the latest output proposing an id owns its proposals, which its
  *  tools take in order; a `tool_call` step judges the next tool with its id,
- *  a `tool_result` step one that ran before it. */
-const collectSentinelDecisions = (
+ *  a `tool_result` step one that ran before it; an agent bridge's check
+ *  judges only a call the bridge ran on the host, and a native check never
+ *  does; a bridge's check judges the call of the latest output proposing
+ *  its id before it, which a retry after a rejection replaces. */
+const collectSentinelDecisionsLegacy = (
   events: Event[],
   spans: Map<string, SpanInfo>,
   conversationOf: (spanId: string | null | undefined) => string
 ): SentinelDecisions => {
   const steps = buildSentinelSteps(events);
-  const chains = new Map<string, CallChain>();
+  const chains = new Map<string, LegacyCallChain>();
   const chainKey = (spanId: string | null | undefined, id: string) =>
     `${conversationOf(spanId)}\u0000${id}`;
-  const newChain = (slots: CallSlot[]): CallChain => ({
+  const newChain = (slots: LegacyCallSlot[]): LegacyCallChain => ({
     slots,
     approvals: 0,
     checks: 0,
@@ -775,17 +1347,23 @@ const collectSentinelDecisions = (
     return chain;
   };
   const latestModel = new Map<string, ModelEvent>();
-  const slotOfStep = new Map<SentinelStep, CallSlot>();
+  const slotOfStep = new Map<SentinelStep, LegacyCallSlot>();
   const producerOfStep = new Map<SentinelStep, ModelEvent>();
   const overruledApprovals = new Set<ApprovalEvent>();
   const blockedTools = new Set<ToolEvent>();
+  const bridgeChecks: { step: SentinelStep; chain: LegacyCallChain }[] = [];
+  const spanOfBridgeStep = new Map<SentinelStep, string | null | undefined>();
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
 
   for (const event of events) {
     if (event.event === "model") {
       // Monitors' own calls run inside the sentinel span.
       if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
       latestModel.set(conversationOf(event.span_id), event);
-      const fresh = new Map<string, CallSlot[]>();
+      const fresh = new Map<string, LegacyCallSlot[]>();
       for (const choice of event.output.choices) {
         for (const call of choice.message.tool_calls ?? []) {
           let slots = fresh.get(call.id);
@@ -797,39 +1375,86 @@ const collectSentinelDecisions = (
         chains.set(chainKey(event.span_id, id), newChain(slots));
       }
     } else if (event.event === "approval") {
-      const slot = takeSlot(
+      const slot = takeLegacySlot(
         chainFor(event.span_id, event.call.id),
         "approvals"
       );
       slot.approval = event;
       if (approvalStopped(event)) slot.stopped = true;
     } else if (event.event === "tool") {
-      takeSlot(chainFor(event.span_id, event.id), "tools").tool = event;
+      takeLegacySlot(chainFor(event.span_id, event.id), "tools").tool = event;
     } else if (event.event === "sentinel") {
       const step = steps.get(event);
       if (!step) continue;
-      if (step.stage === "tool_call") {
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      if (toolStage && isBridgeCheck(event)) {
+        const spanId = bridgeConversationSpan(event, spans);
+        spanOfBridgeStep.set(step, spanId);
+        bridgeChecks.push({ step, chain: chainFor(spanId, step.stepId) });
+      } else if (step.stage === "tool_call") {
         // A call its approval stopped never reached the sentinel.
         const chain = chainFor(event.span_id, step.stepId);
-        const slot = takeSlot(chain, "checks", (slot) => slot.stopped === true);
+        const slot = takeLegacySlot(
+          chain,
+          "checks",
+          (slot) => slot.stopped === true || ranOnHost(slot)
+        );
         slotOfStep.set(step, slot);
-        if (
-          step.effective &&
-          step.verdict !== "proceed" &&
-          step.verdict !== "modify"
-        ) {
-          slot.stopped = true;
-        }
+        if (stopsCall(step)) slot.stopped = true;
       } else if (step.stage === "tool_result") {
         // Only a call that ran has a result to judge, though the run may
         // have failed.
         const chain = chainFor(event.span_id, step.stepId);
-        slotOfStep.set(step, takeSlot(chain, "results", didNotRun));
+        slotOfStep.set(
+          step,
+          takeLegacySlot(
+            chain,
+            "results",
+            (slot) => didNotRun(slot) || ranOnHost(slot)
+          )
+        );
       } else {
         const producer = latestModel.get(conversationOf(event.span_id));
         if (producer) producerOfStep.set(step, producer);
       }
     }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<LegacyCallSlot>>();
+  const callOfStep = new Map<SentinelStep, ToolCall>();
+  for (const { step, chain } of bridgeChecks) {
+    const taken = bridgeTaken.get(step.stage) ?? new Set<LegacyCallSlot>();
+    bridgeTaken.set(step.stage, taken);
+    const slot = chain.slots.find(
+      (s) =>
+        ranOnHost(s) &&
+        !taken.has(s) &&
+        (step.stage === "tool_call" || !didNotRun(s))
+    );
+    if (!slot) {
+      // A bridge's own call runs in its scaffold, with no ToolEvent, under
+      // an id the bridge issued. Only bridge generations set
+      // `requested_model`, so a native proposal under the id never names it.
+      const proposal =
+        step.stage === "tool_call"
+          ? chain.slots.find(
+              (s) => !s.tool && !!s.producer?.requested_model && !taken.has(s)
+            )
+          : undefined;
+      if (proposal?.call) {
+        taken.add(proposal);
+        callOfStep.set(step, proposal.call);
+        if (proposal.producer) producerOfStep.set(step, proposal.producer);
+      }
+      continue;
+    }
+    taken.add(slot);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
   }
 
   const byOutcome = new Map<SentinelEvent, SentinelDecision>();
@@ -848,9 +1473,12 @@ const collectSentinelDecisions = (
     byOutcome.set(outcome.event, {
       step,
       decider,
-      call: slot ? (slot.call ?? tool) : undefined,
+      call: slot ? (slot.call ?? tool) : callOfStep.get(step),
       producer: slot ? slot.producer : producerOfStep.get(step),
       ghost,
+      spanId: spanOfBridgeStep.has(step)
+        ? spanOfBridgeStep.get(step)
+        : outcome.event.span_id,
     });
   }
   return { byOutcome, overruledApprovals, blockedTools };
@@ -1073,7 +1701,10 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     }
     return id;
   };
-  const sentinelDecisions = collectSentinelDecisions(
+  const collect = recordsExecutionIds(events)
+    ? collectSentinelDecisions
+    : collectSentinelDecisionsLegacy;
+  const sentinelDecisions = collect(
     events,
     spans,
     (spanId) => conversationForSpan(outsideSentinelSpans(spanId)).id
@@ -1368,7 +1999,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       case "sentinel": {
         const decision = sentinelDecisions.byOutcome.get(event);
         if (!decision) break;
-        const { step, decider, call, producer, ghost } = decision;
+        const { step, decider, call, producer, ghost, spanId } = decision;
         rejectedCount += 1;
         const word = decisionWord(step.verdict);
         const lead = kSentinelStageLead.get(step.stage) ?? "Sentinel step";
@@ -1380,7 +2011,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           const turn =
             (producer && turnOfModel.get(producer)) ??
             currentTurnByRow.get(
-              conversationForEvent(outsideSentinelSpans(event.span_id)).id
+              conversationForEvent(outsideSentinelSpans(spanId)).id
             );
           if (turn) {
             if (ghost) turn.rejected += 1;

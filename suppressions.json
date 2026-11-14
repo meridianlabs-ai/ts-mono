@@ -146,7 +146,7 @@
   },
   "apps/inspect/src/app/samples/transcript/chunked/mainViewOutline.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/transcript/hooks.ts": {
@@ -235,16 +235,6 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/chunked/chunkedSample.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/chunked/chunkStore.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
   },
@@ -428,18 +418,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/components/EditableText.tsx": {
-    "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/components/FilterBar.tsx": {
     "react-hooks/refs": {
       "count": 1
@@ -574,11 +552,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/validation/components/ValidationSetSelector.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
   "apps/scout/src/app/validation/ValidationPanel.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -637,11 +610,6 @@
   },
   "packages/inspect-components/src/chat/tools/tool.ts": {
     "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    }
-  },
-  "packages/inspect-components/src/columnFilter/ColumnFilterControl.tsx": {
-    "react-hooks/refs": {
       "count": 1
     }
   },
@@ -734,11 +702,6 @@
     }
   },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/event/EventNavsPicker.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -883,7 +846,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/react/src/components/ExpandablePanel.tsx": {
@@ -933,39 +896,9 @@
       "count": 1
     }
   },
-  "packages/react/src/components/Modal.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "packages/react/src/components/PopOver.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/refs": {
-      "count": 4,
-      "undescribed": 3
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 2
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 5
-    }
-  },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "packages/react/src/components/ToolDropdownButton.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/react/src/hooks/useChromeNavOwnership.ts": {

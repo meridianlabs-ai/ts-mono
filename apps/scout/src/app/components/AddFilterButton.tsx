@@ -31,7 +31,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
   popoverState,
   suggestions = [],
 }) => {
-  const chipRef = useRef<HTMLDivElement | null>(null);
+  const chipRef = useRef<HTMLButtonElement | null>(null);
 
   const {
     isOpen,
@@ -59,7 +59,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
         id={`${idPrefix}-add-filter-editor`}
         isOpen={isOpen}
         setIsOpen={setIsOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={chipRef.current}
         placement="bottom-start"
         showArrow={true}

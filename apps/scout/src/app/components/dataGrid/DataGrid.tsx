@@ -23,10 +23,12 @@ import {
 
 import {
   ColumnFilterControl,
+  combineFilters,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 import { Icon } from "@tsmono/react/icons";
 import { openRouteInNewTab } from "@tsmono/react/routing";
+import { isButtonActivation } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import type { FilterType } from "../../../state/store";
@@ -82,8 +84,10 @@ export function DataGrid<
   // UI
   className,
   loading = false,
-  emptyMessage = "No matching items",
-  noConfigMessage = "No directory configured.",
+  emptyMessage = "No items",
+  noMatchMessage = "No matching items",
+  externallyFiltered = false,
+  noConfigMessage,
 }: DataGridProps<TData, TColumn, TState>): ReactElement {
   // Destructure state for convenience
   const {
@@ -389,6 +393,9 @@ export function DataGrid<
   // Keyboard navigation handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      // Enter and Space press a focused button (a column header, a filter's
+      // funnel) rather than open or select the focused row.
+      if (isButtonActivation(e)) return;
       if (rows.length === 0) return;
 
       // Find the currently focused row index
@@ -478,6 +485,10 @@ export function DataGrid<
         default:
           return;
       }
+
+      // Take focus off a button (a header, a funnel) the selection moved away
+      // from, so a following Enter or Space acts on the row, not the button.
+      e.currentTarget.focus({ preventScroll: true });
 
       // Handle arrow key navigation
       if (newFocusedIndex !== focusedIndex && newFocusedIndex !== -1) {
@@ -596,8 +607,10 @@ export function DataGrid<
   // Get empty state message
   const getEmptyMessage = (): string => {
     if (loading) return "Loading...";
-    if (!data.length && noConfigMessage) return noConfigMessage;
-    return emptyMessage;
+    if (noConfigMessage) return noConfigMessage;
+    return externallyFiltered || combineFilters(columnFilters)
+      ? noMatchMessage
+      : emptyMessage;
   };
 
   return (

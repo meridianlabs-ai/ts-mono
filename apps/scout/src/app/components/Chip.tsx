@@ -16,47 +16,45 @@ interface ChipProps {
   className?: string | string[];
 }
 
-export const Chip = forwardRef<HTMLDivElement, ChipProps>(
+/**
+ * A bordered label/value pair. With `onClick`, its body is a button, and the
+ * forwarded ref points at that button so a popover it opens can anchor to it
+ * and return focus to it.
+ */
+export const Chip = forwardRef<HTMLButtonElement, ChipProps>(
   (
     { icon, label, value, title, closeTitle, onClick, onClose, className },
     ref
   ) => {
+    const content = (
+      <>
+        {icon ? <Icon name={icon} className={styles.icon} /> : undefined}
+        {label ? <span className={styles.label}>{label}</span> : undefined}
+        <span>{value}</span>
+      </>
+    );
     return (
-      // The chip's own click is a shortcut onto content that is reachable
-      // elsewhere; the close button below is a real control.
       <div
-        ref={ref}
         className={clsx(styles.chip, className)}
-        role="presentation"
-        onClick={onClick}
-        title={title}
+        title={onClick ? undefined : title}
       >
-        {icon ? (
-          <Icon
-            name={icon}
-            className={clsx(
-              styles.icon,
-              onClick ? styles.clickable : undefined
-            )}
-          />
-        ) : undefined}
-        {label ? (
-          <span
-            className={clsx(
-              styles.label,
-              onClick ? styles.clickable : undefined
-            )}
+        {onClick ? (
+          <button
+            ref={ref}
+            type="button"
+            className={clsx(styles.content, styles.button)}
+            title={title}
+            onClick={onClick}
           >
-            {label}
-          </span>
-        ) : undefined}
-        <span className={clsx(onClick ? styles.clickable : undefined)}>
-          {value}
-        </span>
+            {content}
+          </button>
+        ) : (
+          <span className={styles.content}>{content}</span>
+        )}
         {onClose ? (
           <button
             type="button"
-            className={clsx(styles.closeIcon, styles.clickable)}
+            className={styles.closeIcon}
             title={closeTitle}
             aria-label={closeTitle ?? `Remove ${value}`}
             onClick={(event) => {

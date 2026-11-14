@@ -67,6 +67,7 @@ import {
   useDocumentTitleText,
   useElementHeight,
   useEventListener,
+  useProperty,
   useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
@@ -79,6 +80,7 @@ import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
   kSampleActivityTabId,
+  kSampleCommunicationTabId,
   kSampleErrorTabId,
   kSampleInfoTabId,
   kSampleJsonTabId,
@@ -116,6 +118,9 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
+import { hasCommunicationEvents } from "./communication/communicationEntries";
+import { CommunicationView } from "./communication/CommunicationView";
+import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -251,15 +256,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  const hideFind = useStore((state) => state.appActions.hideFind);
+  const [communicationMultiline, setCommunicationMultiline] = useProperty(
+    "sample-communication",
+    "multiline",
+    { defaultValue: false }
+  );
   useUnmount(() => {
     clearSampleTab();
   });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const routedTab = sampleTabId || selectedTab;
-  const effectiveSelectedTab = routedTab
-    ? sampleTabAlias(routedTab)
-    : routedTab;
+  // Only samples whose agents communicated (inspect_swarm's swarms) get the
+  // Communication tab; chunked samples' shell events hide it too. A link to
+  // it on another sample shows the Transcript, with the Transcript's controls.
+  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
+  const aliasedTab = routedTab ? sampleTabAlias(routedTab) : routedTab;
+  const effectiveSelectedTab =
+    aliasedTab === kSampleCommunicationTabId && !hasCommunicationTab
+      ? kSampleTranscriptTabId
+      : aliasedTab;
 
   // The Messages tab's rows, assembled by the data layer. Which feed serves
   // the conversation (monolith fetch, chunked hydration, live stream) is
@@ -433,11 +450,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     }
   };
 
+  // The print route has no Communication view, so that tab offers no print.
+  const printable =
+    !isVscode() &&
+    effectiveSelectedTab !== kSampleCommunicationTabId &&
+    !!printLogPath &&
+    !!printSampleId &&
+    !!printEpoch;
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  const printShortcutEnabled =
-    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
   useEventListener(
-    printShortcutEnabled ? document : null,
+    printable ? document : null,
     "keydown",
     (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
@@ -646,6 +668,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
+  if (effectiveSelectedTab === kSampleCommunicationTabId) {
+    tools.push(
+      <CommunicationViewOptions
+        key="sample-communication-view"
+        multiline={communicationMultiline}
+        setMultiline={setCommunicationMultiline}
+      />
+    );
+  }
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -811,7 +843,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (!isVscode() && printLogPath && printSampleId && printEpoch) {
+  if (printable) {
     tools.push(
       <ToolButton
         key="sample-print-tool"
@@ -1149,6 +1181,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {hasCommunicationTab ? (
+              <TabPanel
+                key={kSampleCommunicationTabId}
+                id={kSampleCommunicationTabId}
+                className="sample-tab"
+                title="Communication"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleCommunicationTabId)}
+                selected={effectiveSelectedTab === kSampleCommunicationTabId}
+              >
+                <CommunicationView
+                  key={visitId}
+                  events={sampleEvents}
+                  multiline={communicationMultiline}
+                  onShown={hideFind}
+                />
+              </TabPanel>
+            ) : null}
             {terminalSample ? (
               <TabPanel
                 key={kSampleTerminalsTabId}

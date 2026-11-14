@@ -1,0 +1,66 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  width: 100%;
+  padding: 0.6em 1em 1em;
+}
+
+.grid {
+  position: relative;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+
+.send {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  padding: 0.5em 0.7em;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+}
+
+.sendRefused {
+  border-color: var(--bs-danger);
+}
+
+.header,
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5em;
+  min-width: 0;
+}
+
+.line {
+  padding: 0.1em 0.7em;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+.agent {
+  font-weight: 600;
+}
+
+.meta {
+  margin-left: auto;
+}
+
+.detail {
+  overflow-wrap: anywhere;
+}
+
+.content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.refused {
+  color: var(--bs-danger);
+}

@@ -33,7 +33,7 @@ export const ValidationCaseLabelsEditor: FC<
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("true");
-  const addChipRef = useRef<HTMLDivElement>(null);
+  const addChipRef = useRef<HTMLButtonElement>(null);
 
   const labelEntries = labels ? Object.entries(labels) : [];
 
@@ -108,7 +108,7 @@ export const ValidationCaseLabelsEditor: FC<
         id="validation-labels-add"
         isOpen={isPopoverOpen}
         setIsOpen={setIsPopoverOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={addChipRef.current}
         placement="bottom-start"
         showArrow={true}
