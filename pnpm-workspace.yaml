@@ -28,12 +28,6 @@ peerDependencyRules:
 # consumers' declared ranges tell you which; removing a still-live pin
 # silently downgrades.
 overrides:
-  # react-popper (used by packages/react PopOver) never published react-19
-  # peer support (declares ^16.8 || ^17 || ^18); widen it. Deletable only by
-  # migrating PopOver off react-popper (e.g. to floating-ui).
-  "react-popper>react": ^19.2.0
-  "react-popper>react-dom": ^19.1.1
-
   js-yaml: ^4.3.2 # GHSA-h67p-54hq-rp68 + GHSA-2883-xcg3-v3hh, merge-key DoS
   esbuild: ^0.28.2 # dev-server path traversal
   "nanoid@3": ^3.3.18 # GHSA-2v37-7h3g-55p8
