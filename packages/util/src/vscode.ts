@@ -25,7 +25,9 @@ declare global {
  * @returns {VSCodeApi | undefined} The VS Code API instance if in VS Code environment, undefined otherwise
  */
 export const getVscodeApi = (): VSCodeApi | undefined => {
-  if (window.acquireVsCodeApi) {
+  // Not truthiness: an element with id="acquireVsCodeApi" in rendered log
+  // content is also a window property.
+  if (typeof window.acquireVsCodeApi === "function") {
     if (vscodeApi === undefined) {
       vscodeApi = window.acquireVsCodeApi();
     }
