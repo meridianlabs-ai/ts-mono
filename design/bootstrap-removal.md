@@ -1,6 +1,6 @@
 # Removing the Bootstrap CSS dependency
 
-Status: PRs 1–5 are done; PR 6 and the optional PR 7 remain. Measurements
+Status: PRs 1–6 are done; the optional PR 7 remains. Measurements
 in the analysis sections are from `main` at `b4b6753f` (2026-11-12), before
 PR 1.
 
@@ -30,7 +30,7 @@ the 1,355 references untouched. Renaming is an optional later step.
 
 Rough size: about 1,000 lines of CSS added to `packages/theme`, nearly all of it
 copied from Bootstrap, and about 150 removed from `base.css`. PRs 1–5
-change almost no TSX. PR 6 edits about 15 CSS modules. The main risks are
+change almost no TSX. PR 6 edited 12 CSS files. The main risks are
 the cascade-order changes in PR 5 and hawk, which embeds both viewers.
 
 ## What Bootstrap does for us
@@ -191,13 +191,13 @@ is different: its entry imports `App.tsx` first, so the modules come after
 Bootstrap and win those ties. As a result, in the standalone apps:
 
 - Some selectors double a class to out-specify Bootstrap, such as
-  `:global(.btn).toolButton` (16 selectors in 7 files, plus 2
+  `:global(.btn).toolButton` (15 selectors in 6 files, plus 2
   `:global(.nav)` in scout).
 - Some rules never apply. `TabSet.module.css` `.pillSmall
   { padding: 0.3rem }` loses to `.nav-link { padding: .5rem 1rem }`, so the
   tabs render with Bootstrap's padding.
-- Some of the 166 `!important`s in our CSS (51 in `base.css`) exist for the
-  same reason. I haven't classified them one by one.
+- Some of the 166 `!important`s in our CSS (51 in `base.css`) might exist
+  for the same reason. PR 6 checked them and found four rules that did.
 
 Removing Bootstrap, or layering it, reverses these ties. The
 [alternative](#alternative-keep-bootstrap-in-layer-bootstrap) section has
@@ -435,7 +435,7 @@ before first paint, not for Bootstrap. It can keep its name.
 | 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap emptied + all four copies): zero diff, including forced hover, focus-visible and active states | ~760 lines (each component brings its `--bs-*-*` variables) |
 | 4 | Delete the `base.css` rules for components nothing renders | `full` vs branch: zero diff | −150 lines |
 | 5 | Delete the Bootstrap imports and the `bootstrap` / `@types/bootstrap` dependencies; put `reset.css` and `components.css` in `tsmono.*` layers | Every diff is listed in the PR and either accepted or fixed | ~30 lines + fixes |
-| 6 | Remove the `:global(.btn)` doubling and the `!important`s that only beat Bootstrap, one file at a time | Zero diff per file | ~15 CSS modules |
+| 6 | Remove the `:global(.btn)` doubling and the `!important`s that only beat Bootstrap, one file at a time | Zero diff per file | 12 CSS files |
 | 7 (optional) | Scope the reset to the viewer root in library builds ([Hawk and other hosts](#hawk-and-other-hosts)) | Zero diff standalone; hawk's own pages lose Reboot | ~30 lines + a root attribute |
 
 Loading the copy after full Bootstrap would always give zero diff, even
@@ -452,6 +452,19 @@ active and disabled styles where a module rule now beats `.btn:hover`,
 `.btn:active`, `.nav-link:hover` or `.form-control:disabled`. PR 5 lists them
 and keeps them.
 
+PR 6 removed the 15 `:global(.btn)` and 2 `:global(.nav)` doublings. It
+also removed the `!important` from four rules whose only competitor was a
+Bootstrap rule they tied on specificity: scout's footer spinner
+(`.spinner-border`), scout's scan tabs (`.nav`, `.nav-link`) and
+`base.css` `.nav-link.active` (`.nav-tabs .nav-link`). Load order already
+decided those ties in their favour on the screens measured with Bootstrap
+loaded. The other `!important`s beat our own rules (`.text-size-*`, the
+prism overrides, TabSet's `.tabTools .btn`) or nothing, and stay. Dropping the doubling would also have revived
+two background colours that lost to `.btn.toolButton` (SelectScorer's
+button and the ANSI raw-output toggle), so PR 6 deleted them, and
+SelectTool's `.splitClear` became `.group .splitClear` to keep its tie with
+`.tabTools .btn`.
+
 ### Verification
 
 - **Computed-style comparison.** For PRs 1–3, a verify-log-viewer drive
@@ -459,10 +472,10 @@ and keeps them.
   PRs 1 and 2 gated each copy separately. PR 3 emptied Bootstrap's
   stylesheet and compared the four copies alone against Bootstrap as
   shipped. PR 5 compared `main` and the branch in two dev servers instead,
-  element by element, with screenshots, and PR 6 needs the same comparison.
-  Both covered inspect and scout in light, dark and both readable variants,
-  with `::before`/`::after` and forced `:hover`, `:focus`, `:focus-visible`
-  and `:active` on interactive elements. Half the copied classes never
+  element by element, with screenshots. It covered inspect and scout in
+  light, dark and both readable variants, with `::before`/`::after` and
+  forced `:hover`, `:focus`, `:focus-visible` and `:active` on interactive
+  elements. PR 6 repeated it in light and dark. Half the copied classes never
   render on those screens (dialog buttons and forms, spinners, pagination),
   so PR 3's spec also rendered a fixture page with markup for every copied
   class.
