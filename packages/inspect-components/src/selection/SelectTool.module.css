@@ -3,14 +3,15 @@
   align-items: stretch;
 }
 
-:global(.btn).splitMain {
+.splitMain {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
 /* Icon-only segment: flex-centre the glyph and stretch to the text segment's
-   height so the two segments read as one split button. */
-:global(.btn).splitClear {
+   height so the two segments read as one split button. `.group` keeps its
+   padding ahead of `.tabTools .btn` (TabSet) and `.tab-tools .btn` (inspect). */
+.group .splitClear {
   display: inline-flex;
   align-items: center;
   border-left: 0;

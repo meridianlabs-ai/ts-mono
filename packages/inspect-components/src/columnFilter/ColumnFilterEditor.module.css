@@ -27,7 +27,7 @@
   color: var(--bs-secondary);
 }
 
-:global(.btn).filterButton {
+.filterButton {
   width: 100%;
   padding: 0.2rem;
 }

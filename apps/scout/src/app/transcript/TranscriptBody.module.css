@@ -1,4 +1,4 @@
-:global(.nav).tabs {
+.tabs {
   border-bottom: solid 1px var(--bs-border-color);
   padding-bottom: 0.25rem;
   padding-top: 0.5rem;
@@ -10,7 +10,7 @@
   background-color: var(--bs-body-bg);
 }
 
-:global(.nav).tabs :global(.nav-link) {
+.tabs :global(.nav-link) {
   padding: 0.3rem 0.5rem;
   font-size: var(--inspect-font-size-smallest) !important;
 }
