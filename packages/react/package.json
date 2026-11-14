@@ -29,7 +29,7 @@
     "@tsmono/util": "workspace:*",
     "@vscode/codicons": "^0.0.45",
     "ansi-output": "^0.0.9",
-    "asciinema-player": "^3.17.0",
+    "asciinema-player": "^3.18.0",
     "bootstrap-icons": "^1.13.2",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
