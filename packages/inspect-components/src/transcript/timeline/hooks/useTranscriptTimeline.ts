@@ -15,7 +15,12 @@ import type {
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
 
-import { spliceToTimeline, type Timeline, type TimelineSpan } from "../core";
+import {
+  canSplice,
+  spliceToTimeline,
+  type Timeline,
+  type TimelineSpan,
+} from "../core";
 import {
   defaultMarkerConfig,
   resolveForkTimestamp,
@@ -91,11 +96,14 @@ export interface MultiTimelineNav {
 export interface TimelineViewStack {
   /** Punched-down view stack (each entry is a spliced standalone timeline). */
   stack: ReadonlyArray<{ label: string; timeline: Timeline }>;
-  /** Drill into `branch` — splice it against the base timeline's root and push onto the view stack. */
+  /** Drill into `branch` — splice it against the base timeline's root and
+   *  push onto the view stack. No-op when the branch can't be spliced. */
   push: (branch: TimelineSpan, label: string) => void;
-  /** Drill into the branch on the swimlane row with `rowKey`. No-op when the
-   *  row doesn't hold a single agent span. */
+  /** Drill into the branch on the swimlane row with `rowKey`. No-op unless
+   *  `canPushByRowKey(rowKey)`. */
   pushByRowKey: (rowKey: string, label: string) => void;
+  /** True when the row with `rowKey` is a branch that can be spliced. */
+  canPushByRowKey: (rowKey: string) => boolean;
   /** Pop the top of the view stack (back to the previous view). */
   pop: () => void;
 }
@@ -214,11 +222,13 @@ export function useTranscriptTimeline(
 
   const pushView = useCallback(
     (branch: TimelineSpan, label: string) => {
+      const spliced = spliceToTimeline(baseTimeline.root, branch);
+      if (!spliced) return;
       setViewStack((s) => [
         ...s,
         {
           label,
-          timeline: spliceToTimeline(baseTimeline.root, branch),
+          timeline: spliced,
           priorSelected: timelineProps?.selected ?? null,
         },
       ]);
@@ -437,13 +447,27 @@ export function useTranscriptTimeline(
     [timelines, activeTimelineIndex, setActiveTimeline]
   );
 
-  const pushViewByRowKey = useCallback(
-    (rowKey: string, label: string) => {
+  const rowBranch = useCallback(
+    (rowKey: string): TimelineSpan | null => {
       const row = state.rows.find((r) => r.key === rowKey);
       const span = row?.spans[0];
-      if (span && "agent" in span) pushView(span.agent, label);
+      return row?.branch && span && "agent" in span ? span.agent : null;
     },
-    [state.rows, pushView]
+    [state.rows]
+  );
+  const pushViewByRowKey = useCallback(
+    (rowKey: string, label: string) => {
+      const branch = rowBranch(rowKey);
+      if (branch) pushView(branch, label);
+    },
+    [rowBranch, pushView]
+  );
+  const canPushViewByRowKey = useCallback(
+    (rowKey: string) => {
+      const branch = rowBranch(rowKey);
+      return branch !== null && canSplice(baseTimeline.root, branch);
+    },
+    [rowBranch, baseTimeline.root]
   );
 
   const views = useMemo(
@@ -451,9 +475,10 @@ export function useTranscriptTimeline(
       stack: viewStack,
       push: pushView,
       pushByRowKey: pushViewByRowKey,
+      canPushByRowKey: canPushViewByRowKey,
       pop: popView,
     }),
-    [viewStack, pushView, pushViewByRowKey, popView]
+    [viewStack, pushView, pushViewByRowKey, canPushViewByRowKey, popView]
   );
 
   const selection = useMemo(
