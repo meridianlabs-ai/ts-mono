@@ -8,7 +8,7 @@ import "@tsmono/theme/reset";
 import "@tsmono/theme/components";
 import "@tsmono/theme/utilities";
 
-import { createContext, FC, useMemo } from "react";
+import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import "prismjs/themes/prism.css";
@@ -46,8 +46,17 @@ export const App: FC<AppProps> = (props) => {
 };
 
 const useThemePreferenceSync = () => {
-  // In-tab picks re-apply inside setThemePreference. Cross-tab: zustand
-  // persist doesn't subscribe to `storage` events, so
+  const themePreference = useUserSettings((s) => s.themePreference);
+  // useLayoutEffect (not useEffect): apply before the browser paints so an
+  // in-tab pick flips the CSS in the same frame the toggle re-renders.
+  // A post-paint effect updates the icon a frame before the colors, flashing
+  // the old theme.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- applies the theme once React commits a new preference: persist has written localStorage, which apply reads, and a layout effect lands before paint
+  useLayoutEffect(() => {
+    window.__APPLY_BROWSER_THEME__?.();
+  }, [themePreference]);
+
+  // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
   // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
   // reads the freshly-written value) and pull the new preference into zustand.
   useEventListener(window, "storage", (e) => {

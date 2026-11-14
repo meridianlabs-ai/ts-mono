@@ -2,6 +2,9 @@
   "apps/inspect/src/app/App.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1
+    },
+    "tsmono/no-raw-use-effect": {
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
@@ -380,6 +383,9 @@
   },
   "apps/scout/src/App.tsx": {
     "@typescript-eslint/no-floating-promises": {
+      "count": 1
+    },
+    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
