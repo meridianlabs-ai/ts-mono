@@ -16,6 +16,7 @@ const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   cost_limit: true,
   epochs: true,
   epochs_reducer: true,
+  epochs_reducer_specs: true,
   fail_on_error: true,
   limit: true,
   log_buffer: true,
