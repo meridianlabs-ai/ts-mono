@@ -10,6 +10,8 @@ import type {
   ContentVideo,
 } from "@tsmono/inspect-common/types";
 
+import { reasoningText } from "./contentText";
+
 export interface MessagesToStrOptions {
   excludeSystem?: boolean;
   excludeToolUsage?: boolean;
@@ -102,13 +104,8 @@ const textFromContent = (
       if (excludeReasoning) {
         return null;
       }
-      const text = content.redacted
-        ? content.summary
-        : content.reasoning || content.summary;
-      if (!text) {
-        return null;
-      }
-      return `\n<think>${text}</think>`;
+      const shown = reasoningText(content);
+      return shown ? `\n<think>${shown.text}</think>` : null;
     }
 
     case "tool_use": {

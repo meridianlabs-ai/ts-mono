@@ -36,6 +36,7 @@ import {
 } from "../media/mediaSource";
 
 import { ContentDataView } from "./content-data/ContentDataView";
+import { reasoningText } from "./contentText";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
 import { JsonMessageContent } from "./JsonMessageContent";
 import { MessageCitations } from "./MessageCitations";
@@ -173,21 +174,13 @@ const renderContent = (
     }
     case "reasoning": {
       const r = content;
-
-      // Possible titles
-      let title = "Reasoning";
-      let text = r.reasoning;
-      if (r.redacted) {
-        text = r.summary || "Reasoning encrypted by model provider.";
-        if (r.summary) {
-          title = "Reasoning (Summary)";
-        }
-      } else if (!text) {
-        text = r.summary || "Reasoning text not provided.";
-        if (r.summary) {
-          title = "Reasoning (Summary)";
-        }
-      }
+      const shown = reasoningText(r);
+      const title = shown?.summary ? "Reasoning (Summary)" : "Reasoning";
+      const text =
+        shown?.text ??
+        (r.redacted
+          ? "Reasoning encrypted by model provider."
+          : "Reasoning text not provided.");
 
       const openRouterCode = formatOpenRouterReasoning(text);
       const renderReasoningCode = openRouterCode !== undefined;
