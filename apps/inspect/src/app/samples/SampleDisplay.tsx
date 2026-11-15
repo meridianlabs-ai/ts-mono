@@ -1561,7 +1561,7 @@ const metadataViewsForSample = (
     sampleMetadatas.push(
       <Card key={`sample-invalidation-${id}`}>
         <CardHeader label="Invalidation" />
-        <CardBody padded={false}>
+        <CardBody>
           <RecordTree
             id={`task-sample-invalidation-${id}`}
             record={invalidationRecord}
@@ -1578,7 +1578,7 @@ const metadataViewsForSample = (
     sampleMetadatas.push(
       <Card key={`sample-metadata-${id}`}>
         <CardHeader label="Metadata" />
-        <CardBody padded={false}>
+        <CardBody>
           <RecordTree
             id={`task-sample-metadata-${id}`}
             record={sample.metadata}
@@ -1601,7 +1601,7 @@ const metadataViewsForSample = (
     sampleMetadatas.push(
       <Card key={`sample-store-${id}`}>
         <CardHeader label="Store" />
-        <CardBody padded={false}>
+        <CardBody>
           <RecordTree
             id={`task-sample-store-${id}`}
             record={storeRecord}
