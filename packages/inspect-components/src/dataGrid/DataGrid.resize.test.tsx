@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { ExtendedColumnDef } from "./columnTypes";
@@ -176,5 +176,137 @@ describe("DataGrid column resizing", () => {
         el instanceof HTMLElement ? parseFloat(el.style.width) : 0
       );
     expect(headerWidths).toEqual([60, 440]);
+  });
+});
+
+describe("DataGrid keyboard column resizing", () => {
+  const resizeHandle = (name: string) =>
+    screen.getByLabelText(`Resize ${name}`);
+
+  test("a resize handle is a focusable separator carrying the width", () => {
+    const bounded: ExtendedColumnDef<Row>[] = [
+      { ...columns[1]!, minSize: 80, maxSize: 400 },
+    ];
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={bounded}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+      />
+    );
+    const handle = resizeHandle("name");
+    expect(handle.tabIndex).toBe(0);
+    expect(handle.getAttribute("aria-valuenow")).toBe("200");
+    expect(handle.getAttribute("aria-valuemin")).toBe("80");
+    expect(handle.getAttribute("aria-valuemax")).toBe("400");
+  });
+
+  test("a handle without a column maximum leaves aria-valuemax unset", () => {
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+      />
+    );
+    expect(resizeHandle("name").hasAttribute("aria-valuemax")).toBe(false);
+  });
+
+  test("ArrowRight and ArrowLeft step the width by 10px", () => {
+    const onColumnSizingChange = vi.fn();
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowRight" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ name: 210 });
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowLeft" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ name: 190 });
+  });
+
+  test("steps stop at the column's min and max", () => {
+    const onColumnSizingChange = vi.fn();
+    const bounded: ExtendedColumnDef<Row>[] = [
+      { ...columns[1]!, minSize: 195, maxSize: 205 },
+    ];
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={bounded}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowRight" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ name: 205 });
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowLeft" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ name: 195 });
+  });
+
+  test("uncontrolled: the header and the handle follow a keyboard step", () => {
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowRight" });
+    const header = screen.getByText("Name").closest('[role="columnheader"]');
+    expect(header instanceof HTMLElement ? header.style.width : "").toBe(
+      "210px"
+    );
+    expect(resizeHandle("name").getAttribute("aria-valuenow")).toBe("210");
+  });
+
+  test("a rotated header's handle steps the width too", () => {
+    const onColumnSizingChange = vi.fn();
+    const rotatedCols: ExtendedColumnDef<Row>[] = [
+      {
+        id: "score",
+        header: "Score",
+        size: 40,
+        meta: { rotateHeader: true },
+        accessorFn: (r) => r.name,
+      },
+    ];
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={rotatedCols}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("score"), { key: "ArrowRight" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ score: 50 });
+  });
+
+  test("Enter on a handle doesn't open the selected row", () => {
+    const onRowActivate = vi.fn();
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        selectedRowId="1"
+        onRowActivate={onRowActivate}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("name"), { key: "Enter" });
+    expect(onRowActivate).not.toHaveBeenCalled();
   });
 });
