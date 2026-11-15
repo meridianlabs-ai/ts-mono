@@ -101,20 +101,23 @@ const kGridKeys = new Set([
 
 /** Keyboard control for a focused resize handle: ArrowLeft/ArrowRight step
  *  the width, Enter auto-sizes like a double-click, and the grid's other row
- *  keys stop here (see kGridKeys). */
+ *  keys stop here (see kGridKeys). With Alt, Ctrl or Cmd held, arrows are left
+ *  to the browser (Alt/Cmd+Left is Back) and Enter does nothing. */
 function makeResizeKeyDownHandler(
   stepBy: (delta: number) => void,
   autoSize: () => void
 ) {
   return (e: KeyboardEvent<HTMLElement>) => {
+    const modified = e.altKey || e.ctrlKey || e.metaKey;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      if (modified) return;
       e.preventDefault();
       e.stopPropagation();
       stepBy(e.key === "ArrowRight" ? kResizeStep : -kResizeStep);
     } else if (kGridKeys.has(e.key)) {
       e.preventDefault();
       e.stopPropagation();
-      if (e.key === "Enter") autoSize();
+      if (e.key === "Enter" && !modified) autoSize();
     }
   };
 }
@@ -669,16 +672,16 @@ export function DataGrid<TRow extends RowData>({
     [handleColumnSizingChange]
   );
 
-  // Keyboard resize steps from the rendered width (`from`, out of the column
-  // layout), so a fitted flex column moves from where the user sees it.
+  // `getSize()` is the fit-resolved width (the table's sizing state is
+  // `resolvedSizing`), so a flex column steps from where the user sees it.
   const resizeColumnBy = useCallback(
-    (
-      column: Column<DataGridFeatures, TRow, unknown>,
-      from: number,
-      delta: number
-    ) => {
+    (column: Column<DataGridFeatures, TRow, unknown>, delta: number) => {
       const def = column.columnDef as ExtendedColumnDef<TRow>;
-      const width = clampColumnWidth(from + delta, def.minSize, def.maxSize);
+      const width = clampColumnWidth(
+        column.getSize() + delta,
+        def.minSize,
+        def.maxSize
+      );
       handleColumnSizingChange((old) => ({ ...old, [column.id]: width }));
     },
     [handleColumnSizingChange]
@@ -1010,8 +1013,8 @@ export function DataGrid<TRow extends RowData>({
                       onHeaderDragLeave={handleHeaderDragLeave}
                       onHeaderDrop={handleHeaderDrop}
                       onAutoSize={() => autoSizeColumn(header.column)}
-                      onResizeBy={(from, delta) =>
-                        resizeColumnBy(header.column, from, delta)
+                      onResizeBy={(delta) =>
+                        resizeColumnBy(header.column, delta)
                       }
                     />
                   );
@@ -1020,9 +1023,9 @@ export function DataGrid<TRow extends RowData>({
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
                 const pinned = header.column.getIsPinned() === "start";
-                const headerSize =
-                  columnLayout.byId.get(header.column.id)?.size ??
-                  header.column.getSize();
+                const headerSize = columnLayout.byId.get(
+                  header.column.id
+                )?.size;
                 const sortCaret = (
                   <SortIndicator sorted={sorted} sortOrder={sortOrder} />
                 );
@@ -1156,12 +1159,15 @@ export function DataGrid<TRow extends RowData>({
                         aria-label={`Resize ${header.column.id}`}
                         tabIndex={0}
                         aria-valuenow={headerSize}
-                        aria-valuetext={`${headerSize} pixels`}
+                        aria-valuetext={
+                          headerSize === undefined
+                            ? undefined
+                            : `${headerSize} pixels`
+                        }
                         aria-valuemin={columnDef.minSize}
                         aria-valuemax={ariaMaxSize(columnDef.maxSize)}
                         onKeyDown={makeResizeKeyDownHandler(
-                          (delta) =>
-                            resizeColumnBy(header.column, headerSize, delta),
+                          (delta) => resizeColumnBy(header.column, delta),
                           () => autoSizeColumn(header.column)
                         )}
                         className={clsx(
@@ -1374,7 +1380,8 @@ function RotatedHeaderCell<TRow extends RowData>({
    *  its identity across resizes, so the compiled component would reuse a
    *  width read off it. */
   width: number | undefined;
-  /** The column's own width, from the layout like `width`. */
+  /** The column's own width (for aria-valuenow), from the layout like
+   *  `width`. */
   size: number | undefined;
   /** From the grid, like `width`: `header` keeps its identity across sort
    *  changes too. */
@@ -1400,7 +1407,7 @@ function RotatedHeaderCell<TRow extends RowData>({
   onHeaderDragLeave: (e: DragEvent<HTMLElement>) => void;
   onHeaderDrop: (e: DragEvent<HTMLElement>, colId: string) => void;
   onAutoSize: () => void;
-  onResizeBy: (from: number, delta: number) => void;
+  onResizeBy: (delta: number) => void;
 }): ReactElement {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
@@ -1508,10 +1515,7 @@ function RotatedHeaderCell<TRow extends RowData>({
           aria-valuetext={size === undefined ? undefined : `${size} pixels`}
           aria-valuemin={columnDef.minSize}
           aria-valuemax={ariaMaxSize(columnDef.maxSize)}
-          onKeyDown={makeResizeKeyDownHandler(
-            (delta) => onResizeBy(size ?? header.column.getSize(), delta),
-            onAutoSize
-          )}
+          onKeyDown={makeResizeKeyDownHandler(onResizeBy, onAutoSize)}
           className={clsx(
             styles.resizeHandle,
             styles.resizeHandleRotated,

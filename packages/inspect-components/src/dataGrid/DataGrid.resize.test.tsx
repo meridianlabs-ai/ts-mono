@@ -291,6 +291,9 @@ describe("DataGrid keyboard column resizing", () => {
         onColumnSizingChange={onColumnSizingChange}
       />
     );
+    expect(resizeHandle("score").getAttribute("aria-valuetext")).toBe(
+      "40 pixels"
+    );
     fireEvent.keyDown(resizeHandle("score"), { key: "ArrowRight" });
     expect(onColumnSizingChange).toHaveBeenLastCalledWith({ score: 50 });
   });
@@ -318,6 +321,7 @@ describe("DataGrid keyboard column resizing", () => {
       "ArrowUp",
       "Home",
       "End",
+      "PageUp",
       "PageDown",
     ]) {
       fireEvent.keyDown(handle, { key });
@@ -325,6 +329,33 @@ describe("DataGrid keyboard column resizing", () => {
     expect(onRowActivate).not.toHaveBeenCalled();
     expect(onSelectedRowChange).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(handle);
+  });
+
+  test("modified arrows and Enter neither resize nor reach the grid", () => {
+    const onColumnSizingChange = vi.fn();
+    const onRowActivate = vi.fn();
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        selectedRowId="1"
+        onRowActivate={onRowActivate}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    const handle = resizeHandle("name");
+    // Alt/Cmd+ArrowLeft is browser Back: left alone, not cancelled.
+    expect(fireEvent.keyDown(handle, { key: "ArrowLeft", altKey: true })).toBe(
+      true
+    );
+    expect(fireEvent.keyDown(handle, { key: "ArrowLeft", metaKey: true })).toBe(
+      true
+    );
+    fireEvent.keyDown(handle, { key: "Enter", metaKey: true });
+    expect(onColumnSizingChange).not.toHaveBeenCalled();
+    expect(onRowActivate).not.toHaveBeenCalled();
   });
 
   test("a handle describes its width in pixels", () => {
