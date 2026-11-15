@@ -4,8 +4,8 @@ import {
   clampSize,
   getColumnConstraints,
   getColumnId,
-} from "../../components/columnSizing";
-import { TranscriptColumn } from "../columns";
+  type ColumnSizingDefinition,
+} from "./types";
 
 describe("clampSize", () => {
   const constraints = { size: 150, minSize: 50, maxSize: 200 };
@@ -37,7 +37,7 @@ describe("clampSize", () => {
 
 describe("getColumnConstraints", () => {
   it("extracts constraints from columns with all properties", () => {
-    const columns: TranscriptColumn[] = [
+    const columns: ColumnSizingDefinition[] = [
       {
         accessorKey: "test",
         header: "Test",
@@ -57,7 +57,7 @@ describe("getColumnConstraints", () => {
   });
 
   it("uses default values when constraints not specified", () => {
-    const columns: TranscriptColumn[] = [
+    const columns: ColumnSizingDefinition[] = [
       {
         accessorKey: "test",
         header: "Test",
@@ -74,7 +74,7 @@ describe("getColumnConstraints", () => {
   });
 
   it("uses column id when accessorKey not available", () => {
-    const columns: TranscriptColumn[] = [
+    const columns: ColumnSizingDefinition[] = [
       {
         id: "custom-id",
         header: "Test",
@@ -89,7 +89,7 @@ describe("getColumnConstraints", () => {
   });
 
   it("handles multiple columns", () => {
-    const columns: TranscriptColumn[] = [
+    const columns: ColumnSizingDefinition[] = [
       {
         accessorKey: "col1",
         header: "Column 1",
@@ -129,7 +129,7 @@ describe("getColumnConstraints", () => {
 
 describe("getColumnId", () => {
   it("returns accessorKey when available", () => {
-    const column: TranscriptColumn = {
+    const column: ColumnSizingDefinition = {
       accessorKey: "test_key",
       header: "Test",
     };
@@ -138,7 +138,7 @@ describe("getColumnId", () => {
   });
 
   it("returns id when accessorKey not available", () => {
-    const column: TranscriptColumn = {
+    const column: ColumnSizingDefinition = {
       id: "custom_id",
       header: "Test",
     };
@@ -147,7 +147,7 @@ describe("getColumnId", () => {
   });
 
   it("prefers id over accessorKey when both present", () => {
-    const column: TranscriptColumn = {
+    const column: ColumnSizingDefinition = {
       id: "custom_id",
       accessorKey: "accessor_key",
       header: "Test",
@@ -158,7 +158,7 @@ describe("getColumnId", () => {
   });
 
   it("returns empty string when neither id nor accessorKey present", () => {
-    const column: TranscriptColumn = {
+    const column: ColumnSizingDefinition = {
       id: "",
       header: "Test",
     };

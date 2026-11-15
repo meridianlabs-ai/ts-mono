@@ -369,28 +369,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/components/columnSizing/strategies.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/dataGrid/DataGrid.tsx": {
-    "jsx-a11y/no-noninteractive-tabindex": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
   "apps/scout/src/app/components/FilterBar.tsx": {
     "react-hooks/refs": {
       "count": 1
@@ -455,10 +433,10 @@
   },
   "apps/scout/src/app/scans/ScansGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
+      "count": 2
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/scout/src/app/server/useAdjacentTranscriptIds.ts": {
@@ -482,16 +460,10 @@
   "apps/scout/src/app/transcripts/columns.tsx": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
     }
   },
   "apps/scout/src/app/transcripts/TranscriptsGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "tsmono/no-raw-use-effect": {
       "count": 2
     }
   },

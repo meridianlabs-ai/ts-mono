@@ -65,13 +65,6 @@ export interface SizingStrategy {
 }
 
 /**
- * Available sizing strategy keys.
- * - "default": Uses the column's defined `size` property
- * - "fit-content": Measures content and sizes columns to fit within min/max constraints
- */
-export type ColumnSizingStrategyKey = "default" | "fit-content";
-
-/**
  * Clamp a size value to min/max constraints.
  */
 export function clampSize(
@@ -79,28 +72,6 @@ export function clampSize(
   constraints: ColumnSizeConstraints
 ): number {
   return Math.max(constraints.minSize, Math.min(constraints.maxSize, size));
-}
-
-/**
- * Merge freshly calculated sizes with the current sizing state: calculated
- * sizes win except for manually resized columns, whose current size is
- * preserved. Module-level (not inline in the hooks) so they stay compilable:
- * React Compiler can't lower loops inside try/catch.
- */
-export function mergeCalculatedSizing(
-  calculatedSizing: ColumnSizingState,
-  resizedSet: Set<string>,
-  currentSizing: ColumnSizingState
-): ColumnSizingState {
-  const newSizing: ColumnSizingState = {};
-  for (const [columnId, size] of Object.entries(calculatedSizing)) {
-    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
-      newSizing[columnId] = currentSizing[columnId];
-    } else {
-      newSizing[columnId] = size;
-    }
-  }
-  return newSizing;
 }
 
 /**

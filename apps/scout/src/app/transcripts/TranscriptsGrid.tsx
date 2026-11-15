@@ -1,46 +1,27 @@
-import { FC, useEffect, useMemo, useRef } from "react";
+import { FC } from "react";
+
+import { combineFilters } from "@tsmono/inspect-components/columnFilter";
+import { DataGrid } from "@tsmono/inspect-components/dataGrid";
+import { hashRouteUrl } from "@tsmono/react/routing";
 
 import { ScalarValue } from "../../api/api";
+import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { transcriptRoute } from "../../router/url";
 import { useStore } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
-import { DataGrid } from "../components/dataGrid";
 
 import {
   DEFAULT_COLUMN_ORDER,
+  DEFAULT_VISIBLE_COLUMNS,
   getTranscriptColumns,
-  TranscriptColumn,
 } from "./columns";
-import { useColumnSizing } from "./columnSizing";
-
-// Default visible columns (stable reference)
-const DEFAULT_VISIBLE_COLUMNS: Array<keyof TranscriptInfo> = [
-  "success",
-  "date",
-  "task_set",
-  "task_id",
-  "task_repeat",
-  "model",
-  "score",
-  "message_count",
-  "total_time",
-  "total_tokens",
-];
-
-// Generate a stable key for a transcript item
-function transcriptItemKey(index: number, item?: TranscriptInfo): string {
-  if (!item) {
-    return String(index);
-  }
-  return `${item.source_uri}/${item.transcript_id}`;
-}
 
 interface TranscriptGridProps {
   transcripts: TranscriptInfo[];
   transcriptsDir?: string | null;
   /** Whether the project's scout.yaml filter narrows the listing */
   projectFiltered?: boolean;
-  className?: string | string[];
+  className?: string;
   /** Called when scroll position nears end; receives distance from bottom in px. */
   onScrollNearEnd: (distanceFromBottom: number) => void;
   /** Whether more data is available to fetch. */
@@ -63,126 +44,86 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   hasMore,
   fetchThreshold,
   loading,
-  filterSuggestions = [],
+  filterSuggestions,
   onFilterColumnChange,
 }) => {
-  // Table ref for DOM measurement (used by column sizing)
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  // Table state from store
-  const columnOrder = useStore(
-    (state) => state.transcriptsTableState.columnOrder
-  );
-  const sorting = useStore((state) => state.transcriptsTableState.sorting);
-  const rowSelection = useStore(
-    (state) => state.transcriptsTableState.rowSelection
-  );
-  const columnFilters =
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
-    useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
-  const focusedRowId = useStore(
-    (state) => state.transcriptsTableState.focusedRowId
-  );
-  const visibleColumns =
-    useStore((state) => state.transcriptsTableState.visibleColumns) ??
-    DEFAULT_VISIBLE_COLUMNS;
+  const navigate = useLoggingNavigate("TranscriptsGrid");
+  const tableState = useStore((state) => state.transcriptsTableState);
   const setTableState = useStore((state) => state.setTranscriptsTableState);
-
-  // Define table columns based on visible columns from store
-  const columns = useMemo<TranscriptColumn[]>(
-    () => getTranscriptColumns(visibleColumns),
-    [visibleColumns]
-  );
-
-  // Column sizing with min/max constraints and auto-sizing
   const {
+    sorting,
+    columnOrder,
     columnSizing,
-    handleColumnSizingChange,
-    applyAutoSizing,
-    resetColumnSize,
-  } = useColumnSizing({
-    columns,
-    tableRef,
-    data: transcripts,
-  });
+    focusedRowId,
+    visibleColumns = DEFAULT_VISIBLE_COLUMNS,
+  } = tableState;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
+  const columnFilters = tableState.columnFilters ?? {};
 
-  // Track if we've done initial auto-sizing
-  const hasInitializedRef = useRef(false);
+  const routeOf = (row: TranscriptInfo): string | undefined =>
+    transcriptsDir
+      ? transcriptRoute(transcriptsDir, String(row.transcript_id))
+      : undefined;
 
-  // Track previous visible columns to detect changes
-  const previousVisibleColumnsRef = useRef<typeof visibleColumns | null>(null);
-
-  // Auto-size columns on initial load when data is available
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!hasInitializedRef.current && transcripts.length > 0) {
-      hasInitializedRef.current = true;
-      applyAutoSizing();
-    }
-  }, [transcripts.length, applyAutoSizing]);
-
-  // Auto-size when visible columns change
-  // (applyAutoSizing preserves manually resized columns)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const previousVisibleColumns = previousVisibleColumnsRef.current;
-    previousVisibleColumnsRef.current = visibleColumns;
-
-    if (previousVisibleColumns && previousVisibleColumns !== visibleColumns) {
-      applyAutoSizing();
-    }
-  }, [visibleColumns, applyAutoSizing]);
-
-  // Compute effective column order: use explicit order if set, otherwise derive from DEFAULT_COLUMN_ORDER
-  const effectiveColumnOrder = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
-    if (columnOrder && columnOrder.length > 0) {
-      return columnOrder;
-    }
-    // Filter DEFAULT_COLUMN_ORDER to only include visible columns
-    return DEFAULT_COLUMN_ORDER.filter((col) => visibleColumns.includes(col));
-  }, [columnOrder, visibleColumns]);
-
-  // Get row ID
-  const getRowId = (row: TranscriptInfo): string => String(row.transcript_id);
-
-  // Get route for navigation
-  const getRowRoute = (row: TranscriptInfo): string => {
-    if (!transcriptsDir) return "";
-    return transcriptRoute(transcriptsDir, String(row.transcript_id));
-  };
+  const emptyMessage = !transcriptsDir
+    ? "No transcripts directory configured."
+    : projectFiltered || combineFilters(columnFilters)
+      ? "No matching transcripts"
+      : "No transcripts in this directory.";
 
   return (
-    <DataGrid
+    <DataGrid<TranscriptInfo>
       data={transcripts}
-      columns={columns}
-      getRowId={getRowId}
-      getRowKey={transcriptItemKey}
-      state={{
-        sorting,
-        columnOrder: effectiveColumnOrder,
-        columnFilters,
-        columnSizing,
-        rowSelection,
-        focusedRowId,
+      columns={getTranscriptColumns(visibleColumns)}
+      getRowId={(row) => String(row.transcript_id)}
+      ariaLabel="Transcripts"
+      className={className}
+      loading={loading}
+      emptyMessage={emptyMessage}
+      sorting={sorting}
+      onSortingChange={(next) =>
+        setTableState((prev) => ({ ...prev, sorting: next }))
+      }
+      columnOrder={
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
+        columnOrder?.length ? columnOrder : DEFAULT_COLUMN_ORDER
+      }
+      onColumnOrderChange={(next) =>
+        setTableState((prev) => ({ ...prev, columnOrder: next }))
+      }
+      columnSizing={columnSizing}
+      onColumnSizingChange={(next) =>
+        setTableState((prev) => ({ ...prev, columnSizing: next }))
+      }
+      columnFilters={columnFilters}
+      onColumnFilterChange={(columnId, filterType, spec) =>
+        setTableState((prev) => {
+          const filters = { ...prev.columnFilters };
+          if (spec === null) delete filters[columnId];
+          else filters[columnId] = { columnId, filterType, spec };
+          return { ...prev, columnFilters: filters };
+        })
+      }
+      filterSuggestions={filterSuggestions}
+      onFilterOpenChange={onFilterColumnChange}
+      selectedRowId={focusedRowId ?? undefined}
+      onSelectedRowChange={(row) =>
+        setTableState((prev) => ({
+          ...prev,
+          focusedRowId: String(row.transcript_id),
+        }))
+      }
+      onRowActivate={(row) => {
+        const route = routeOf(row);
+        if (route) navigate(route);
       }}
-      onStateChange={setTableState}
-      getRowRoute={getRowRoute}
+      getRowHref={(row) => {
+        const route = routeOf(row);
+        return route ? hashRouteUrl(route) : undefined;
+      }}
       onScrollNearEnd={onScrollNearEnd}
       hasMore={hasMore}
       fetchThreshold={fetchThreshold}
-      filterSuggestions={filterSuggestions}
-      onFilterColumnChange={onFilterColumnChange}
-      onColumnSizingChange={handleColumnSizingChange}
-      onResetColumnSize={resetColumnSize}
-      className={className}
-      loading={loading}
-      emptyMessage="No transcripts in this directory."
-      noMatchMessage="No matching transcripts"
-      externallyFiltered={projectFiltered}
-      noConfigMessage={
-        transcriptsDir ? undefined : "No transcripts directory configured."
-      }
     />
   );
 };
