@@ -162,34 +162,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/shared/data-grid/DataGrid.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    },
-    "jsx-a11y/click-events-have-key-events": {
-      "count": 4,
-      "undescribed": 4
-    },
-    "jsx-a11y/interactive-supports-focus": {
-      "count": 3,
-      "undescribed": 3
-    },
-    "jsx-a11y/no-noninteractive-element-interactions": {
-      "count": 2,
-      "undescribed": 2
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/shared/samples-grid/colorScale.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -209,11 +181,6 @@
     }
   },
   "apps/inspect/src/app/shared/useKeyedMemo.ts": {
-    "react-hooks/refs (file-wide)": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/shared/useStableValue.ts": {
     "react-hooks/refs (file-wide)": {
       "count": 1
     }
@@ -696,6 +663,34 @@
       "undescribed": 1
     }
   },
+  "packages/inspect-components/src/dataGrid/DataGrid.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 4,
+      "undescribed": 4
+    },
+    "jsx-a11y/interactive-supports-focus": {
+      "count": 3,
+      "undescribed": 3
+    },
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 2,
+      "undescribed": 2
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "react-hooks/incompatible-library": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "tsmono/no-raw-use-effect": {
+      "count": 1
+    }
+  },
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -943,6 +938,11 @@
       "count": 1
     },
     "react-hooks/refs": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useStableValue.ts": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },

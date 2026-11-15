@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from "react";
 
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "@tsmono/inspect-components/dataGrid";
 import { Icon, IconName } from "@tsmono/react/icons";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
@@ -16,10 +20,6 @@ import {
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import {
-  ColumnComparator,
-  ExtendedColumnDef,
-} from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import { type PickerColumn } from "../../../shared/gridUtils";
 

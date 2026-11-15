@@ -17,17 +17,17 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  buildSearchIndex,
+  DataGrid,
+  findMatches,
+  rowSearchText,
+} from "@tsmono/inspect-components/dataGrid";
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 import { useProperty, useUnmount } from "@tsmono/react/hooks";
 
 import { useLogsListing } from "../../../state/hooks";
 import { toFullUrlMaybe } from "../../routing/url";
-import { DataGrid } from "../../shared/data-grid/DataGrid";
-import {
-  buildSearchIndex,
-  findMatches,
-  rowSearchText,
-} from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
 import {
   useLogsListingMatches,

@@ -75,6 +75,7 @@ const RAW_HTML_FILES = ["packages/react/src/components/MarkdownDiv.tsx"];
 // destinations from application data (routes, tabs, the git origin, docs).
 const DYNAMIC_LINK_FILES = [
   "packages/inspect-components/src/content/ExternalLink.tsx",
+  "packages/inspect-components/src/dataGrid/DataGrid.tsx",
   "packages/inspect-components/src/media/MediaReference.tsx",
   "packages/inspect-components/src/transcript/event/EventPanel.tsx",
   "packages/inspect-components/src/transcript/outline/OutlineRow.tsx",
@@ -84,7 +85,6 @@ const DYNAMIC_LINK_FILES = [
   "packages/react/src/components/TabSet.tsx",
   "apps/inspect/src/app/log-view/tabs/TaskTab.tsx",
   "apps/inspect/src/app/samples/transcript/search/SearchScoutUnavailable.tsx",
-  "apps/inspect/src/app/shared/data-grid/DataGrid.tsx",
 ];
 
 const requireMediaPermission = {

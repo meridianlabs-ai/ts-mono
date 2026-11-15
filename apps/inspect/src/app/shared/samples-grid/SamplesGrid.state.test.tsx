@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import type { ExtendedColumnDef } from "../data-grid/columnTypes";
+import type { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
 
 import { buildSampleColumns } from "./columns";
 import { SamplesGrid } from "./SamplesGrid";

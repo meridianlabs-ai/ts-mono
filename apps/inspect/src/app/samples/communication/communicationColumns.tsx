@@ -1,10 +1,10 @@
 import clsx from "clsx";
 
+import type { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
 import { communicationAgent } from "@tsmono/inspect-components/transcript";
 import { fmtClock } from "@tsmono/inspect-components/usage";
 import { ContentText } from "@tsmono/react/components";
 
-import type { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { comparators } from "../../shared/gridComparators";
 
 import styles from "./communicationColumns.module.css";

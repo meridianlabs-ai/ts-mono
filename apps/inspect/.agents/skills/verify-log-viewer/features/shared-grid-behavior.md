@@ -12,7 +12,7 @@ reordering, virtualization, keyboard selection, and persisted view state.
 - `grid-keyboard` moves selection with arrows and activates with Enter;
   Cmd/Ctrl/Shift+Enter opens the selected row in a new tab.
 - `grid-row-links` renders rows as links from the grid's `getRowHref` (in
-  `apps/inspect/src/app/shared/data-grid/DataGrid.tsx`), so native new-tab
+  `packages/inspect-components/src/dataGrid/DataGrid.tsx`), so native new-tab
   gestures work anywhere on a row.
 - `grid-state` restores sort/filter/order/widths for the same scope without
   leaking them into another folder, route family, or grid kind.
@@ -45,7 +45,7 @@ reordering, virtualization, keyboard selection, and persisted view state.
 
 ## Code landmarks
 
-- Shared mechanics: `apps/inspect/src/app/shared/data-grid/DataGrid.tsx` plus
+- Shared mechanics: `packages/inspect-components/src/dataGrid/DataGrid.tsx` plus
   `keyboardNav.ts`, `autoSize.ts`, `columnFit.ts`, `columnReorder.ts`, and
   `findMatches.ts` in the same directory.
 - Log-specific columns/state: `apps/inspect/src/app/log-list/grid/` and
@@ -55,7 +55,7 @@ reordering, virtualization, keyboard selection, and persisted view state.
   `apps/inspect/src/app/samples/list/useSamplesView.ts`, and
   `apps/inspect/src/app/shared/samples-grid/useSampleGridState.ts`.
 - Shared filter UI and evaluation: `packages/inspect-components/src/columnFilter/`.
-- Regression coverage: `apps/inspect/src/app/shared/data-grid/*.test.tsx`,
+- Regression coverage: `packages/inspect-components/src/dataGrid/*.test.tsx`,
   `apps/inspect/e2e/log-list-filters.spec.ts`,
   `log-list-find.spec.ts`, and `top-level-views.spec.ts`.
 

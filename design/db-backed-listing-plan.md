@@ -125,7 +125,7 @@ mode never mounts the log list, so it needs no listing path at all.
 now separate from its backing, shared in `packages/react/src/components/`.
 The log list uses `FindBandUI` directly with a data-level backing —
 `buildSearchIndex` / `findMatches` in
-`apps/inspect/src/app/shared/data-grid/findMatches.ts`, built over **all**
+`packages/inspect-components/src/dataGrid/findMatches.ts`, built over **all**
 rows. That backing is exactly what breaks under pagination, and now it's a
 swappable seam: phase 3 replaces it with a DB-backed matcher without
 touching the UI.
@@ -162,7 +162,7 @@ touching the UI.
 Consumers: `grid/useLogListData.ts` (tasks/logs; splits pinned folders from
 files, runs the listing query over files only) and
 `shared/samples-grid/SamplesGrid.tsx` (cross-log samples). Both feed the
-shared `DataGrid` (`app/shared/data-grid/DataGrid.tsx`) — TanStack Table +
+shared `DataGrid` (`packages/inspect-components/src/dataGrid/DataGrid.tsx`) — TanStack Table +
 react-virtual, which **virtualizes rendering but receives the complete
 array**; it has no infinite-load mechanism yet.
 

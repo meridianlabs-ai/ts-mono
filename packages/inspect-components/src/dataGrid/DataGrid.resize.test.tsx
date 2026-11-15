@@ -51,8 +51,8 @@ describe("DataGrid column resizing", () => {
     );
     const handles = screen.getAllByRole("separator");
     expect(handles).toHaveLength(1);
-    expect(screen.getByLabelText("Resize name")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Resize icon")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Resize name")).not.toBeNull();
+    expect(screen.queryByLabelText("Resize icon")).toBeNull();
   });
 
   test("renders a resize handle for a rotated (compact score) header", () => {
@@ -74,7 +74,7 @@ describe("DataGrid column resizing", () => {
         onRowActivate={() => {}}
       />
     );
-    expect(screen.getByLabelText("Resize score")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Resize score")).not.toBeNull();
   });
 
   test("body cells follow a width change that keeps the total width", () => {

@@ -56,10 +56,10 @@ describe("DataGrid accessibility", () => {
     );
 
     const el = grid();
-    expect(el).toHaveAttribute("aria-label", "Test grid");
+    expect(el.getAttribute("aria-label")).toBe("Test grid");
     // rows + the header row
-    expect(el).toHaveAttribute("aria-rowcount", String(rows.length + 1));
-    expect(el).toHaveAttribute("aria-colcount", "2");
+    expect(el.getAttribute("aria-rowcount")).toBe(String(rows.length + 1));
+    expect(el.getAttribute("aria-colcount")).toBe("2");
   });
 
   test("loading sets aria-busy and the live region announces the count", () => {
@@ -73,8 +73,8 @@ describe("DataGrid accessibility", () => {
       />
     );
 
-    expect(grid()).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(grid().getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("status").textContent).toContain("Loading…");
 
     rerender(
       <DataGrid<Row>
@@ -85,8 +85,8 @@ describe("DataGrid accessibility", () => {
       />
     );
 
-    expect(grid()).not.toHaveAttribute("aria-busy");
-    expect(screen.getByRole("status")).toHaveTextContent("3 rows");
+    expect(grid().hasAttribute("aria-busy")).toBe(false);
+    expect(screen.getByRole("status").textContent).toContain("3 rows");
   });
 
   test("headers carry columnheader role, aria-colindex, and aria-sort", () => {
@@ -102,10 +102,10 @@ describe("DataGrid accessibility", () => {
 
     const headers = screen.getAllByRole("columnheader");
     expect(headers).toHaveLength(2);
-    expect(headers[0]).toHaveAttribute("aria-colindex", "1");
-    expect(headers[0]).toHaveAttribute("aria-sort", "descending");
-    expect(headers[1]).toHaveAttribute("aria-colindex", "2");
-    expect(headers[1]).toHaveAttribute("aria-sort", "none");
+    expect(headers[0]?.getAttribute("aria-colindex")).toBe("1");
+    expect(headers[0]?.getAttribute("aria-sort")).toBe("descending");
+    expect(headers[1]?.getAttribute("aria-colindex")).toBe("2");
+    expect(headers[1]?.getAttribute("aria-sort")).toBe("none");
   });
 
   test("a sortable header is keyboard-operable (Enter cycles sort, not row activation)", () => {
