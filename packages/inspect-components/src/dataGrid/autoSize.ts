@@ -37,5 +37,15 @@ export function computeAutoSizeWidth({
     0
   );
   const fit = Math.ceil(Math.max(widestCell, headerWidth + kAutoSizeHeaderPad));
-  return Math.min(Math.max(fit, minSize ?? 20), maxSize ?? Infinity);
+  return clampColumnWidth(fit, minSize, maxSize);
+}
+
+/** A column width bounded by the column's min/max (TanStack's default
+ *  minimum is 20px). */
+export function clampColumnWidth(
+  width: number,
+  minSize: number | undefined,
+  maxSize: number | undefined
+): number {
+  return Math.min(Math.max(width, minSize ?? 20), maxSize ?? Infinity);
 }

@@ -55,6 +55,22 @@ describe("DataGrid double-click auto-size", () => {
     expect(onColumnSizingChange).toHaveBeenCalledWith({ name: 120 });
   });
 
+  test("Enter on a resize handle commits the same auto-sized width", () => {
+    const onColumnSizingChange = vi.fn();
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    fireEvent.keyDown(screen.getByLabelText("Resize name"), { key: "Enter" });
+    expect(onColumnSizingChange).toHaveBeenCalledWith({ name: 120 });
+  });
+
   test("uncontrolled: the header shrinks to the auto-sized width", () => {
     render(
       <DataGrid<Row>

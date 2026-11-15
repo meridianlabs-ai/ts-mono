@@ -258,6 +258,17 @@ export default tseslint.config(...baseConfig, {
     // prop, so flagging non-DOM elements is guesswork. Real DOM autoFocus
     // is still an error.
     "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
+    // ARIA 1.2 makes a focusable separator a widget (the window-splitter
+    // pattern, e.g. a column resize handle); the rule only knows the static
+    // role. Otherwise the plugin's recommended options.
+    "jsx-a11y/no-noninteractive-tabindex": [
+      "error",
+      {
+        tags: [],
+        roles: ["tabpanel", "separator"],
+        allowExpressionValues: true,
+      },
+    ],
     "tsmono/no-raw-use-effect": "error",
     "tsmono/require-media-permission": "error",
     "tsmono/require-icon-component": "error",
