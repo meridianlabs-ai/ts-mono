@@ -51,7 +51,7 @@ const useThemePreferenceSync = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders.
   // A post-paint effect updates the icon a frame before the colors, flashing
   // the old theme.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- applies the theme once React commits a new preference: persist has written localStorage, which apply reads, and a layout effect lands before paint
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
