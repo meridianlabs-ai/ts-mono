@@ -86,9 +86,22 @@ function makeSortKeyDownHandler<TRow extends RowData>(
 /** Width change per ArrowLeft/ArrowRight on a focused resize handle. */
 const kResizeStep = 10;
 
+/** Keys the grid container acts on (row activation and navigation). A focused
+ *  handle keeps them, so they don't open or move the row selection. */
+const kGridKeys = new Set([
+  "Enter",
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
 /** Keyboard control for a focused resize handle: ArrowLeft/ArrowRight step
- *  the width, Enter auto-sizes like a double-click. Stops propagation so the
- *  grid container doesn't also treat Enter as "activate the selected row". */
+ *  the width, Enter auto-sizes like a double-click, and the grid's other row
+ *  keys stop here (see kGridKeys). */
 function makeResizeKeyDownHandler(
   stepBy: (delta: number) => void,
   autoSize: () => void
@@ -98,10 +111,10 @@ function makeResizeKeyDownHandler(
       e.preventDefault();
       e.stopPropagation();
       stepBy(e.key === "ArrowRight" ? kResizeStep : -kResizeStep);
-    } else if (e.key === "Enter") {
+    } else if (kGridKeys.has(e.key)) {
       e.preventDefault();
       e.stopPropagation();
-      autoSize();
+      if (e.key === "Enter") autoSize();
     }
   };
 }
@@ -1136,13 +1149,14 @@ export function DataGrid<TRow extends RowData>({
                     {header.column.getCanResize() && (
                       // A focusable separator (the WAI-ARIA window splitter):
                       // drag it, or Tab to it for arrow-key resizing.
-                      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+                      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a focusable separator is a widget (ARIA 1.2); the rule only sees the role
                       <div
                         role="separator"
                         aria-orientation="vertical"
                         aria-label={`Resize ${header.column.id}`}
                         tabIndex={0}
                         aria-valuenow={headerSize}
+                        aria-valuetext={`${headerSize} pixels`}
                         aria-valuemin={columnDef.minSize}
                         aria-valuemax={ariaMaxSize(columnDef.maxSize)}
                         onKeyDown={makeResizeKeyDownHandler(
@@ -1484,13 +1498,14 @@ function RotatedHeaderCell<TRow extends RowData>({
       />
       {header.column.getCanResize() && (
         // Focusable separator — see the upright header above.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a focusable separator is a widget (ARIA 1.2); the rule only sees the role
         <div
           role="separator"
           aria-orientation="vertical"
           aria-label={`Resize ${header.column.id}`}
           tabIndex={0}
           aria-valuenow={size}
+          aria-valuetext={size === undefined ? undefined : `${size} pixels`}
           aria-valuemin={columnDef.minSize}
           aria-valuemax={ariaMaxSize(columnDef.maxSize)}
           onKeyDown={makeResizeKeyDownHandler(

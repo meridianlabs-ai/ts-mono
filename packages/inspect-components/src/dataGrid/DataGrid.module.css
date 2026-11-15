@@ -503,6 +503,14 @@
   width: 3px;
 }
 
+/* Forced colors drop the accent line's background; outline survives. */
+@media (forced-colors: active) {
+  .resizeHandle:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
 /* Tall (rotated) mode: confine the hit-zone + accent line to the bottom
  * divider band so it stays off the angled labels above. */
 .resizeHandleTall {

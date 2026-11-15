@@ -676,8 +676,7 @@
       "undescribed": 3
     },
     "jsx-a11y/no-noninteractive-element-interactions": {
-      "count": 2,
-      "undescribed": 2
+      "count": 2
     },
     "jsx-a11y/no-static-element-interactions": {
       "count": 1,

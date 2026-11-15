@@ -295,6 +295,81 @@ describe("DataGrid keyboard column resizing", () => {
     expect(onColumnSizingChange).toHaveBeenLastCalledWith({ score: 50 });
   });
 
+  test("Space and row-navigation keys on a handle stay on the handle", () => {
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(500);
+    const onRowActivate = vi.fn();
+    const onSelectedRowChange = vi.fn();
+    const twoRows: Row[] = [...rows, { id: "2", name: "beta" }];
+    render(
+      <DataGrid<Row>
+        data={twoRows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        selectedRowId="1"
+        onSelectedRowChange={onSelectedRowChange}
+        onRowActivate={onRowActivate}
+      />
+    );
+    const handle = resizeHandle("name");
+    handle.focus();
+    for (const key of [
+      " ",
+      "ArrowDown",
+      "ArrowUp",
+      "Home",
+      "End",
+      "PageDown",
+    ]) {
+      fireEvent.keyDown(handle, { key });
+    }
+    expect(onRowActivate).not.toHaveBeenCalled();
+    expect(onSelectedRowChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(handle);
+  });
+
+  test("a handle describes its width in pixels", () => {
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+      />
+    );
+    expect(resizeHandle("name").getAttribute("aria-valuetext")).toBe(
+      "200 pixels"
+    );
+  });
+
+  test("a flex column steps from its fitted width", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    // 400px to fit into after the grid's 4px `kFitSlack` reserve.
+    vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(404);
+    const onColumnSizingChange = vi.fn();
+    const flexColumns: ExtendedColumnDef<Row>[] = [
+      { ...columns[1]!, size: 100, flex: 1 },
+    ];
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={flexColumns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{}}
+        onColumnSizingChange={onColumnSizingChange}
+      />
+    );
+    fireEvent.keyDown(resizeHandle("name"), { key: "ArrowRight" });
+    expect(onColumnSizingChange).toHaveBeenLastCalledWith({ name: 410 });
+  });
+
   test("Enter on a handle doesn't open the selected row", () => {
     const onRowActivate = vi.fn();
     render(
