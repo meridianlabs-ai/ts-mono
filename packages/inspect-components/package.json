@@ -13,6 +13,7 @@
     "./columnFilter": "./src/columnFilter/index.ts",
     "./config": "./src/config/index.ts",
     "./content": "./src/content/index.ts",
+    "./dataGrid": "./src/dataGrid/index.ts",
     "./sample-activity": "./src/sample-activity/index.ts",
     "./selection": "./src/selection/index.ts",
     "./theme": "./src/theme/index.ts",
@@ -38,12 +39,16 @@
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-table": "^9.1.2",
+    "@tanstack/react-virtual": "^3.14.25",
     "@vscode-elements/react-elements": "^2.4.0",
     "json5": "^2.2.3",
     "react": "^19.0.0"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.105.2",
+    "@tanstack/react-table": "^9.1.2",
+    "@tanstack/react-virtual": "^3.14.25",
     "@testing-library/react": "^16.3.3",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",

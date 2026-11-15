@@ -20,6 +20,12 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  buildSearchIndex,
+  DataGrid,
+  ExtendedColumnDef,
+  findMatches,
+} from "@tsmono/inspect-components/dataGrid";
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 
 import type { ValueComparator } from "../../log-list/listing/types";
@@ -27,9 +33,6 @@ import {
   sortingStateToOrderBy,
   useLogsListingQuery,
 } from "../../log-list/listing/useLogsListingQuery";
-import { ExtendedColumnDef } from "../data-grid/columnTypes";
-import { DataGrid } from "../data-grid/DataGrid";
-import { buildSearchIndex, findMatches } from "../data-grid/findMatches";
 
 export const kListModeRowHeight = 70;
 export const kGridModeRowHeight = 30;

@@ -37,3 +37,4 @@ export * from "./useUnmount";
 export * from "./useCopyToClipboard";
 export * from "./useAnimationFrameLoop";
 export * from "./useSpaceBelow";
+export * from "./useStableValue";

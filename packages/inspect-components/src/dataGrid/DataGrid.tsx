@@ -34,12 +34,10 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
-import { useMountEffect } from "@tsmono/react/hooks";
+import { useMountEffect, useStableValue } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isButtonActivation, isRecord, isVscode } from "@tsmono/util";
-
-import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
