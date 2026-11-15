@@ -252,7 +252,9 @@ export interface DataGridProps<TRow extends RowData> {
    *  link gestures (cmd/ctrl/shift/middle-click, context menu, hover
    *  preview) open it in a new tab; plain clicks still go to
    *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too.
-   *  Ignored inside the VS Code webview, where browser tabs don't exist. */
+   *  Ignored inside the VS Code webview, where browser tabs don't exist.
+   *  Build it from app routes, never log content: the row renders as a live
+   *  link, and this file's lint allowlist trusts its callers. */
   getRowHref?: (row: TRow) => string | undefined;
   rowHeight?: number;
   headerHeight?: number;
@@ -274,7 +276,7 @@ export interface DataGridProps<TRow extends RowData> {
 }
 
 /**
- * Inspect-local DataGrid: a minimal TanStack Table wrapper with row
+ * DataGrid: a minimal TanStack Table wrapper with row
  * virtualization, controlled column visibility, fit-to-width column sizing
  * (flex weights or proportional scaling — see columnFit.ts; horizontal
  * scroll when minimums overflow), and single-row selection +
