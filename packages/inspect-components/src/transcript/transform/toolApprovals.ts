@@ -75,6 +75,18 @@ const splitChains = (queue: ApprovalNode[]): ApprovalNode[][] => {
   return result;
 };
 
+/** The call ids a model output proposed, each once. */
+const proposedIds = (node: EventNode): string[] =>
+  node.event.event === "model"
+    ? [
+        ...new Set(
+          node.event.output.choices.flatMap((choice) =>
+            (choice.message.tool_calls ?? []).map((call) => call.id)
+          )
+        ),
+      ]
+    : [];
+
 /** Whether the decision that ended a chain kept its call from running. */
 const chainStopped = (chain: ApprovalNode[]): boolean => {
   const last = chain.at(-1)?.event;
@@ -120,8 +132,11 @@ const stepNodes = (span: EventNode): SentinelNode[] => {
  *   `BridgeOutputs`): it judged a call that never ran, though it approved.
  * - Each native attempt records its ToolEvent, a stopped one as failed, so a
  *   native ToolEvent takes the oldest chain still waiting for its id, and a
- *   stopped chain only when the ToolEvent failed. Approvals recorded after
- *   every ToolEvent of their id go to the last one when it is native.
+ *   stopped chain only when the ToolEvent failed. Approvals that come after
+ *   the last ToolEvent of their id go to it when it is native. Its timestamp
+ *   is from before approval, so the timeline sorts it ahead of its approvals.
+ *   A new proposal of the id ends that call, settling its waiting chains on
+ *   the ToolEvent recorded since the previous proposal.
  */
 function pairToolApprovalsByExecution(
   eventNodes: EventNode[]
@@ -136,10 +151,34 @@ function pairToolApprovalsByExecution(
   const outputs = bridgeOutputs();
   /** The output each approval with no `execution_id` judged a call of. */
   const outputOf = new Map<string, string>();
+  /** Keys with a ToolEvent recorded since the last proposal of their id. */
+  const ranSinceProposal = new Set<string>();
   const take = (key: string): ApprovalNode[][] => {
     const queue = waiting.get(key) ?? [];
     waiting.delete(key);
     return splitChains(queue);
+  };
+  const append = (toolNodeId: string, nodes: ApprovalNode[]) => {
+    chains.set(
+      toolNodeId,
+      [...(chains.get(toolNodeId) ?? []), ...nodes].sort(
+        (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+      )
+    );
+  };
+  const settle = (key: string) => {
+    const tool = lastTool.get(key);
+    for (const chain of take(key)) {
+      if (
+        tool &&
+        !isBridgeTool(tool.event) &&
+        (!chainStopped(chain) || toolFailed(tool.event))
+      ) {
+        append(tool.id, chain);
+      } else {
+        unpaired.push(...chain);
+      }
+    }
   };
   const walk = (nodes: EventNode[], scope: string) => {
     for (const n of nodes) {
@@ -148,15 +187,12 @@ function pairToolApprovalsByExecution(
       const at = order.size;
       order.set(n.id, at);
       if (n.event.event === "model") {
-        outputs.propose(
-          scope,
-          n.id,
-          !!n.event.requested_model,
-          n.event.output.choices.flatMap((choice) =>
-            (choice.message.tool_calls ?? []).map((call) => call.id)
-          ),
-          at
-        );
+        const ids = proposedIds(n);
+        for (const id of ids) {
+          const key = `${scope}\u0000${id}`;
+          if (ranSinceProposal.delete(key)) settle(key);
+        }
+        outputs.propose(scope, n.id, !!n.event.requested_model, ids, at);
       } else if (n.event.event === "approval") {
         const node = eventNodeOf(n, "approval");
         const key = `${scope}\u0000${executionIdOf(n.event)}`;
@@ -193,6 +229,7 @@ function pairToolApprovalsByExecution(
         if (tools) tools.push(n.id);
         else toolsOf.set(key, [n.id]);
         lastTool.set(key, tool);
+        ranSinceProposal.add(key);
       } else if (
         isSentinelSpan(n) &&
         n.event.event === SPAN_BEGIN &&
@@ -220,28 +257,7 @@ function pairToolApprovalsByExecution(
   };
   walk(eventNodes, "");
 
-  const append = (toolNodeId: string, nodes: ApprovalNode[]) => {
-    chains.set(
-      toolNodeId,
-      [...(chains.get(toolNodeId) ?? []), ...nodes].sort(
-        (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
-      )
-    );
-  };
-  for (const [key, queue] of waiting) {
-    const tool = lastTool.get(key);
-    for (const chain of splitChains(queue)) {
-      if (
-        tool &&
-        !isBridgeTool(tool.event) &&
-        (!chainStopped(chain) || toolFailed(tool.event))
-      ) {
-        append(tool.id, chain);
-      } else {
-        unpaired.push(...chain);
-      }
-    }
-  }
+  for (const key of [...waiting.keys()]) settle(key);
   for (const { node, key } of named) {
     const [only, other] = toolsOf.get(key) ?? [];
     if (only && !other) append(only, [node]);
@@ -278,27 +294,42 @@ function pairToolApprovalsByExecution(
   return { toolApprovals, hiddenApprovalIds, approvalScrollRedirects };
 }
 
-// Logs that record no `execution_id` pair with origin/main's rules, kept
-// verbatim below (renamed) so their transcripts render as they always have.
+// Logs that record no `execution_id` pair with origin/main's rules below
+// (renamed), changed since only to settle chains at a new proposal.
 
 /**
  * Pairs each approval chain to a ToolEvent with its call id. A chain is the
  * escalations up to the decision that ends them, and is recorded before its
  * ToolEvent, so each ToolEvent takes the oldest chain still waiting for its
  * id; a call id reused by several calls pairs each call with its own chain.
- * Approvals recorded after every ToolEvent of their id go to the last one.
+ * Approvals that come after the last ToolEvent of their id go to it. Its
+ * timestamp is from before approval, so the timeline sorts it ahead of its
+ * approvals. A new proposal of the id ends that call, settling its waiting
+ * chains on the ToolEvent recorded since the previous proposal.
  */
 function pairToolApprovalsLegacy(eventNodes: EventNode[]): ToolApprovalPairing {
   const chains = new Map<string, ApprovalNode[]>();
   const lastTool = new Map<string, string>();
   const waiting = new Map<string, ApprovalNode[]>();
   const seen = new Set<string>();
+  const ranSinceProposal = new Set<string>();
+  const settle = (callId: string) => {
+    const queue = waiting.get(callId);
+    const toolNodeId = lastTool.get(callId);
+    if (!toolNodeId || !queue?.length) return;
+    chains.set(toolNodeId, [...(chains.get(toolNodeId) ?? []), ...queue]);
+    waiting.delete(callId);
+  };
   const walk = (nodes: EventNode[]) => {
     for (const n of nodes) {
       // Flat lists repeat descendants alongside their ancestors.
       if (seen.has(n.id)) continue;
       seen.add(n.id);
-      if (n.event.event === "approval") {
+      if (n.event.event === "model") {
+        for (const id of proposedIds(n)) {
+          if (ranSinceProposal.delete(id)) settle(id);
+        }
+      } else if (n.event.event === "approval") {
         const queue = waiting.get(n.event.call.id) ?? [];
         queue.push(eventNodeOf(n, "approval"));
         waiting.set(n.event.call.id, queue);
@@ -308,20 +339,15 @@ function pairToolApprovalsLegacy(eventNodes: EventNode[]): ToolApprovalPairing {
         const chain = queue.splice(0, end === -1 ? queue.length : end + 1);
         if (chain.length) chains.set(n.id, chain);
         lastTool.set(n.event.id, n.id);
+        ranSinceProposal.add(n.event.id);
       }
       if (n.children.length) walk(n.children);
     }
   };
   walk(eventNodes);
 
-  const unpaired: ApprovalNode[] = [];
-  for (const [callId, queue] of waiting) {
-    const toolNodeId = lastTool.get(callId);
-    if (!toolNodeId) unpaired.push(...queue);
-    else if (queue.length) {
-      chains.set(toolNodeId, [...(chains.get(toolNodeId) ?? []), ...queue]);
-    }
-  }
+  for (const callId of [...waiting.keys()]) settle(callId);
+  const unpaired = [...waiting.values()].flat();
 
   const toolApprovals = new Map<string, ApprovalNode[]>();
   const hiddenApprovalIds = new Set<string>();

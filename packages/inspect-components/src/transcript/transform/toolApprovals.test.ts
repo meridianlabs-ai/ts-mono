@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   testApprovalEvent,
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
   testSpanBeginEvent,
   testToolCall,
   testToolEvent,
@@ -200,5 +204,120 @@ describe("pairToolApprovals", () => {
     expect(result.toolApprovals.get("tool-2")?.map((n) => n.id)).toEqual([
       "appr-2",
     ]);
+  });
+});
+
+describe.each([
+  ["records no execution_id", false],
+  ["records execution_id", true],
+])("pairToolApprovals in a log that %s", (_log, executions) => {
+  const pair = (nodes: EventNode[]) => pairToolApprovals(nodes, executions);
+  const paired = (
+    result: ReturnType<typeof pairToolApprovals>,
+    toolId: string
+  ) => result.toolApprovals.get(toolId)?.map((n) => n.id);
+  const proposal = (nodeId: string, callId: string): EventNode =>
+    new EventNode(
+      nodeId,
+      testModelEvent({
+        uuid: nodeId,
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                tool_calls: [testToolCall({ id: callId, function: "bash" })],
+              }),
+            }),
+          ],
+        }),
+      }),
+      0
+    );
+  const rejectedTool = (nodeId: string, callId: string): EventNode =>
+    new EventNode(
+      nodeId,
+      testToolEvent({
+        id: callId,
+        uuid: nodeId,
+        error: { type: "approval", message: "rejected" },
+      }),
+      0
+    );
+
+  // inspect_ai stamps a ToolEvent before approval runs and records it after,
+  // so the timeline's timestamp sort puts each tool ahead of its approvals.
+  describe.each([
+    ["timestamp", false],
+    ["recorded", true],
+  ])("in %s order", (_order, recorded) => {
+    const run = (tool: EventNode, ...approvals: EventNode[]) =>
+      recorded ? [...approvals, tool] : [tool, ...approvals];
+
+    it("pairs each call of a reused call id with its own approvals", () => {
+      const result = pair([
+        proposal("m1", "call-1"),
+        ...run(
+          rejectedTool("tool-1", "call-1"),
+          approvalNode("appr-1", "call-1", { decision: "reject" })
+        ),
+        proposal("m2", "call-1"),
+        ...run(
+          toolNode("tool-2", "call-1"),
+          approvalNode("appr-2", "call-1", { decision: "escalate" }),
+          approvalNode("appr-3", "call-1", { decision: "approve" })
+        ),
+        proposal("m3", "call-1"),
+        ...run(toolNode("tool-3", "call-1"), approvalNode("appr-4", "call-1")),
+      ]);
+
+      expect(paired(result, "tool-1")).toEqual(["appr-1"]);
+      expect(paired(result, "tool-2")).toEqual(["appr-2", "appr-3"]);
+      expect(paired(result, "tool-3")).toEqual(["appr-4"]);
+      expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
+    });
+
+    it("pairs calls under different ids in one output", () => {
+      const result = pair([
+        proposal("m1", "call-1"),
+        ...(recorded
+          ? [
+              approvalNode("appr-1", "call-1"),
+              toolNode("tool-1", "call-1"),
+              approvalNode("appr-2", "call-2", { decision: "reject" }),
+              rejectedTool("tool-2", "call-2"),
+            ]
+          : [
+              toolNode("tool-1", "call-1"),
+              rejectedTool("tool-2", "call-2"),
+              approvalNode("appr-1", "call-1"),
+              approvalNode("appr-2", "call-2", { decision: "reject" }),
+            ]),
+        proposal("m2", "call-1"),
+      ]);
+
+      expect(paired(result, "tool-1")).toEqual(["appr-1"]);
+      expect(paired(result, "tool-2")).toEqual(["appr-2"]);
+    });
+  });
+
+  it("keeps a chain for its own call when a sub-agent proposes the id before that call is recorded", () => {
+    const agent = new EventNode(
+      "agent",
+      testSpanBeginEvent({ id: "agent", name: "agent", type: "agent" }),
+      0
+    );
+    agent.children = [proposal("m3", "call-1")];
+    const result = pair([
+      proposal("m1", "call-1"),
+      approvalNode("appr-1", "call-1"),
+      toolNode("tool-1", "call-1"),
+      proposal("m2", "call-1"),
+      approvalNode("appr-2", "call-1"),
+      agent,
+      toolNode("tool-2", "call-1"),
+    ]);
+
+    expect(paired(result, "tool-1")).toEqual(["appr-1"]);
+    expect(paired(result, "tool-2")).toEqual(["appr-2"]);
   });
 });
