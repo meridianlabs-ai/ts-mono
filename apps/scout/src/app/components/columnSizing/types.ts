@@ -1,9 +1,6 @@
 /**
- * Generic column sizing types for data grids.
- * These types are used by the column sizing strategies and hooks.
+ * Column sizing types and helpers for the dataframe grid.
  */
-
-import { ColumnSizingState, RowData } from "@tanstack/react-table";
 
 /** Column metadata needed for sizing, independent of a table's feature set. */
 export interface ColumnSizingDefinition {
@@ -36,33 +33,6 @@ export const DEFAULT_MAX_SIZE = 600;
 
 /** Default column size in pixels when not specified */
 export const DEFAULT_SIZE = 150;
-
-/**
- * Context provided to sizing strategies for computing column sizes.
- * Generic over TData (row data type).
- */
-export interface SizingStrategyContext<TData extends RowData> {
-  /** The table element for DOM measurements (may be null) */
-  tableElement: HTMLTableElement | null;
-  /** Column definitions */
-  columns: ColumnSizingDefinition[];
-  /** Current data for content measurement */
-  data: TData[];
-  /** Pre-computed constraints for each column */
-  constraints: Map<string, ColumnSizeConstraints>;
-}
-
-/**
- * Interface for column sizing strategies.
- * Each strategy computes column sizes differently.
- * Generic over TData (row data type).
- */
-export interface SizingStrategy {
-  /** Compute sizes for all columns */
-  computeSizes<TData extends RowData>(
-    context: SizingStrategyContext<TData>
-  ): ColumnSizingState;
-}
 
 /**
  * Clamp a size value to min/max constraints.
