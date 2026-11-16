@@ -1,8 +1,8 @@
 /*
  * Element reset: Bootstrap v5.3.8's Reboot, without its variable blocks
  * (tokens.css has those). Rules unchanged apart from formatting and dropped
- * vendor prefixes that current browsers don't need (Copyright 2011-2025 The
- * Bootstrap Authors, MIT license,
+ * vendor prefixes and vendor-only rules that current browsers don't need
+ * (Copyright 2011-2025 The Bootstrap Authors, MIT license,
  * https://github.com/twbs/bootstrap/blob/main/LICENSE).
  */
 

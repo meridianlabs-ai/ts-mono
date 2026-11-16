@@ -1,9 +1,9 @@
 /*
  * Component classes, copied from Bootstrap v5.3.8 with rules unchanged
- * apart from formatting and dropped vendor prefixes that current browsers
- * don't need (Copyright 2011-2025 The Bootstrap Authors, MIT license,
- * https://github.com/twbs/bootstrap/blob/main/LICENSE). Only the classes the
- * apps use are copied.
+ * apart from formatting and dropped vendor prefixes and vendor-only rules
+ * that current browsers don't need (Copyright 2011-2025 The Bootstrap
+ * Authors, MIT license, https://github.com/twbs/bootstrap/blob/main/LICENSE).
+ * Only the classes the apps use are copied.
  */
 
 @layer tsmono.components {
