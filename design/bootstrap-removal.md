@@ -153,7 +153,7 @@ Real uses after removing test names, CSS-module names and data strings:
 | `btn-primary`, `btn-secondary`, `btn-outline-primary` | 8 | none | Dialog footers (edit tags, metadata, annotations), `ResultsPanel`, `CollapsedTitleBar`, `DownloadButton`, `ColumnFilterEditor` |
 | `nav`, `nav-pills`, `nav-tabs`, `nav-item`, `nav-link` | 5 | `TabSet`, `NavPills` (`packages/react`); `EventNavs`, `EventNav`, `EventNavsPicker` (`inspect-components`) | `TabSet` builds `nav-${type}`. Scout `TranscriptBody.module.css` restyles `:global(.nav)` |
 | `tab-content`, `tab-pane` (+ `show`, `active`) | 3 | `TabSet`; `EventPanel` | `SampleDisplay` adds `tab-pane` directly |
-| `form-control` | 4 | `AutogrowText` (one of four) | Inspect title-view dialogs |
+| `form-control` | 4 | none | Inspect title-view dialogs |
 | `form-select`, `form-select-sm` | 3 | none | `EditMetadataDialog`; scout `ScannerResultsFilter`, `ScannerResultsGroup` |
 | `spinner-border` + `visually-hidden` | 5 | none | The same three-line pattern in `LogListFooter`, `RunningNoSamples`, `SampleFooter`, scout `Footer`, `EventProgressPanel` |
 | `breadcrumb`, `breadcrumb-item` | 2 | inspect `Navbar`; `useBreadcrumbTruncation` | The hook creates a hidden `ol.breadcrumb` to measure item widths, so it depends on the breadcrumb CSS |
