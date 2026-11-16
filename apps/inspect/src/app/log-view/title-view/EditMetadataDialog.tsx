@@ -12,7 +12,6 @@ import {
 
 import { Icon } from "@tsmono/react/icons";
 
-import { AutogrowText } from "./AutogrowText";
 import { EditAnnotationsDialog } from "./EditAnnotationsDialog";
 import sharedStyles from "./EditAnnotationsDialog.module.css";
 import styles from "./EditMetadataDialog.module.css";
@@ -420,10 +419,12 @@ const MetaRow: FC<{
         module class. The monospace font comes from `.key`. */}
     <span className={clsx("text-size-smaller", styles.key)}>{entry.key}</span>
     <div className={styles.value}>
-      <AutogrowText
+      <textarea
+        className={clsx("form-control", styles.valueInput)}
         value={entry.text}
-        onChange={onChange}
+        onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        spellCheck={false}
       />
     </div>
     <button
