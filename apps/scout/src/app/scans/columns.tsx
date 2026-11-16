@@ -509,19 +509,12 @@ export const DEFAULT_VISIBLE_COLUMNS: ScanColumnKey[] = [
 ];
 
 /**
- * Get columns for the ScansGrid.
- * @param visibleColumnKeys - Optional list of column keys to display. If not provided, returns default visible columns.
- * @returns Array of column definitions in the order specified or default visible columns.
+ * Every column in default order. The grid hides the ones the user hasn't
+ * chosen, so a saved column order keeps their places.
  */
-export function getScanColumns(
-  visibleColumnKeys?: ScanColumnKey[]
-): ScanColumn[] {
-  if (!visibleColumnKeys) {
-    return DEFAULT_VISIBLE_COLUMNS.map((key) => ALL_COLUMNS[key]);
-  }
-
-  return visibleColumnKeys.map((key) => ALL_COLUMNS[key]);
-}
+export const SCAN_COLUMNS: ScanColumn[] = DEFAULT_COLUMN_ORDER.map(
+  (key) => ALL_COLUMNS[key]
+);
 
 // Columns available for filtering (used by Add Filter popover)
 export const FILTER_COLUMNS: AvailableColumn[] = DEFAULT_COLUMN_ORDER.map(

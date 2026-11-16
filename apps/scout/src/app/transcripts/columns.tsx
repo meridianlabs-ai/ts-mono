@@ -595,19 +595,12 @@ export const DEFAULT_VISIBLE_COLUMNS: Array<keyof TranscriptInfo> = [
 ];
 
 /**
- * Get columns for the TranscriptsGrid.
- * @param visibleColumnKeys - Optional list of column keys to display. If not provided, returns all columns in default order.
- * @returns Array of column definitions in the order specified or default order.
+ * Every column in default order. The grid hides the ones the user hasn't
+ * chosen, so a saved column order keeps their places.
  */
-export function getTranscriptColumns(
-  visibleColumnKeys?: Array<keyof TranscriptInfo>
-): TranscriptColumn[] {
-  if (!visibleColumnKeys) {
-    return DEFAULT_COLUMN_ORDER.map((key) => ALL_COLUMNS[key]);
-  }
-
-  return visibleColumnKeys.map((key) => ALL_COLUMNS[key]);
-}
+export const TRANSCRIPT_COLUMNS: TranscriptColumn[] = DEFAULT_COLUMN_ORDER.map(
+  (key) => ALL_COLUMNS[key]
+);
 
 // Columns available for filtering (used by Add Filter popover)
 export const FILTER_COLUMNS: AvailableColumn[] = DEFAULT_COLUMN_ORDER.map(

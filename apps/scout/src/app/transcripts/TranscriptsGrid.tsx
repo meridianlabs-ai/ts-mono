@@ -13,7 +13,7 @@ import { TranscriptInfo } from "../../types/api-types";
 import {
   DEFAULT_COLUMN_ORDER,
   DEFAULT_VISIBLE_COLUMNS,
-  getTranscriptColumns,
+  TRANSCRIPT_COLUMNS,
 } from "./columns";
 
 interface TranscriptGridProps {
@@ -74,7 +74,10 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   return (
     <DataGrid<TranscriptInfo>
       data={transcripts}
-      columns={getTranscriptColumns(visibleColumns)}
+      columns={TRANSCRIPT_COLUMNS}
+      columnVisibility={Object.fromEntries(
+        DEFAULT_COLUMN_ORDER.map((key) => [key, visibleColumns.includes(key)])
+      )}
       getRowId={(row) => String(row.transcript_id)}
       ariaLabel="Transcripts"
       className={className}

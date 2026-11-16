@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -116,5 +123,46 @@ describe("TranscriptsGrid cells", () => {
       "openai/gpt-4o",
       JSON.stringify({ epoch: 2 }, null, 2),
     ]);
+  });
+});
+
+describe("TranscriptsGrid column order", () => {
+  afterEach(cleanup);
+
+  it("keeps a hidden column's place when the visible ones are reordered", async () => {
+    const { wrapper: Wrapper, store } = createTestWrapperWithStore();
+    store.getState().setTranscriptsTableState((prev) => ({
+      ...prev,
+      visibleColumns: ["task_id", "model"],
+      columnOrder: ["task_id", "date", "model"],
+    }));
+    render(
+      <Wrapper>
+        <MemoryRouter>
+          <TranscriptsGrid
+            transcripts={[]}
+            transcriptsDir="/tmp/transcripts"
+            onScrollNearEnd={() => {}}
+            hasMore={false}
+            fetchThreshold={500}
+          />
+        </MemoryRouter>
+      </Wrapper>
+    );
+    const header = (name: string) =>
+      screen.getByRole("columnheader", { name: new RegExp(name) });
+    const dataTransfer = { setData: () => {}, effectAllowed: "" };
+
+    fireEvent.dragStart(
+      within(header("Model")).getByRole("button", { name: /Model/ }),
+      { dataTransfer }
+    );
+    // The grid marks the dragged column on the next tick.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    fireEvent.drop(header("Task ID"), { dataTransfer });
+
+    expect(
+      store.getState().transcriptsTableState.columnOrder.slice(0, 3)
+    ).toEqual(["model", "task_id", "date"]);
   });
 });

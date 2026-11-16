@@ -13,8 +13,9 @@ import type { ScanRow as ApiScanRow } from "../../types/api-types";
 
 import {
   DEFAULT_COLUMN_ORDER,
-  getScanColumns,
+  DEFAULT_VISIBLE_COLUMNS,
   isScanColumnKey,
+  SCAN_COLUMNS,
   ScanRow,
 } from "./columns";
 
@@ -55,8 +56,13 @@ export const ScansGrid: FC<ScansGridProps> = ({
   const setVisibleScanJobCount = useStore(
     (state) => state.setVisibleScanJobCount
   );
-  const { sorting, columnOrder, columnSizing, focusedRowId, visibleColumns } =
-    tableState;
+  const {
+    sorting,
+    columnOrder,
+    columnSizing,
+    focusedRowId,
+    visibleColumns = DEFAULT_VISIBLE_COLUMNS,
+  } = tableState;
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
   const columnFilters = tableState.columnFilters ?? {};
 
@@ -88,7 +94,10 @@ export const ScansGrid: FC<ScansGridProps> = ({
   return (
     <DataGrid<ScanRow>
       data={data}
-      columns={getScanColumns(visibleColumns)}
+      columns={SCAN_COLUMNS}
+      columnVisibility={Object.fromEntries(
+        DEFAULT_COLUMN_ORDER.map((key) => [key, visibleColumns.includes(key)])
+      )}
       getRowId={(row) => row.scan_id}
       ariaLabel="Scans"
       className={className}
