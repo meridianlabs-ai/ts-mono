@@ -817,6 +817,31 @@ const runKey = (
   `${id}\u0000${scope}\u0000${conversation}\u0000${bridge ? "host" : "native"}`;
 
 /**
+ * Of the unclaimed tools under a step's id, in order, the one it judged. A
+ * `tool_result` step judges the last one before it, else the first after. A
+ * `tool_call` step judges the first one after the latest output before the
+ * step that proposed its id (`proposedAt`, in order), or none; with no such
+ * output, the first after the step, else the last before it. A ToolEvent is
+ * stamped when its call starts, before the sentinel judges it, so a
+ * timestamp-ordered tree puts it ahead of its `tool_call` step while the
+ * recorded order puts it after; the proposing output precedes both, and a
+ * tool before that output ran an earlier proposal.
+ */
+const judgedInOrder = <T extends { order: number }>(
+  open: readonly T[],
+  stage: SentinelStep["stage"],
+  order: number,
+  proposedAt: readonly number[] | undefined
+): T | undefined => {
+  const after = open.find((t) => t.order > order);
+  const before = open.findLast((t) => t.order < order);
+  if (stage !== "tool_call") return before ?? after;
+  const proposal = proposedAt?.findLast((at) => at < order);
+  if (proposal !== undefined) return open.find((t) => t.order > proposal);
+  return after ?? before;
+};
+
+/**
  * The ToolEvent a tool-stage step judged, among those in the step's scope
  * and conversation whose id is the step's execution id, skipping tools that
  * already host a step of the same stage. A bridge's check judges only a call
@@ -833,12 +858,11 @@ const runKey = (
  *   Nor did a `tool_call` check of an output the bridge discarded
  *   (`discarded`, see `BridgeOutputs`), whatever it decided.
  * - Each native attempt records its ToolEvent, a stopped one as failed, so
- *   native steps pair in order: a `tool_call` step judges the first such
- *   tool recorded after it (none when no such tool follows), a
- *   `tool_result` step the last one before it.
+ *   native steps pair in order (`judgedInOrder`).
  */
 const hostTool = (
   toolsByRun: Map<string, ToolEntry[]>,
+  proposedAt: Map<string, number[]>,
   step: SentinelStep,
   { order, scope }: StepEvents,
   conversation: string,
@@ -862,17 +886,20 @@ const hostTool = (
   const open = candidates.filter(
     (t) => unclaimed(t) && (!stopped || toolFailed(t.node.event))
   );
-  const after = open.find((t) => t.order > order);
-  if (step.stage === "tool_call") return after;
-  return open.findLast((t) => t.order < order) ?? after;
+  return judgedInOrder(
+    open,
+    step.stage,
+    order,
+    proposedAt.get(`${conversation}\u0000${step.stepId}`)
+  );
 };
 
 /**
  * Groups SentinelEvents by the step they judged and pairs tool-stage steps to
  * their ToolEvent, so the tool panel renders them inline. A sample whose log
  * records `execution_id` (`recordsExecutionIds`) pairs by execution
- * (`pairToolSentinelsByExecution`); any other pairs exactly as before the
- * field (`pairToolSentinelsLegacy`). Callers that render part of a sample
+ * (`pairToolSentinelsByExecution`); any other pairs as before the field
+ * (`pairToolSentinelsLegacy`). Callers that render part of a sample
  * pass the sample's answer, so every view of it pairs the same way.
  */
 export function pairToolSentinels(
@@ -909,6 +936,9 @@ function pairToolSentinelsByExecution(
   // The same, of outputs other than a bridge's generations, whose calls only
   // its scaffold runs: a native run's.
   const nativeProposals: ProposalIndex<undefined> = new Map();
+  // By conversation and call id, the order of every such output that
+  // proposed it.
+  const nativeProposedAt = new Map<string, number[]>();
   // By conversation and execution id, the approvals outside sentinel spans.
   const approvals = new Map<string, ApprovalEvent[]>();
   const outputs = bridgeOutputs();
@@ -971,6 +1001,14 @@ function pairToolSentinelsByExecution(
             addProposal(proposals, key, call, undefined, at);
             if (!n.event.requested_model) {
               addProposal(nativeProposals, key, call, undefined, at);
+            }
+          }
+          if (!n.event.requested_model) {
+            for (const id of new Set(proposed.map((call) => call.id))) {
+              const key = conversationKey(conversation, id);
+              const orders = nativeProposedAt.get(key) ?? [];
+              orders.push(at);
+              nativeProposedAt.set(key, orders);
             }
           }
           outputs.propose(
@@ -1052,6 +1090,7 @@ function pairToolSentinelsByExecution(
     const tool = kToolStages.has(step.stage)
       ? hostTool(
           toolsByRun,
+          nativeProposedAt,
           step,
           events,
           conversation,
@@ -1109,8 +1148,9 @@ function pairToolSentinelsByExecution(
   };
 }
 
-// Logs that record no `execution_id` pair with origin/main's rules, kept
-// verbatim below (renamed) so their transcripts render as they always have.
+// Logs that record no `execution_id` pair with the rules from before the
+// field, kept below (renamed) so their transcripts render as they always have.
+// Their one change since is `judgedInOrder`'s rule for a before-call step.
 
 interface LegacySentinelSpan {
   node: EventNode;
@@ -1136,15 +1176,15 @@ interface LegacyToolEntry {
 }
 
 /**
- * The ToolEvent a tool-stage step judged: the first one with the step's id
- * recorded after a `tool_call` step (none when no such tool follows), the last
- * one before a `tool_result` step, skipping tools that already host a step of
- * the same stage. A bridge's check judges only a call the bridge ran on the
- * host: a native call under the same id (one the bridged agent inherited, for
- * example) is not the one it checked.
+ * The ToolEvent a tool-stage step judged (`judgedInOrder`) among those with
+ * the step's id, skipping tools that already host a step of the same stage.
+ * A bridge's check judges only a call the bridge ran on the host: a native
+ * call under the same id (one the bridged agent inherited, for example) is
+ * not the one it checked.
  */
 const legacyHostTool = (
   tools: LegacyToolEntry[],
+  proposedAt: Map<string, number[]>,
   step: SentinelStep,
   order: number,
   claimed: Set<string>,
@@ -1156,9 +1196,12 @@ const legacyHostTool = (
       (!bridge || isBridgeTool(t.node.event)) &&
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
-  const after = candidates.find((t) => t.order > order);
-  if (step.stage === "tool_call") return after;
-  return candidates.findLast((t) => t.order < order) ?? after;
+  return judgedInOrder(
+    candidates,
+    step.stage,
+    order,
+    proposedAt.get(step.stepId)
+  );
 };
 
 /**
@@ -1176,6 +1219,8 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
   // The proposals of each call id in the latest model output (outside
   // sentinel spans) that proposed it, which its tools take in order.
   const proposals = new Map<string, ToolCall[]>();
+  // The order of every such output that proposed each call id.
+  const proposedAt = new Map<string, number[]>();
   const steps = new Map<string, LegacyStepEvents>();
   const seen = new Set<string>();
   let order = 0;
@@ -1215,6 +1260,9 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
               id,
               proposed.filter((call) => call.id === id)
             );
+            const orders = proposedAt.get(id) ?? [];
+            orders.push(at);
+            proposedAt.set(id, orders);
           }
         }
       }
@@ -1240,7 +1288,7 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
       span?.node.event.event === SPAN_BEGIN &&
       span.node.event.name === kBridgeCheckSpan;
     const tool = kToolStages.has(step.stage)
-      ? legacyHostTool(tools, step, at, claimed, bridge)
+      ? legacyHostTool(tools, proposedAt, step, at, claimed, bridge)
       : undefined;
     const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
     if (tool) {

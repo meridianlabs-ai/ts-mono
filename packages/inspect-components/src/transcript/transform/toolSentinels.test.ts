@@ -774,13 +774,69 @@ describe("pairToolSentinels", () => {
     }
   });
 
-  it("leaves a before-call step standalone when no tool with its id follows it", () => {
-    const result = pairToolSentinels([
-      tool("tool-1", "dup"),
-      span("span-1", [sentinel("s1", { step_id: "dup", action: "reject" })]),
-    ]);
-    expect(result.toolSentinels.size).toBe(0);
-    expect(result.standaloneSentinels.get("span-1")?.verdict).toBe("reject");
+  // A ToolEvent is stamped when its call starts, before the sentinel runs, so
+  // the timestamp-ordered tree puts it ahead of its step.
+  describe.each([
+    ["records no execution_id", false],
+    ["records execution_id", true],
+  ])("when the tool sorts first, in a log that %s", (_log, executions) => {
+    const pair = (nodes: EventNode[]) => pairToolSentinels(nodes, executions);
+    const proposal = (id: string) =>
+      new EventNode(
+        id,
+        testModelEvent({
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({
+                  tool_calls: [testToolCall({ id: "dup" })],
+                }),
+              }),
+            ],
+          }),
+        }),
+        0
+      );
+    const step = (id: string) =>
+      sentinel(id, { step_id: "dup", action: "proceed" });
+
+    it("pairs a before-call step with its tool", () => {
+      const result = pair([
+        tool("tool-1", "dup"),
+        span("span-1", [step("s1")]),
+      ]);
+      expect(result.toolSentinels.get("tool-1")?.before?.verdict).toBe(
+        "proceed"
+      );
+      expect(result.standaloneSentinels.size).toBe(0);
+      expect(result.sentinelScrollRedirects.get("span-1")).toBe("tool-1");
+    });
+
+    it("keeps repeated call ids apart", () => {
+      const result = pair([
+        proposal("m1"),
+        tool("tool-1", "dup"),
+        span("span-1", [step("s1")]),
+        proposal("m2"),
+        tool("tool-2", "dup"),
+        span("span-2", [step("s2")]),
+      ]);
+      const first = result.toolSentinels.get("tool-1")?.before;
+      const second = result.toolSentinels.get("tool-2")?.before;
+      expect(first && rowIds(first)).toEqual(["s1"]);
+      expect(second && rowIds(second)).toEqual(["s2"]);
+    });
+
+    it("leaves a before-call step standalone rather than pair it with an earlier output's run", () => {
+      const result = pair([
+        proposal("m1"),
+        tool("tool-1", "dup"),
+        proposal("m2"),
+        span("span-2", [step("s2")]),
+      ]);
+      expect(result.toolSentinels.size).toBe(0);
+      expect(result.standaloneSentinels.get("span-2")?.verdict).toBe("proceed");
+    });
   });
 
   it("pairs call and result stages with their tool and hides every event", () => {
