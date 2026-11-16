@@ -37,6 +37,21 @@ interface ScannerResultDetailViewProps {
 
 const kCollapseScope = "scanner-result-sections";
 
+// inspect_scout's grep_scanner explains a result with one `[M3]: …context…`
+// line per match: excerpts of the transcript this view sits beside.
+const kExcerptLine = /^\[[ME]\d+\]: /;
+
+/**
+ * Whether an explanation is only transcript excerpts. Those are kept out of
+ * in-page Find, which would otherwise count each match twice. Explanations a
+ * scanner writes itself are the only copy of that text, so they stay
+ * searchable even where they quote the transcript.
+ */
+const isTranscriptExcerpts = (explanation: string): boolean =>
+  explanation
+    .split("\n")
+    .every((line) => line.trim() === "" || kExcerptLine.test(line));
+
 export const ScannerResultDetailView: FC<ScannerResultDetailViewProps> = ({
   data,
   references,
@@ -254,11 +269,17 @@ function renderField(
           open={open}
           onToggle={onToggle}
         >
-          <Explanation
-            explanation={data.explanation}
-            references={references}
-            options={options}
-          />
+          <div
+            data-unsearchable={
+              isTranscriptExcerpts(data.explanation) || undefined
+            }
+          >
+            <Explanation
+              explanation={data.explanation}
+              references={references}
+              options={options}
+            />
+          </div>
         </Section>
       );
 
