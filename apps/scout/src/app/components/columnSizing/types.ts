@@ -13,18 +13,6 @@ export interface ColumnSizingDefinition {
   textValue?: (value: unknown) => string | null;
 }
 
-/**
- * Size constraints for a column.
- */
-export interface ColumnSizeConstraints {
-  /** Default size in pixels */
-  size: number;
-  /** Minimum allowed size in pixels */
-  minSize: number;
-  /** Maximum allowed size in pixels */
-  maxSize: number;
-}
-
 /** Default minimum column size in pixels */
 export const DEFAULT_MIN_SIZE = 40;
 
@@ -35,13 +23,15 @@ export const DEFAULT_MAX_SIZE = 600;
 export const DEFAULT_SIZE = 150;
 
 /**
- * Clamp a size value to min/max constraints.
+ * Clamp a size to a column's min/max, using the defaults where unset.
  */
 export function clampSize(
   size: number,
-  constraints: ColumnSizeConstraints
+  column: Pick<ColumnSizingDefinition, "minSize" | "maxSize">
 ): number {
-  return Math.max(constraints.minSize, Math.min(constraints.maxSize, size));
+  const minSize = column.minSize ?? DEFAULT_MIN_SIZE;
+  const maxSize = column.maxSize ?? DEFAULT_MAX_SIZE;
+  return Math.max(minSize, Math.min(maxSize, size));
 }
 
 /**
@@ -61,26 +51,4 @@ export function columnAccessorKey(
   return "accessorKey" in column && typeof column.accessorKey === "string"
     ? column.accessorKey
     : undefined;
-}
-
-/**
- * Extract size constraints from column definitions.
- */
-export function getColumnConstraints(
-  columns: ColumnSizingDefinition[]
-): Map<string, ColumnSizeConstraints> {
-  const constraints = new Map<string, ColumnSizeConstraints>();
-
-  for (const column of columns) {
-    const id = getColumnId(column);
-    if (id) {
-      constraints.set(id, {
-        size: column.size ?? DEFAULT_SIZE,
-        minSize: column.minSize ?? DEFAULT_MIN_SIZE,
-        maxSize: column.maxSize ?? DEFAULT_MAX_SIZE,
-      });
-    }
-  }
-
-  return constraints;
 }

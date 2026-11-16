@@ -6,7 +6,6 @@ import {
   clampSize,
   columnAccessorKey,
   DEFAULT_SIZE,
-  getColumnConstraints,
   getColumnId,
   type ColumnSizingDefinition,
 } from "./types";
@@ -73,9 +72,10 @@ function measureCellPadding(cellElement: HTMLTableCellElement | null): number {
 }
 
 /**
- * Size each column to fit its header and the text of its first 50 rows,
- * clamped to the column's min/max. Without a table to measure styles from, or
- * without rows, columns get their declared size.
+ * Size each column with an accessorKey to fit its header and the text of the
+ * first 50 rows, clamped to the column's min/max. Without a table to measure
+ * styles from, or without rows, every column gets its declared size (default
+ * 150), unclamped.
  */
 export function fitColumnSizes(
   tableElement: HTMLTableElement | null,
@@ -121,7 +121,6 @@ export function fitColumnSizes(
     const cellPadding = measureCellPadding(cellElement);
 
     const sampleSize = Math.min(50, data.length);
-    const constraints = getColumnConstraints(columns);
 
     for (const column of columns) {
       const id = getColumnId(column);
@@ -136,8 +135,7 @@ export function fitColumnSizes(
       );
       const headerWidth = headerTextWidth + headerExtraWidth;
 
-      // Use column's textValue function if available, otherwise fall back to String()
-      // If textValue returns null, skip content measurement for this column
+      // A textValue of null sizes the column to its header alone.
       const getTextValue =
         column.textValue ??
         ((v: unknown) => (v == null ? "-" : valueAsString(v)));
@@ -173,12 +171,7 @@ export function fitColumnSizes(
       const contentWidthWithPadding = maxContentWidth + cellPadding;
       const idealSize = Math.max(headerWidth, contentWidthWithPadding);
 
-      const constraint = constraints.get(id);
-      if (constraint) {
-        sizing[id] = clampSize(idealSize, constraint);
-      } else {
-        sizing[id] = idealSize;
-      }
+      sizing[id] = clampSize(idealSize, column);
     }
   } finally {
     document.body.removeChild(measureContainer);

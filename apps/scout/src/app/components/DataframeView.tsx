@@ -37,7 +37,7 @@ import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGrid
 
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { fitColumnSizes } from "./columnSizing/fitColumnSizes";
-import { type ColumnSizingDefinition } from "./columnSizing/types";
+import type { ColumnSizingDefinition } from "./columnSizing/types";
 import {
   compareDataframeValues,
   dataframeCsv,
