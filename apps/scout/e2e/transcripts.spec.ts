@@ -83,10 +83,12 @@ test("transcripts page shows an empty grid when no transcripts exist", async ({
   await page.goto("/#/transcripts");
   await listed;
 
-  // The only body row is the grid's empty-state message.
-  const bodyRows = page.locator("tbody").getByRole("row");
-  await expect(bodyRows).toHaveCount(1);
-  await expect(bodyRows).toHaveText("No transcripts in this directory.");
+  // Only the header row; the grid announces its empty-state message.
+  const grid = page.getByRole("grid", { name: "Transcripts" });
+  await expect(grid.getByRole("status")).toHaveText(
+    "No transcripts in this directory."
+  );
+  await expect(grid.getByRole("row")).toHaveCount(1);
   await expect(page.locator("#transcripts-footer")).toContainText("0 items");
 });
 
@@ -102,9 +104,9 @@ test("transcripts page says when no transcripts directory is configured", async 
 
   await page.goto("/#/transcripts");
 
-  await expect(page.locator("tbody").getByRole("row")).toHaveText(
-    "No transcripts directory configured."
-  );
+  await expect(
+    page.getByRole("grid", { name: "Transcripts" }).getByRole("status")
+  ).toHaveText("No transcripts directory configured.");
 });
 
 test("transcripts page shows error panel on API failure", async ({

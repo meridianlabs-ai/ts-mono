@@ -38,3 +38,4 @@ export * from "./useCopyToClipboard";
 export * from "./useAnimationFrameLoop";
 export * from "./useSpaceBelow";
 export * from "./useStableValue";
+export * from "./useScrollNearEnd";

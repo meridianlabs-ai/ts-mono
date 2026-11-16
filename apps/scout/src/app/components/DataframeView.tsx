@@ -1,9 +1,15 @@
 import {
+  columnOrderingFeature,
   columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
   constructSortFn,
   createSortedRowModel,
   flexRender,
   functionalUpdate,
+  rowSelectionFeature,
+  rowSortingFeature,
   tableFeatures,
   useTable,
   type ColumnDef,
@@ -29,6 +35,7 @@ import {
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
 
+import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { fitContentStrategy } from "./columnSizing/fitContentStrategy";
 import {
   getColumnConstraints,
@@ -44,12 +51,15 @@ import {
   type DataframeRow,
 } from "./dataframeModel";
 import styles from "./DataframeView.module.css";
-import { ColumnResizeHandle } from "./dataGrid/ColumnResizeHandle";
-import { dataGridFeatures } from "./dataGrid/tableFeatures";
 import type { DataframeData } from "./useDataframeData";
 
 const features = tableFeatures({
-  ...dataGridFeatures,
+  columnOrderingFeature,
+  columnSizingFeature,
+  columnResizingFeature,
+  columnVisibilityFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
   columnPinningFeature,
   sortedRowModel: createSortedRowModel(),
 });

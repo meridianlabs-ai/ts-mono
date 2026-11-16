@@ -27,6 +27,7 @@ import {
   useState,
 } from "react";
 
+import type { ScalarValue } from "@tsmono/inspect-common/query";
 import {
   ColumnFilterControl,
   type ColumnFilter,
@@ -34,7 +35,11 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
-import { useMountEffect, useStableValue } from "@tsmono/react/hooks";
+import {
+  useMountEffect,
+  useScrollNearEnd,
+  useStableValue,
+} from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
 import { isButtonActivation, isRecord, isVscode } from "@tsmono/util";
@@ -285,6 +290,18 @@ export interface DataGridProps<TRow extends RowData> {
    *  is not representable as per-column filters). The owner's `columnFilters`
    *  still apply to its rows; this only removes the header entry points. */
   hideColumnFilters?: boolean;
+  /** Autocomplete values for the column filter that is open (see
+   *  `onFilterOpenChange`). */
+  filterSuggestions?: ScalarValue[];
+  /** A column filter opened (its column id) or closed (null), e.g. to fetch
+   *  that column's `filterSuggestions`. */
+  onFilterOpenChange?: (columnId: string | null) => void;
+  /** Infinite loading: called with the remaining distance when the grid
+   *  scrolls within `fetchThreshold` px of its end while `hasMore`, and
+   *  again whenever the row count changes while still near it. */
+  onScrollNearEnd?: (distanceFromBottom: number) => void;
+  hasMore?: boolean;
+  fetchThreshold?: number;
   /** Row id to render as selected and keep scrolled into view. */
   selectedRowId?: string;
   /** Report selection moves (arrow keys / click) instead of applying them:
@@ -349,6 +366,11 @@ export function DataGrid<TRow extends RowData>({
   columnFilters,
   onColumnFilterChange,
   hideColumnFilters,
+  filterSuggestions,
+  onFilterOpenChange,
+  onScrollNearEnd,
+  hasMore = false,
+  fetchThreshold = 500,
   selectedRowId,
   onSelectedRowChange,
   scrollRef,
@@ -764,6 +786,13 @@ export function DataGrid<TRow extends RowData>({
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
 
+  useScrollNearEnd(containerRef, {
+    enabled: hasMore && onScrollNearEnd !== undefined,
+    threshold: fetchThreshold,
+    contentKey: rows.length,
+    onNearEnd: (distance) => onScrollNearEnd?.(distance),
+  });
+
   const visibleColumns = table.getVisibleLeafColumns();
   // The sort-order number is noise for a single sort, so it only appears for
   // multi-sorts — matching the previous AG grid.
@@ -1005,6 +1034,8 @@ export function DataGrid<TRow extends RowData>({
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
                       hideColumnFilters={hideColumnFilters}
+                      filterSuggestions={filterSuggestions}
+                      onFilterOpenChange={onFilterOpenChange}
                       isDragSource={isDragSource}
                       dropSide={dropSide}
                       onHeaderDragStart={handleHeaderDragStart}
@@ -1045,6 +1076,8 @@ export function DataGrid<TRow extends RowData>({
                       operators={columnDef.meta.operators}
                       spec={filterSpec}
                       placement="bottom-start"
+                      suggestions={filterSuggestions}
+                      onOpenChange={onFilterOpenChange}
                       onChange={(spec) =>
                         onColumnFilterChange?.(
                           header.column.id,
@@ -1364,6 +1397,8 @@ function RotatedHeaderCell<TRow extends RowData>({
   filterSpec,
   onColumnFilterChange,
   hideColumnFilters,
+  filterSuggestions,
+  onFilterOpenChange,
   isDragSource,
   dropSide,
   onHeaderDragStart,
@@ -1395,6 +1430,8 @@ function RotatedHeaderCell<TRow extends RowData>({
     spec: FilterSpec | null
   ) => void;
   hideColumnFilters?: boolean;
+  filterSuggestions?: ScalarValue[];
+  onFilterOpenChange?: (columnId: string | null) => void;
   isDragSource: boolean;
   dropSide: "left" | "right" | null;
   onHeaderDragStart: (
@@ -1491,6 +1528,8 @@ function RotatedHeaderCell<TRow extends RowData>({
               spec={filterSpec}
               anchorEl={anchorEl}
               placement="bottom-start"
+              suggestions={filterSuggestions}
+              onOpenChange={onFilterOpenChange}
               onChange={(spec) =>
                 onColumnFilterChange?.(header.column.id, filterType, spec)
               }
