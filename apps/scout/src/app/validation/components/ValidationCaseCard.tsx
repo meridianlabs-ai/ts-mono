@@ -215,7 +215,8 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
       target instanceof Element &&
       (target.closest("button") ||
         target.closest("vscode-checkbox") ||
-        target.closest('[role="combobox"]'))
+        target.closest('[role="combobox"]') ||
+        target.closest('[role="listbox"]'))
     ) {
       return;
     }

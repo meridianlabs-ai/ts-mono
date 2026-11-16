@@ -96,6 +96,15 @@ describe("SelectDropdown", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("doesn't move focus off the trigger when an option is pressed", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("combobox"));
+    // A prevented mousedown doesn't focus its target.
+    expect(
+      fireEvent.mouseDown(screen.getByRole("option", { name: "Alpha" }))
+    ).toBe(false);
+  });
+
   it("doesn't open while disabled", () => {
     render(<Harness disabled />);
     const combobox = screen.getByRole("combobox");

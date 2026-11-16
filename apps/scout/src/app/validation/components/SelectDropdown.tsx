@@ -110,6 +110,8 @@ export const SelectDropdown: FC<SelectDropdownProps> = ({
         id={listId}
         role="listbox"
         className={styles.list}
+        // Keeps focus on the trigger, which owns the keyboard.
+        onMouseDown={(e) => e.preventDefault()}
       >
         {options.map((option, index) => (
           <button
