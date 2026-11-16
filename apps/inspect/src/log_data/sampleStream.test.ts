@@ -6,6 +6,7 @@ import {
   testModelCall,
   testModelEvent,
   testModelOutput,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
 
 import { EventData, SampleData, SampleDataResponse } from "../client/api/types";
@@ -279,6 +280,24 @@ describe("createSampleStreamSession", () => {
     expect(expectEvent(events[1], "model").input[0]?.content).toBe(
       "pooled content"
     );
+  });
+
+  it("leaves tool result text as written", async () => {
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        attachments: [attachment(1, "sys", "system prompt")],
+        events: [
+          eventData(1, "e1", testToolEvent({ result: "attachment://sys" })),
+          eventData(2, "e2", testToolEvent({ result: "tc://sys" })),
+        ],
+      })
+    );
+
+    const session = makeSession();
+    const { events } = await session.tick(false);
+
+    expect(expectEvent(events[0], "tool").result).toBe("attachment://sys");
+    expect(expectEvent(events[1], "tool").result).toBe("tc://sys");
   });
 
   it("reports each missing attachment id once per session", async () => {

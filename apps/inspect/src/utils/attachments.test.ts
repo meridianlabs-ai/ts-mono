@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveAttachments } from "./attachments";
+import {
+  testSubtaskEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+import type { ContentImage, ContentText } from "@tsmono/inspect-common/types";
+
+import { resolveAttachments, resolveEventAttachments } from "./attachments";
 
 const attachments = { abc123: "resolved content" };
 
@@ -159,5 +165,64 @@ describe.each(["attachment://", "tc://"])(
         expect(onFailedResolve).not.toHaveBeenCalled();
       }
     );
+  }
+);
+
+// inspect_ai's reader leaves tool result text as written (its writer never
+// puts references there), so a tool that returns "attachment://<key>" is
+// shown as that literal text.
+describe.each(["attachment://", "tc://"])(
+  "resolveEventAttachments %s",
+  (protocol) => {
+    const ref = `${protocol}abc123`;
+    const text = (value: string) =>
+      ({ type: "text", text: value }) satisfies ContentText;
+    const image = (value: string) =>
+      ({ type: "image", image: value, detail: "auto" }) satisfies ContentImage;
+
+    it.each([
+      { name: "a string", result: ref },
+      { name: "a single ContentText", result: text(ref) },
+      { name: "a list", result: [text(ref), text("plain")] },
+    ])("leaves tool result text in $name as written", ({ result }) => {
+      const event = testToolEvent({ result });
+      expect(resolveEventAttachments(event, attachments).result).toEqual(
+        result
+      );
+    });
+
+    it("resolves a tool result image, alone and in a list", () => {
+      expect(
+        resolveEventAttachments(
+          testToolEvent({ result: image(ref) }),
+          attachments
+        ).result
+      ).toEqual(image("resolved content"));
+      expect(
+        resolveEventAttachments(
+          testToolEvent({ result: [text(ref), image(ref)] }),
+          attachments
+        ).result
+      ).toEqual([text(ref), image("resolved content")]);
+    });
+
+    it("still resolves the tool event's other fields", () => {
+      const resolved = resolveEventAttachments(
+        testToolEvent({ result: ref, arguments: { cmd: ref } }),
+        attachments
+      );
+      expect(resolved.arguments).toEqual({ cmd: "resolved content" });
+    });
+
+    it("applies to lists of events and to nested events", () => {
+      const tool = testToolEvent({ result: ref, arguments: { cmd: ref } });
+      const subtask = testSubtaskEvent({ events: [tool] });
+      expect(resolveEventAttachments([subtask], attachments)).toEqual([
+        {
+          ...subtask,
+          events: [{ ...tool, arguments: { cmd: "resolved content" } }],
+        },
+      ]);
+    });
   }
 );
