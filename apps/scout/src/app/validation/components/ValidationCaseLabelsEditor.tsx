@@ -33,7 +33,7 @@ export const ValidationCaseLabelsEditor: FC<
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("true");
-  const addChipRef = useRef<HTMLDivElement>(null);
+  const addChipRef = useRef<HTMLButtonElement>(null);
 
   const labelEntries = labels ? Object.entries(labels) : [];
 

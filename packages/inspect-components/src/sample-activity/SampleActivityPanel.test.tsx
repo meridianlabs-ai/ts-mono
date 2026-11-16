@@ -26,8 +26,16 @@ import {
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
+import {
+  ExtendedFindProvider,
+  type FindSource,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeReactiveStateStore } from "@tsmono/react/testing";
+import {
+  domCountByItem,
+  FindSourcesProbe,
+  makeReactiveStateStore,
+} from "@tsmono/react/testing";
 
 import { SampleActivityPanel } from "./SampleActivityPanel";
 import { ImmediateResizeObserver, iso } from "./testHelpers";
@@ -290,6 +298,39 @@ describe("SampleActivityPanel history list", () => {
       })
     );
     expect(onOpenEvent).toHaveBeenCalledWith("tool-fail", expect.anything());
+  });
+});
+
+describe("SampleActivityPanel history list find", () => {
+  const mountWithFind = () => {
+    let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
+    const { hooks } = makeReactiveStateStore();
+    render(
+      <ComponentStateProvider hooks={hooks}>
+        <ExtendedFindProvider>
+          <FindSourcesProbe onSources={(get) => (sources = get)} />
+          <Harness onOpenEvent={vi.fn()} />
+        </ExtendedFindProvider>
+      </ComponentStateProvider>
+    );
+    const all = [...(sources?.().values() ?? [])];
+    expect(all).toHaveLength(1);
+    return all[0]!;
+  };
+
+  it("doesn't count field names or hidden values", () => {
+    const source = mountWithFind();
+    expect(source.countByItem("lead")).toEqual([]);
+    expect(source.countByItem("tool-fail")).toEqual([]);
+  });
+
+  it("counts the same matches as the rendered rows", () => {
+    const source = mountWithFind();
+    for (const term of ["exit 127", "test_scorer", "open in transcript"]) {
+      const counts = source.countByItem(term);
+      expect(counts.length).toBeGreaterThan(0);
+      expect(counts).toEqual(domCountByItem(source, document.body, term));
+    }
   });
 });
 

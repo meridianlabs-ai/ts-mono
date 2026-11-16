@@ -7,6 +7,7 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
 import { useDocumentTitleText } from "@tsmono/react/hooks";
 import { formatNoDecimal } from "@tsmono/util";
 
@@ -21,7 +22,6 @@ import {
   toFullUrl,
   useLogRouteParams,
 } from "../../routing/url";
-import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";

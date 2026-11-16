@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 
-import { useMapAsyncData } from "@tsmono/react/hooks";
+import { useMapAsyncData, useStableValue } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { useStableValue } from "../app/shared/useStableValue";
 import { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
 

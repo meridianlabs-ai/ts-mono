@@ -689,6 +689,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     regionCounts={regionCounts}
                     highlightedKeys={highlightedKeys}
                     onPunchDown={views.pushByRowKey}
+                    canPunchDown={views.canPushByRowKey}
                   />
                 </div>
               </StickyScroll>

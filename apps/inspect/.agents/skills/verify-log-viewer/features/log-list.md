@@ -81,7 +81,7 @@ the coverage in [Shared grid behavior](./shared-grid-behavior.md).
 - Query planning/evaluation: `apps/inspect/src/app/log-list/listing/`.
 - Listing acquisition/dedup: `apps/inspect/src/log_data/useLogsSync.ts`,
   `logListing.ts`, `listingSync.ts`, and `apps/inspect/src/app/log-list/fileLogItem.ts`.
-- Shared grid/filter/find: `apps/inspect/src/app/shared/data-grid/` and
+- Shared grid/filter/find: `packages/inspect-components/src/dataGrid/` and
   `packages/inspect-components/src/columnFilter/`.
 - Regression coverage: `apps/inspect/e2e/top-level-views.spec.ts`,
   `log-list-filters.spec.ts`, `log-list-find.spec.ts`, and colocated listing/

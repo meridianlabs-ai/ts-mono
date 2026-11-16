@@ -15,6 +15,7 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
 import {
   ErrorPanel,
   NoContentsPanel,
@@ -62,7 +63,6 @@ import {
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
 import { type PickerColumn } from "../../shared/gridUtils.ts";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {

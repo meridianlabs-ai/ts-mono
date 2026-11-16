@@ -10,11 +10,12 @@ export const ScannerResultsSearch: FC = () => {
   const scansSearchText = useStore((state) => state.scansSearchText);
   const setScansSearchText = useStore((state) => state.setScansSearchText);
 
-  const handleChange = useCallback((e: TextInputChange) => {
-    setScansSearchText(e.target.value);
-    // TODO: lint react-hooks/exhaustive-deps - refactor to avoid the lint
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleChange = useCallback(
+    (e: TextInputChange) => {
+      setScansSearchText(e.target.value);
+    },
+    [setScansSearchText]
+  );
 
   return (
     <TextInput

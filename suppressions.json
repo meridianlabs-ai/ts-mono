@@ -14,7 +14,7 @@
   },
   "apps/inspect/src/app/log-list/grid/LogListGrid.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
@@ -73,10 +73,6 @@
     }
   },
   "apps/inspect/src/app/routing/loaders/LogLoadController.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -166,34 +162,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/shared/data-grid/DataGrid.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    },
-    "jsx-a11y/click-events-have-key-events": {
-      "count": 4,
-      "undescribed": 4
-    },
-    "jsx-a11y/interactive-supports-focus": {
-      "count": 3,
-      "undescribed": 3
-    },
-    "jsx-a11y/no-noninteractive-element-interactions": {
-      "count": 2,
-      "undescribed": 2
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/shared/samples-grid/colorScale.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
@@ -213,11 +181,6 @@
     }
   },
   "apps/inspect/src/app/shared/useKeyedMemo.ts": {
-    "react-hooks/refs (file-wide)": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/shared/useStableValue.ts": {
     "react-hooks/refs (file-wide)": {
       "count": 1
     }
@@ -428,27 +391,9 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/components/EditableText.tsx": {
-    "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/components/FilterBar.tsx": {
     "react-hooks/refs": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/components/TranscriptsNavbar.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/hooks/useEnsureVisibleScannerResults.ts": {
@@ -493,21 +438,9 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/scan/scanners/list/ScannerResultsHeader.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 5
-    }
-  },
-  "apps/scout/src/app/scan/scanners/results/ScannerResultsSearch.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
@@ -516,10 +449,6 @@
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -734,6 +663,33 @@
       "undescribed": 1
     }
   },
+  "packages/inspect-components/src/dataGrid/DataGrid.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 3,
+      "undescribed": 3
+    },
+    "jsx-a11y/interactive-supports-focus": {
+      "count": 3,
+      "undescribed": 3
+    },
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 2
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "react-hooks/incompatible-library": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "tsmono/no-raw-use-effect": {
+      "count": 1
+    }
+  },
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -862,12 +818,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/ToolEventView.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
@@ -987,6 +937,11 @@
       "count": 1
     },
     "react-hooks/refs": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useStableValue.ts": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },

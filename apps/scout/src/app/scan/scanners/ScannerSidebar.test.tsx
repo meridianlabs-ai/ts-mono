@@ -5,8 +5,17 @@ import { type PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import {
+  ExtendedFindProvider,
+  type FindSource,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
+import {
+  domCountByItem,
+  FindSourcesProbe,
+  makeStateHooks,
+  ResizeObserverStub,
+} from "@tsmono/react/testing";
 
 import { normalizeStatus } from "../../../api/normalize";
 import { createAppConfig, createStatus } from "../../../test/objectFactories";
@@ -75,17 +84,22 @@ const renderSidebar = (status: Status) => {
     )
   );
   const Wrapper = createTestWrapper();
+  let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
   render(
     <Wrapper>
       <AppConfigGate>
         <ComponentStateProvider hooks={makeStateHooks()}>
-          <MemoryRouter>
-            <ScannerSidebar selectedScan={status} />
-          </MemoryRouter>
+          <ExtendedFindProvider>
+            <FindSourcesProbe onSources={(get) => (sources = get)} />
+            <MemoryRouter>
+              <ScannerSidebar selectedScan={status} />
+            </MemoryRouter>
+          </ExtendedFindProvider>
         </ComponentStateProvider>
       </AppConfigGate>
     </Wrapper>
   );
+  return () => sources?.().get("scans-toc-list");
 };
 
 it("shows an unscored count only for scanners that have unscored results", async () => {
@@ -109,4 +123,37 @@ it("shows an unscored count only for scanners that have unscored results", async
   expect(unscored).toHaveLength(1);
   expect(unscored[0]?.closest("button")?.textContent).toContain("alpha");
   expect(unscored[0]?.parentElement?.textContent).toBe("Unscored4");
+});
+
+it("counts Find matches in the text each scanner row shows", async () => {
+  vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
+  const findSource = renderSidebar(
+    normalizeStatus({
+      ...createStatus(),
+      summary: {
+        scanners: {
+          alpha: {
+            results: 3,
+            unscored: 4,
+            tokens: 1234,
+            metrics: { alpha: { accuracy: 0.5 } },
+          },
+          beta: { results: 1, errors: 2 },
+        },
+      },
+    })
+  );
+  expect(await screen.findByText("beta")).toBeTruthy();
+  const source = findSource();
+  if (!source) throw new Error("expected the sidebar to register for Find");
+
+  // Field names and values the rows never show.
+  expect(source.countByItem("tokens")).toEqual([]);
+  expect(source.countByItem("1234")).toEqual([]);
+
+  for (const term of ["alpha", "positive results", "unscored", "accuracy"]) {
+    const counts = source.countByItem(term);
+    expect(counts.length).toBeGreaterThan(0);
+    expect(counts).toEqual(domCountByItem(source, document.body, term));
+  }
 });

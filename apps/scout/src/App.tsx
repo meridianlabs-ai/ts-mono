@@ -1,10 +1,12 @@
 // Bundle the app-level CSS the embedded library needs into the lib build. The
 // standalone app imports these in main.tsx, which the lib build does NOT
-// include — so without them, embedded scout (e.g. in hawk) lost the Bootstrap
-// `--bs-*` design tokens its panels rely on (which made light mode render dark panels).
-// Mirrors apps/inspect/App.tsx. Imported before @tsmono/theme below so the
-// theme overrides Bootstrap's defaults.
-import "bootstrap/dist/css/bootstrap.min.css";
+// include — so without them, embedded scout (e.g. in hawk) lost the `--bs-*`
+// design tokens its panels rely on (which made light mode render dark panels).
+// Mirrors apps/inspect/App.tsx.
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 
 import { createContext, FC, useLayoutEffect, useMemo } from "react";
 import { RouterProvider } from "react-router/dom";
@@ -49,7 +51,7 @@ const useThemePreferenceSync = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders.
   // A post-paint effect updates the icon a frame before the colors, flashing
   // the old theme.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- applies the theme once React commits a new preference: persist has written localStorage, which apply reads, and a layout effect lands before paint
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);

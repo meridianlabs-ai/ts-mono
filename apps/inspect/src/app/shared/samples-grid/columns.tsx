@@ -4,6 +4,10 @@ import type { CSSProperties } from "react";
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import {
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "@tsmono/inspect-components/dataGrid";
+import {
   arrayToString,
   filename,
   formatCurrency,
@@ -30,10 +34,6 @@ import {
   SampleStatusIcon,
   statusSortValue,
 } from "../../samples/status/status";
-import {
-  ColumnComparator,
-  ExtendedColumnDef,
-} from "../../shared/data-grid/columnTypes";
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";

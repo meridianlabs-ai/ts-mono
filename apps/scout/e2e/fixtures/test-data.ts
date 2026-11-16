@@ -179,7 +179,7 @@ type ScoutEventOf<T extends ScoutEvent["event"]> = Extract<
 >;
 
 /**
- * Create an AnchorEvent. splice() cuts a parent's stream at the anchor whose
+ * Create an AnchorEvent. Splicing cuts a parent's content at the anchor whose
  * anchor_id matches a branch's branched_from, so branch tests need one in the
  * parent's direct content.
  */

@@ -35,6 +35,7 @@ export const ScannerSidebar: FC<{ selectedScan: Status }> = ({
         ref={scanListHandle}
         data={entries}
         renderRow={renderRow}
+        itemSearchText={entrySearchText}
       />
     </div>
   );
@@ -128,6 +129,55 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
     </button>
   );
 };
+
+// One string per rendered block: Find never matches across blocks.
+const entrySearchText = (entry: ScanResultsOutlineEntry): string[] => {
+  const texts = [entry.title];
+  if (entry.params && entry.params.length > 0) {
+    texts.push(entry.params.join(""));
+  }
+  texts.push("Positive Results", String(entry.results));
+  if (entry.unscored > 0) {
+    texts.push("Unscored", String(entry.unscored));
+  }
+  const metricKeys = Object.keys(entry.metrics);
+  if (metricKeys.length > 0) {
+    texts.push("Metrics");
+    if (metricKeys.length === 1 && metricKeys[0] === entry.title) {
+      texts.push(
+        ...numericResultsText(
+          entry.metrics[entry.title] ?? {},
+          formatPrettyDecimal
+        )
+      );
+    } else {
+      for (const label of metricKeys) {
+        texts.push(
+          label,
+          ...numericResultsText(entry.metrics[label] ?? {}, formatPrettyDecimal)
+        );
+      }
+    }
+  }
+  if (entry.errors) {
+    texts.push("Errors", String(entry.errors));
+  }
+  if (entry.validations !== undefined) {
+    texts.push(
+      "Validation",
+      ...numericResultsText(entry.validations, (value) =>
+        formatPercent(value, 1)
+      )
+    );
+  }
+  return texts;
+};
+
+const numericResultsText = (
+  results: Record<string, number>,
+  formatter: (value: number) => string
+): string[] =>
+  Object.entries(results).flatMap(([key, value]) => [key, formatter(value)]);
 
 interface ScanResultsOutlineEntry {
   icon?: IconName;

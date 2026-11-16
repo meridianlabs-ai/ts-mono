@@ -88,6 +88,9 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   );
   const ordered = timeDescending ? [...visible].reverse() : visible;
 
+  const itemSearchText = (row: ActivityHistoryRow): string[] =>
+    activityRowSearchText(row, onOpenEvent !== undefined);
+
   const renderRow = (index: number, row: ActivityHistoryRow) => {
     const selected = selectedKey === row.key;
     const washed = !selected && washKeys.includes(row.key);
@@ -230,9 +233,27 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
             estimatedItemHeight={33}
             overscan={10}
             renderRow={renderRow}
+            itemSearchText={itemSearchText}
           />
         )}
       </div>
     </div>
   );
+};
+
+// One string per rendered block: Find never matches across blocks.
+const activityRowSearchText = (
+  row: ActivityHistoryRow,
+  canOpenEvent: boolean
+): string[] => {
+  let event = row.lead;
+  if (row.mono !== undefined) event += ` ${row.mono}`;
+  if (row.tail !== undefined) event += ` ${row.tail}`;
+  if (row.detail !== undefined) event += ` · ${row.detail}`;
+  const texts = [fmtDayClock(row.time), rowKind(row), event];
+  if (row.uuid !== undefined && canOpenEvent) {
+    texts.push("open in transcript →");
+  }
+  texts.push(row.byRole !== undefined ? `${row.by} ${row.byRole}` : row.by);
+  return texts;
 };

@@ -53,9 +53,6 @@
   border-top: solid var(--bs-light-border-subtle) 1px;
 }
 
-/* Double class beats Bootstrap's `.btn` regardless of stylesheet order —
-   in scout, Bootstrap loads after this module and its 6px 12px padding
-   overflowed the fixed-height toggle bar. */
 .moreToggle .moreToggleButton {
   font-size: var(--inspect-font-size-smaller);
   border: none;

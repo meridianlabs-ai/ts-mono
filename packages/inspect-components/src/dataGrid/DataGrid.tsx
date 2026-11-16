@@ -34,14 +34,12 @@ import {
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { isNewTabClick } from "@tsmono/react/components";
-import { useMountEffect } from "@tsmono/react/hooks";
+import { useMountEffect, useStableValue } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { openHrefInNewTab } from "@tsmono/react/routing";
-import { isRecord, isVscode } from "@tsmono/util";
+import { isButtonActivation, isRecord, isVscode } from "@tsmono/util";
 
-import { useStableValue } from "../useStableValue";
-
-import { computeAutoSizeWidth } from "./autoSize";
+import { clampColumnWidth, computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
 import {
   dropIndicatorSide,
@@ -83,6 +81,51 @@ function makeSortKeyDownHandler<TRow extends RowData>(
     e.stopPropagation();
     header.column.getToggleSortingHandler()?.(e);
   };
+}
+
+/** Width change per ArrowLeft/ArrowRight on a focused resize handle. */
+const kResizeStep = 10;
+
+/** Keys the grid container acts on (row activation and navigation). A focused
+ *  handle keeps them, so they don't open or move the row selection. */
+const kGridKeys = new Set([
+  "Enter",
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+/** Keyboard control for a focused resize handle: ArrowLeft/ArrowRight step
+ *  the width, Enter auto-sizes like a double-click, and the grid's other row
+ *  keys stop here (see kGridKeys). With Alt, Ctrl or Cmd held, arrows are left
+ *  to the browser (Alt/Cmd+Left is Back) and Enter does nothing. */
+function makeResizeKeyDownHandler(
+  stepBy: (delta: number) => void,
+  autoSize: () => void
+) {
+  return (e: KeyboardEvent<HTMLElement>) => {
+    const modified = e.altKey || e.ctrlKey || e.metaKey;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      if (modified) return;
+      e.preventDefault();
+      e.stopPropagation();
+      stepBy(e.key === "ArrowRight" ? kResizeStep : -kResizeStep);
+    } else if (kGridKeys.has(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Enter" && !modified) autoSize();
+    }
+  };
+}
+
+/** aria-valuemax for a resize handle. TanStack fills an unset `maxSize` with
+ *  Number.MAX_SAFE_INTEGER, which is no bound worth announcing. */
+function ariaMaxSize(maxSize: number | undefined): number | undefined {
+  return maxSize === Number.MAX_SAFE_INTEGER ? undefined : maxSize;
 }
 
 /** Mouse-down handler for a column's resize divider. It cancels the press's
@@ -164,7 +207,10 @@ interface ColumnLayout<TRow extends RowData> {
    *  also changes when column defs do (new cell renderers or styles at the
    *  same widths), since rows read their cells through it. */
   columns: Column<DataGridFeatures, TRow, unknown>[];
-  byId: ReadonlyMap<string, { width: number; pinnedLeft: number | undefined }>;
+  byId: ReadonlyMap<
+    string,
+    { size: number; width: number; pinnedLeft: number | undefined }
+  >;
 }
 
 function buildColumnLayout<TRow extends RowData>(
@@ -177,6 +223,7 @@ function buildColumnLayout<TRow extends RowData>(
       columns.map((column) => [
         column.id,
         {
+          size: column.getSize(),
           width:
             column.getSize() +
             (afterRotatedIds.has(column.id) ? kAfterRotatedGap : 0),
@@ -198,7 +245,8 @@ function isSameColumnLayout<TRow extends RowData>(
   for (const [id, layout] of a.byId) {
     const other = b.byId.get(id);
     if (
-      other?.width !== layout.width ||
+      other?.size !== layout.size ||
+      other.width !== layout.width ||
       other.pinnedLeft !== layout.pinnedLeft
     ) {
       return false;
@@ -254,7 +302,9 @@ export interface DataGridProps<TRow extends RowData> {
    *  link gestures (cmd/ctrl/shift/middle-click, context menu, hover
    *  preview) open it in a new tab; plain clicks still go to
    *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too.
-   *  Ignored inside the VS Code webview, where browser tabs don't exist. */
+   *  Ignored inside the VS Code webview, where browser tabs don't exist.
+   *  Build it from app routes, never log content: the row renders as a live
+   *  link, and this file's lint allowlist trusts its callers. */
   getRowHref?: (row: TRow) => string | undefined;
   rowHeight?: number;
   headerHeight?: number;
@@ -276,7 +326,7 @@ export interface DataGridProps<TRow extends RowData> {
 }
 
 /**
- * Inspect-local DataGrid: a minimal TanStack Table wrapper with row
+ * DataGrid: a minimal TanStack Table wrapper with row
  * virtualization, controlled column visibility, fit-to-width column sizing
  * (flex weights or proportional scaling — see columnFit.ts; horizontal
  * scroll when minimums overflow), and single-row selection +
@@ -622,6 +672,21 @@ export function DataGrid<TRow extends RowData>({
     [handleColumnSizingChange]
   );
 
+  // `getSize()` is the fit-resolved width (the table's sizing state is
+  // `resolvedSizing`), so a flex column steps from where the user sees it.
+  const resizeColumnBy = useCallback(
+    (column: Column<DataGridFeatures, TRow, unknown>, delta: number) => {
+      const def = column.columnDef as ExtendedColumnDef<TRow>;
+      const width = clampColumnWidth(
+        column.getSize() + delta,
+        def.minSize,
+        def.maxSize
+      );
+      handleColumnSizingChange((old) => ({ ...old, [column.id]: width }));
+    },
+    [handleColumnSizingChange]
+  );
+
   const table = useTable({
     features: dataGridFeatures,
     data,
@@ -797,6 +862,8 @@ export function DataGrid<TRow extends RowData>({
       ) {
         return;
       }
+      // Enter and Space press a focused button (a column filter's funnel).
+      if (isButtonActivation(e)) return;
 
       const rowCount = rows.length;
       if (rowCount === 0) return;
@@ -828,6 +895,9 @@ export function DataGrid<TRow extends RowData>({
       });
       if (target === null) return;
       e.preventDefault();
+      // Take focus off a button (a funnel) the selection moved away from, so
+      // a following Enter or Space activates the row rather than the button.
+      e.currentTarget.focus({ preventScroll: true });
       if (target === currentIndex) return;
 
       const targetRow = rows[target];
@@ -928,6 +998,7 @@ export function DataGrid<TRow extends RowData>({
                       key={header.id}
                       header={header}
                       width={columnLayout.byId.get(header.column.id)?.width}
+                      size={columnLayout.byId.get(header.column.id)?.size}
                       sorted={sorted}
                       sortOrder={sortOrder}
                       ariaColIndex={colIndex + 1}
@@ -942,6 +1013,9 @@ export function DataGrid<TRow extends RowData>({
                       onHeaderDragLeave={handleHeaderDragLeave}
                       onHeaderDrop={handleHeaderDrop}
                       onAutoSize={() => autoSizeColumn(header.column)}
+                      onResizeBy={(delta) =>
+                        resizeColumnBy(header.column, delta)
+                      }
                     />
                   );
                 }
@@ -949,6 +1023,9 @@ export function DataGrid<TRow extends RowData>({
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
                 const pinned = header.column.getIsPinned() === "start";
+                const headerSize = columnLayout.byId.get(
+                  header.column.id
+                )?.size;
                 const sortCaret = (
                   <SortIndicator sorted={sorted} sortOrder={sortOrder} />
                 );
@@ -1073,13 +1150,26 @@ export function DataGrid<TRow extends RowData>({
                       </div>
                     )}
                     {header.column.getCanResize() && (
-                      // Pointer-only drag handle; column widths also reset
-                      // from the column menu, so nothing here is unreachable.
-                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+                      // A focusable separator (the WAI-ARIA window splitter):
+                      // drag it, or Tab to it for arrow-key resizing.
+                      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a focusable separator is a widget (ARIA 1.2); the rule only sees the role
                       <div
                         role="separator"
                         aria-orientation="vertical"
                         aria-label={`Resize ${header.column.id}`}
+                        tabIndex={0}
+                        aria-valuenow={headerSize}
+                        aria-valuetext={
+                          headerSize === undefined
+                            ? undefined
+                            : `${headerSize} pixels`
+                        }
+                        aria-valuemin={columnDef.minSize}
+                        aria-valuemax={ariaMaxSize(columnDef.maxSize)}
+                        onKeyDown={makeResizeKeyDownHandler(
+                          (delta) => resizeColumnBy(header.column, delta),
+                          () => autoSizeColumn(header.column)
+                        )}
                         className={clsx(
                           styles.resizeHandle,
                           anyRotated && styles.resizeHandleTall,
@@ -1282,12 +1372,17 @@ function RotatedHeaderCell<TRow extends RowData>({
   onHeaderDragLeave,
   onHeaderDrop,
   onAutoSize,
+  size,
+  onResizeBy,
 }: {
   header: Header<DataGridFeatures, TRow, unknown>;
   /** From the grid's column layout, not `header.getSize()`: `header` keeps
    *  its identity across resizes, so the compiled component would reuse a
    *  width read off it. */
   width: number | undefined;
+  /** The column's own width (for aria-valuenow), from the layout like
+   *  `width`. */
+  size: number | undefined;
   /** From the grid, like `width`: `header` keeps its identity across sort
    *  changes too. */
   sorted: false | SortDirection;
@@ -1312,6 +1407,7 @@ function RotatedHeaderCell<TRow extends RowData>({
   onHeaderDragLeave: (e: DragEvent<HTMLElement>) => void;
   onHeaderDrop: (e: DragEvent<HTMLElement>, colId: string) => void;
   onAutoSize: () => void;
+  onResizeBy: (delta: number) => void;
 }): ReactElement {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
@@ -1408,12 +1504,18 @@ function RotatedHeaderCell<TRow extends RowData>({
         aria-hidden="true"
       />
       {header.column.getCanResize() && (
-        // Pointer-only drag handle — see the upright header above.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        // Focusable separator — see the upright header above.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a focusable separator is a widget (ARIA 1.2); the rule only sees the role
         <div
           role="separator"
           aria-orientation="vertical"
           aria-label={`Resize ${header.column.id}`}
+          tabIndex={0}
+          aria-valuenow={size}
+          aria-valuetext={size === undefined ? undefined : `${size} pixels`}
+          aria-valuemin={columnDef.minSize}
+          aria-valuemax={ariaMaxSize(columnDef.maxSize)}
+          onKeyDown={makeResizeKeyDownHandler(onResizeBy, onAutoSize)}
           className={clsx(
             styles.resizeHandle,
             styles.resizeHandleRotated,

@@ -488,8 +488,27 @@
 }
 
 .resizeHandle:hover::after,
-.resizeHandleActive::after {
+.resizeHandleActive::after,
+.resizeHandle:focus-visible::after {
   opacity: 1;
+}
+
+/* Keyboard focus: a thicker accent line in place of an outline, which would
+ * box the invisible hit-strip rather than mark the column edge. */
+.resizeHandle:focus-visible {
+  outline: none;
+}
+.resizeHandle:focus-visible::after {
+  left: 2px;
+  width: 3px;
+}
+
+/* Forced colors drop the accent line's background; outline survives. */
+@media (forced-colors: active) {
+  .resizeHandle:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 /* Tall (rotated) mode: confine the hit-zone + accent line to the bottom

@@ -1,0 +1,54 @@
+/*
+ * Helper and utility classes, copied from Bootstrap v5.3.8 with rules unchanged apart from
+ * formatting (Copyright 2011-2025 The Bootstrap Authors, MIT license,
+ * https://github.com/twbs/bootstrap/blob/main/LICENSE). Only the classes the
+ * apps use are copied.
+ */
+
+.sticky-top {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.visually-hidden {
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.visually-hidden:not(caption) {
+  position: absolute !important;
+}
+.visually-hidden * {
+  overflow: hidden !important;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.font-monospace {
+  font-family: var(--bs-font-monospace) !important;
+}
+
+.text-secondary {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-secondary-rgb), var(--bs-text-opacity)) !important;
+}
+
+.text-danger {
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-danger-rgb), var(--bs-text-opacity)) !important;
+}

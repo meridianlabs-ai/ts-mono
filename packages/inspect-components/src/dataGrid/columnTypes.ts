@@ -48,7 +48,7 @@ export interface BaseColumnMeta<TRow = unknown> {
 }
 
 /**
- * Column definition for the inspect-local DataGrid: TanStack's `ColumnDef`
+ * Column definition for the DataGrid: TanStack's `ColumnDef`
  * plus a few rendering helpers. `size` / `minSize` / `maxSize` come from
  * TanStack's own `ColumnDef`.
  */

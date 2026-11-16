@@ -1,13 +1,15 @@
 # Removing the Bootstrap CSS dependency
 
-Status: proposal. Nothing here is implemented. Measurements are from `main`
-at `b4b6753f` (2026-11-12).
+Status: PRs 1–6 are done; the optional PR 7 remains. Measurements
+in the analysis sections are from `main` at `b4b6753f` (2026-11-12), before
+PR 1.
 
-Both apps import all of `bootstrap@5.3.8` CSS: `apps/inspect/src/app/App.tsx`
-imports `bootstrap.css`, and `apps/scout/src/App.tsx` and the scout dataframe
-e2e fixture import `bootstrap.min.css`. We use no Bootstrap JavaScript:
+Before PR 5 both apps imported all of `bootstrap@5.3.8` CSS:
+`apps/inspect/src/app/App.tsx` imported `bootstrap.css`, and
+`apps/scout/src/App.tsx` and the scout dataframe e2e fixture imported
+`bootstrap.min.css`. We used no Bootstrap JavaScript:
 nothing imports `bootstrap/dist/js` or uses `data-bs-*` behaviour attributes,
-and `@types/bootstrap` is an unused dev dependency. `bootstrap-icons` is a
+and `@types/bootstrap` was an unused dev dependency. `bootstrap-icons` is a
 separate package and out of scope.
 
 ## Recommendation
@@ -28,7 +30,7 @@ the 1,355 references untouched. Renaming is an optional later step.
 
 Rough size: about 1,000 lines of CSS added to `packages/theme`, nearly all of it
 copied from Bootstrap, and about 150 removed from `base.css`. PRs 1–5
-change almost no TSX. PR 6 edits about 15 CSS modules. The main risks are
+change almost no TSX. PR 6 edited 12 CSS files. The main risks are
 the cascade-order changes in PR 5 and hawk, which embeds both viewers.
 
 ## What Bootstrap does for us
@@ -86,7 +88,7 @@ replaced the text of Bootstrap's `<style>` element on each loaded screen
 with one of three variants:
 
 - `full`: Bootstrap as shipped.
-- `noreboot`: Bootstrap with every Reboot selector removed (the 75 rules of
+- `noreboot`: Bootstrap with every Reboot selector removed (the 76 rules of
   `bootstrap-reboot.css`, removed by selector, so `h1, .h1` keeps `.h1`).
 - `vars`: only Bootstrap's `:root` / `[data-bs-theme]` variable blocks.
 
@@ -127,7 +129,7 @@ when a class sets `display`. Model output rendered as markdown or HTML can
 also contain `blockquote`, `kbd`, `mark`, `sub`/`sup` and `dl`. None of the
 measured logs exercised those, and nothing in the repo styles `blockquote`.
 
-So the reset should be **all 75 Reboot rules, copied verbatim**, not a
+So the reset should be **all 76 Reboot rules, copied verbatim**, not a
 selection. It is about 420 lines and costs nothing to keep.
 
 Screens not covered: dialogs (#847 is rewriting them), running evals
@@ -184,16 +186,18 @@ Bootstrap doesn't load first. `main.tsx` imports modules that import
 server and a production build, about 250 CSS-module class selectors
 (`AsyncGate`, `PulsingDots`, `AutocompleteInput`, `CopyButton`, `TabSet`,
 ...) come before Bootstrap in `index.css`. Bootstrap wins every
-equal-specificity tie with those modules. As a result:
+equal-specificity tie with those modules. The library build that hawk embeds
+is different: its entry imports `App.tsx` first, so the modules come after
+Bootstrap and win those ties. As a result, in the standalone apps:
 
 - Some selectors double a class to out-specify Bootstrap, such as
-  `:global(.btn).toolButton` (16 selectors in 7 files, plus 2
+  `:global(.btn).toolButton` (15 selectors in 6 files, plus 2
   `:global(.nav)` in scout).
 - Some rules never apply. `TabSet.module.css` `.pillSmall
   { padding: 0.3rem }` loses to `.nav-link { padding: .5rem 1rem }`, so the
   tabs render with Bootstrap's padding.
-- Some of the 166 `!important`s in our CSS (51 in `base.css`) exist for the
-  same reason. I haven't classified them one by one.
+- Some of the 166 `!important`s in our CSS (51 in `base.css`) might exist
+  for the same reason. PR 6 checked them and found four rules that did.
 
 Removing Bootstrap, or layering it, reverses these ties. The
 [alternative](#alternative-keep-bootstrap-in-layer-bootstrap) section has
@@ -223,12 +227,10 @@ read by:
 ### Files and load order
 
 Four new files in `packages/theme`, imported by both `App.tsx` files and the
-scout dataframe e2e fixture. Until PR 5 they sit right after Bootstrap and
-before Prism and `base.css`, so `base.css` keeps overriding them as it
-overrides Bootstrap today:
+scout dataframe e2e fixture, where Bootstrap's import was. They load before
+Prism and `base.css`:
 
 ```ts
-import "bootstrap/dist/css/bootstrap.css"; // removed in PR 5
 import "@tsmono/theme/tokens";
 import "@tsmono/theme/reset";
 import "@tsmono/theme/components";
@@ -240,8 +242,10 @@ import "@tsmono/theme/vscode";
 
 ### Tokens
 
-`tokens.css` defines every `--bs-*` name we or the copied CSS read, under the
-current names, with values copied from Bootstrap's light and dark blocks.
+`tokens.css` defines every `--bs-*` name that we or Bootstrap's own rules
+read, under the current names, with values copied from Bootstrap's light and
+dark blocks. PR 5 dropped the 33 names that only Bootstrap's uncopied rules
+read.
 Colours use `light-dark()`:
 
 ```css
@@ -295,10 +299,15 @@ this in Chrome.
 
 ### Reset
 
-`reset.css` is Bootstrap 5.3.8's Reboot without the variable blocks: all 75
-rules, verbatim, with the same specificity. Don't wrap it in `:where()`.
-Reboot's `pre code { color: inherit }` beats `code { color: ... }` only
-on specificity.
+`reset.css` is Bootstrap 5.3.8's Reboot without the variable blocks: all 76
+rules with the same selectors and declarations, only reformatted. Don't wrap
+it in `:where()`. Reboot's `pre code { color: inherit }` beats
+`code { color: ... }` only on specificity.
+
+`reset.css` is in the `tsmono.reset` layer, below `tsmono.components`, so
+component classes beat reset rules whatever their specificity. `base.css`
+keeps its own `a` and `a:hover` colour rules in the same layer. Unlayered,
+they would beat the layered `.nav-link` colours.
 
 ### Components and utilities
 
@@ -357,8 +366,39 @@ the embedded viewer, `reset`'s `ul { padding-left }` and
 and `.btn` rules.
 
 So PR 5 names the layers under one namespace, `@layer tsmono.reset,
-tsmono.components`, so they never merge with a host's layers. I worked out
+tsmono.components`, so they never merge with a host's layers. In hawk the
+`tsmono` layer orders after Tailwind's, so our reset and components still
+beat Tailwind's layered utilities, as unlayered Bootstrap did. I worked out
 the hawk ordering from the layer rules. I didn't run it in hawk.
+
+Hawk's own markup also shares class names with Bootstrap's utilities. Hawk
+loads each viewer's stylesheet only on that viewer's routes (`EvalPage`,
+`ScanPage`, lazy-loaded in `AppRouter.tsx`), so its list pages never had
+Bootstrap. On the viewer routes, hawk's chrome (`EvalSetStatusBar`, the
+artifact viewers, the loading, error and pending pages) uses Tailwind classes
+such as `p-4`, `px-3`, `gap-3`, `mb-3`, `rounded` and `border`, which
+Bootstrap also defines as `!important` utilities with different values
+(`.p-4` is 1.5rem in Bootstrap and 1rem in Tailwind). After PR 5 Tailwind's
+values apply there, except where the reset sets the same property on that
+element: the `tsmono.reset` layer orders after Tailwind's `utilities`, so
+`h2.mb-1` gets the reset's 0.5rem, `p.mt-1` and `ul.mt-2` get 0, and
+`button.rounded` loses its radius. Bootstrap's `!important` utilities used
+to hide this. PR 7 removes it by scoping the reset to the viewer. I found
+this by reading hawk's source (checkout from 2026-09-13) and haven't
+checked it in a running hawk.
+
+VS Code hosts older than 1.104 inject their default webview styles
+unlayered, so there they beat the layered reset and components (body font
+size, `code`, link colours on tabs rendered as `<a>`). From 1.104 VS Code
+wraps them in `@layer vscode-default`, which orders before ours. The viewer
+ships with the inspect_ai package, so an extension minimum can't keep it off
+older hosts. PR 5 accepts these differences on VS Code older than 1.104
+(August 2025).
+
+Model output can carry Bootstrap classes too. The HTML sanitizer keeps
+`class` attributes and markdown renders with `html: true`, so a message
+containing `<table class="table">` or `<span class="badge">` is styled by
+Bootstrap before PR 5 and isn't after it.
 
 Stopping the leak means scoping the reset to the viewer in library builds,
 for example `@scope ([data-tsmono-viewer])` with `:scope` standing in for
@@ -390,12 +430,12 @@ before first paint, not for Bootstrap. It can keep its name.
 
 | PR | Change | Gate | Size |
 | --- | --- | --- | --- |
-| 1 | `tokens.css`; the variable completeness check; fix the five undefined names | `full` vs (Bootstrap without its variable blocks + `tokens.css`): zero diff. The five fixes are intended changes, listed in the PR | ~200 lines |
+| 1 | `tokens.css`; the variable completeness check; fix the five undefined names | `full` vs (Bootstrap without its variable blocks + `tokens.css`): zero diff. Two of the five fixes change rendering, listed in the PR | ~200 lines |
 | 2 | `reset.css` | `full` vs (`noreboot` + `reset.css`): zero diff | ~420 lines |
-| 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap without the copied rules + both files): zero diff, including hover and focus states | ~420 lines |
+| 3 | `components.css`, `utilities.css` | `full` vs (Bootstrap emptied + all four copies): zero diff, including forced hover, focus-visible and active states | ~760 lines (each component brings its `--bs-*-*` variables) |
 | 4 | Delete the `base.css` rules for components nothing renders | `full` vs branch: zero diff | −150 lines |
 | 5 | Delete the Bootstrap imports and the `bootstrap` / `@types/bootstrap` dependencies; put `reset.css` and `components.css` in `tsmono.*` layers | Every diff is listed in the PR and either accepted or fixed | ~30 lines + fixes |
-| 6 | Remove the `:global(.btn)` doubling and the `!important`s that only beat Bootstrap, one file at a time | Zero diff per file | ~15 CSS modules |
+| 6 | Remove the `:global(.btn)` doubling and the `!important`s that only beat Bootstrap, one file at a time | Zero diff per file | 12 CSS files |
 | 7 (optional) | Scope the reset to the viewer root in library builds ([Hawk and other hosts](#hawk-and-other-hosts)) | Zero diff standalone; hawk's own pages lose Reboot | ~30 lines + a root attribute |
 
 Loading the copy after full Bootstrap would always give zero diff, even
@@ -403,26 +443,49 @@ with rules missing, because Bootstrap would still supply them. That's why
 the gates for PRs 1–3 compare against Bootstrap with the copied part
 deleted. The experiment's `noreboot` variant is the model for PR 2.
 
-The PR 5 diffs come from cascade order: rules that lose to Bootstrap today
-start to apply. The layer experiment below found the first ones (TabSet
-tabs shrink). Fix each one by deleting the module rule that never applied,
-or accept it in the PR.
+The PR 5 diffs came from cascade order: rules that lost to Bootstrap started
+to apply. At rest only TabSet's `.pillSmall` padding and NavPills' `.pill`
+padding and font size would have changed the standalone rendering, and PR 5
+deleted them. In the library build those two had applied, so hawk's small
+tabs and pills grow to the standalone size. The others are hover, focus,
+active and disabled styles where a module rule now beats `.btn:hover`,
+`.btn:active`, `.nav-link:hover` or `.form-control:disabled`. PR 5 lists them
+and keeps them.
+
+PR 6 removed the 15 `:global(.btn)` and 2 `:global(.nav)` doublings. It also
+removed the `!important` from four rules whose only competitor was a
+Bootstrap rule they tied on specificity: scout's footer spinner
+(`.spinner-border`), scout's scan tabs (`.nav`, `.nav-link`) and `base.css`
+`.nav-link.active` (`.nav-tabs .nav-link`). Load order already decided those
+ties in their favour on the screens measured with Bootstrap loaded. The
+other `!important`s beat our own rules (`.text-size-*`, the prism overrides,
+TabSet's `.tabTools .btn`), size VS Code web components or beat nothing, and
+stay. Dropping the doubling would also have revived two background colours
+that lost to `.btn.toolButton` (SelectScorer's button and the ANSI
+raw-output toggle), so PR 6 deleted them, and SelectTool's `.splitClear`
+became `.group .splitClear` to keep its tie with `.tabTools .btn`.
 
 ### Verification
 
-- **Computed-style comparison.** Commit the script from this investigation
-  under `apps/inspect/scripts/` in PR 1. Extend it before relying on it:
-  - more properties (`position`, `z-index`, `flex-wrap`, `overflow`,
-    `text-overflow`, `box-shadow`, `background-image`, `animation`);
-  - `::before`/`::after`;
-  - forced `:hover` and `:focus-visible` states;
-  - the readable theme variant;
-  - a dialog and a running eval.
+- **Computed-style comparison.** For PRs 1–3, a verify-log-viewer drive
+  spec, `bootstrap-copies.spec.ts`, which PR 5 deleted along with Bootstrap.
+  PRs 1 and 2 gated each copy separately. PR 3 emptied Bootstrap's
+  stylesheet and compared the four copies alone against Bootstrap as
+  shipped. PR 5 compared `main` and the branch in two dev servers instead,
+  element by element, with screenshots. It covered inspect and scout in
+  light, dark and both readable variants, with `::before`/`::after` and
+  forced `:hover`, `:focus`, `:focus-visible` and `:active` on interactive
+  elements. PR 6 repeated it in light and dark. Half the copied classes never
+  render on those screens (dialog buttons and forms, spinners, pagination),
+  so PR 3's spec also rendered a fixture page with markup for every copied
+  class.
 - **Variable completeness.** A check that every `var(--bs-*)` in the repo
   resolves to a name defined in a theme file or CSS module, or has a
-  fallback. `--bs-body-text-align` is the one deliberate exception: Reboot
-  reads it and Bootstrap never defines it. It replaces Bootstrap as the source of truth, and it would have
-  caught the five undefined names.
+  fallback. Three names Bootstrap reads but never defines
+  (`--bs-body-text-align`, `--bs-nav-link-font-size`,
+  `--bs-breadcrumb-font-size`) are the deliberate exceptions. It replaces
+  Bootstrap as the source of truth, and it would have caught the five
+  undefined names.
 - **Screenshots.** Before and after, light and dark, for the inspect log
   list, samples list, transcript, messages, a scoring tab and a dialog, and
   for scout scans, a scan result, the transcripts list and a transcript. They
@@ -447,8 +510,8 @@ them changes the plan.
 
 ## Size and risk
 
-Six PRs, plus an optional seventh. PRs 2 and 3 are the largest, at around 420 lines each, but
-most of it is copied CSS. Implementation is a few days. Verification takes
+Six PRs, plus an optional seventh. PRs 2 and 3 are the largest, at about
+420 and 760 lines, but nearly all of it is copied CSS. Implementation is a few days. Verification takes
 as long again: two apps, two themes plus the readable variant, VS Code, and
 hawk for PR 5.
 
@@ -496,11 +559,13 @@ ends with CSS we own and nothing to ban, so I'd do that.
 
 ## Pre-existing bugs found while measuring
 
-These are independent of the migration. PR 1 fixes the first group, since
-it defines the token values.
+These are independent of the migration.
 
-- Five names are referenced but defined nowhere. Each falls back to the
-  property's initial or inherited value today:
+- Five names were referenced but defined nowhere, so each fell back to the
+  property's initial or inherited value. PR 1 pointed MessageBand and
+  ScanPanelTitle at the tokens they name (`--bs-danger-*`,
+  `--bs-secondary-color`) and replaced the other three with the value they
+  rendered as (`transparent`, `inherit`):
   - `--bs-body-background`: `base.css`, 3 uses (Bootstrap's name is
     `--bs-body-bg`).
   - `--bs-error-bg-subtle` and `--bs-error-text-emphasis`:

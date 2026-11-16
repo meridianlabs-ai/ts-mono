@@ -421,7 +421,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
           overscan={10}
           useFlushSync={false}
           scrollPaddingStart={32}
-          findScope="none"
+          itemSearchText={null}
           renderRow={(index, row) => (
             <div
               role="row"

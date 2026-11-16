@@ -38,3 +38,20 @@ export const TaskName: FC<TaskNameProps> = ({
 
   return results;
 };
+
+/** The text `<TaskName>` renders. */
+export const taskNameText = ({
+  taskSet,
+  taskId,
+  taskRepeat,
+}: TaskNameProps): string => {
+  if (!taskSet && !taskId && taskRepeat === undefined) {
+    return "<unknown>";
+  }
+  let text = taskSet || "";
+  if (taskId !== undefined && taskId !== null) text += `/${taskId}`;
+  if (taskRepeat !== undefined && taskRepeat !== null) {
+    text += ` (${taskRepeat})`;
+  }
+  return text;
+};
