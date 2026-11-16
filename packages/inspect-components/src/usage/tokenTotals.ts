@@ -7,15 +7,21 @@ const inputAll = (usage: ModelUsageData): number =>
 
 /** Output tokens excluding reasoning, so a composition that shows reasoning
  *  as its own category counts it once. Providers include reasoning in
- *  output_tokens; older Grok logs reported it separately, which shows as
- *  input + output + reasoning adding up to the recorded total. An aggregate
- *  mixing both shapes can't be told apart and is treated as inclusive. */
+ *  output_tokens; older Grok and Gemini logs reported it separately, which
+ *  shows as input + output + reasoning adding up to the recorded total. Logs
+ *  from before inspect_ai split cached reads out of input_tokens (Feb 2026)
+ *  count the cache inside input, so both input sums are checked. An aggregate
+ *  mixing both shapes, or a total with tokens outside every category (Gemini
+ *  tool-use prompts), can't be told apart and is treated as inclusive. */
 export const visibleOutputTokens = (usage: ModelUsageData): number => {
   const output = usage.output_tokens ?? 0;
   const reasoning = usage.reasoning_tokens ?? 0;
   if (reasoning <= 0) return output;
   const total = usage.total_tokens ?? 0;
-  const separate = total > 0 && inputAll(usage) + output + reasoning === total;
+  const separateFrom = (input: number) =>
+    total > 0 && input + output + reasoning === total;
+  const separate =
+    separateFrom(inputAll(usage)) || separateFrom(usage.input_tokens ?? 0);
   return separate ? output : Math.max(output - reasoning, 0);
 };
 

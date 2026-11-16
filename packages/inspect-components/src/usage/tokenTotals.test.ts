@@ -58,7 +58,7 @@ describe("visibleOutputTokens and compositionTotal", () => {
       250,
     ],
     [
-      "OpenAI: input already includes cached reads",
+      "older OpenAI log whose input still includes cached reads",
       usage({
         input_tokens: 100,
         input_tokens_cache_read: 60,
@@ -102,6 +102,18 @@ describe("visibleOutputTokens and compositionTotal", () => {
       }),
       9,
       135,
+    ],
+    [
+      "older Grok log whose input still includes cached reads",
+      usage({
+        input_tokens: 32,
+        input_tokens_cache_read: 20,
+        output_tokens: 9,
+        reasoning_tokens: 94,
+        total_tokens: 135,
+      }),
+      9,
+      155,
     ],
     [
       "cache writes count toward the input side",
