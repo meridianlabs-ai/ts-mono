@@ -44,8 +44,8 @@ type ApprovalNode = EventNode<ApprovalEvent>;
 /**
  * Pairs each approval chain to its ToolEvent. A sample whose log records
  * `execution_id` (`recordsExecutionIds`) pairs by execution
- * (`pairToolApprovalsByExecution`); any other exactly as before the field
- * (`pairToolApprovalsLegacy`). Callers that render part of a sample pass the
+ * (`pairToolApprovalsByExecution`); any other with the rules from before the
+ * field (`pairToolApprovalsLegacy`). Callers that render part of a sample pass the
  * sample's answer, so every view of it pairs the same way.
  */
 export function pairToolApprovals(
@@ -136,7 +136,7 @@ const stepNodes = (span: EventNode): SentinelNode[] => {
  *   the last ToolEvent of their id go to it when it is native. Its timestamp
  *   is from before approval, so the timeline sorts it ahead of its approvals.
  *   A new proposal of the id ends that call, settling its waiting chains on
- *   the ToolEvent recorded since the previous proposal.
+ *   the native ToolEvent recorded since the previous proposal.
  */
 function pairToolApprovalsByExecution(
   eventNodes: EventNode[]
@@ -229,7 +229,7 @@ function pairToolApprovalsByExecution(
         if (tools) tools.push(n.id);
         else toolsOf.set(key, [n.id]);
         lastTool.set(key, tool);
-        ranSinceProposal.add(key);
+        if (!isBridgeTool(n.event)) ranSinceProposal.add(key);
       } else if (
         isSentinelSpan(n) &&
         n.event.event === SPAN_BEGIN &&
@@ -257,7 +257,7 @@ function pairToolApprovalsByExecution(
   };
   walk(eventNodes, "");
 
-  for (const key of [...waiting.keys()]) settle(key);
+  for (const key of waiting.keys()) settle(key);
   for (const { node, key } of named) {
     const [only, other] = toolsOf.get(key) ?? [];
     if (only && !other) append(only, [node]);
@@ -305,7 +305,8 @@ function pairToolApprovalsByExecution(
  * Approvals that come after the last ToolEvent of their id go to it. Its
  * timestamp is from before approval, so the timeline sorts it ahead of its
  * approvals. A new proposal of the id ends that call, settling its waiting
- * chains on the ToolEvent recorded since the previous proposal.
+ * chains on the native ToolEvent recorded since the previous proposal; a
+ * bridge's host run is stamped after its approvals.
  */
 function pairToolApprovalsLegacy(eventNodes: EventNode[]): ToolApprovalPairing {
   const chains = new Map<string, ApprovalNode[]>();
@@ -339,14 +340,14 @@ function pairToolApprovalsLegacy(eventNodes: EventNode[]): ToolApprovalPairing {
         const chain = queue.splice(0, end === -1 ? queue.length : end + 1);
         if (chain.length) chains.set(n.id, chain);
         lastTool.set(n.event.id, n.id);
-        ranSinceProposal.add(n.event.id);
+        if (!isBridgeTool(n.event)) ranSinceProposal.add(n.event.id);
       }
       if (n.children.length) walk(n.children);
     }
   };
   walk(eventNodes);
 
-  for (const callId of [...waiting.keys()]) settle(callId);
+  for (const callId of waiting.keys()) settle(callId);
   const unpaired = [...waiting.values()].flat();
 
   const toolApprovals = new Map<string, ApprovalNode[]>();

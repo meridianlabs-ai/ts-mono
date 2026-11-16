@@ -216,11 +216,16 @@ describe.each([
     result: ReturnType<typeof pairToolApprovals>,
     toolId: string
   ) => result.toolApprovals.get(toolId)?.map((n) => n.id);
-  const proposal = (nodeId: string, callId: string): EventNode =>
+  const proposal = (
+    nodeId: string,
+    callId: string,
+    requested_model?: string
+  ): EventNode =>
     new EventNode(
       nodeId,
       testModelEvent({
         uuid: nodeId,
+        requested_model,
         output: testModelOutput({
           choices: [
             testChatCompletionChoice({
@@ -315,6 +320,27 @@ describe.each([
       approvalNode("appr-2", "call-1"),
       agent,
       toolNode("tool-2", "call-1"),
+    ]);
+
+    expect(paired(result, "tool-1")).toEqual(["appr-1"]);
+    expect(paired(result, "tool-2")).toEqual(["appr-2"]);
+  });
+
+  it("keeps a bridge's approval for its own run when the id is proposed again before that run", () => {
+    const hostRun = (nodeId: string) =>
+      new EventNode(
+        nodeId,
+        testToolEvent({ id: "call-1", uuid: nodeId, metadata: { bridge: {} } }),
+        0
+      );
+    const result = pair([
+      proposal("m1", "call-1", "client"),
+      approvalNode("appr-1", "call-1"),
+      proposal("m2", "call-1", "client"),
+      hostRun("tool-1"),
+      approvalNode("appr-2", "call-1"),
+      proposal("m3", "call-1", "client"),
+      hostRun("tool-2"),
     ]);
 
     expect(paired(result, "tool-1")).toEqual(["appr-1"]);
