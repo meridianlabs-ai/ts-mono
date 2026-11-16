@@ -25,7 +25,6 @@ import {
 } from "../selection/RowSelectionContext";
 
 import { EventLabelContext } from "./EventLabelContext";
-import { eventSearchText } from "./eventText";
 import {
   computeHasToolEventsAtDepth,
   computeToolEventIdsAtLevel,
@@ -324,8 +323,7 @@ export const TranscriptVirtualListComponent: FC<
       live={running === true}
       smoothScroll={running === true && !isBackfilling}
       scrollToTopOnFinish={scrollToTopOnFinish}
-      itemSearchText={eventSearchText}
-      findScope="none"
+      itemSearchText={null}
       showProgress={showFooter}
       components={components}
     />

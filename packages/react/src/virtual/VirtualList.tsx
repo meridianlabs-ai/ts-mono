@@ -104,7 +104,6 @@ export function VirtualList<T>({
   components,
   smoothScroll = true,
   itemSearchText,
-  findScope = "local",
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
@@ -891,17 +890,14 @@ export function VirtualList<T>({
   // Null when this list doesn't participate in find (opted out, or no
   // provider mounted).
   const extendedFind = useExtendedFindOptional();
-  const findContext = findScope === "none" ? null : extendedFind;
+  const findContext = itemSearchText ? extendedFind : null;
   // Pre-compute lowercased search text for every item once per data /
   // accessor change, so the find counter doesn't re-extract and
-  // re-lowercase the whole list on each keystroke. Skipped entirely when the
-  // list doesn't participate in find — extraction can be expensive (default
-  // accessor JSON.stringifies every item).
+  // re-lowercase the whole list on each keystroke.
   const precomputedSearchTexts = useMemo(() => {
-    if (!findContext) return [];
-    const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
+    if (!findContext || !itemSearchText) return [];
     return data.map((item) => {
-      const texts = getText(item);
+      const texts = itemSearchText(item);
       const textArray = Array.isArray(texts) ? texts : [texts];
       return textArray.map((t) => t.toLowerCase());
     });
