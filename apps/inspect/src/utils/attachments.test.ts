@@ -214,15 +214,27 @@ describe.each(["attachment://", "tc://"])(
       expect(resolved.arguments).toEqual({ cmd: "resolved content" });
     });
 
-    it("applies to lists of events and to nested events", () => {
-      const tool = testToolEvent({ result: ref, arguments: { cmd: ref } });
-      const subtask = testSubtaskEvent({ events: [tool] });
-      expect(resolveEventAttachments([subtask], attachments)).toEqual([
-        {
-          ...subtask,
-          events: [{ ...tool, arguments: { cmd: "resolved content" } }],
-        },
-      ]);
-    });
+    it.each([
+      {
+        name: "subtask",
+        parent: (events: unknown[]) => testSubtaskEvent({ events }),
+      },
+      {
+        name: "tool",
+        parent: (events: unknown[]) => testToolEvent({ id: "parent", events }),
+      },
+    ])(
+      "applies to lists of events and to events nested in a $name",
+      ({ parent }) => {
+        const tool = testToolEvent({ result: ref, arguments: { cmd: ref } });
+        const outer = parent([tool]);
+        expect(resolveEventAttachments([outer], attachments)).toEqual([
+          {
+            ...outer,
+            events: [{ ...tool, arguments: { cmd: "resolved content" } }],
+          },
+        ]);
+      }
+    );
   }
 );
