@@ -30,7 +30,6 @@ import { apiScoutServer } from "../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { server } from "../../test/setup-msw";
-import { innerTextarea, onlyElement } from "../../test/webComponents";
 import type {
   ProjectConfig,
   Result,
@@ -455,8 +454,8 @@ describe("SearchPanel", () => {
 
     await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
 
-    const textarea = innerTextarea(onlyElement("vscode-textarea"));
-    fireEvent.input(textarea, { target: { value: "needles" } });
+    const textarea = screen.getByPlaceholderText("Search for text...");
+    fireEvent.change(textarea, { target: { value: "needles" } });
 
     expect(screen.queryByText("5 matches")).not.toBeNull();
   });

@@ -1,7 +1,6 @@
 export * from "./api-error";
 export * from "./ansi";
 export * from "./array";
-export * from "./autosizeTextarea";
 export * from "./arrow";
 export * from "./asyncData";
 export * from "./base64";
