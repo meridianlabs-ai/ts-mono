@@ -139,8 +139,7 @@
   stroke-width: 1.75;
 }
 
-/* In dark the active log line keeps its resting hue and only thickens, as
-   it always has. */
+/* Dark keeps the resting log hue; only the width changes. */
 .markerLineLogActive {
   stroke: light-dark(#1d4f7c, #4d7aa8);
   stroke-width: 1.75;
