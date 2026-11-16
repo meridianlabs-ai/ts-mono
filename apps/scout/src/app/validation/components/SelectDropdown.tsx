@@ -120,10 +120,7 @@ export const SelectDropdown: FC<SelectDropdownProps> = ({
             role="option"
             tabIndex={-1}
             aria-selected={index === selectedIndex}
-            className={clsx(
-              styles.option,
-              index === active && styles.active
-            )}
+            className={clsx(styles.option, index === active && styles.active)}
             onMouseMove={() => {
               if (index !== active) setActive(index);
             }}
