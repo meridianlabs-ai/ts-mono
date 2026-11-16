@@ -25,11 +25,6 @@
   min-width: 0;
 }
 
-.inputShell :global(vscode-textarea) {
-  display: block;
-  width: 100%;
-}
-
 .controlsRow {
   display: flex;
   align-items: center;
@@ -55,11 +50,37 @@
   gap: 0.2rem;
 }
 
+/* Matches vscode-textarea. That component can't be used here because its
+   textarea sits in a shadow root with no ::part, so field-sizing can't
+   reach it. */
 .textarea {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
-  font-family: inherit;
-  font-size: var(--inspect-font-size-small);
-  color: var(--bs-body-color);
+  field-sizing: content;
+  /* 2 to 10 lines, plus 2px padding and 1px border on each side. */
+  min-height: calc(2lh + 6px);
+  max-height: calc(10lh + 6px);
+  padding: 2px;
+  border: 1px solid var(--vscode-settings-textInputBorder, transparent);
+  border-radius: 4px;
+  resize: none;
+  background-color: var(--vscode-settings-textInputBackground, #313131);
+  color: var(--vscode-settings-textInputForeground, #cccccc);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, normal);
+  line-height: normal;
+}
+
+.textarea:focus {
+  border-color: var(--vscode-focusBorder, #0078d4);
+  outline: none;
+}
+
+.textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground, #989898);
+  opacity: 1;
 }
 
 .modeRow {

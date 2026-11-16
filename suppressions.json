@@ -57,11 +57,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-view/title-view/AutogrowText.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -670,7 +665,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {

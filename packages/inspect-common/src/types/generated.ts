@@ -4397,6 +4397,8 @@ export interface components {
             event: "tool";
             /** Events */
             events: unknown[];
+            /** Execution Id */
+            execution_id?: string | null;
             /** Failed */
             failed?: boolean | null;
             /** Function */

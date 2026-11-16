@@ -7,8 +7,8 @@
   position: relative;
   width: 100%;
   --sa-model-color: #64748b;
-  --sa-tool-color: #14b8a6;
-  --sa-tool-label-color: #0f766e;
+  --sa-tool-color: light-dark(#14b8a6, #2dd4bf);
+  --sa-tool-label-color: light-dark(#0f766e, #5eead4);
 }
 
 .svg {
@@ -51,13 +51,13 @@
 }
 
 .stallBracket {
-  stroke: #adb5bd;
+  stroke: light-dark(#adb5bd, #6c757d);
   stroke-width: 1;
   fill: none;
 }
 
 .stallBracketRetry {
-  stroke: #b04a3c;
+  stroke: light-dark(#b04a3c, #d98b7f);
   stroke-width: 1;
   fill: none;
 }
@@ -69,7 +69,7 @@
 
 .stallLabelRetry {
   font-size: 9px;
-  fill: #b04a3c;
+  fill: light-dark(#b04a3c, #d98b7f);
 }
 
 /* ── curves ── */
@@ -80,50 +80,50 @@
    would otherwise reach nothing (review pass 15). */
 .tokenSeries {
   fill: none;
-  stroke: #495057;
+  stroke: light-dark(#495057, #adb5bd);
   stroke-width: 1.2;
   pointer-events: none;
 }
 
 .contextSeries {
   fill: none;
-  stroke: #3a7bd5;
+  stroke: light-dark(#3a7bd5, #6ea0dc);
   stroke-width: 1.2;
   pointer-events: none;
 }
 
 .contextDot {
-  fill: #3a7bd5;
+  fill: light-dark(#3a7bd5, #6ea0dc);
   pointer-events: none;
 }
 
 .compactionDrop {
-  stroke: #2b6a94;
+  stroke: light-dark(#2b6a94, #6ba3c9);
   stroke-dasharray: 3 2;
 }
 
 .compactionLabel {
   font-size: 9px;
-  fill: #2b6a94;
+  fill: light-dark(#2b6a94, #8fbcd9);
 }
 
 /* ── shared cursor (handoff 11a) ── */
 
 /* One hairline through every band at the anchor time. */
 .cursorLine {
-  stroke: #adb5bd;
+  stroke: light-dark(#adb5bd, #6c757d);
   stroke-width: 1;
   pointer-events: none;
 }
 
 /* Dark pill on the axis pinning the exact time (or turn). */
 .cursorPill {
-  fill: #212529;
+  fill: light-dark(#212529, #dee2e6);
   pointer-events: none;
 }
 
 .cursorPillText {
-  fill: #fff;
+  fill: light-dark(#fff, #212529);
   font-family: var(--bs-font-monospace);
   font-size: 9px;
   pointer-events: none;
@@ -175,7 +175,7 @@
 }
 
 .rowLabelMuted {
-  fill: #adb5bd;
+  fill: light-dark(#adb5bd, #6c757d);
 }
 
 .modelSpan {
@@ -188,8 +188,8 @@
 
 /* Failed tool call: red-outlined span (handoff decision 4). */
 .failedSpan {
-  fill: #fdf1ef;
-  stroke: #b04a3c;
+  fill: light-dark(#fdf1ef, #322019);
+  stroke: light-dark(#b04a3c, #d98b7f);
 }
 
 .pendingSpan {
@@ -199,7 +199,7 @@
 /* Span hover (handoff 11a): the hovered rect outlines. Its turn-mates no
    longer dim (design owner, 2026-09-15). */
 .spanHovered {
-  stroke: #212529;
+  stroke: light-dark(#212529, #f8f9fa);
   stroke-width: 1;
 }
 
@@ -215,33 +215,33 @@
    and comes later, so on a Turns rect it would win: the failed outline and
    the hover outline are restated at higher specificity. */
 .turnRect.failedSpan {
-  stroke: #b04a3c;
+  stroke: light-dark(#b04a3c, #d98b7f);
   stroke-width: 1;
 }
 
 .turnRect.spanHovered {
-  stroke: #212529;
+  stroke: light-dark(#212529, #f8f9fa);
   stroke-width: 1;
 }
 
 /* Faint full-height column separators behind every band. */
 .turnSeparator {
-  stroke: #f1f3f5;
+  stroke: light-dark(#f1f3f5, #2b3035);
   stroke-width: 1;
   pointer-events: none;
 }
 
 /* A rejected call's slot: the tool never ran. */
 .ghostSpan {
-  fill: #f7f3fc;
-  stroke: #6b4fa8;
+  fill: light-dark(#f7f3fc, #2a2436);
+  stroke: light-dark(#6b4fa8, #b39ddb);
   stroke-dasharray: 2 2;
   pointer-events: none;
 }
 
 .ghostLabel {
   font-size: 8px;
-  fill: #6b4fa8;
+  fill: light-dark(#6b4fa8, #b39ddb);
 }
 
 /* A crowded half whose slots are all rejected calls: one ghost that,
@@ -253,7 +253,7 @@
 }
 
 .ghostAggregate.spanHovered {
-  stroke: #212529;
+  stroke: light-dark(#212529, #f8f9fa);
 }
 
 .axisLabelMuted {
@@ -274,31 +274,31 @@
 /* Parent conversation waiting on a spawned child — the only idle ever
    drawn on the activity band (handoff 10a). */
 .blockedThread {
-  stroke: #adb5bd;
+  stroke: light-dark(#adb5bd, #6c757d);
   stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 
 .blockedLabel {
   font-size: 8px;
-  fill: #adb5bd;
+  fill: light-dark(#adb5bd, #868e96);
 }
 
 /* ── agent gutter (handoff 10a) ── */
 
 .gutterCheckbox {
   fill: none;
-  stroke: #212529;
+  stroke: light-dark(#212529, #dee2e6);
   stroke-width: 1;
 }
 
 .gutterCheckboxOn {
-  fill: #212529;
+  fill: light-dark(#212529, #dee2e6);
 }
 
 .gutterCheck {
   fill: none;
-  stroke: #fff;
+  stroke: light-dark(#fff, #212529);
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -311,7 +311,7 @@
 
 .gutterName {
   font-size: 9px;
-  fill: #212529;
+  fill: light-dark(#212529, #dee2e6);
 }
 
 .gutterModel {
@@ -332,7 +332,7 @@
 
 .retryBadge {
   font-size: 9px;
-  fill: #b04a3c;
+  fill: light-dark(#b04a3c, #d98b7f);
 }
 
 /* Density strip columns: the majority kind's colour, opacity by count. */
@@ -345,7 +345,7 @@
 }
 
 .densityFailure {
-  fill: #b04a3c;
+  fill: light-dark(#b04a3c, #d98b7f);
   pointer-events: none;
 }
 
@@ -384,125 +384,4 @@
   font-family: var(--bs-font-monospace);
   font-size: 9px;
   pointer-events: none;
-}
-
-/* ── dark theme ── */
-
-:global([data-bs-theme="dark"]) .chart {
-  --sa-tool-color: #2dd4bf;
-  --sa-tool-label-color: #5eead4;
-}
-
-:global([data-bs-theme="dark"]) .tokenSeries {
-  stroke: #adb5bd;
-}
-
-:global([data-bs-theme="dark"]) .contextSeries {
-  stroke: #6ea0dc;
-}
-
-:global([data-bs-theme="dark"]) .contextDot {
-  fill: #6ea0dc;
-}
-
-:global([data-bs-theme="dark"]) .compactionDrop {
-  stroke: #6ba3c9;
-}
-
-:global([data-bs-theme="dark"]) .compactionLabel {
-  fill: #8fbcd9;
-}
-
-:global([data-bs-theme="dark"]) .stallBracket {
-  stroke: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .stallBracketRetry {
-  stroke: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .stallLabelRetry {
-  fill: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .failedSpan {
-  fill: #322019;
-  stroke: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .turnRect.failedSpan {
-  stroke: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .retryBadge {
-  fill: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .densityFailure {
-  fill: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .rowLabelMuted {
-  fill: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .blockedThread {
-  stroke: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .blockedLabel {
-  fill: #868e96;
-}
-
-:global([data-bs-theme="dark"]) .gutterCheckbox {
-  stroke: #dee2e6;
-}
-
-:global([data-bs-theme="dark"]) .gutterCheckboxOn {
-  fill: #dee2e6;
-}
-
-:global([data-bs-theme="dark"]) .gutterCheck {
-  stroke: #212529;
-}
-
-:global([data-bs-theme="dark"]) .gutterName {
-  fill: #dee2e6;
-}
-
-:global([data-bs-theme="dark"]) .cursorLine {
-  stroke: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .cursorPill {
-  fill: #dee2e6;
-}
-
-:global([data-bs-theme="dark"]) .cursorPillText {
-  fill: #212529;
-}
-
-:global([data-bs-theme="dark"]) .spanHovered {
-  stroke: #f8f9fa;
-}
-
-:global([data-bs-theme="dark"]) .turnRect.spanHovered {
-  stroke: #f8f9fa;
-}
-
-:global([data-bs-theme="dark"]) .turnSeparator {
-  stroke: #2b3035;
-}
-
-:global([data-bs-theme="dark"]) .ghostSpan {
-  fill: #2a2436;
-  stroke: #b39ddb;
-}
-
-:global([data-bs-theme="dark"]) .ghostLabel {
-  fill: #b39ddb;
-}
-
-:global([data-bs-theme="dark"]) .ghostAggregate.spanHovered {
-  stroke: #f8f9fa;
 }

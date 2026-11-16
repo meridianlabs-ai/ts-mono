@@ -943,7 +943,6 @@ ul.jsondiffpatch-delta {
 .jsondiffpatch-unchanged,
 .jsondiffpatch-movedestination > .jsondiffpatch-value {
   transition: all 0.5s;
-  -webkit-transition: all 0.5s;
   overflow-y: hidden;
 }
 .jsondiffpatch-unchanged-showing .jsondiffpatch-unchanged,
@@ -1087,12 +1086,7 @@ pre[class*="language-"] {
   word-break: normal;
   word-wrap: normal;
   line-height: 1.5;
-  -moz-tab-size: 4;
-  -o-tab-size: 4;
   tab-size: 4;
-  -webkit-hyphens: none;
-  -moz-hyphens: none;
-  -ms-hyphens: none;
   hyphens: none;
 }
 @media print {
@@ -1180,8 +1174,6 @@ pre[class*="language-"] {
 .hideSelection {
   user-select: none;
   -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
 }
 
 /* Find matches, registered by @tsmono/react's find band. */

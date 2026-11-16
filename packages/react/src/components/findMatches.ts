@@ -1,3 +1,5 @@
+import { findVariantHits, normalizeFindText, searchVariants } from "./findText";
+
 // Elements whose text is never shown as page text.
 const SKIPPED_TAGS = new Set([
   "SCRIPT",
@@ -8,56 +10,29 @@ const SKIPPED_TAGS = new Set([
   "SELECT",
 ]);
 
-const escapeRegExp = (text: string): string =>
-  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 // Inline-block boxes (chips, badges, math) read as separate words.
 const isInlineDisplay = (display: string): boolean =>
   display === "inline" || display === "contents";
 
 interface TextRun {
-  /** The run's text as rendered: collapsible whitespace collapsed. */
-  chars: string[];
-  /** For each rendered character, its offset in the raw text. */
-  rawOffsets: number[];
   nodes: Text[];
-  /** Each node's start in the raw text. */
+  /** Each node's start in the run's text. */
   starts: number[];
-  rawLength: number;
-  lastWasSpace: boolean;
+  length: number;
 }
 
-// How a text node's own `white-space` treats its whitespace.
-type Collapse = "all" | "spaces" | "none";
-
-const collapseFor = (whiteSpace: string): Collapse =>
-  whiteSpace === "normal" || whiteSpace === "nowrap"
-    ? "all"
-    : whiteSpace === "pre-line"
-      ? "spaces"
-      : "none";
-
-const isCollapsible = (char: string, collapse: Collapse): boolean =>
-  collapse === "all"
-    ? char === " " ||
-      char === "\t" ||
-      char === "\n" ||
-      char === "\r" ||
-      char === "\f"
-    : collapse === "spaces" && (char === " " || char === "\t");
-
 /**
- * Every case-insensitive occurrence of `term` in the page text under `root`,
- * in document order. Skips text a reader can't find: `data-unsearchable`
+ * Every occurrence of `term`, or of its other `searchVariants`, in the page
+ * text under `root`, in document order. Text is compared as
+ * `normalizeFindText` reads it, so the page agrees with counts from data. Skips text a reader can't find: `data-unsearchable`
  * subtrees, `user-select: none` (role labels, gutters), hidden elements and
  * non-text elements. Matches may cross element boundaries within one block
  * of text (syntax-highlight tokens, markdown emphasis), but never span two
- * blocks or a `<br>`. Whitespace matches as it renders: a run of spaces or a
- * line break in normal text reads as one space, as in the browser's find.
+ * blocks or a `<br>`.
  */
 export function findTextMatches(root: Element, term: string): Range[] {
-  if (!term) return [];
-  const pattern = new RegExp(escapeRegExp(term), "giu");
+  const variants = searchVariants(term);
+  if (variants.length === 0) return [];
   const doc = root.ownerDocument;
   const view = doc.defaultView;
   if (!view) return [];
@@ -116,22 +91,17 @@ export function findTextMatches(root: Element, term: string): Range[] {
   );
 
   const matches: Range[] = [];
-  const collapses = new Map<Element, Collapse>();
-  const collapseOf = (el: Element | null): Collapse => {
-    if (!el) return "all";
-    let collapse = collapses.get(el);
-    if (collapse === undefined) {
-      collapse = collapseFor(styleOf(el).whiteSpace);
-      collapses.set(el, collapse);
-    }
-    return collapse;
-  };
 
   const flush = (run: TextRun | null) => {
     if (!run) return;
-    for (const match of run.chars.join("").matchAll(pattern)) {
-      const start = run.rawOffsets[match.index]!;
-      const end = run.rawOffsets[match.index + match[0].length - 1]! + 1;
+    const offsets: number[] = [];
+    const text = normalizeFindText(
+      run.nodes.map((node) => node.data).join(""),
+      offsets
+    );
+    for (const hit of findVariantHits(text, variants)) {
+      const start = offsets[hit.start]!;
+      const end = offsets[hit.end - 1]! + 1;
       const range = doc.createRange();
       const [startNode, startOffset] = locate(run, start, false);
       const [endNode, endOffset] = locate(run, end, true);
@@ -160,39 +130,15 @@ export function findTextMatches(root: Element, term: string): Range[] {
       run = null;
     }
     if (!run) {
-      run = {
-        chars: [],
-        rawOffsets: [],
-        nodes: [],
-        starts: [],
-        rawLength: 0,
-        lastWasSpace: false,
-      };
+      run = { nodes: [], starts: [], length: 0 };
       runBlock = block;
     }
-    appendText(run, node, collapseOf(parent));
+    run.starts.push(run.length);
+    run.nodes.push(node);
+    run.length += node.data.length;
   }
   flush(run);
   return matches;
-}
-
-function appendText(run: TextRun, node: Text, collapse: Collapse): void {
-  run.starts.push(run.rawLength);
-  run.nodes.push(node);
-  const data = node.data;
-  for (let i = 0; i < data.length; i++) {
-    const char = data[i]!;
-    if (isCollapsible(char, collapse)) {
-      if (run.lastWasSpace) continue;
-      run.chars.push(" ");
-      run.lastWasSpace = true;
-    } else {
-      run.chars.push(char);
-      run.lastWasSpace = false;
-    }
-    run.rawOffsets.push(run.rawLength + i);
-  }
-  run.rawLength += data.length;
 }
 
 /**

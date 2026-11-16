@@ -26,9 +26,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px solid #d9cfe8;
-  background: #f7f3fc;
-  color: #4a2e73;
+  border: 1px solid light-dark(#d9cfe8, #4a3d63);
+  background: light-dark(#f7f3fc, #2a2333);
+  color: light-dark(#4a2e73, #cbb8ec);
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
   font-size: 0.68rem;
@@ -37,8 +37,8 @@
 }
 
 .chipCleared {
-  border-color: #d3d9df;
-  background: #f6f7f8;
+  border-color: light-dark(#d3d9df, #464c52);
+  background: light-dark(#f6f7f8, #24272a);
   color: var(--bs-secondary-color);
 }
 
@@ -46,7 +46,7 @@
   width: 6px;
   height: 6px;
   background: #8f6fd0;
-  border: 1px solid #5d3f9e;
+  border: 1px solid light-dark(#5d3f9e, #b49ae0);
   transform: rotate(45deg);
   display: inline-block;
   flex-shrink: 0;
@@ -123,7 +123,7 @@
 
 .scopePill {
   display: inline-flex;
-  border: 1px solid #d3d9df;
+  border: 1px solid light-dark(#d3d9df, #464c52);
   color: var(--bs-secondary-color);
   border-radius: 999px;
   padding: 0.05rem 0.4rem;
@@ -169,25 +169,4 @@
 
 .changeList .to {
   font-weight: 600;
-}
-
-:global([data-bs-theme="dark"]) .chip {
-  border-color: #4a3d63;
-  background: #2a2333;
-  color: #cbb8ec;
-}
-
-:global([data-bs-theme="dark"]) .chipCleared {
-  border-color: #464c52;
-  background: #24272a;
-  color: var(--bs-secondary-color);
-}
-
-:global([data-bs-theme="dark"]) .diamond {
-  background: #8f6fd0;
-  border-color: #b49ae0;
-}
-
-:global([data-bs-theme="dark"]) .scopePill {
-  border-color: #464c52;
 }

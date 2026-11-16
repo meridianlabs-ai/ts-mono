@@ -53,52 +53,52 @@
 }
 
 .pillAll.pillSelected {
-  background: #212529;
-  border-color: #212529;
-  color: #fff;
+  background: light-dark(#212529, #dee2e6);
+  border-color: light-dark(#212529, #dee2e6);
+  color: light-dark(#fff, #212529);
 }
 
 .pillError {
-  background: #fdf1ef;
-  border-color: #ecc8c1;
-  color: #a13b2c;
+  background: light-dark(#fdf1ef, #322019);
+  border-color: light-dark(#ecc8c1, #6b3a30);
+  color: light-dark(#a13b2c, #d98b7f);
 }
 
 .pillLimit {
-  background: #fffaeb;
-  border-color: #e8d8a0;
-  color: #8a6d1a;
+  background: light-dark(#fffaeb, #3a3220);
+  border-color: light-dark(#e8d8a0, #5c512f);
+  color: light-dark(#8a6d1a, #e8d8a0);
 }
 
 .pillApproval {
-  background: #f7f3fc;
-  border-color: #d9cfe8;
-  color: #4a2e73;
+  background: light-dark(#f7f3fc, #2a2333);
+  border-color: light-dark(#d9cfe8, #4a3d63);
+  color: light-dark(#4a2e73, #cbb8ec);
 }
 
 .pillInput {
-  background: #f2f7fc;
-  border-color: #cfe0f1;
-  color: #1d4f7c;
+  background: light-dark(#f2f7fc, #16222e);
+  border-color: light-dark(#cfe0f1, #2c4a66);
+  color: light-dark(#1d4f7c, #8db8dd);
 }
 
 .pillInterrupt {
-  background: #f8f9fa;
-  border-color: #dee2e6;
-  color: #6c757d;
+  background: light-dark(#f8f9fa, #26282b);
+  border-color: light-dark(#dee2e6, #4a5056);
+  color: light-dark(#6c757d, #9aa3ab);
 }
 
 .pillCompaction {
-  background: #eef6fb;
-  border-color: #c3dcea;
-  color: #2b6a94;
+  background: light-dark(#eef6fb, #16242e);
+  border-color: light-dark(#c3dcea, #2b4c66);
+  color: light-dark(#2b6a94, #8fbcd9);
 }
 
 /* The one palette addition (handoff): a green Scores hue. */
 .pillScore {
-  background: #f0f7f2;
-  border-color: #d3e3d8;
-  color: #2f8a52;
+  background: light-dark(#f0f7f2, #1d2b22);
+  border-color: light-dark(#d3e3d8, #2f4a3a);
+  color: light-dark(#2f8a52, #7fc79b);
 }
 
 /* Selected = solid fill with white text; unselected pills stay tinted. */
@@ -241,17 +241,17 @@
 /* Hover-linked wash while the row's glyph is hovered on the rail — the
    inset bar carries the category hue. */
 .rowWash {
-  background: #faf8fd;
+  background: light-dark(#faf8fd, #221d2b);
 }
 
 .washError {
   box-shadow: inset 2px 0 0 #b04a3c;
-  background: #fdf6f5;
+  background: light-dark(#fdf6f5, #2b1f1b);
 }
 
 .washLimit {
   box-shadow: inset 2px 0 0 #8a6d1a;
-  background: #fffaeb;
+  background: light-dark(#fffaeb, #2b2619);
 }
 
 .washApproval {
@@ -260,22 +260,22 @@
 
 .washInput {
   box-shadow: inset 2px 0 0 #1d4f7c;
-  background: #f7fafd;
+  background: light-dark(#f7fafd, #1a222b);
 }
 
 .washInterrupt {
   box-shadow: inset 2px 0 0 #6c757d;
-  background: #f8f9fa;
+  background: light-dark(#f8f9fa, #222528);
 }
 
 .washCompaction {
   box-shadow: inset 2px 0 0 #2b6a94;
-  background: #f4f9fc;
+  background: light-dark(#f4f9fc, #19242c);
 }
 
 .washScore {
   box-shadow: inset 2px 0 0 #2f8a52;
-  background: #f4faf6;
+  background: light-dark(#f4faf6, #1c2620);
 }
 
 .time {
@@ -347,132 +347,4 @@
 
 .openEvent:hover {
   text-decoration: underline;
-}
-
-/* ── dark theme (mirrors the task timeline's pill overrides; Scores gets
-      its new dark variant per the handoff) ── */
-
-:global([data-bs-theme="dark"]) .pillAll.pillSelected {
-  background: #dee2e6;
-  border-color: #dee2e6;
-  color: #212529;
-}
-
-:global([data-bs-theme="dark"]) .pillError {
-  background: #322019;
-  border-color: #6b3a30;
-  color: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .pillLimit {
-  background: #3a3220;
-  border-color: #5c512f;
-  color: #e8d8a0;
-}
-
-:global([data-bs-theme="dark"]) .pillApproval {
-  background: #2a2333;
-  border-color: #4a3d63;
-  color: #cbb8ec;
-}
-
-:global([data-bs-theme="dark"]) .pillInput {
-  background: #16222e;
-  border-color: #2c4a66;
-  color: #8db8dd;
-}
-
-:global([data-bs-theme="dark"]) .pillInterrupt {
-  background: #26282b;
-  border-color: #4a5056;
-  color: #9aa3ab;
-}
-
-:global([data-bs-theme="dark"]) .pillCompaction {
-  background: #16242e;
-  border-color: #2b4c66;
-  color: #8fbcd9;
-}
-
-:global([data-bs-theme="dark"]) .pillScore {
-  background: #1d2b22;
-  border-color: #2f4a3a;
-  color: #7fc79b;
-}
-
-:global([data-bs-theme="dark"]) .pillError.pillSelected,
-:global([data-bs-theme="dark"]) .pillLimit.pillSelected,
-:global([data-bs-theme="dark"]) .pillApproval.pillSelected,
-:global([data-bs-theme="dark"]) .pillInput.pillSelected,
-:global([data-bs-theme="dark"]) .pillInterrupt.pillSelected,
-:global([data-bs-theme="dark"]) .pillCompaction.pillSelected,
-:global([data-bs-theme="dark"]) .pillScore.pillSelected {
-  color: #fff;
-}
-
-:global([data-bs-theme="dark"]) .pillError.pillSelected {
-  background: #b04a3c;
-  border-color: #b04a3c;
-}
-
-:global([data-bs-theme="dark"]) .pillLimit.pillSelected {
-  background: #8a6d1a;
-  border-color: #8a6d1a;
-}
-
-:global([data-bs-theme="dark"]) .pillApproval.pillSelected {
-  background: #6b4fa8;
-  border-color: #6b4fa8;
-}
-
-:global([data-bs-theme="dark"]) .pillInput.pillSelected {
-  background: #1d4f7c;
-  border-color: #1d4f7c;
-}
-
-:global([data-bs-theme="dark"]) .pillInterrupt.pillSelected {
-  background: #6c757d;
-  border-color: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .pillCompaction.pillSelected {
-  background: #2b6a94;
-  border-color: #2b6a94;
-}
-
-:global([data-bs-theme="dark"]) .pillScore.pillSelected {
-  background: #2f8a52;
-  border-color: #2f8a52;
-}
-
-:global([data-bs-theme="dark"]) .rowWash {
-  background: #221d2b;
-}
-
-:global([data-bs-theme="dark"]) .washError {
-  background: #2b1f1b;
-}
-
-:global([data-bs-theme="dark"]) .washLimit {
-  background: #2b2619;
-}
-
-:global([data-bs-theme="dark"]) .washApproval {
-  background: #221d2b;
-}
-
-:global([data-bs-theme="dark"]) .washInput {
-  background: #1a222b;
-}
-
-:global([data-bs-theme="dark"]) .washInterrupt {
-  background: #222528;
-}
-
-:global([data-bs-theme="dark"]) .washCompaction {
-  background: #19242c;
-}
-
-:global([data-bs-theme="dark"]) .washScore {
-  background: #1c2620;
 }

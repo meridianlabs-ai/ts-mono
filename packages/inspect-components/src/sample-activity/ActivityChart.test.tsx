@@ -1326,17 +1326,19 @@ describe("ActivityChart narrow Turns columns", () => {
 
 describe("ActivityChart tool colour", () => {
   // The module css is not loaded under jsdom, so the token is checked at
-  // its source: one variable on the chart root, redefined for dark theme.
+  // its source: one variable on the chart root, `light-dark()` when the
+  // themes differ.
   const css = readFileSync(join(__dirname, "ActivityChart.module.css"), "utf8");
-  const declared = (block: RegExp, name: string): string => {
-    const match = block
-      .exec(css)?.[1]
-      ?.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`));
-    if (!match?.[1]) throw new Error(`expected ${name} in ${block}`);
-    return match[1];
+  const hex = "(#[0-9a-f]{6})";
+  const declared = (scheme: "light" | "dark", name: string): string => {
+    const block = /^\.chart \{([^}]*)\}/m.exec(css)?.[1] ?? "";
+    const match = block.match(
+      new RegExp(`${name}:\\s*(?:light-dark\\(${hex},\\s*${hex}\\)|${hex})`)
+    );
+    const value = match?.[3] ?? (scheme === "light" ? match?.[1] : match?.[2]);
+    if (!value) throw new Error(`expected ${name} on .chart`);
+    return value;
   };
-  const light = /^\.chart \{([^}]*)\}/m;
-  const dark = /^:global\(\[data-bs-theme="dark"\]\) \.chart \{([^}]*)\}/m;
   const channel = (hex: string, at: number): number => {
     const v = parseInt(hex.slice(at, at + 2), 16) / 255;
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
@@ -1378,9 +1380,9 @@ describe("ActivityChart tool colour", () => {
   });
 
   it("keeps the tool colour clearly apart from the model grey in light and dark", () => {
-    const grey = declared(light, "--sa-model-color");
-    const lightTool = declared(light, "--sa-tool-color");
-    const darkTool = declared(dark, "--sa-tool-color");
+    const grey = declared("light", "--sa-model-color");
+    const lightTool = declared("light", "--sa-tool-color");
+    const darkTool = declared("dark", "--sa-tool-color");
     // The round-6 teal (#4f8f8b) sat at 1.28 : 1 against the grey.
     expect(contrast(lightTool, grey)).toBeGreaterThanOrEqual(1.8);
     expect(contrast(darkTool, grey)).toBeGreaterThanOrEqual(2.4);
