@@ -55,7 +55,6 @@ li > ul {
   }
 
   body {
-    -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     orphans: 3;
     widows: 3;

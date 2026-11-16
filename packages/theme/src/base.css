@@ -943,7 +943,6 @@ ul.jsondiffpatch-delta {
 .jsondiffpatch-unchanged,
 .jsondiffpatch-movedestination > .jsondiffpatch-value {
   transition: all 0.5s;
-  -webkit-transition: all 0.5s;
   overflow-y: hidden;
 }
 .jsondiffpatch-unchanged-showing .jsondiffpatch-unchanged,
@@ -1090,7 +1089,6 @@ pre[class*="language-"] {
   -moz-tab-size: 4;
   -o-tab-size: 4;
   tab-size: 4;
-  -webkit-hyphens: none;
   -moz-hyphens: none;
   -ms-hyphens: none;
   hyphens: none;
