@@ -942,7 +942,9 @@ export function pairToolSentinels(
  *
  * The Activity view pairs the same way in `collectSentinelDecisions`
  * (sample-activity/activityData.ts), over the flat event list; a change to
- * these pairing rules belongs in both.
+ * these pairing rules belongs in both. It pairs native steps by count per
+ * call id, which agrees with `judgedTool` unless calls under one id are in
+ * flight together.
  */
 function pairToolSentinelsByExecution(
   eventNodes: EventNode[]
@@ -1198,7 +1200,8 @@ interface LegacyToolEntry {
  * the step's id, skipping tools that already host a step of the same stage.
  * A bridge's check judges only a call the bridge ran on the host: a native
  * call under the same id (one the bridged agent inherited, for example) is
- * not the one it checked.
+ * not the one it checked. A bridge checks a call before it starts the host
+ * run, so its `tool_call` step judges the first such tool after it.
  */
 const legacyHostTool = (
   tools: LegacyToolEntry[],
@@ -1214,6 +1217,9 @@ const legacyHostTool = (
       (!bridge || isBridgeTool(t.node.event)) &&
       !claimed.has(`${step.stage}\u0000${t.node.id}`)
   );
+  if (bridge && step.stage === "tool_call") {
+    return candidates.find((t) => t.order > place.order);
+  }
   return judgedTool(candidates, step.stage, place, proposedAt.get(step.stepId));
 };
 
@@ -1224,8 +1230,9 @@ const legacyHostTool = (
  * stage and step id. Steps with no tool render as one row at their span or
  * first event.
  *
- * The Activity view pairs the same way in `collectSentinelDecisionsLegacy`
- * (sample-activity/activityData.ts), over the flat event list.
+ * The Activity view pairs in `collectSentinelDecisionsLegacy`
+ * (sample-activity/activityData.ts), by count per call id over the flat event
+ * list. The two agree unless calls under one id are in flight together.
  */
 function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
   const tools: LegacyToolEntry[] = [];

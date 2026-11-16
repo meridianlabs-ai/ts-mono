@@ -24,6 +24,7 @@ import {
   buildSentinelStep,
   buildSentinelSteps,
   formatSuspicion,
+  kBridgeCheckSpan,
   pairToolSentinels,
   topScore,
   type SentinelNode,
@@ -805,13 +806,14 @@ describe("pairToolSentinels", () => {
   const check = (
     id: string,
     second: number,
-    action: NonNullable<SentinelEvent["action"]> = "proceed"
+    action: NonNullable<SentinelEvent["action"]> = "proceed",
+    name = "sentinel"
   ) => {
     const node = new EventNode(
       id,
       testSpanBeginEvent({
         id,
-        name: "sentinel",
+        name,
         type: "sentinel",
         timestamp: at(second),
       }),
@@ -941,6 +943,31 @@ describe("pairToolSentinels", () => {
       ]);
       expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
     });
+  });
+
+  it("pairs a bridge's before-call step with the host run after it, in a log that records no execution_id", () => {
+    const hostRun = (id: string, second: number) =>
+      new EventNode(
+        id,
+        testToolEvent({
+          id: "dup",
+          timestamp: at(second),
+          metadata: { bridge: {} },
+        }),
+        0
+      );
+    const bridgeCheck = check("c2", 2, "proceed", kBridgeCheckSpan);
+    const result = pairToolSentinels(
+      [
+        proposal("m1", "client"),
+        hostRun("t1", 1),
+        bridgeCheck,
+        hostRun("t2", 3),
+      ],
+      false
+    );
+    expect(judgedBy(result, "t2")).toEqual(["c2:step"]);
+    expect(result.toolSentinels.has("t1")).toBe(false);
   });
 
   it("pairs call and result stages with their tool and hides every event", () => {
