@@ -16,6 +16,7 @@ const createSink = () => {
   const detailWrites: string[] = [];
   const sink: LogsContentSink = {
     seedRows: () => {},
+    mergeRows: () => {},
     setListing: () => {},
     mergePreviews: () => {},
     writeListing: () => Promise.resolve([]),
