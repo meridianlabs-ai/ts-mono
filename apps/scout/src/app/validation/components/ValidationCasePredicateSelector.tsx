@@ -1,15 +1,8 @@
-import {
-  VscodeOption,
-  VscodeSingleSelect,
-} from "@vscode-elements/react-elements";
 import { FC } from "react";
 
-import { useDropdownPosition } from "@tsmono/react/hooks";
-
 import { ValidationCase } from "../../../types/api-types";
-import { eventValue } from "../../utils/formEvents";
 
-import styles from "./ValidationSetSelector.module.css";
+import { SelectDropdown } from "./SelectDropdown";
 
 type Predicate =
   | "gt"
@@ -51,16 +44,11 @@ interface ValidationCasePredicateSelectorProps {
 export const ValidationCasePredicateSelector: FC<
   ValidationCasePredicateSelectorProps
 > = ({ value, onChange, disabled = false, existingPredicates }) => {
-  const { ref, position } = useDropdownPosition({
-    optionCount: PREDICATES.length,
-  });
   const defaultValue =
-    existingPredicates && existingPredicates.length === 1
-      ? existingPredicates[0]
-      : "eq";
+    (existingPredicates?.length === 1 ? existingPredicates[0] : undefined) ??
+    "eq";
 
-  const handleChange = (e: Event) => {
-    const selected = eventValue(e);
+  const handleChange = (selected: string) => {
     const newValue = PREDICATES.find((p) => p.value === selected)?.value;
     if (newValue) {
       onChange(newValue);
@@ -68,20 +56,12 @@ export const ValidationCasePredicateSelector: FC<
   };
 
   return (
-    <div ref={ref} className={styles.container}>
-      <VscodeSingleSelect
-        position={position}
-        value={value ?? defaultValue}
-        onChange={handleChange}
-        disabled={disabled}
-      >
-        {PREDICATES.map((predicate) => (
-          <VscodeOption key={predicate.value} value={predicate.value}>
-            {predicate.label}
-          </VscodeOption>
-        ))}
-      </VscodeSingleSelect>
-    </div>
+    <SelectDropdown
+      value={value ?? defaultValue}
+      options={PREDICATES}
+      onChange={handleChange}
+      disabled={disabled}
+    />
   );
 };
 
