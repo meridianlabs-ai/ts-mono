@@ -18,7 +18,7 @@ import {
   normalizeEvalSample,
   normalizeSampleSummaries,
 } from "@tsmono/inspect-common/normalize";
-import { isRecord } from "@tsmono/util";
+import { isRecord, jsonParse } from "@tsmono/util";
 
 import { installNodeWorker } from "../../test/nodeWorker";
 import { openZipFileFromBuffer } from "../remote/remoteZipFile";
@@ -45,7 +45,7 @@ describe("normalization over the real .eval fixture corpus", () => {
     const zip = await openZip(name);
     const entries = Array.from(zip.centralDirectory.keys());
     const readJson = async (entry: string): Promise<unknown> =>
-      JSON.parse(decoder.decode(await zip.readFile(entry)));
+      jsonParse(decoder.decode(await zip.readFile(entry)));
 
     // Header path: header.json when finalized, start.json while running.
     if (entries.includes("header.json")) {

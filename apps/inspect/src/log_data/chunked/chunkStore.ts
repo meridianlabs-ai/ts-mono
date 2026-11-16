@@ -8,6 +8,8 @@
  * callers). `SequenceReader` layers chunk math + JSON parsing + `getRange`
  * over it for one sequence.
  */
+import { jsonParse } from "@tsmono/util";
+
 import { at, chunkIndexOf } from "./format";
 import { log } from "./log";
 
@@ -170,8 +172,8 @@ export class SequenceReader<T> {
       pending = this.bytes
         .read(name)
         .then((bytes) => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- chunk-file boundary: the chunks are this app's own writes, and T is the caller's claim about what it stored
-          const items = JSON.parse(decoder.decode(bytes)) as T[];
+          // jsonParse: chunks can hold NaN/Infinity constants, which strict JSON.parse rejects
+          const items = jsonParse<T[]>(decoder.decode(bytes));
           log.debug(`parse ${name}: ${items.length} items`);
           return items;
         })

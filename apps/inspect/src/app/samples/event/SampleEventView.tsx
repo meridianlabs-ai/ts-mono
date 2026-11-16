@@ -78,12 +78,13 @@ export const SampleEventView: FC = () => {
   );
   // The full list keeps uuid-less node ids identical to the transcript's, so
   // focus links and `?event=` resolve here too.
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
-    scope.laneEvents,
-    isRunning,
-    undefined,
-    sample?.events ?? runningEvents
-  );
+  const { eventNodes, defaultCollapsedIds, recordsExecutionIds } =
+    useEventNodes(
+      scope.laneEvents,
+      isRunning,
+      undefined,
+      sample?.events ?? runningEvents
+    );
   // Sample stepping for the navbar arrows (which own the ArrowLeft /
   // ArrowRight binding — see SampleNavbar).
   const sampleNavigation = useLogSampleNavigationActions();
@@ -99,6 +100,7 @@ export const SampleEventView: FC = () => {
     {
       running: isRunning,
       following,
+      recordsExecutionIds,
     }
   );
 

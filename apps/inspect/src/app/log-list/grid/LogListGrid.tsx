@@ -17,17 +17,17 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  buildSearchIndex,
+  DataGrid,
+  findMatches,
+  rowSearchText,
+} from "@tsmono/inspect-components/dataGrid";
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useProperty, useUnmount } from "@tsmono/react/hooks";
 
 import { useLogsListing } from "../../../state/hooks";
 import { toFullUrlMaybe } from "../../routing/url";
-import { DataGrid } from "../../shared/data-grid/DataGrid";
-import {
-  buildSearchIndex,
-  findMatches,
-  rowSearchText,
-} from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
 import {
   useLogsListingMatches,
@@ -305,14 +305,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
   useEffect(() => {
     openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
   }, [showFind, activeMatchId]);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(
-    () => () => {
-      const id = openBandMatchIdRef.current;
-      if (id !== undefined) persistSelectedId(id);
-    },
-    [persistSelectedId]
-  );
+  useUnmount(() => {
+    const id = openBandMatchIdRef.current;
+    if (id !== undefined) persistSelectedId(id);
+  });
 
   const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {

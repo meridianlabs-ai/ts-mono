@@ -1,15 +1,7 @@
 import clsx from "clsx";
-import {
-  FC,
-  KeyboardEvent,
-  useCallback,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { createPortal } from "react-dom";
+import { FC, useState } from "react";
 
-import { useEventListener } from "@tsmono/react/hooks";
+import { AnchoredPopover } from "@tsmono/react/components";
 import { Icon } from "@tsmono/react/icons";
 
 import styles from "./EventNavsPicker.module.css";
@@ -27,7 +19,7 @@ interface EventNavsPickerProps {
 /**
  * Compact replacement for {@link EventNavs} when the tab row is too narrow
  * to display all pills inline. Renders the active tab title as a single
- * button that opens a portal-anchored menu of all navs.
+ * button that opens an anchored menu of all navs.
  */
 export const EventNavsPicker: FC<EventNavsPickerProps> = ({
   navs,
@@ -36,45 +28,14 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
   labelWidth,
 }) => {
   const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [position, setPosition] = useState<{
-    top: number;
-    right: number;
-    minWidth: number;
-  } | null>(null);
-
-  const computePosition = useCallback(() => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPosition({
-      top: rect.bottom,
-      right: window.innerWidth - rect.right,
-      minWidth: rect.width,
-    });
-  }, []);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useLayoutEffect(() => {
-    if (open) computePosition();
-  }, [open, computePosition]);
-
-  const windowTarget = open && typeof window !== "undefined" ? window : null;
-  useEventListener(windowTarget, "resize", computePosition);
-  useEventListener(windowTarget, "scroll", computePosition, { capture: true });
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === "Escape") {
-      setOpen(false);
-      buttonRef.current?.focus();
-    }
-  }, []);
+  const [button, setButton] = useState<HTMLButtonElement | null>(null);
 
   const selected = navs.find((nav) => nav.target === selectedNav) ?? navs[0];
 
   return (
     <>
       <button
-        ref={buttonRef}
+        ref={setButton}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -86,7 +47,6 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
           styles.trigger
         )}
         onClick={() => setOpen((v) => !v)}
-        onKeyDown={handleKeyDown}
       >
         <span
           className={styles.label}
@@ -96,53 +56,39 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
         </span>
         <Icon name="chevronDown" className={styles.chevron} />
       </button>
-      {open &&
-        position &&
-        createPortal(
-          <>
-            {/* Mouse-only dismissal; Escape closes the picker. */}
-            <div
-              className={styles.backdrop}
-              role="presentation"
-              onClick={() => setOpen(false)}
-            />
-            <div
-              role="listbox"
-              tabIndex={-1}
-              className={styles.menu}
-              style={{
-                top: position.top,
-                right: position.right,
-                minWidth: position.minWidth,
+      <AnchoredPopover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchor={button}
+        placement="bottom-end"
+        offset={0}
+        role="listbox"
+        tabIndex={-1}
+        className={styles.menu}
+      >
+        {navs.map((nav) => {
+          const isSelected = nav.target === selectedNav;
+          return (
+            <button
+              key={nav.id}
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              className={clsx(
+                styles.item,
+                isSelected ? styles.selected : undefined,
+                "text-size-small"
+              )}
+              onClick={() => {
+                setSelectedNav(nav.target);
+                setOpen(false);
               }}
-              onKeyDown={handleKeyDown}
             >
-              {navs.map((nav) => {
-                const isSelected = nav.target === selectedNav;
-                return (
-                  <button
-                    key={nav.id}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={clsx(
-                      styles.item,
-                      isSelected ? styles.selected : undefined,
-                      "text-size-small"
-                    )}
-                    onClick={() => {
-                      setSelectedNav(nav.target);
-                      setOpen(false);
-                    }}
-                  >
-                    {nav.title}
-                  </button>
-                );
-              })}
-            </div>
-          </>,
-          document.body
-        )}
+              {nav.title}
+            </button>
+          );
+        })}
+      </AnchoredPopover>
     </>
   );
 };

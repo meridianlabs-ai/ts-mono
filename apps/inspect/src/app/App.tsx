@@ -1,4 +1,7 @@
-import "bootstrap/dist/css/bootstrap.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
@@ -53,7 +56,7 @@ const ThemePreferenceSyncController: FC = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
   // post-paint effect the icon updates a frame before the colors, flashing the
   // old theme. (The old bespoke hook applied synchronously on write.)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- applies the theme once React commits a new preference: persist has written localStorage, which apply reads, and a layout effect lands before paint
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);

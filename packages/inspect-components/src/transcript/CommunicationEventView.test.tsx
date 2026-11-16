@@ -291,35 +291,29 @@ describe("CommunicationEventView", () => {
   ])("opens when find lands on %s", (_, overrides, rejected) => {
     const event = sent(overrides, rejected);
     const { find } = renderView(event);
-    find({ term: "NEEDLE", eventId: "comm-1" });
+    find({ term: "NEEDLE" });
     expect(expanded()).toBe("true");
     expect(json()).toContain(JSON.stringify(event.send?.record.content));
   });
 
-  it.each([
-    ["the event's target", "comm-1"],
-    ["FindBand's term-only target", ""],
-  ])("opens on a quoted term for %s", (_, eventId) => {
+  it("opens on a quoted term", () => {
     const { find } = renderView(
       sent({ content: "needle" }, { control: "rate", reason: "too many" })
     );
-    find({ term: '"needle"', eventId });
+    find({ term: '"needle"' });
     expect(expanded()).toBe("true");
     expect(jsonShown()).toBe(true);
   });
 
-  it("follows find from the event target to the term-only target, keeping the stored state", () => {
+  it("follows the find term, keeping the stored state", () => {
     const { find } = renderView(sent({ content: "first\nneedle" }));
     expect(expanded()).toBe("false");
 
-    find({ term: "needle", eventId: "comm-1" });
+    find({ term: "needle" });
     expect(expanded()).toBe("true");
     expect(jsonShown()).toBe(true);
 
-    find({ term: "needle", eventId: "" });
-    expect(expanded()).toBe("true");
-
-    find({ term: "no match", eventId: "" });
+    find({ term: "no match" });
     expect(expanded()).toBe("false");
     expect(jsonShown()).toBe(false);
 
@@ -340,7 +334,7 @@ describe("CommunicationEventView", () => {
     ).toHaveLength(count);
 
     const { find } = renderView(event);
-    find({ term, eventId: "u-1" });
+    find({ term });
     expect(expanded()).toBe(opened);
   });
 });

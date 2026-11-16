@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode, RefObject, useRef, useState } from "react";
 
+import { hasOpenPopover } from "@tsmono/react/components";
 import {
   useAnimationFrameLoop,
   useElementHeight,
@@ -378,7 +379,7 @@ const SharedTerminals: FC<SharedTerminalsProps> = ({
     // Escape leaves the filled window from anywhere (the control that filled
     // it keeps focus under the overlay).
     if (e.key === "Escape") {
-      if (fill && !isEditable(e.target)) {
+      if (fill && !isEditable(e.target) && !hasOpenPopover()) {
         e.preventDefault();
         fill.onExit();
       }

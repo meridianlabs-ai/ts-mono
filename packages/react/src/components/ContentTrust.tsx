@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import { revealHiddenCharacters } from "@tsmono/util";
+import { identity, revealHiddenCharacters } from "@tsmono/util";
 
 import styles from "./ContentTrust.module.css";
 import {
@@ -20,23 +20,32 @@ export const untrustedText = (text: string): string =>
  */
 export const untrustedTextClassName: string = styles.untrustedText;
 
+interface PlainText {
+  trusted: boolean;
+  present: (text: string) => string;
+  className: string | undefined;
+}
+
+// The same object every render, so callers' compiled caches keyed on it hit.
+const trustedPlainText: PlainText = {
+  trusted: true,
+  present: identity,
+  className: undefined,
+};
+
+const untrustedPlainText: PlainText = {
+  trusted: false,
+  present: untrustedText,
+  className: untrustedTextClassName,
+};
+
 /**
  * How a caller-rendered container shows log-derived plain text, decided as
  * `ContentText` decides: as-is with every permission, otherwise with hidden
  * characters revealed and the container's bidi runs isolated.
  */
-export const usePlainText = (): {
-  trusted: boolean;
-  present: (text: string) => string;
-  className: string | undefined;
-} =>
-  useHasAllContentPermissions()
-    ? { trusted: true, present: (text) => text, className: undefined }
-    : {
-        trusted: false,
-        present: untrustedText,
-        className: untrustedTextClassName,
-      };
+export const usePlainText = (): PlainText =>
+  useHasAllContentPermissions() ? trustedPlainText : untrustedPlainText;
 
 const UntrustedText: FC<{ text: string }> = ({ text }) => (
   <span className={styles.untrustedInlineText}>{untrustedText(text)}</span>

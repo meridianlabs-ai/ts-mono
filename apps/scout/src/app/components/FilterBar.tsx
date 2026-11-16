@@ -78,7 +78,7 @@ export const FilterBar: FC<FilterBarProps> = ({
   onVisibleColumnsChange,
 }) => {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
 
   const handleFilterChange = useCallback(
@@ -165,7 +165,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           id={`${popoverIdPrefix}-editor-${editingColumnId}`}
           isOpen={isEditorOpen}
           setIsOpen={handleEditorOpenChange}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
           positionEl={chipRefs.current[editingColumnId] ?? null}
           placement="bottom-start"
           showArrow={true}

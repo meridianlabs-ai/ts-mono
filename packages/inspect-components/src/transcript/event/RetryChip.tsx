@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, useState } from "react";
 
 import type { ModelEvent } from "@tsmono/inspect-common/types";
-import { useEventListener } from "@tsmono/react/hooks";
+import { AnchoredPopover } from "@tsmono/react/components";
 import { Icon } from "@tsmono/react/icons";
 import { formatTime } from "@tsmono/util";
 
@@ -24,10 +24,7 @@ export const RetryChip: FC<RetryChipProps> = ({
   keyOf,
 }) => {
   const [open, setOpen] = useState(false);
-
-  useEventListener(open ? window : null, "keydown", (e) => {
-    if (e.key === "Escape") setOpen(false);
-  });
+  const [chip, setChip] = useState<HTMLButtonElement | null>(null);
 
   if (attempts.length <= 1) return null;
 
@@ -50,6 +47,7 @@ export const RetryChip: FC<RetryChipProps> = ({
   return (
     <span className={styles.wrap}>
       <button
+        ref={setChip}
         type="button"
         className={clsx(styles.chip, open && styles.chipOpen)}
         title={`${chipText} — click to view`}
@@ -60,43 +58,40 @@ export const RetryChip: FC<RetryChipProps> = ({
         <span className={styles.chipText}>{chipText}</span>
         <Icon name="chevronDown" className={styles.chipChevron} />
       </button>
-      {open && (
-        <>
-          {/* Mouse-only dismissal; Escape closes the menu. */}
-          <div
-            className={styles.backdrop}
-            role="presentation"
-            onClick={() => setOpen(false)}
-          />
-          <div className={styles.menu}>
-            {attempts.map((attempt, idx) => {
-              const key = keyOf(attempt);
-              const isCurrent = idx === attempts.length - 1;
-              const label = isCurrent
-                ? `Attempt ${idx + 1} · current`
-                : `Attempt ${idx + 1} · ${summarizeModelError(attempt.error)}`;
-              const duration = formatAttemptDuration(attempt);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className={clsx(
-                    styles.item,
-                    selectedKey === key && styles.itemActive
-                  )}
-                  onClick={() => handleSelect(key)}
-                >
-                  <span className={styles.itemNum}>{idx + 1}</span>
-                  <span className={styles.itemLabel}>{label}</span>
-                  {duration && (
-                    <span className={styles.itemStatus}>{duration}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <AnchoredPopover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchor={chip}
+        placement="bottom-start"
+        offset={4}
+        className={styles.menu}
+      >
+        {attempts.map((attempt, idx) => {
+          const key = keyOf(attempt);
+          const isCurrent = idx === attempts.length - 1;
+          const label = isCurrent
+            ? `Attempt ${idx + 1} · current`
+            : `Attempt ${idx + 1} · ${summarizeModelError(attempt.error)}`;
+          const duration = formatAttemptDuration(attempt);
+          return (
+            <button
+              key={key}
+              type="button"
+              className={clsx(
+                styles.item,
+                selectedKey === key && styles.itemActive
+              )}
+              onClick={() => handleSelect(key)}
+            >
+              <span className={styles.itemNum}>{idx + 1}</span>
+              <span className={styles.itemLabel}>{label}</span>
+              {duration && (
+                <span className={styles.itemStatus}>{duration}</span>
+              )}
+            </button>
+          );
+        })}
+      </AnchoredPopover>
     </span>
   );
 };

@@ -534,7 +534,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
+        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
         positionEl={transcriptFilterButtonRef.current}
       />
     </TabPanel>

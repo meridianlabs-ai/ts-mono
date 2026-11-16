@@ -27,7 +27,7 @@
 
 .body {
   background-color: var(--bs-body-bg);
-  padding: 0.5rem !important;
+  padding: 0.5rem;
 }
 
 .card {
@@ -35,8 +35,4 @@
   border: solid 1px var(--bs-light-border-subtle);
   border-radius: var(--bs-border-radius);
   overflow: hidden;
-}
-
-.body.noPadding {
-  padding: 0;
 }

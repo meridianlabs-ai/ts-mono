@@ -42,7 +42,7 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
   );
   const toggle = () => setCollapsed(!collapsed);
   const refused = !!event.send?.rejected;
-  const agent = `${event.agent}${event.nested ? " (subagent)" : ""}`;
+  const agent = communicationAgent(event);
   const parts = communicationLine(event);
   // The JSON stays mounted (hidden while collapsed) so find can open the row
   // on any field, as ExpandablePanel does, without changing the stored state.
@@ -96,12 +96,20 @@ export const CommunicationEventView: FC<CommunicationEventViewProps> = ({
   );
 };
 
-interface LinePart {
+/** The agent that acted, marked when one of its subagents acted for it. */
+export const communicationAgent = (event: CommunicationEvent): string =>
+  `${event.agent}${event.nested ? " (subagent)" : ""}`;
+
+/** A run of a communication event's one-line summary, with its emphasis. */
+export interface CommunicationLinePart {
   text: string;
   tone?: "refused" | "secondary";
 }
 
-const communicationLine = (event: CommunicationEvent): LinePart[] => {
+/** A communication event as one line: which channel, what, and to whom. */
+export const communicationLine = (
+  event: CommunicationEvent
+): CommunicationLinePart[] => {
   const channel = event.channel ?? "";
   switch (event.kind) {
     case "sent":
@@ -131,7 +139,10 @@ const communicationLine = (event: CommunicationEvent): LinePart[] => {
   }
 };
 
-const sentLine = (event: CommunicationEvent, channel: string): LinePart[] => {
+const sentLine = (
+  event: CommunicationEvent,
+  channel: string
+): CommunicationLinePart[] => {
   const record = event.send?.record;
   if (!record) return [{ text: `→ ${channel}: sent` }];
   const head = {

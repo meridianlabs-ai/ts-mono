@@ -127,6 +127,16 @@ export default tseslint.config(
       // Enforces same-basename css/component pairing; shared modules (e.g.
       // gridCells.module.css) are legitimate here.
       "css-modules-kit/no-missing-component-file": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Atrule[name='media'] Feature[name='prefers-color-scheme']",
+          message:
+            'Key dark styles off :global([data-bs-theme="dark"]). The app ' +
+            "theme comes from the in-app picker or the VS Code host theme " +
+            "and can differ from the OS color scheme.",
+        },
+      ],
     },
   }
 );

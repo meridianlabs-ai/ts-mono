@@ -80,12 +80,13 @@ export const TranscriptEventPanel: FC = () => {
   );
   // The full list keeps uuid-less node ids identical to the transcript's, so
   // focus links and `?event=` resolve here too.
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
-    scope.laneEvents,
-    false,
-    undefined,
-    transcript?.events ?? kNoEvents
-  );
+  const { eventNodes, defaultCollapsedIds, recordsExecutionIds } =
+    useEventNodes(
+      scope.laneEvents,
+      false,
+      undefined,
+      transcript?.events ?? kNoEvents
+    );
   const setParams = useFocusSetParams(setSearchParams);
   const nav = useFocusTurnNavigation(
     eventNodes,
@@ -93,7 +94,8 @@ export const TranscriptEventPanel: FC = () => {
     searchParams.get("tab") ?? "Summary",
     setParams,
     defaultCollapsedIds,
-    scope
+    scope,
+    { recordsExecutionIds }
   );
 
   // Exit focus mode back to the transcript's events tab, deep-linked at the

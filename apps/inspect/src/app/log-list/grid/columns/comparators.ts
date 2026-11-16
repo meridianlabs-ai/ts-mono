@@ -1,4 +1,5 @@
-import { ColumnComparator } from "../../../shared/data-grid/columnTypes";
+import { ColumnComparator } from "@tsmono/inspect-components/dataGrid";
+
 import { comparators } from "../../../shared/gridComparators";
 
 const isMissingNumber = (v: unknown): boolean =>

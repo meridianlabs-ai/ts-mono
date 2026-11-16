@@ -91,11 +91,9 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .bar {
-    --glint: rgba(255, 255, 255, 0.08);
-    --label: #c2c2c9;
-  }
+:global([data-bs-theme="dark"]) .bar {
+  --glint: rgba(255, 255, 255, 0.08);
+  --label: #c2c2c9;
 }
 
 @media (prefers-reduced-motion: reduce) {

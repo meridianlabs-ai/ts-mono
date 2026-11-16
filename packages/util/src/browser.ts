@@ -41,6 +41,21 @@ export function isEditableTarget(el: Element | null): boolean {
 }
 
 /**
+ * True for Enter or Space on a `<button>`: the keypress the browser turns into
+ * the button's click. Container key handlers (a grid's row activation) skip it
+ * so the button still gets pressed.
+ */
+export function isButtonActivation(e: {
+  key: string;
+  target: EventTarget | null;
+}): boolean {
+  return (
+    (e.key === "Enter" || e.key === " ") &&
+    e.target instanceof HTMLButtonElement
+  );
+}
+
+/**
  * Whether an element is attached and rendered. Where `checkVisibility` is
  * unavailable (jsdom, Safari before 17.4) an attached element counts as shown.
  */

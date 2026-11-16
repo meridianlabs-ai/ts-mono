@@ -1,0 +1,105 @@
+/* The geometry anchor positioning relies on. The doubled class outranks
+   rules aimed at the popover's DOM siblings, which reach it now that it
+   renders in place (e.g. ".tab-tools > * { height: 1.5rem }"). */
+.popover.popover {
+  inset: auto;
+  margin: 0;
+  height: auto;
+}
+
+/* Zero specificity, so a caller's className wins whatever order the CSS
+   chunks load in (author styles still beat the UA's [popover] rules). */
+:where(.popover) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
+
+  /* Rendered in place, the popover inherits text styles from wherever its
+     caller sits (a rotated grid header, a nowrap toolbar). Reset them to the
+     body's, which is what it inherited when it was portaled to <body>. */
+  color: var(--bs-body-color);
+  font-family: var(--bs-body-font-family);
+  font-size: var(--bs-body-font-size);
+  font-style: normal;
+  font-weight: var(--bs-body-font-weight);
+  line-height: var(--bs-body-line-height);
+  letter-spacing: normal;
+  text-align: start;
+  text-indent: 0;
+  text-transform: none;
+  white-space: normal;
+  word-spacing: normal;
+  cursor: auto;
+  pointer-events: auto;
+  user-select: auto;
+  visibility: visible;
+}
+
+/* position: fixed with anchor() insets, so the popover's own overflow
+   clipping doesn't apply. The fill inherits the popover's background, so a
+   caller's background override reaches the arrow too. */
+.arrow {
+  position: fixed;
+  background-color: inherit;
+  background-image: linear-gradient(
+    var(--bs-border-color),
+    var(--bs-border-color)
+  );
+  pointer-events: none;
+}
+
+.arrow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: inherit;
+}
+
+.up,
+.down {
+  width: 16px;
+}
+
+.left,
+.right {
+  height: 16px;
+}
+
+.up {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.up::after {
+  clip-path: polygon(50% 1.5px, calc(100% - 1.8px) 100%, 1.8px 100%);
+}
+
+.down {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.down::after {
+  clip-path: polygon(1.8px 0, calc(100% - 1.8px) 0, 50% calc(100% - 1.5px));
+}
+
+.left {
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+.left::after {
+  clip-path: polygon(1.5px 50%, 100% 1.8px, 100% calc(100% - 1.8px));
+}
+
+.right {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.right::after {
+  clip-path: polygon(0 1.8px, calc(100% - 1.5px) 50%, 0 calc(100% - 1.8px));
+}

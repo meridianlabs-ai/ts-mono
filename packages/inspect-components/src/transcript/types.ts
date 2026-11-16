@@ -281,6 +281,14 @@ export interface EventNodeContext {
    *  these events show; when unset, `hasToolEvents` and the next node
    *  decide for all of them. */
   toolEventIds?: ReadonlySet<string>;
+  /** The model's ids (`proposalIdOf`) for the calls of the tool events at
+   *  this node's level, which a model event's output names them by; its
+   *  input names them by `toolEventIds`. Unset, `toolEventIds` covers both. */
+  toolProposalIds?: ReadonlySet<string>;
+  /** Whether the sample's log records `execution_id` (`recordsExecutionIds`):
+   *  only then do tools pair with checks and approvals by execution and model
+   *  outputs name calls by `proposalIdOf`. Unset, the rendered nodes decide. */
+  recordsExecutionIds?: boolean;
   /** The events that showed a model event's input tool messages are not in
    *  this list (a focused turn starts at its model event), so the summary
    *  hides them all and `toolEventIds` applies to the model's own calls only. */
@@ -298,9 +306,9 @@ export interface EventNodeContext {
   eventLabels?: Record<string, string>;
   /** Per-tool labels rendered in tool event gutters. Keyed by `ToolEvent.id`. */
   toolLabels?: Record<string, string>;
-  /** Approval events (every approver in an escalation chain) paired to their tool event via `call.id == ToolEvent.id`, keyed by the tool's node id. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
+  /** Approval events (every approver in an escalation chain) paired to their tool event via `executionIdOf(approval) == ToolEvent.id` (see `pairToolApprovals`), keyed by the tool's node id. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
   toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
-  /** Sentinel steps paired to their tool event via `step_id == ToolEvent.id`, rendered as rows at the bottom of the tool panel beside the approval. */
+  /** Sentinel steps paired to their tool event via `executionIdOf(event) == ToolEvent.id` (see `pairToolSentinels`), rendered as rows at the bottom of the tool panel beside the approval. */
   toolSentinels?: Map<string, ToolSentinels>;
   /** Links the cites in a sentinel check's explanation (e.g. `[M22]`) to the messages and events its references name. */
   makeCiteUrl?: MakeCiteUrl;

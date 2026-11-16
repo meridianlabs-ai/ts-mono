@@ -18,7 +18,9 @@ export interface VirtualListHandle {
     align?: "start" | "center" | "end";
     behavior?: "auto" | "smooth";
     onDone?: () => void;
-  }): void;
+    /** Called instead of onDone when a newer scroll or unmount takes over. */
+    onAbandon?: () => void;
+  }): () => void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
   getState(callback: (snapshot: VirtualListStateSnapshot) => void): void;
   jumpToStart(): void;
@@ -91,8 +93,10 @@ export interface VirtualListProps<T> {
   scrollPaddingStart?: number;
   components?: VirtualListComponents;
   smoothScroll?: boolean;
-  itemSearchText?: (item: T) => string | string[];
-  findScope?: "local" | "none";
+  /** Each item's text as its row renders it, so Find can count matches in
+   *  rows that aren't mounted. `null` keeps the list out of Find; its mounted
+   *  rows are then searched as ordinary page text. */
+  itemSearchText: ((item: T) => string | string[]) | null;
   scrollToTopOnFinish?: boolean;
   /** Called when the rendered range changes, AND replayed with the current
    *  range whenever the callback's identity changes — callers rely on that

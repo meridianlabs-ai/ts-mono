@@ -1,0 +1,5 @@
+/* A message's own line breaks, wrapped to the column; three-line-clamp caps it. */
+.contentLines {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

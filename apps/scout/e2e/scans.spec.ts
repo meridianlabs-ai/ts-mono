@@ -11,10 +11,12 @@ test("scans page shows an empty grid when no scans exist", async ({ page }) => {
   await page.goto("/#/scans");
   await listed;
 
-  // The only body row is the grid's empty-state message.
-  const bodyRows = page.locator("tbody").getByRole("row");
-  await expect(bodyRows).toHaveCount(1);
-  await expect(bodyRows).toHaveText("No scans in this directory.");
+  // Only the header row; the grid announces its empty-state message.
+  const grid = page.getByRole("grid", { name: "Scans" });
+  await expect(grid.getByRole("status")).toHaveText(
+    "No scans in this directory."
+  );
+  await expect(grid.getByRole("row")).toHaveCount(1);
   await expect(page.locator("#scan-job-footer")).toContainText("0 items");
 });
 

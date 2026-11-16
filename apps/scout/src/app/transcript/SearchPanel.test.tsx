@@ -10,7 +10,7 @@ import {
 import { http, HttpResponse } from "msw";
 import { type PropsWithChildren } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createInitialSearchPanelState,
@@ -18,6 +18,12 @@ import {
   type LlmSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
+import {
+  ExtendedFindProvider,
+  FindBand,
+  FindTargetProvider,
+} from "@tsmono/react/components";
+import { stubFindHighlightApi } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../api/api-scout-server";
@@ -181,6 +187,7 @@ const getRunButton = (): HTMLButtonElement =>
 describe("SearchPanel", () => {
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   it("submits a grep search with the right scope and renders the match count", async () => {
@@ -567,5 +574,28 @@ describe("SearchPanel", () => {
         getSearchPanelStateKey({ scope: "events", transcriptDir })
       ];
     expect(stored).toEqual(createInitialSearchPanelState());
+  });
+
+  it("keeps the panel's own text out of in-page Find", async () => {
+    stubFindHighlightApi(vi.stubGlobal);
+    renderSearchPanel();
+    await screen.findByText("Search: events");
+    // The same text outside the panel, standing in for the transcript.
+    render(
+      <ExtendedFindProvider>
+        <FindTargetProvider>
+          <FindBand onClose={() => {}} />
+          <p>Search: events</p>
+        </FindTargetProvider>
+      </ExtendedFindProvider>
+    );
+
+    const input = screen.getByPlaceholderText("Find");
+    fireEvent.change(input, { target: { value: "Search: events" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(screen.getByTestId("find-band-match-count").textContent).toBe(
+      "1 of 1"
+    );
   });
 });

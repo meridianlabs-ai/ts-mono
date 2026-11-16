@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { hasOpenPopover } from "@tsmono/react/components";
 import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
 
@@ -141,6 +142,8 @@ export interface TimelineSwimLanesProps {
   highlightedKeys?: ReadonlyMap<string, number>;
   /** Drill into a branch row as a standalone spliced timeline. */
   onPunchDown?: (rowKey: string, label: string) => void;
+  /** Rows offering `onPunchDown`. */
+  canPunchDown?: (rowKey: string) => boolean;
 }
 
 // =============================================================================
@@ -159,6 +162,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   defaultCollapsed: defaultCollapsedProp,
   highlightedKeys,
   onPunchDown,
+  canPunchDown,
 }) => {
   const { selected, select: onSelect, clearSelection } = timeline;
 
@@ -349,6 +353,9 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
           break;
         }
         case "Escape": {
+          // An open popover in the swimlane (options, timeline picker) owns
+          // this Escape; preventDefault would stop the browser closing it.
+          if (hasOpenPopover(e.currentTarget)) break;
           e.preventDefault();
           clearSelection();
           break;
@@ -402,7 +409,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
         onPunchDown={
-          layout.branch && onPunchDown
+          onPunchDown && canPunchDown?.(layout.key)
             ? () => onPunchDown(layout.key, layout.name)
             : undefined
         }
@@ -900,7 +907,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
         <TimelineOptionsPopover
           isOpen={optionsOpen}
           setIsOpen={setOptionsOpen}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver handles this in effects
+          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
           positionEl={optionsButtonRef.current}
           config={timelineConfig}
           onToggleBranches={onToggleBranches}

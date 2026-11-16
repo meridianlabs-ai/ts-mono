@@ -64,6 +64,8 @@ interface ExpandablePanelProps {
  * matches, is in the element's text: a panel uses it to show content it
  * otherwise hides. The element's text may be hidden but must be mounted.
  */
+const collapseWhitespace = (text: string) => text.replace(/\s+/g, " ");
+
 export const useContainsFindTarget = (
   contentRef: RefObject<HTMLElement | null>
 ): boolean => {
@@ -93,9 +95,11 @@ export const useContainsFindTarget = (
       setContainsFindTarget(false);
       return;
     }
-    const text = root.textContent.toLowerCase();
+    // Whitespace collapsed as find matches it: a line break in the text
+    // matches a space in the term.
+    const text = collapseWhitespace(root.textContent.toLowerCase());
     const { simple, unquoted, jsonEscaped } = prepareSearchTerm(
-      findTarget.term
+      collapseWhitespace(findTarget.term)
     );
     setContainsFindTarget(
       [simple, unquoted, jsonEscaped].some(

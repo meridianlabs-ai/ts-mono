@@ -115,6 +115,38 @@ export const Value: FC<ValueProps> = ({
   }
 };
 
+/** The text `<Value>` renders with `interactive` off, one string per block,
+ *  so Find can count matches in rows that aren't mounted. */
+export const valueSearchText = (
+  value: unknown,
+  valueType: ValueType,
+  maxTableSize = 5
+): string[] => {
+  const input: ValueInput = { value, valueType };
+  if (isStringValue(input)) {
+    return [input.value];
+  } else if (isNumberValue(input)) {
+    return [formatPrettyDecimal(input.value)];
+  } else if (isBooleanValue(input)) {
+    return [String(input.value)];
+  } else if (isNullValue(input)) {
+    return ["null"];
+  } else if (isArrayValue(input)) {
+    return input.value
+      .slice(0, maxTableSize)
+      .flatMap((item, index) => [`[${index}]`, cellText(item)]);
+  } else if (isObjectValue(input)) {
+    const record = input.value;
+    const { keys, notShown } = tableKeys(record, maxTableSize);
+    return [
+      ...keys.flatMap((key) => [key, cellText(record[key])]),
+      ...(notShown > 0 ? [`${notShown} more…`] : []),
+    ];
+  } else {
+    return ["Unknown value type"];
+  }
+};
+
 const ValueList: FC<{
   value: unknown[];
   identifier?: string;
@@ -165,20 +197,7 @@ const ValueTable: FC<{
   references?: MarkdownReference[];
   style: "inline" | "block";
 }> = ({ value, identifier, maxTableSize, interactive, references, style }) => {
-  const sortedKeys = Object.keys(value).sort((a, b) => {
-    const aVal = value[a];
-    const bVal = value[b];
-    if (typeof aVal === "boolean" && typeof bVal === "boolean") {
-      return Number(bVal) - Number(aVal);
-    } else if (typeof aVal === "number" && typeof bVal === "number") {
-      return bVal - aVal;
-    } else {
-      return 0;
-    }
-  });
-
-  const keysToDisplay = sortedKeys.slice(0, maxTableSize);
-  const notShown = Object.keys(value).length - maxTableSize;
+  const { keys: keysToDisplay, notShown } = tableKeys(value, maxTableSize);
 
   return (
     <div
@@ -227,6 +246,45 @@ const ValueTable: FC<{
   );
 };
 
+const tableKeys = (
+  value: Record<string, unknown>,
+  maxTableSize: number
+): { keys: string[]; notShown: number } => {
+  const sortedKeys = Object.keys(value).sort((a, b) => {
+    const aVal = value[a];
+    const bVal = value[b];
+    if (typeof aVal === "boolean" && typeof bVal === "boolean") {
+      return Number(bVal) - Number(aVal);
+    } else if (typeof aVal === "number" && typeof bVal === "number") {
+      return bVal - aVal;
+    } else {
+      return 0;
+    }
+  });
+  return {
+    keys: sortedKeys.slice(0, maxTableSize),
+    notShown: sortedKeys.length - maxTableSize,
+  };
+};
+
+const cellText = (val: unknown): string => {
+  if (typeof val === "string") {
+    return val;
+  } else if (typeof val === "number") {
+    return formatPrettyDecimal(val);
+  } else if (typeof val === "boolean") {
+    return String(val);
+  } else if (val === null) {
+    return "null";
+  } else if (Array.isArray(val)) {
+    return printArray(val, 35);
+  } else if (isRecord(val)) {
+    return printObject(val, 35);
+  } else {
+    return "Unknown value type";
+  }
+};
+
 const renderValue = (
   index: number,
   val: unknown,
@@ -236,8 +294,6 @@ const renderValue = (
 ): ReactNode => {
   if (typeof val === "string") {
     return <MarkdownDivWithReferences markdown={val} references={references} />;
-  } else if (typeof val === "number") {
-    return formatPrettyDecimal(val);
   } else if (typeof val === "boolean") {
     return (
       <div className={clsx(styles.boolean, val ? styles.true : styles.false)}>
@@ -246,18 +302,14 @@ const renderValue = (
     );
   } else if (val === null) {
     return <pre className={clsx(styles.value)}>null</pre>;
-  } else if (Array.isArray(val)) {
-    return printArray(val, 35);
-  } else if (isRecord(val)) {
-    return !interactive ? (
-      printObject(val, 35)
-    ) : (
+  } else if (interactive && isRecord(val)) {
+    return (
       <RecordTree
         id={`value-record-${identifier ?? "na"}-${index}`}
         record={val}
       />
     );
   } else {
-    return "Unknown value type";
+    return cellText(val);
   }
 };

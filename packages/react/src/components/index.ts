@@ -1,4 +1,5 @@
 export * from "./AsyncGate";
+export * from "./AnchoredPopover";
 export * from "./AutocompleteInput";
 export * from "./AnsiDisplay";
 export * from "./AppErrorBoundary";
@@ -50,3 +51,5 @@ export * from "./inAppLink";
 export * from "./useFindBandShortcut";
 export * from "./MarkdownDivWithReferences";
 export * from "./NextPreviousNav";
+export * from "./ChunkedText";
+export { findScrollableParent } from "./scrollableParent";
