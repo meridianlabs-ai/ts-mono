@@ -1,8 +1,8 @@
 /*
  * Element reset: Bootstrap v5.3.8's Reboot, without its variable blocks
  * (tokens.css has those). Rules unchanged apart from formatting and dropped
- * -webkit- prefixes that current browsers don't need (Copyright 2011-2025 The
- * Bootstrap Authors, MIT license,
+ * vendor prefixes and vendor-only rules that current browsers don't need
+ * (Copyright 2011-2025 The Bootstrap Authors, MIT license,
  * https://github.com/twbs/bootstrap/blob/main/LICENSE).
  */
 
@@ -332,11 +332,6 @@
     cursor: pointer;
   }
 
-  ::-moz-focus-inner {
-    padding: 0;
-    border-style: none;
-  }
-
   textarea {
     resize: vertical;
   }
@@ -393,11 +388,6 @@
 
   ::-webkit-color-swatch-wrapper {
     padding: 0;
-  }
-
-  ::-webkit-file-upload-button {
-    font: inherit;
-    appearance: button;
   }
 
   ::file-selector-button {

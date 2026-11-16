@@ -1,9 +1,9 @@
 /*
  * Component classes, copied from Bootstrap v5.3.8 with rules unchanged
- * apart from formatting and dropped -webkit- prefixes that current browsers
- * don't need (Copyright 2011-2025 The Bootstrap Authors, MIT license,
- * https://github.com/twbs/bootstrap/blob/main/LICENSE). Only the classes the
- * apps use are copied.
+ * apart from formatting and dropped vendor prefixes and vendor-only rules
+ * that current browsers don't need (Copyright 2011-2025 The Bootstrap
+ * Authors, MIT license, https://github.com/twbs/bootstrap/blob/main/LICENSE).
+ * Only the classes the apps use are copied.
  */
 
 @layer tsmono.components {
@@ -52,7 +52,6 @@
     font-weight: 400;
     line-height: 1.5;
     color: var(--bs-body-color);
-    -moz-appearance: none;
     appearance: none;
     background-color: var(--bs-body-bg);
     background-clip: padding-box;
@@ -97,24 +96,6 @@
     background-color: var(--bs-secondary-bg);
     opacity: 1;
   }
-  .form-control::-webkit-file-upload-button {
-    padding: 0.375rem 0.75rem;
-    margin: -0.375rem -0.75rem;
-    margin-inline-end: 0.75rem;
-    color: var(--bs-body-color);
-    background-color: var(--bs-tertiary-bg);
-    pointer-events: none;
-    border-color: inherit;
-    border-style: solid;
-    border-width: 0;
-    border-inline-end-width: var(--bs-border-width);
-    border-radius: 0;
-    transition:
-      color 0.15s ease-in-out,
-      background-color 0.15s ease-in-out,
-      border-color 0.15s ease-in-out,
-      box-shadow 0.15s ease-in-out;
-  }
   .form-control::file-selector-button {
     padding: 0.375rem 0.75rem;
     margin: -0.375rem -0.75rem;
@@ -134,17 +115,9 @@
       box-shadow 0.15s ease-in-out;
   }
   @media (prefers-reduced-motion: reduce) {
-    .form-control::-webkit-file-upload-button {
-      transition: none;
-    }
     .form-control::file-selector-button {
       transition: none;
     }
-  }
-  .form-control:hover:not(:disabled):not(
-      [readonly]
-    )::-webkit-file-upload-button {
-    background-color: var(--bs-secondary-bg);
   }
   .form-control:hover:not(:disabled):not([readonly])::file-selector-button {
     background-color: var(--bs-secondary-bg);
@@ -163,7 +136,6 @@
     font-weight: 400;
     line-height: 1.5;
     color: var(--bs-body-color);
-    -moz-appearance: none;
     appearance: none;
     background-color: var(--bs-body-bg);
     background-image:
@@ -194,10 +166,6 @@
   }
   .form-select:disabled {
     background-color: var(--bs-secondary-bg);
-  }
-  .form-select:-moz-focusring {
-    color: transparent;
-    text-shadow: 0 0 0 var(--bs-body-color);
   }
 
   .form-select-sm {
@@ -242,7 +210,6 @@
     vertical-align: middle;
     cursor: pointer;
     -webkit-user-select: none;
-    -moz-user-select: none;
     user-select: none;
     border: var(--bs-btn-border-width) solid var(--bs-btn-border-color);
     border-radius: var(--bs-btn-border-radius);
