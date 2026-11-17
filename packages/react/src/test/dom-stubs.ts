@@ -128,7 +128,7 @@ export const installDialogStub = (): void => {
  */
 export function stubAnimationFrames(
   stubGlobal: (name: string, value: unknown) => void
-): { runFrame: () => void; pendingFrames: () => number } {
+): { runFrame: (now?: number) => void; pendingFrames: () => number } {
   const frames = new Map<number, FrameRequestCallback>();
   let nextId = 1;
   stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -140,11 +140,16 @@ export function stubAnimationFrames(
     frames.delete(id);
   });
   return {
-    // Callbacks a frame requests run in the next frame, as in a browser.
-    runFrame: () => {
-      const pending = [...frames.values()];
-      frames.clear();
-      for (const callback of pending) callback(performance.now());
+    // As in a browser: one timestamp per frame, callbacks requested during a
+    // frame wait for the next one, and a callback cancelled by an earlier one
+    // in the same frame doesn't run.
+    runFrame: (now = performance.now()) => {
+      for (const id of [...frames.keys()]) {
+        const callback = frames.get(id);
+        if (!callback) continue;
+        frames.delete(id);
+        callback(now);
+      }
     },
     pendingFrames: () => frames.size,
   };

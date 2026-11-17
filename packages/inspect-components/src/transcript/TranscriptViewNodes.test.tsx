@@ -108,7 +108,7 @@ beforeEach(() => {
 });
 
 // Each frame runs in its own act so React commits between frames, as it
-// does in a browser; the expansion retry relies on that.
+// does in a browser.
 const flushFrames = () => {
   for (let frame = 0; frames.pendingFrames() > 0; frame++) {
     if (frame === 200) throw new Error("Animation frames never went idle");

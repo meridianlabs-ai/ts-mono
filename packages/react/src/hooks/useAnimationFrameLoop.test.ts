@@ -2,26 +2,16 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { stubAnimationFrames } from "../test/dom-stubs";
+
 import { useAnimationFrameLoop } from "./useAnimationFrameLoop";
 
 describe("useAnimationFrameLoop", () => {
-  let frames: Map<number, FrameRequestCallback>;
-  let nextId: number;
-  const runFrame = (now: number) => {
-    const pending = [...frames.values()];
-    frames.clear();
-    for (const callback of pending) callback(now);
-  };
+  let frames: ReturnType<typeof stubAnimationFrames>;
+  const runFrame = (now: number) => frames.runFrame(now);
 
   beforeEach(() => {
-    frames = new Map();
-    nextId = 1;
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      const id = nextId++;
-      frames.set(id, callback);
-      return id;
-    });
-    vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+    frames = stubAnimationFrames(vi.stubGlobal);
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -66,6 +56,6 @@ describe("useAnimationFrameLoop", () => {
     const callback = vi.fn();
     const { unmount } = renderHook(() => useAnimationFrameLoop(callback, true));
     unmount();
-    expect(frames.size).toBe(0);
+    expect(frames.pendingFrames()).toBe(0);
   });
 });
