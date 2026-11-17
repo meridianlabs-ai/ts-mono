@@ -797,10 +797,20 @@ describe("pairToolSentinels", () => {
       }),
       0
     );
-  const started = (id: string, second: number, failed?: boolean) =>
+  const started = (
+    id: string,
+    second: number,
+    failed?: boolean,
+    completedAt?: number
+  ) =>
     new EventNode(
       id,
-      testToolEvent({ id: "dup", timestamp: at(second), failed }),
+      testToolEvent({
+        id: "dup",
+        timestamp: at(second),
+        failed,
+        completed: completedAt === undefined ? undefined : at(completedAt),
+      }),
       0
     );
   const check = (
@@ -905,6 +915,12 @@ describe("pairToolSentinels", () => {
         expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
         expect(result.toolSentinels.has("t-inner")).toBe(false);
       });
+    });
+
+    it("leaves a step whose call recorded no tool standalone rather than pair it with a call that completed before it", () => {
+      const result = pair([started("t1", 1, true, 2), check("c2", 3)]);
+      expect(result.toolSentinels.size).toBe(0);
+      expect(result.standaloneSentinels.has("c2")).toBe(true);
     });
 
     it("leaves a step standalone rather than pair it with an earlier output's run", () => {

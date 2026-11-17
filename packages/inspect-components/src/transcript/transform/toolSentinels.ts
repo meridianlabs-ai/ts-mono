@@ -850,9 +850,10 @@ const stepStart = (span: EventNode | undefined, nodes: SentinelNode[]) =>
  * but recorded after the step, so the step's tool is the latest one that
  * started before the step did, in whichever order the tree holds them. Only
  * tools after the latest output before the step that proposed its id
- * (`proposedAt`) count, since an earlier one ran an earlier proposal. When
- * none started before the step (timestamps that tie, as the timeline compares
- * them), the step judges the first tool after it.
+ * (`proposedAt`) count, since an earlier one ran an earlier proposal, and a
+ * tool that completed before the step began ran without it. When none started
+ * before the step (timestamps that tie, as the timeline compares them), the
+ * step judges the first tool after it.
  */
 const judgedTool = <T extends { order: number; node: EventNode<ToolEvent> }>(
   open: readonly T[],
@@ -868,7 +869,14 @@ const judgedTool = <T extends { order: number; node: EventNode<ToolEvent> }>(
   const startOf = (t: T) => t.node.event.timestamp;
   let started: T | undefined;
   for (const t of open) {
-    if (t.order <= proposal || startOf(t).localeCompare(start) >= 0) continue;
+    const { completed } = t.node.event;
+    if (
+      t.order <= proposal ||
+      startOf(t).localeCompare(start) >= 0 ||
+      (completed && completed.localeCompare(start) < 0)
+    ) {
+      continue;
+    }
     if (!started || startOf(t).localeCompare(startOf(started)) >= 0) {
       started = t;
     }
