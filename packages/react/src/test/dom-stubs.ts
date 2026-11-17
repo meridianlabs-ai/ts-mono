@@ -119,3 +119,33 @@ export const installDialogStub = (): void => {
     },
   });
 };
+
+/**
+ * A manual `requestAnimationFrame` for jsdom tests. Callbacks wait until the
+ * test calls `runFrame`, so code that counts frames runs the same however
+ * busy the machine is. Call in `beforeEach`; `vi.unstubAllGlobals()` undoes
+ * the globals.
+ */
+export function stubAnimationFrames(
+  stubGlobal: (name: string, value: unknown) => void
+): { runFrame: () => void; pendingFrames: () => number } {
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextId = 1;
+  stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    const id = nextId++;
+    frames.set(id, callback);
+    return id;
+  });
+  stubGlobal("cancelAnimationFrame", (id: number) => {
+    frames.delete(id);
+  });
+  return {
+    // Callbacks a frame requests run in the next frame, as in a browser.
+    runFrame: () => {
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback(performance.now());
+    },
+    pendingFrames: () => frames.size,
+  };
+}
