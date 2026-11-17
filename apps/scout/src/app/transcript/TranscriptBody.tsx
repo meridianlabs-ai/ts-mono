@@ -224,7 +224,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   ]);
 
   // Transcript Filtering
-  const transcriptFilterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [transcriptFilterButtonEl, setTranscriptFilterButtonEl] =
+    useState<HTMLButtonElement | null>(null);
   const [transcriptFilterShowing, setTranscriptFilterShowing] = useState(false);
   const toggleTranscriptFilterShowing = useCallback(() => {
     setTranscriptFilterShowing((prev) => !prev);
@@ -374,7 +375,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         onClick={toggleTranscriptFilterShowing}
         className={styles.tabTool}
         subtle={true}
-        ref={transcriptFilterButtonRef}
+        ref={setTranscriptFilterButtonEl}
       />
     );
 
@@ -534,8 +535,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
-        positionEl={transcriptFilterButtonRef.current}
+        positionEl={transcriptFilterButtonEl}
       />
     </TabPanel>
   ) : null;

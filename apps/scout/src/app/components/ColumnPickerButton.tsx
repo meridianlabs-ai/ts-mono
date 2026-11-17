@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { FC, ReactNode, useRef, useState } from "react";
+import { FC, ReactNode, useState } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
@@ -27,13 +27,13 @@ export interface ColumnPickerButtonProps {
 export const ColumnPickerButton: FC<ColumnPickerButtonProps> = ({
   children,
 }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
       <ToolButton
-        ref={buttonRef}
+        ref={setButtonEl}
         icon="checkboxChecked"
         label="Choose columns"
         title="Choose columns"
@@ -43,8 +43,7 @@ export const ColumnPickerButton: FC<ColumnPickerButtonProps> = ({
         className={clsx("text-size-smallest", styles.columnsButton)}
       />
       {children({
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
-        positionEl: buttonRef.current,
+        positionEl: buttonEl,
         isOpen,
         setIsOpen,
       })}

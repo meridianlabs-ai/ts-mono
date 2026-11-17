@@ -4,7 +4,7 @@ import {
   VscodeRadioGroup,
 } from "@vscode-elements/react-elements";
 import clsx from "clsx";
-import { FC, useCallback, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
 
 import { AutocompleteInput, PopOver } from "@tsmono/react/components";
 
@@ -33,7 +33,7 @@ export const ValidationCaseLabelsEditor: FC<
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("true");
-  const addChipRef = useRef<HTMLButtonElement>(null);
+  const [addChipEl, setAddChipEl] = useState<HTMLButtonElement | null>(null);
 
   const labelEntries = labels ? Object.entries(labels) : [];
 
@@ -95,7 +95,7 @@ export const ValidationCaseLabelsEditor: FC<
           />
         ))}
         <Chip
-          ref={addChipRef}
+          ref={setAddChipEl}
           icon="add"
           value="Add"
           title="Add a new label"
@@ -108,8 +108,7 @@ export const ValidationCaseLabelsEditor: FC<
         id="validation-labels-add"
         isOpen={isPopoverOpen}
         setIsOpen={setIsPopoverOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
-        positionEl={addChipRef.current}
+        positionEl={addChipEl}
         placement="bottom-start"
         showArrow={true}
         hoverDelay={-1}
