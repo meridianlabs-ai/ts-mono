@@ -139,9 +139,8 @@
   stroke-width: 1.75;
 }
 
-/* Dark keeps the resting log hue; only the width changes. */
 .markerLineLogActive {
-  stroke: light-dark(#1d4f7c, #4d7aa8);
+  stroke: #1d4f7c;
   stroke-width: 1.75;
 }
 
