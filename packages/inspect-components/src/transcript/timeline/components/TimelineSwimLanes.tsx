@@ -808,7 +808,8 @@ const HeaderRow: FC<HeaderRowProps> = ({
   const rootDisplay = node.name === "solvers" ? "main" : node.name;
 
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const optionsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [optionsButtonEl, setOptionsButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   return (
     <div className={styles.breadcrumbRow}>
@@ -871,7 +872,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
       )}
       {timelineConfig && (
         <button
-          ref={optionsButtonRef}
+          ref={setOptionsButtonEl}
           type="button"
           className={styles.optionsButton}
           onClick={() => setOptionsOpen((prev) => !prev)}
@@ -907,8 +908,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
         <TimelineOptionsPopover
           isOpen={optionsOpen}
           setIsOpen={setOptionsOpen}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
-          positionEl={optionsButtonRef.current}
+          positionEl={optionsButtonEl}
           config={timelineConfig}
           onToggleBranches={onToggleBranches}
         />

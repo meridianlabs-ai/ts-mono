@@ -138,7 +138,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   });
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
-  const recentButtonRef = useRef<HTMLButtonElement>(null);
+  const [recentButtonEl, setRecentButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   const loading =
     createSearchMutation.isPending || cachedSearchQuery.isFetching;
@@ -360,7 +361,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             </div>
             <div className={styles.topActions}>
               <button
-                ref={recentButtonRef}
+                ref={setRecentButtonEl}
                 type="button"
                 className={clsx(
                   styles.iconAction,
@@ -468,8 +469,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         id={`recent-searches-${api.cacheKey}`}
         isOpen={isRecentOpen}
         setIsOpen={setIsRecentOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver renders nothing until the ref is set
-        positionEl={recentButtonRef.current}
+        positionEl={recentButtonEl}
         placement="bottom-end"
         offset={2}
         hoverDelay={-1}
