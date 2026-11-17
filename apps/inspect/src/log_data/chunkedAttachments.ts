@@ -11,7 +11,10 @@
  */
 import { normalizeEvent } from "@tsmono/inspect-common/normalize";
 
-import { resolveAttachments } from "../utils/attachments";
+import {
+  resolveAttachments,
+  resolveEventAttachments,
+} from "../utils/attachments";
 
 import {
   SequenceReader,
@@ -20,51 +23,32 @@ import {
 } from "./chunked";
 import { log } from "./chunked/log";
 
-const ATTACHMENT_PROTOCOL = "attachment://";
-const CONTENT_PROTOCOL = "tc://";
-
-const collectRefs = (value: unknown, into: Set<number>): void => {
-  if (typeof value === "string") {
-    const ref = value.startsWith(CONTENT_PROTOCOL)
-      ? value.replace(CONTENT_PROTOCOL, ATTACHMENT_PROTOCOL)
-      : value;
-    if (ref.startsWith(ATTACHMENT_PROTOCOL)) {
-      const suffix = ref.slice(ATTACHMENT_PROTOCOL.length);
-      // strict: resolveAttachments substitutes by the literal suffix, so
-      // non-canonical forms ("1e2", "0x10", "-2") would fetch under a
-      // different key than they substitute by (and -2 would index from the
-      // sequence end) — treat them as unresolvable instead
-      if (/^\d+$/.test(suffix)) {
-        into.add(Number(suffix));
-      }
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectRefs(item, into);
-    }
-    return;
-  }
-  if (value !== null && typeof value === "object") {
-    for (const item of Object.values(value)) {
-      collectRefs(item, into);
-    }
-  }
-};
-
 /**
  * Substitute every attachment ref in `items` from the sample's attachments
  * sequence (fetches dedup through the shared chunk-byte store). `label`
- * names the batch in the read log.
+ * names the batch in the read log; `resolve` decides which strings are refs
+ * (`resolveEventAttachments` for events).
  */
 export const withAttachmentsResolved = async <T>(
   items: T[],
   chunked: ChunkedSample,
-  label: string
+  label: string,
+  resolve: typeof resolveAttachments = resolveAttachments
 ): Promise<T[]> => {
   const refs = new Set<number>();
-  collectRefs(items, refs);
+  // Resolving against no attachments reports every ref `resolve` would
+  // substitute, so only those are fetched.
+  for (const item of items) {
+    resolve(item, {}, (id) => {
+      // strict: refs substitute by the literal suffix, so non-canonical
+      // forms ("1e2", "0x10", "-2") would fetch under a different key than
+      // they substitute by (and -2 would index from the sequence end) —
+      // treat them as unresolvable instead
+      if (/^\d+$/.test(id)) {
+        refs.add(Number(id));
+      }
+    });
+  }
   if (refs.size === 0) {
     return items;
   }
@@ -80,7 +64,7 @@ export const withAttachmentsResolved = async <T>(
       }
     })
   );
-  return items.map((item) => resolveAttachments(item, attachments));
+  return items.map((item) => resolve(item, attachments));
 };
 
 /**
@@ -101,6 +85,7 @@ export const resolvedEventsReader = (
     withAttachmentsResolved(
       items.map((item) => normalizeEvent(item) ?? item),
       chunked,
-      `events chunk ${start}`
+      `events chunk ${start}`,
+      resolveEventAttachments
     )
   );
