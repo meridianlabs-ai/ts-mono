@@ -1,14 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  clampSize,
-  getColumnConstraints,
-  getColumnId,
-  type ColumnSizingDefinition,
-} from "./types";
+import { clampSize, getColumnId, type ColumnSizingDefinition } from "./types";
 
 describe("clampSize", () => {
-  const constraints = { size: 150, minSize: 50, maxSize: 200 };
+  const constraints = { minSize: 50, maxSize: 200 };
 
   it("returns size unchanged when within constraints", () => {
     expect(clampSize(100, constraints)).toBe(100);
@@ -33,97 +28,10 @@ describe("clampSize", () => {
   it("clamps negative values to minSize", () => {
     expect(clampSize(-10, constraints)).toBe(50);
   });
-});
 
-describe("getColumnConstraints", () => {
-  it("extracts constraints from columns with all properties", () => {
-    const columns: ColumnSizingDefinition[] = [
-      {
-        accessorKey: "test",
-        header: "Test",
-        size: 100,
-        minSize: 50,
-        maxSize: 200,
-      },
-    ];
-
-    const constraints = getColumnConstraints(columns);
-
-    expect(constraints.get("test")).toEqual({
-      size: 100,
-      minSize: 50,
-      maxSize: 200,
-    });
-  });
-
-  it("uses default values when constraints not specified", () => {
-    const columns: ColumnSizingDefinition[] = [
-      {
-        accessorKey: "test",
-        header: "Test",
-      },
-    ];
-
-    const constraints = getColumnConstraints(columns);
-
-    expect(constraints.get("test")).toEqual({
-      size: 150, // DEFAULT_SIZE
-      minSize: 40, // DEFAULT_MIN_SIZE
-      maxSize: 600, // DEFAULT_MAX_SIZE
-    });
-  });
-
-  it("uses column id when accessorKey not available", () => {
-    const columns: ColumnSizingDefinition[] = [
-      {
-        id: "custom-id",
-        header: "Test",
-        size: 120,
-      },
-    ];
-
-    const constraints = getColumnConstraints(columns);
-
-    expect(constraints.has("custom-id")).toBe(true);
-    expect(constraints.get("custom-id")?.size).toBe(120);
-  });
-
-  it("handles multiple columns", () => {
-    const columns: ColumnSizingDefinition[] = [
-      {
-        accessorKey: "col1",
-        header: "Column 1",
-        size: 100,
-        minSize: 60,
-        maxSize: 200,
-      },
-      {
-        accessorKey: "col2",
-        header: "Column 2",
-        size: 150,
-        minSize: 80,
-        maxSize: 300,
-      },
-    ];
-
-    const constraints = getColumnConstraints(columns);
-
-    expect(constraints.size).toBe(2);
-    expect(constraints.get("col1")).toEqual({
-      size: 100,
-      minSize: 60,
-      maxSize: 200,
-    });
-    expect(constraints.get("col2")).toEqual({
-      size: 150,
-      minSize: 80,
-      maxSize: 300,
-    });
-  });
-
-  it("returns empty map for empty columns array", () => {
-    const constraints = getColumnConstraints([]);
-    expect(constraints.size).toBe(0);
+  it("uses the default min and max when the column sets neither", () => {
+    expect(clampSize(10, {})).toBe(40); // DEFAULT_MIN_SIZE
+    expect(clampSize(1000, {})).toBe(600); // DEFAULT_MAX_SIZE
   });
 });
 

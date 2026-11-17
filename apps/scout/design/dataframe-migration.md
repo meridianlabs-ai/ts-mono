@@ -1,8 +1,8 @@
 # Dataframe migration verification
 
 Scout's scanner dataframe was the last runtime AG Grid consumer. It now uses
-TanStack Table, the shared VirtualList, the existing column sizing strategy, and
-the shared column filter controls. The dataframe uses its own state key, so any
+TanStack Table, the shared VirtualList, content-fit column sizing, and the
+shared column filter controls. The dataframe uses its own state key, so any
 old AG Grid layout is ignored rather than translated.
 
 The main store is restored only in VS Code, where the webview can be destroyed
@@ -58,7 +58,7 @@ Default maximum widths remain 600 pixels for DataGrid and 800 for the dataframe.
 ## Keeping the implementation and tests maintainable
 
 - TanStack owns pinning order and sticky offsets. The dataframe shares the column
-  resize handle, sizing strategy and filter controls with other tables. It keeps
+  resize handle and filter controls with other tables. It keeps
   its own small renderer because wrapped rows and in-place result activation do
   not fit the existing fixed-height DataGrid's navigation contract.
 - The table and footer consume one filtered dataset. This removes count

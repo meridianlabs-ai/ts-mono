@@ -36,11 +36,8 @@ import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
 
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
-import { fitContentStrategy } from "./columnSizing/fitContentStrategy";
-import {
-  getColumnConstraints,
-  type ColumnSizingDefinition,
-} from "./columnSizing/types";
+import { fitColumnSizes } from "./columnSizing/fitColumnSizes";
+import type { ColumnSizingDefinition } from "./columnSizing/types";
 import {
   compareDataframeValues,
   dataframeCsv,
@@ -148,12 +145,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
   );
 
   const autoSize = (columnId?: string, element = tableRef.current): void => {
-    const sizes = fitContentStrategy.computeSizes({
-      tableElement: element,
-      columns,
-      data: allRows,
-      constraints: getColumnConstraints(columns),
-    });
+    const sizes = fitColumnSizes(element, columns, allRows);
     updateGridState((previous) => ({
       columnSizing: columnId
         ? { ...previous.columnSizing, [columnId]: sizes[columnId] ?? 150 }

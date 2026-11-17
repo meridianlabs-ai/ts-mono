@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { fitContentStrategy } from "./fitContentStrategy";
+import { fitColumnSizes } from "./fitColumnSizes";
 import type { ColumnSizingDefinition } from "./types";
 
-describe("fit-content strategy", () => {
+describe("fitColumnSizes", () => {
   it("falls back to default sizes when no table element", () => {
     const columns: ColumnSizingDefinition[] = [
       {
@@ -13,12 +13,7 @@ describe("fit-content strategy", () => {
       },
     ];
 
-    const sizes = fitContentStrategy.computeSizes({
-      tableElement: null,
-      columns,
-      data: [],
-      constraints: new Map(),
-    });
+    const sizes = fitColumnSizes(null, columns, []);
 
     expect(sizes).toEqual({
       col1: 100,
@@ -33,12 +28,7 @@ describe("fit-content strategy", () => {
       },
     ];
 
-    const sizes = fitContentStrategy.computeSizes({
-      tableElement: null,
-      columns,
-      data: [],
-      constraints: new Map(),
-    });
+    const sizes = fitColumnSizes(null, columns, []);
 
     expect(sizes).toEqual({
       col1: 150, // DEFAULT_SIZE

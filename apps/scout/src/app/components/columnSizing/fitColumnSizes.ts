@@ -1,0 +1,181 @@
+import { ColumnSizingState } from "@tanstack/react-table";
+
+import { isRecord, valueAsString } from "@tsmono/util";
+
+import {
+  clampSize,
+  columnAccessorKey,
+  DEFAULT_SIZE,
+  getColumnId,
+  type ColumnSizingDefinition,
+} from "./types";
+
+/**
+ * Measure text width using a temporary span element.
+ */
+function measureTextWidth(
+  text: string,
+  font: string,
+  measureContainer: HTMLElement
+): number {
+  const span = document.createElement("span");
+  span.style.cssText = `white-space: nowrap; font: ${font}; visibility: hidden; position: absolute;`;
+  span.textContent = text;
+  measureContainer.appendChild(span);
+  const width = Math.ceil(span.getBoundingClientRect().width);
+  measureContainer.removeChild(span);
+  return width;
+}
+
+/**
+ * Measure the extra width needed for header elements.
+ */
+function measureHeaderExtraWidth(tableElement: HTMLTableElement): number {
+  const headerCell = tableElement.querySelector(
+    "th[data-column-id], th:not(:empty)"
+  );
+  if (!headerCell) return 40;
+
+  const headerStyle = getComputedStyle(headerCell);
+  const paddingLeft = parseFloat(headerStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(headerStyle.paddingRight) || 0;
+  const gap = parseFloat(headerStyle.gap) || 0;
+
+  const filterButton = headerCell.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Filter "]'
+  );
+  const filterButtonWidth = filterButton ? filterButton.offsetWidth : 0;
+
+  const sortIcon = headerCell.querySelector<HTMLElement>(
+    "button:not([aria-label]) i"
+  );
+  const sortIconWidth = sortIcon
+    ? sortIcon.offsetWidth + 4
+    : parseFloat(headerStyle.fontSize) || 12;
+
+  return (
+    paddingLeft + paddingRight + gap * 2 + filterButtonWidth + sortIconWidth
+  );
+}
+
+/**
+ * Measure the horizontal padding of table cells.
+ */
+function measureCellPadding(cellElement: HTMLTableCellElement | null): number {
+  if (!cellElement) return 16;
+
+  const cellStyle = getComputedStyle(cellElement);
+  const paddingLeft = parseFloat(cellStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(cellStyle.paddingRight) || 0;
+
+  return paddingLeft + paddingRight;
+}
+
+/**
+ * Size each column with an accessorKey to fit its header and the text of the
+ * first 50 rows, clamped to the column's min/max. Without a table to measure
+ * styles from, or without rows, every column gets its declared size (default
+ * 150), unclamped.
+ */
+export function fitColumnSizes(
+  tableElement: HTMLTableElement | null,
+  columns: ColumnSizingDefinition[],
+  data: unknown[]
+): ColumnSizingState {
+  const sizing: ColumnSizingState = {};
+
+  // Fall back to default sizes if no table element or data
+  if (!tableElement || data.length === 0) {
+    for (const column of columns) {
+      const id = getColumnId(column);
+      if (id) {
+        sizing[id] = column.size ?? DEFAULT_SIZE;
+      }
+    }
+    return sizing;
+  }
+
+  // Create a hidden container for measurement
+  const measureContainer = document.createElement("div");
+  measureContainer.style.cssText =
+    "position: absolute; visibility: hidden; pointer-events: none; top: -9999px;";
+  document.body.appendChild(measureContainer);
+
+  try {
+    const headerElement = tableElement.querySelector(
+      "th[data-column-id], th:not(:empty)"
+    );
+    const cellElement = tableElement.querySelector("td");
+
+    const headerStyle = headerElement
+      ? getComputedStyle(headerElement)
+      : getComputedStyle(tableElement);
+    const cellStyle = cellElement
+      ? getComputedStyle(cellElement)
+      : getComputedStyle(tableElement);
+
+    const headerFont = headerStyle.font || "12px sans-serif";
+    const cellFont = cellStyle.font || "12px sans-serif";
+
+    const headerExtraWidth = measureHeaderExtraWidth(tableElement);
+    const cellPadding = measureCellPadding(cellElement);
+
+    const sampleSize = Math.min(50, data.length);
+
+    for (const column of columns) {
+      const id = getColumnId(column);
+      const accessorKey = columnAccessorKey(column);
+      if (!id || !accessorKey) continue;
+
+      const headerText = typeof column.header === "string" ? column.header : id;
+      const headerTextWidth = measureTextWidth(
+        headerText,
+        headerFont,
+        measureContainer
+      );
+      const headerWidth = headerTextWidth + headerExtraWidth;
+
+      // A textValue of null sizes the column to its header alone.
+      const getTextValue =
+        column.textValue ??
+        ((v: unknown) => (v == null ? "-" : valueAsString(v)));
+
+      let maxContentWidth = 0;
+      let skipContentMeasurement = false;
+
+      for (let i = 0; i < sampleSize; i++) {
+        const row = data[i];
+        if (!row) continue;
+        const value = isRecord(row) ? row[accessorKey] : undefined;
+        const textContent = getTextValue(value);
+
+        // If textValue returns null, skip content measurement entirely
+        if (textContent === null) {
+          skipContentMeasurement = true;
+          break;
+        }
+
+        const contentWidth = measureTextWidth(
+          textContent,
+          cellFont,
+          measureContainer
+        );
+        maxContentWidth = Math.max(maxContentWidth, contentWidth);
+      }
+
+      // If skipping content measurement, only use header width
+      if (skipContentMeasurement) {
+        maxContentWidth = 0;
+      }
+
+      const contentWidthWithPadding = maxContentWidth + cellPadding;
+      const idealSize = Math.max(headerWidth, contentWidthWithPadding);
+
+      sizing[id] = clampSize(idealSize, column);
+    }
+  } finally {
+    document.body.removeChild(measureContainer);
+  }
+
+  return sizing;
+}
