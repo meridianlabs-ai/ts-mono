@@ -46,4 +46,30 @@ describe("WorkQueue.clear", () => {
     expect(settled).toEqual(["B"]);
     expect(queue.size).toBe(0);
   });
+
+  it("logs an onComplete that throws instead of rejecting", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error("onComplete failed");
+    const queue = new WorkQueue<string, string>({
+      name: "t",
+      concurrency: 1,
+      processingDelay: 0,
+      getId: (item) => item,
+      worker: (items) =>
+        Promise.resolve(
+          items.map((item) => ({ ok: true as const, value: item }))
+        ),
+      onComplete: () => {
+        throw failure;
+      },
+    });
+
+    queue.enqueue(["A"]);
+
+    await vi.waitFor(() => {
+      expect(error).toHaveBeenCalledWith("t worker error:", failure);
+    });
+    expect(queue.isProcessing).toBe(false);
+    error.mockRestore();
+  });
 });
