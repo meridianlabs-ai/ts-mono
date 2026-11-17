@@ -30,7 +30,6 @@ describe("WorkQueue.clear", () => {
       },
       onComplete: (_results, inputs) => {
         settled.push(...inputs);
-        return Promise.resolve();
       },
     });
 
