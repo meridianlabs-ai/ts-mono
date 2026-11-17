@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { testToolEvent } from "@tsmono/inspect-common/testing";
+import {
+  testModelEvent,
+  testScore,
+  testScoreEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type { ChatMessage, ContentImage } from "@tsmono/inspect-common/types";
 
 import {
@@ -70,8 +75,9 @@ describe("resolvedEventsReader", () => {
   });
 });
 
-// inspect_ai's reader leaves tool result text as written, so a literal ref
-// there is neither fetched nor substituted.
+// inspect_ai's reader leaves tool result text, score explanations and event
+// metadata as written, so a literal ref there is neither fetched nor
+// substituted.
 describe("resolvedEventsReader attachment refs", () => {
   const encoder = new TextEncoder();
 
@@ -100,13 +106,17 @@ describe("resolvedEventsReader attachment refs", () => {
     const tool = testToolEvent({
       result: [{ type: "text", text: "attachment://0" }, image],
     });
+    const score = testScoreEvent({
+      score: testScore({ explanation: "attachment://0" }),
+    });
+    const model = testModelEvent({ metadata: { note: "tc://0" } });
     const chunked: ChunkedSample = {
       ...testChunkedSample(sequenceReaderOver<ChatMessage>([])),
-      events: sequenceReaderOver<ChunkedEvent>([tool]),
+      events: sequenceReaderOver<ChunkedEvent>([tool, score, model]),
       attachments,
     };
 
-    const items = await resolvedEventsReader(chunked).getRange(0, 1);
+    const items = await resolvedEventsReader(chunked).getRange(0, 3);
 
     expect(items).toEqual([
       {
@@ -116,6 +126,8 @@ describe("resolvedEventsReader attachment refs", () => {
           { ...image, image: "image data" },
         ],
       },
+      score,
+      model,
     ]);
     expect(reads).toEqual(["attachments/1.json"]);
   });

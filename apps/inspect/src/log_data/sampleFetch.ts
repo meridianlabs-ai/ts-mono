@@ -4,8 +4,9 @@ import { expandEvents } from "@tsmono/inspect-common/utils";
 
 import { ClientAPI, SampleSummary } from "../client/api/types";
 import {
-  resolveAttachments,
   resolveEventAttachments,
+  resolveInputAttachments,
+  resolveMessageAttachments,
 } from "../utils/attachments";
 
 /**
@@ -36,8 +37,8 @@ export const resolveSample = (raw: unknown): EvalSample => {
   sample.events_data = null;
 
   const attachments = sample.attachments;
-  sample.input = resolveAttachments(sample.input, attachments);
-  sample.messages = resolveAttachments(sample.messages, attachments);
+  sample.input = resolveInputAttachments(sample.input, attachments);
+  sample.messages = resolveMessageAttachments(sample.messages, attachments);
   sample.events = resolveEventAttachments(sample.events, attachments);
   // Retry-attempt events carry their own attachment:// refs into the shared
   // sample.attachments map; resolve them too before the map is cleared.

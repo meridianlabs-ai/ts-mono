@@ -39,7 +39,7 @@ import {
   type SkeletonEvent,
 } from "../../../../log_data";
 import { installNodeWorker } from "../../../../test/nodeWorker";
-import { resolveAttachments } from "../../../../utils/attachments";
+import { resolveEventAttachments } from "../../../../utils/attachments";
 
 import {
   chunkedOutline,
@@ -84,7 +84,7 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
       key: `${parsed.id}/${parsed.epoch}`,
       // The real pipeline normalizes events at the parse boundary (#555)
       // before attachment resolution; mirror it so old fixtures load.
-      events: resolveAttachments(
+      events: resolveEventAttachments(
         normalizeEvents(parsed.events),
         parsed.attachments ?? {}
       ),
