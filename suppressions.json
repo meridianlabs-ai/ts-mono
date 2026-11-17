@@ -215,8 +215,7 @@
   },
   "apps/inspect/src/log_data/fetchEngine.ts": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/FetchEngineController.tsx": {
@@ -266,10 +265,6 @@
     }
   },
   "apps/inspect/src/log_data/sampleStream.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 3
     }
@@ -325,12 +320,6 @@
   "apps/inspect/src/utils/attachments.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "apps/inspect/src/utils/workQueue.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
     }
   },
   "apps/scout/src/api/attachmentsHelpers.ts": {
@@ -833,10 +822,6 @@
     }
   },
   "packages/react/src/components/MarkdownDiv.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "jsx-a11y/click-events-have-key-events": {
       "count": 1,
       "undescribed": 1
@@ -977,12 +962,6 @@
   "packages/util/src/jsonrpc.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/util/src/queue.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
     }
   }
 }

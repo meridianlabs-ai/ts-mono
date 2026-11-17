@@ -312,12 +312,15 @@ function processEvents(
       };
 
       if (api.log_message) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        api.log_message(
-          logFile,
-          `Unable to resolve attachment ${attachmentId}\n` +
-            JSON.stringify(snapshot)
-        );
+        api
+          .log_message(
+            logFile,
+            `Unable to resolve attachment ${attachmentId}\n` +
+              JSON.stringify(snapshot)
+          )
+          .catch((error: unknown) => {
+            console.warn("Unable to report attachment miss", error);
+          });
       }
       console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
     };

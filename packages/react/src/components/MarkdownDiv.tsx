@@ -259,7 +259,6 @@ export class MarkdownRenderQueue {
       queueTask = entry;
 
       this.queue.push(entry);
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.processQueue();
     });
 
@@ -272,7 +271,7 @@ export class MarkdownRenderQueue {
     return { promise, cancel };
   }
 
-  private async processQueue(): Promise<void> {
+  private processQueue(): void {
     if (this.activeCount >= this.maxConcurrent || this.queue.length === 0) {
       return;
     }
@@ -292,14 +291,11 @@ export class MarkdownRenderQueue {
     }
 
     this.activeCount++;
-
-    try {
-      await queueTask.task();
-    } finally {
+    const done = () => {
       this.activeCount--;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.processQueue();
-    }
+    };
+    queueTask.task().then(done, done);
   }
 }
 

@@ -26,7 +26,6 @@ describe("WorkQueue per-item results", () => {
         ),
       onComplete: (results, inputs) => {
         inputs.forEach((s, i) => settled.push({ id: s, ok: results[i]!.ok }));
-        return Promise.resolve();
       },
     });
     queue.enqueue(["A", "B", "C"]);
@@ -56,7 +55,6 @@ describe("WorkQueue per-item results", () => {
       },
       onComplete: (results) => {
         completions.push(results.map((r) => ({ ok: r.ok })));
-        return Promise.resolve();
       },
     });
     queue.enqueue(["A"]);
@@ -86,7 +84,7 @@ describe("WorkQueue per-item results", () => {
           items.map(() => ({ ok: true as const, value: undefined }))
         );
       },
-      onComplete: async () => {},
+      onComplete: () => {},
     });
 
     queue.enqueue([
@@ -130,7 +128,7 @@ describe("WorkQueue per-item results", () => {
         order.push(...items.map((i) => i.id));
         return items.map(() => ({ ok: true as const, value: undefined }));
       },
-      onComplete: async () => {},
+      onComplete: () => {},
     });
 
     queue.enqueue([{ id: "blocker", group: "p" }], WorkPriority.Medium);
@@ -174,7 +172,6 @@ describe("WorkQueue per-item results", () => {
       },
       onComplete: (results, inputs) => {
         inputs.forEach((s, i) => settled.push({ id: s, ok: results[i]!.ok }));
-        return Promise.resolve();
       },
     });
     queue.enqueue(["A", "B"]);
