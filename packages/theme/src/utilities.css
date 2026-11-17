@@ -1,12 +1,12 @@
 /*
- * Helper and utility classes, copied from Bootstrap v5.3.8 with rules unchanged apart from
- * formatting (Copyright 2011-2025 The Bootstrap Authors, MIT license,
+ * Helper and utility classes, copied from Bootstrap v5.3.8 with rules unchanged
+ * apart from formatting and dropped -webkit- prefixes that current browsers
+ * don't need (Copyright 2011-2025 The Bootstrap Authors, MIT license,
  * https://github.com/twbs/bootstrap/blob/main/LICENSE). Only the classes the
  * apps use are copied.
  */
 
 .sticky-top {
-  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 1020;

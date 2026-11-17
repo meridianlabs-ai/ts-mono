@@ -53,52 +53,52 @@
 }
 
 .pillAll.pillSelected {
-  background: #212529;
-  border-color: #212529;
-  color: #fff;
+  background: light-dark(#212529, #dee2e6);
+  border-color: light-dark(#212529, #dee2e6);
+  color: light-dark(#fff, #212529);
 }
 
 .pillConfig {
-  background: #f7f3fc;
-  border-color: #d9cfe8;
-  color: #4a2e73;
+  background: light-dark(#f7f3fc, #2a2333);
+  border-color: light-dark(#d9cfe8, #4a3d63);
+  color: light-dark(#4a2e73, #cbb8ec);
 }
 
 .pillConnections {
-  background: #eef6fb;
-  border-color: #c3dcea;
-  color: #2b6a94;
+  background: light-dark(#eef6fb, #16242e);
+  border-color: light-dark(#c3dcea, #2b4c66);
+  color: light-dark(#2b6a94, #8fbcd9);
 }
 
 .pillLimits {
-  background: #fffaeb;
-  border-color: #e8d8a0;
-  color: #8a6d1a;
+  background: light-dark(#fffaeb, #3a3220);
+  border-color: light-dark(#e8d8a0, #5c512f);
+  color: light-dark(#8a6d1a, #e8d8a0);
 }
 
 .pillErrors {
-  background: #fdf1ef;
-  border-color: #ecc8c1;
-  color: #a13b2c;
+  background: light-dark(#fdf1ef, #322019);
+  border-color: light-dark(#ecc8c1, #6b3a30);
+  color: light-dark(#a13b2c, #d98b7f);
 }
 
 /* Light grey — the rail's cancelled-dot hue, one step lighter than Run. */
 .pillCancels {
-  background: #f8f9fa;
-  border-color: #dee2e6;
-  color: #6c757d;
+  background: light-dark(#f8f9fa, #26282b);
+  border-color: light-dark(#dee2e6, #4a5056);
+  color: light-dark(#6c757d, #9aa3ab);
 }
 
 .pillTags {
-  background: #f2f7fc;
-  border-color: #cfe0f1;
-  color: #1d4f7c;
+  background: light-dark(#f2f7fc, #16222e);
+  border-color: light-dark(#cfe0f1, #2c4a66);
+  color: light-dark(#1d4f7c, #8db8dd);
 }
 
 .pillRun {
-  background: #f6f7f8;
-  border-color: #d3d9df;
-  color: #495057;
+  background: light-dark(#f6f7f8, #24272a);
+  border-color: light-dark(#d3d9df, #464c52);
+  color: light-dark(#495057, #aeb6bf);
 }
 
 /* Selected = solid dark fill with white text; unselected pills stay tinted. */
@@ -236,15 +236,15 @@
 }
 
 .rowSelected {
-  background: #f7f3fc;
-  outline: 1px solid #d9cfe8;
+  background: light-dark(#f7f3fc, #241f2e);
+  outline: 1px solid light-dark(#d9cfe8, #4a3d63);
   border-radius: 3px;
 }
 
 /* Hover-linked wash while the row's ◆ is hovered on the rail. */
 .rowWash {
-  background: #faf8fd;
-  box-shadow: inset 2px 0 0 #9d84d1;
+  background: light-dark(#faf8fd, #221d2b);
+  box-shadow: inset 2px 0 0 light-dark(#9d84d1, #6b4fa8);
 }
 
 .time {
@@ -314,9 +314,9 @@
   min-width: 13px;
   height: 13px;
   padding: 0 2px;
-  border: 1px solid #b9a5e0;
+  border: 1px solid light-dark(#b9a5e0, #4a3d63);
   border-radius: 2px;
-  color: #5d3f9e;
+  color: light-dark(#5d3f9e, #cbb8ec);
   font-family: var(--bs-font-monospace);
   font-size: 9px;
   line-height: 1;
@@ -341,112 +341,4 @@
   text-decoration: underline;
   /* Outrank the global a:hover link colour. */
   color: var(--bs-link-color);
-}
-
-:global([data-bs-theme="dark"]) .pillAll.pillSelected {
-  background: #dee2e6;
-  border-color: #dee2e6;
-  color: #212529;
-}
-
-:global([data-bs-theme="dark"]) .pillConfig {
-  background: #2a2333;
-  border-color: #4a3d63;
-  color: #cbb8ec;
-}
-
-:global([data-bs-theme="dark"]) .pillConnections {
-  background: #16242e;
-  border-color: #2b4c66;
-  color: #8fbcd9;
-}
-
-:global([data-bs-theme="dark"]) .pillLimits {
-  background: #3a3220;
-  border-color: #5c512f;
-  color: #e8d8a0;
-}
-
-:global([data-bs-theme="dark"]) .pillErrors {
-  background: #322019;
-  border-color: #6b3a30;
-  color: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .pillCancels {
-  background: #26282b;
-  border-color: #4a5056;
-  color: #9aa3ab;
-}
-
-:global([data-bs-theme="dark"]) .pillTags {
-  background: #16222e;
-  border-color: #2c4a66;
-  color: #8db8dd;
-}
-
-:global([data-bs-theme="dark"]) .pillRun {
-  background: #24272a;
-  border-color: #464c52;
-  color: #aeb6bf;
-}
-
-:global([data-bs-theme="dark"]) .pillConfig.pillSelected,
-:global([data-bs-theme="dark"]) .pillConnections.pillSelected,
-:global([data-bs-theme="dark"]) .pillLimits.pillSelected,
-:global([data-bs-theme="dark"]) .pillErrors.pillSelected,
-:global([data-bs-theme="dark"]) .pillCancels.pillSelected,
-:global([data-bs-theme="dark"]) .pillTags.pillSelected,
-:global([data-bs-theme="dark"]) .pillRun.pillSelected {
-  color: #fff;
-}
-
-:global([data-bs-theme="dark"]) .pillConfig.pillSelected {
-  background: #6b4fa8;
-  border-color: #6b4fa8;
-}
-
-:global([data-bs-theme="dark"]) .pillConnections.pillSelected {
-  background: #2b6a94;
-  border-color: #2b6a94;
-}
-
-:global([data-bs-theme="dark"]) .pillLimits.pillSelected {
-  background: #8a6d1a;
-  border-color: #8a6d1a;
-}
-
-:global([data-bs-theme="dark"]) .pillErrors.pillSelected {
-  background: #b04a3c;
-  border-color: #b04a3c;
-}
-
-:global([data-bs-theme="dark"]) .pillCancels.pillSelected {
-  background: #6c757d;
-  border-color: #6c757d;
-}
-
-:global([data-bs-theme="dark"]) .pillTags.pillSelected {
-  background: #1d4f7c;
-  border-color: #1d4f7c;
-}
-
-:global([data-bs-theme="dark"]) .pillRun.pillSelected {
-  background: #495057;
-  border-color: #495057;
-}
-
-:global([data-bs-theme="dark"]) .rowSelected {
-  background: #241f2e;
-  outline-color: #4a3d63;
-}
-
-:global([data-bs-theme="dark"]) .rowWash {
-  background: #221d2b;
-  box-shadow: inset 2px 0 0 #6b4fa8;
-}
-
-:global([data-bs-theme="dark"]) .ordinalBox {
-  border-color: #4a3d63;
-  color: #cbb8ec;
 }

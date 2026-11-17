@@ -17,7 +17,7 @@ import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
 import { useFindTarget } from "./FindTargetContext";
-import { prepareSearchTerm } from "./prepareSearchTerm";
+import { normalizeFindText, searchVariants } from "./findText";
 
 // Toggle bar height (20px, see `.moreToggle`) plus a gap. A nested toggle
 // lifts its sticky `bottom` by this per ancestor toggle on the same side, and
@@ -64,8 +64,6 @@ interface ExpandablePanelProps {
  * matches, is in the element's text: a panel uses it to show content it
  * otherwise hides. The element's text may be hidden but must be mounted.
  */
-const collapseWhitespace = (text: string) => text.replace(/\s+/g, " ");
-
 export const useContainsFindTarget = (
   contentRef: RefObject<HTMLElement | null>
 ): boolean => {
@@ -95,16 +93,9 @@ export const useContainsFindTarget = (
       setContainsFindTarget(false);
       return;
     }
-    // Whitespace collapsed as find matches it: a line break in the text
-    // matches a space in the term.
-    const text = collapseWhitespace(root.textContent.toLowerCase());
-    const { simple, unquoted, jsonEscaped } = prepareSearchTerm(
-      collapseWhitespace(findTarget.term)
-    );
+    const text = normalizeFindText(root.textContent);
     setContainsFindTarget(
-      [simple, unquoted, jsonEscaped].some(
-        (variant) => !!variant && text.includes(variant)
-      )
+      searchVariants(findTarget.term).some((variant) => text.includes(variant))
     );
   });
 

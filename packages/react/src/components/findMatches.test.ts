@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 
+import { countMatchesByItem } from "../virtual/VirtualList";
+
 import { findTextMatches } from "./findMatches";
+import { normalizeFindText } from "./findText";
 
 const mount = (html: string): HTMLElement => {
   const root = document.createElement("div");
@@ -47,17 +50,17 @@ describe("findTextMatches", () => {
     expect(texts(root, "username")).toEqual([]);
   });
 
-  it("matches whitespace as it renders", () => {
-    const root = mount(
-      "<p>hello  world</p><p>line one\nline two</p><pre>a  b</pre>"
-    );
-    expect(findTextMatches(root, "hello world")).toHaveLength(1);
-    expect(findTextMatches(root, "one line")).toHaveLength(1);
-    // Preformatted text keeps its spaces.
-    expect(findTextMatches(root, "a b")).toHaveLength(0);
-    expect(texts(root, "a  b")).toEqual(["a  b"]);
-    const [range] = findTextMatches(root, "hello world");
-    expect(range?.toString()).toBe("hello  world");
+  it("reads spaces and tabs as one space, preformatted or not", () => {
+    const root = mount("<p>hello  world</p><pre>a \t b</pre>");
+    expect(texts(root, "a b")).toEqual(["a \t b"]);
+    expect(texts(root, "hello world")).toEqual(["hello  world"]);
+  });
+
+  it("does not match across a line break in the text", () => {
+    const root = mount("<p>line one\nline two</p><pre>one  \r\n  two</pre>");
+    expect(texts(root, "one line")).toEqual([]);
+    expect(texts(root, "one two")).toEqual([]);
+    expect(texts(root, "two")).toEqual(["two", "two"]);
   });
 
   it("treats a term with regex syntax literally", () => {
@@ -96,5 +99,54 @@ describe("findTextMatches", () => {
 
   it("returns nothing for an empty term", () => {
     expect(findTextMatches(mount("<p>abc</p>"), "")).toEqual([]);
+  });
+});
+
+describe("normalizeFindText", () => {
+  it("collapses a long run of spaces or tabs in linear time", () => {
+    for (const space of [" ", "\t"]) {
+      const offsets: number[] = [];
+      const text = `a${space.repeat(500_000)}b`;
+      expect(normalizeFindText(text, offsets)).toBe("a b");
+      expect(offsets).toEqual([0, 1, 500_001]);
+    }
+  });
+});
+
+describe("findTextMatches and the data-side count", () => {
+  const dataCount = (text: string, term: string) =>
+    countMatchesByItem([[normalizeFindText(text)]], term)[0]?.count ?? 0;
+
+  const domCount = (tag: "p" | "pre", text: string, term: string) => {
+    const block = document.createElement(tag);
+    block.textContent = text;
+    return findTextMatches(mount(block.outerHTML), term).length;
+  };
+
+  it.each([
+    // Case folding where toLowerCase and a case-insensitive RegExp differ.
+    ["İstanbul", "istanbul", 1],
+    ["ıi", "I", 2],
+    ["ΟΔΟΣ", "σ", 1],
+    ["ΟΔΟΣ", "ς", 1],
+    ["ſtate", "S", 1],
+    ["STRASSE und Straße", "straße", 1],
+    // Runs of spaces and tabs read as one space; a line break stays one.
+    ["hello   world", "hello world", 1],
+    ["hello world", "hello   world", 1],
+    ["tab\tseparated", "tab separated", 1],
+    ["line one\nline two", "one line", 0],
+    ["stale.\r\n\r\nThis turn", "stale. this", 0],
+    ["stale.\r\n\r\nThis turn", "this turn", 1],
+    // Quotes and backslashes, as typed or JSON-escaped.
+    ['say "foo" and foo', '"foo"', 2],
+    ["say hi", 'say " hi', 1],
+    [JSON.stringify({ cmd: 'print("hi")' }), 'print("hi")', 1],
+    [JSON.stringify({ path: String.raw`C:\temp` }), String.raw`C:\temp`, 1],
+    [String.raw`C:\temp`, String.raw`C:\temp`, 1],
+  ])("counts %j for %j the same in data and DOM", (text, term, expected) => {
+    expect(dataCount(text, term)).toBe(expected);
+    expect(domCount("p", text, term)).toBe(expected);
+    expect(domCount("pre", text, term)).toBe(expected);
   });
 });

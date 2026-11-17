@@ -7,7 +7,6 @@ export * from "./useWhyDidYouUpdate";
 export * from "./useRequiredParams";
 export * from "./useResizeObserver";
 export * from "./useAnchoredPopover";
-export * from "./useDropdownPosition";
 export * from "./usePointerRest";
 export * from "./usePreviousValue";
 export * from "./usePrismHighlight";
