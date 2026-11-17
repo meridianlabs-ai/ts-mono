@@ -201,6 +201,31 @@ describe("resolveSample", () => {
     ]);
     expect(resolved.error_retries[0].events[0].result).toBe("tc://sys");
   });
+
+  // inspect_ai's walk_input leaves a string input as written and resolves a
+  // message-list input.
+  it.each(["attachment://", "tc://"])(
+    "resolves %s refs in message-list input but not in string input",
+    (protocol) => {
+      const attachments = { sys: "system prompt" };
+      expect(
+        resolveSample(makeSample({ input: `${protocol}sys`, attachments }))
+          .input
+      ).toBe(`${protocol}sys`);
+      expect(
+        resolveSample(
+          makeSample({
+            input: [msg("m1", "user", `${protocol}sys`)],
+            messages: [msg("m1", "user", `${protocol}sys`)],
+            attachments,
+          })
+        )
+      ).toMatchObject({
+        input: [{ content: "system prompt" }],
+        messages: [{ content: "system prompt" }],
+      });
+    }
+  );
 });
 
 describe("fetchSample", () => {

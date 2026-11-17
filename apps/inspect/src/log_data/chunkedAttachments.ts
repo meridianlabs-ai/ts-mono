@@ -4,16 +4,16 @@
  * downstream (decode walk, renderers) sees them — the UI never sees a ref
  * (design/large-samples.md, "Data-loading architecture"). Resolution is
  * per-chunk: refs are collected from the parsed chunk, the covering
- * attachment chunks fetched, and the existing `resolveAttachments`
- * substitution applied. ModelEvent `input_refs` message ranges are NOT
+ * attachment chunks fetched, and the event or message resolver from
+ * `utils/attachments` applied. ModelEvent `input_refs` message ranges are NOT
  * resolved here — they stay lazy (Confounder 1: the last event references
  * essentially the whole conversation).
  */
 import { normalizeEvent } from "@tsmono/inspect-common/normalize";
 
 import {
-  resolveAttachments,
   resolveEventAttachments,
+  type AttachmentResolver,
 } from "../utils/attachments";
 
 import {
@@ -24,16 +24,15 @@ import {
 import { log } from "./chunked/log";
 
 /**
- * Substitute every attachment ref in `items` from the sample's attachments
- * sequence (fetches dedup through the shared chunk-byte store). `label`
- * names the batch in the read log; `resolve` decides which strings are refs
- * (`resolveEventAttachments` for events).
+ * Substitute the attachment refs `resolve` finds in `items` from the
+ * sample's attachments sequence (fetches dedup through the shared chunk-byte
+ * store). `label` names the batch in the read log.
  */
 export const withAttachmentsResolved = async <T>(
   items: T[],
   chunked: ChunkedSample,
   label: string,
-  resolve: typeof resolveAttachments = resolveAttachments
+  resolve: AttachmentResolver
 ): Promise<T[]> => {
   const refs = new Set<number>();
   // Resolving against no attachments reports every ref `resolve` would
