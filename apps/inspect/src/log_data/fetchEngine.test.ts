@@ -1,5 +1,5 @@
 import Dexie from "dexie";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
@@ -12,8 +12,9 @@ import {
   LogHeader,
   LogPreview,
 } from "../client/api/types";
-import { OpenDatabase } from "../client/database";
+import { DB_NAME, OpenDatabase } from "../client/database";
 import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
+import { queryClient } from "../state/queryClient";
 import { WorkResult } from "../utils/workQueue";
 
 import {
@@ -23,6 +24,7 @@ import {
   LogsContentSink,
 } from "./fetchEngine";
 import { syncListing } from "./listingSync";
+import { createLogsContentSink } from "./logsContent";
 import {
   testClientAPI,
   testEngineDatabase,
@@ -2068,5 +2070,61 @@ describe("FetchEngine records details that fetch but fail ingestion", () => {
     expect(sinkCalls.writeDetails).toContainEqual({
       "good.eval": makeDetails("good.eval"),
     });
+  });
+});
+
+describe("FetchEngine backfill over the real database", () => {
+  const engine = new FetchEngine({ statsDelayMs: 0 });
+  let dbHandle: OpenDatabase | undefined;
+
+  afterEach(async () => {
+    engine.stop();
+    dbHandle?.close();
+    queryClient.clear();
+    await Dexie.delete(DB_NAME);
+  });
+
+  it("leaves every backfilled row detailed, so the next sync fetches nothing", async () => {
+    const logDir = "file:///logs";
+    const listing = Array.from({ length: 60 }, (_, i) =>
+      handle(`${logDir}/f${i}.eval`, 1)
+    );
+    const names = listing.map((h) => h.name);
+    const db = await OpenDatabase.open();
+    dbHandle = db;
+    const fake = createFakeApi();
+    await engine.start({
+      api: fake.api,
+      database: db,
+      sink: createLogsContentSink(db, logDir),
+      logDir,
+    });
+
+    // A cold dir: every file is new, so the listing invalidates all of them.
+    await engine.applyListing({
+      listing,
+      invalidated: names,
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => {
+      expect(fake.detailCalls).toHaveLength(60);
+      expect(engine.getStatus().syncing).toBe(false);
+    });
+    await vi.waitFor(async () => {
+      const rows = await db.readLogRows(names);
+      expect(names.filter((name) => rows[name]?.header === undefined)).toEqual(
+        []
+      );
+    });
+
+    await engine.applyListing({
+      listing,
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(false));
+    expect(fake.detailCalls).toHaveLength(60);
   });
 });
