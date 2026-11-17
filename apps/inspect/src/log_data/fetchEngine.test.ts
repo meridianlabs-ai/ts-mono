@@ -446,6 +446,21 @@ describe("FetchEngine.ensure (detailed)", () => {
     ).rejects.toThrow("fetch failed: a.eval");
   });
 
+  it("rejects the waiter when the cache read fails", async () => {
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: {
+        ...createFakeDb(),
+        readLogRow: () => Promise.reject(new Error("cache read failed")),
+      },
+    });
+
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow("cache read failed");
+  });
+
   it("read-through: cached completed details resolve immediately, then refresh in the background", async () => {
     const cached = detailedRow(handle("a.eval"), "success", {
       tags: ["cached"],
