@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChatMessage } from "@tsmono/inspect-common/types";
+import { testToolEvent } from "@tsmono/inspect-common/testing";
+import type { ChatMessage, ContentImage } from "@tsmono/inspect-common/types";
 
 import {
   ChunkByteStore,
@@ -66,5 +67,56 @@ describe("resolvedEventsReader", () => {
 
     const items = await resolvedEventsReader(chunked).getRange(0, 1);
     expect(items).toEqual([clean]);
+  });
+});
+
+// inspect_ai's reader leaves tool result text as written, so a literal ref
+// there is neither fetched nor substituted.
+describe("resolvedEventsReader attachment refs", () => {
+  const encoder = new TextEncoder();
+
+  it("fetches and resolves only the refs inspect_ai resolves", async () => {
+    const contents = ["system prompt", "image data"];
+    const reads: string[] = [];
+    const attachments = new SequenceReader<string>(
+      new ChunkByteStore({
+        readFile: (name) => {
+          reads.push(name);
+          const index = Number(name.replace(/\D/g, ""));
+          return Promise.resolve(
+            encoder.encode(JSON.stringify([contents[index]]))
+          );
+        },
+      }),
+      (start) => `attachments/${start}.json`,
+      [0, 1],
+      contents.length
+    );
+    const image = {
+      type: "image",
+      image: "attachment://1",
+      detail: "auto",
+    } satisfies ContentImage;
+    const tool = testToolEvent({
+      result: [{ type: "text", text: "attachment://0" }, image],
+    });
+    const chunked: ChunkedSample = {
+      ...testChunkedSample(sequenceReaderOver<ChatMessage>([])),
+      events: sequenceReaderOver<ChunkedEvent>([tool]),
+      attachments,
+    };
+
+    const items = await resolvedEventsReader(chunked).getRange(0, 1);
+
+    expect(items).toEqual([
+      {
+        ...tool,
+        result: [
+          { type: "text", text: "attachment://0" },
+          { ...image, image: "image data" },
+        ],
+      },
+    ]);
+    expect(reads).toEqual(["attachments/1.json"]);
   });
 });
