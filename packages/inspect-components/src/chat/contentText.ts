@@ -21,7 +21,7 @@ export const reasoningText = (
  * exports get an `<image />`-style placeholder, and server tool calls give
  * their raw arguments and result. `shown` limits the strings to what the chat
  * view renders (no placeholders; server tool calls as `ServerToolCall` parses
- * them), so the Messages tab's Find never reports a match it can't land on.
+ * them), for the Messages tab's Find.
  */
 export const contentTexts = (
   content: string | readonly Content[],

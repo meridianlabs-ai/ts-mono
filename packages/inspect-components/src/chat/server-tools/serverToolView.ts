@@ -1,4 +1,5 @@
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
+import { jsonPanelText } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
 export interface WebResult {
@@ -61,9 +62,10 @@ export const serverToolView = (content: ContentToolUse): ServerToolView => {
 
 /**
  * The text a server-side tool call shows, for Find: the title, the args as
- * displayed, and the parsed output fields. Raw JSON never reaches the index,
- * so JSON keys and escapes can't match, and an errored call contributes only
- * its error. Web results contribute their titles; the URL is a tooltip.
+ * displayed, and the parsed output fields, so JSON escapes and hidden fields
+ * can't match. An errored call contributes only its error. Web results
+ * contribute their titles; the URL is a tooltip. A result with no specific
+ * view contributes the text its panel shows.
  */
 export const serverToolTexts = (content: ContentToolUse): string[] => {
   const view = serverToolView(content);
@@ -87,13 +89,18 @@ export const serverToolTexts = (content: ContentToolUse): string[] => {
       if (output.result.stderr) texts.push(output.result.stderr);
       break;
     case "text":
-      texts.push(output.text);
+      texts.push(shownText(output.text));
       break;
     case undefined:
       break;
   }
   return texts.filter((text) => text.length > 0);
 };
+
+/** The output panel renders a JSON-object string as a pretty-printed
+ *  JSONPanel (see `RenderedContent`), with escapes decoded. */
+const shownText = (text: string): string =>
+  isJson(text) ? jsonPanelText(JSON.parse(text)) : text;
 
 const resolveOutput = (
   content: ContentToolUse

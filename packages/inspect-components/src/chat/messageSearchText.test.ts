@@ -62,6 +62,20 @@ describe("messageSearchText", () => {
     expect(finds(texts, "largest city of France")).toBe(true);
   });
 
+  // A tool with no specific view (here Google's search) renders a JSON
+  // result pretty-printed, with escapes decoded.
+  it("finds a JSON result as its panel shows it", () => {
+    const texts = searchText(
+      toolUse({
+        name: "GOOGLE_SEARCH_WEB",
+        result: '{"results":[{"title":"Caf\\u00e9 \\"q\\""}]}',
+      })
+    );
+    expect(finds(texts, "Café")).toBe(true);
+    expect(finds(texts, '"results": [')).toBe(true);
+    expect(finds(texts, "\\u00e9")).toBe(false);
+  });
+
   it("finds listed tools by name and description, not schema", () => {
     const texts = searchText(
       toolUse({
