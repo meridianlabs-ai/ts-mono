@@ -3,7 +3,7 @@ import {
   VscodeButton,
   VscodeFormHelper,
 } from "@vscode-elements/react-elements";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useMemo, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
@@ -77,8 +77,6 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
   const focusedFieldIdRef = useRef<string | null>(null);
-  // Track the etag from our own saves to skip re-initialization
-  const lastSavedEtagRef = useRef<string | null>(null);
 
   // Capture focused element ID on mousedown (before click moves focus to button)
   // We store the ID since React may recreate the DOM element
@@ -115,37 +113,16 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     useState<Partial<ProjectConfigInput> | null>(null);
   const [conflictError, setConflictError] = useState(false);
 
-  // Initialize config state when data loads
-  // Skips re-init if this is our own save (etag matches what we just saved)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!data) return;
-
-    // If editedConfig is null (initial load or after reload), initialize
-    if (!editedConfig) {
-      const initialized = initializeEditedConfig(asConfigInput(data.config));
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setEditedConfig(initialized);
-      setOriginalConfig(deepCopy(initialized));
-      /* eslint-enable react-hooks/set-state-in-effect */
-      lastSavedEtagRef.current = data.etag;
-      return;
-    }
-
-    // If etag matches what we just saved, skip re-init (this is our own save)
-    if (data.etag === lastSavedEtagRef.current) {
-      return;
-    }
-
-    // Etag changed unexpectedly - reinitialize
-    // (With current flow this shouldn't happen since external changes
-    // are detected via 412 on save, but handle it just in case)
+  // The etag the editor was last initialized from or saved as. Data arriving
+  // with any other etag (first load, reload, an external change) re-initializes
+  // the editor; our own save already applied its result in applySaved.
+  const [syncedEtag, setSyncedEtag] = useState<string | null>(null);
+  if (data && (!editedConfig || data.etag !== syncedEtag)) {
     const initialized = initializeEditedConfig(asConfigInput(data.config));
     setEditedConfig(initialized);
     setOriginalConfig(deepCopy(initialized));
-    lastSavedEtagRef.current = data.etag;
-  }, [data, editedConfig]);
+    setSyncedEtag(data.etag);
+  }
 
   const hasChanges = useMemo(() => {
     return !configsEqual(editedConfig, originalConfig);
@@ -177,7 +154,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     configAtSave: Partial<ProjectConfigInput>
   ) => {
     setConflictError(false);
-    lastSavedEtagRef.current = saved.etag;
+    setSyncedEtag(saved.etag);
     const initialized = initializeEditedConfig(asConfigInput(saved.config));
     setOriginalConfig(deepCopy(initialized));
     setEditedConfig((current) =>
@@ -275,8 +252,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setConflictError(false);
     setEditedConfig(null);
     setOriginalConfig(null);
-    // Reset expected etag so the init effect will re-initialize from server
-    lastSavedEtagRef.current = null;
+    setSyncedEtag(null);
     queryClient
       .invalidateQueries({ queryKey: projectConfigQuery(api).queryKey })
       .catch(console.error);

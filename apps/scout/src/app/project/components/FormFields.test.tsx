@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { innerTextarea, onlyElement } from "../../../test/webComponents";
 
-import { KeyValueField, parseKeyValueLines } from "./FormFields";
+import { KeyValueField, parseKeyValueLines, TextField } from "./FormFields";
 
 describe("parseKeyValueLines", () => {
   it("parses key=value lines, preserving numbers", () => {
@@ -117,5 +124,46 @@ describe("KeyValueField", () => {
     setValue({ a: 1 });
     await settled();
     expect(textarea.value).toBe("b");
+  });
+});
+
+describe("TextField", () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  const validate = (value: string | null) =>
+    value === "bad" ? "Invalid value" : null;
+
+  const renderField = (value: string) => {
+    const field = (next: string) => (
+      <TextField
+        label="Cache expiry"
+        value={next}
+        onChange={vi.fn()}
+        validate={validate}
+      />
+    );
+    const { rerender } = render(field(value));
+    return (next: string) => rerender(field(next));
+  };
+
+  it("shows a validation error once it has held for a second, and hides it at once when valid", () => {
+    vi.useFakeTimers();
+    const setValue = renderField("ok");
+
+    setValue("bad");
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(screen.queryByText("Invalid value")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByText("Invalid value")).not.toBeNull();
+
+    setValue("ok");
+    expect(screen.queryByText("Invalid value")).toBeNull();
   });
 });

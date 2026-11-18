@@ -350,35 +350,8 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/project/components/FormFields.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/project/hooks/useNestedConfig.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/project/ProjectPanel.tsx": {
-    "react-hooks/set-state-in-effect (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/project/SettingsContent.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
@@ -452,12 +425,8 @@
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseTargetEditor.tsx": {
-    "react-hooks/set-state-in-effect (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/validation/ValidationPanel.tsx": {

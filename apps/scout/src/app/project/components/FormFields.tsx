@@ -6,7 +6,9 @@ import {
   VscodeTextarea,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, ReactNode, useState } from "react";
+
+import { useDebouncedValue } from "@tsmono/react/hooks";
 
 import { eventValue } from "../../utils/formEvents";
 
@@ -50,22 +52,14 @@ export const TextField: FC<TextFieldProps> = ({
   disabled,
   validate,
 }) => {
-  // Debounce validation errors to avoid flashing during typing
-  const [debouncedError, setDebouncedError] = useState<string | null>(null);
   const errorMessage = validate && !disabled ? validate(value ?? null) : null;
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (errorMessage) {
-      const timer = setTimeout(() => setDebouncedError(errorMessage), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Clear error immediately when input becomes valid
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDebouncedError(null);
-    }
-  }, [errorMessage]);
+  // Show an error only once it has held for a second, so it doesn't flash
+  // while typing, but hide it as soon as the value is valid.
+  const settledError = useDebouncedValue(errorMessage, 1000);
+  const shownError =
+    errorMessage !== null && settledError === errorMessage
+      ? errorMessage
+      : null;
 
   return (
     <div className={styles.field}>
@@ -81,11 +75,11 @@ export const TextField: FC<TextFieldProps> = ({
         spellCheck={false}
         autocomplete="off"
       />
-      {debouncedError && (
+      {shownError && (
         <VscodeFormHelper
           style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
         >
-          {debouncedError}
+          {shownError}
         </VscodeFormHelper>
       )}
     </div>

@@ -68,23 +68,18 @@ export const ValidationCaseTargetEditor: FC<
   const [isTyping, setIsTyping] = useState(false);
 
   // Sync mode and customValue when target prop changes externally
-  // (e.g., data loads, switching cases/sets, or after our save completes)
-  // Skip sync while user is typing to avoid overwriting during debounce
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isTyping) return;
-
-    const newMode = getTargetMode(target);
-    // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setMode(newMode);
-    if (newMode === "other") {
-      setCustomValue(valueAsString(target ?? ""));
-    } else {
-      setCustomValue("");
+  // (e.g., data loads, switching cases/sets, or after our save completes),
+  // and once more when typing stops. Skip sync while the user is typing to
+  // avoid overwriting during debounce.
+  const [synced, setSynced] = useState({ target, isTyping });
+  if (synced.target !== target || synced.isTyping !== isTyping) {
+    setSynced({ target, isTyping });
+    if (!isTyping) {
+      const newMode = getTargetMode(target);
+      setMode(newMode);
+      setCustomValue(newMode === "other" ? valueAsString(target ?? "") : "");
     }
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [target, isTyping]);
+  }
 
   // Debounce only the text input changes
   const debouncedOnChange = useDebouncedCallback((value: string) => {

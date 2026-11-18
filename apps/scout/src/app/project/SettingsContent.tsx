@@ -5,7 +5,7 @@ import {
   VscodeLabel,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useRef, useState } from "react";
 
 import type {
   BatchConfig,
@@ -168,32 +168,21 @@ export const SettingsContent: FC<SettingsContentProps> = ({
     Array.isArray(config.tags) ? config.tags.join(", ") : ""
   );
 
-  // Sync local state when config changes externally (e.g., after save)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const configValue = Array.isArray(config.tags)
-      ? config.tags.join(", ")
-      : "";
-    // Only sync if the parsed values differ (avoids cursor jump while typing)
-    const currentParsed = tagsText
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+  // Sync local state when config changes externally (e.g., after save).
+  // Only when the parsed tags differ, so the cursor doesn't jump while typing.
+  const [syncedTags, setSyncedTags] = useState(config.tags);
+  if (config.tags !== syncedTags) {
+    setSyncedTags(config.tags);
     const configParsed = Array.isArray(config.tags) ? config.tags : [];
-    if (JSON.stringify(currentParsed) !== JSON.stringify(configParsed)) {
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTagsText(configValue);
+    if (JSON.stringify(parseTags(tagsText)) !== JSON.stringify(configParsed)) {
+      setTagsText(configParsed.join(", "));
     }
-  }, [config.tags, tagsText]);
+  }
 
   const handleTagsInput = (value: string) => {
     setTagsText(value);
     // Also update config immediately so Ctrl+S works
-    const tags = value
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    const tags = parseTags(value);
     onChange({ tags: tags.length > 0 ? tags : null });
   };
 
@@ -808,3 +797,9 @@ const TrustContentField: FC<TrustContentFieldProps> = ({
     </div>
   );
 };
+
+const parseTags = (text: string): string[] =>
+  text
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
