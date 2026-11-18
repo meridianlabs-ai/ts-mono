@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 /**
  * Returns `value` once it has stayed unchanged for `delayMs`. Until then it
  * returns the previous settled value, starting with the first render's value.
+ * Values compare by identity, so a new object every render never settles.
  */
 export function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [settled, setSettled] = useState(value);
