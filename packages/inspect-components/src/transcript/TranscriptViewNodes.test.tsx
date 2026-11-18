@@ -25,7 +25,11 @@ import {
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeReactiveStateStore, makeStateHooks } from "@tsmono/react/testing";
+import {
+  makeReactiveStateStore,
+  makeStateHooks,
+  stubAnimationFrames,
+} from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -93,19 +97,24 @@ afterEach(() => {
   listScrollToIndex = undefined;
 });
 
+let frames: ReturnType<typeof stubAnimationFrames>;
+
 beforeEach(() => {
-  // jsdom: keyboard nav gates on container visibility; rAF drives the
-  // expansion retry loop (setTimeout keeps it async past React's commit).
+  // jsdom: keyboard nav gates on container visibility.
   Element.prototype.checkVisibility = function () {
     return true;
   };
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(performance.now()), 0)
-  );
-  vi.stubGlobal("cancelAnimationFrame", (id: ReturnType<typeof setTimeout>) =>
-    clearTimeout(id)
-  );
+  frames = stubAnimationFrames(vi.stubGlobal);
 });
+
+// Each frame runs in its own act so React commits between frames, as it
+// does in a browser.
+const flushFrames = () => {
+  for (let frame = 0; frames.pendingFrames() > 0; frame++) {
+    if (frame === 200) throw new Error("Animation frames never went idle");
+    act(() => frames.runFrame());
+  }
+};
 
 const ts = "2026-01-01T00:00:00Z";
 const model = (id: string, depth = 0): EventNode =>
@@ -158,7 +167,7 @@ describe("TranscriptViewNodes current-turn stamping", () => {
     expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m4");
   });
 
-  it("scrollToEvent into a collapsed region restamps after expansion so an immediate j steps from the target's turn", async () => {
+  it("scrollToEvent into a collapsed region restamps after expansion so an immediate j steps from the target's turn", () => {
     // m3 is hidden inside collapsed agent span s1; numbering is
     // collapse-independent (m1=1, m2=2, m3=3, m4=4).
     const eventNodes = [
@@ -206,16 +215,13 @@ describe("TranscriptViewNodes current-turn stamping", () => {
     act(() => {
       handleRef.current!.scrollToEvent("m3");
     });
-    // Let the rAF-chained retry (stubbed onto setTimeout) run to completion.
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 30));
-    });
+    flushFrames();
 
     pressJ();
     expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m4");
   });
 
-  it("go-to-turn bar jump into a user-collapsed region expands it and lands on the requested turn", async () => {
+  it("go-to-turn bar jump into a user-collapsed region expands it and lands on the requested turn", () => {
     // The bar advertises the collapse-INDEPENDENT range (turn 3 stays a legal
     // input while s1 is collapsed), so the jump must expand the region and
     // land on turn 3's own anchor — not silently fall back to the previous
@@ -262,10 +268,7 @@ describe("TranscriptViewNodes current-turn stamping", () => {
     const input = screen.getByRole<HTMLInputElement>("textbox");
     fireEvent.change(input, { target: { value: "3" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    // Let the rAF-chained expansion retry (stubbed onto setTimeout) run.
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 30));
-    });
+    flushFrames();
 
     // URL and jump ring mark the REQUESTED turn's anchor...
     expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m3");
@@ -315,7 +318,7 @@ describe("TranscriptViewNodes first-j-from-load (turn 1 is the topmost row)", ()
     };
   };
 
-  it("ignores the mount-time top report so first j lands turn 1, then resumes after a user scroll", async () => {
+  it("ignores the mount-time top report so first j lands turn 1, then resumes after a user scroll", () => {
     const eventNodes = [model("m1"), model("m2"), model("m3"), model("m4")];
     const scrollRef = createRef<HTMLDivElement>();
     const onNavigatedToEvent = vi.fn();
@@ -370,10 +373,7 @@ describe("TranscriptViewNodes first-j-from-load (turn 1 is the topmost row)", ()
       act(() => {
         scrollRef.current!.dispatchEvent(new Event("scroll"));
       });
-      // Flush the rAF (stubbed onto setTimeout) that handleScroll schedules.
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 20));
-      });
+      flushFrames();
 
       pressJ();
       expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m4");
@@ -827,12 +827,6 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
 
   const callbacks = () => ({ onDone: vi.fn(), onAbandon: vi.fn() });
 
-  // The expansion retry runs on rAF, stubbed onto setTimeout.
-  const flushFrames = () =>
-    act(async () => {
-      await new Promise((r) => setTimeout(r, 30));
-    });
-
   // A list scroll that stays in flight until cancelled, which abandons it.
   const holdListScroll = () => {
     const cancel = vi.fn();
@@ -845,7 +839,7 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
     return cancel;
   };
 
-  it("abandons a collapsed-event scroll cancelled before its retry runs", async () => {
+  it("abandons a collapsed-event scroll cancelled before its retry runs", () => {
     const handle = renderNodes(true);
     const cb = callbacks();
 
@@ -854,21 +848,21 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
       cancel = handle.scrollToEvent("m3", cb);
     });
     cancel();
-    await flushFrames();
+    flushFrames();
 
     expect(cb.onAbandon).toHaveBeenCalledOnce();
     expect(cb.onDone).not.toHaveBeenCalled();
     expect(scrolledIndices).toEqual([]);
   });
 
-  it("reports done when the collapsed event never appears", async () => {
+  it("reports done when the collapsed event never appears", () => {
     const handle = renderNodes(false);
     const cb = callbacks();
 
     act(() => {
       handle.scrollToEvent("m3", cb);
     });
-    await flushFrames();
+    flushFrames();
 
     expect(cb.onDone).toHaveBeenCalledOnce();
     expect(cb.onAbandon).not.toHaveBeenCalled();
@@ -902,7 +896,7 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
     expect(cb.onDone).not.toHaveBeenCalled();
   });
 
-  it("passes cancel through to the list's scroll after the retry starts it", async () => {
+  it("passes cancel through to the list's scroll after the retry starts it", () => {
     const listCancel = holdListScroll();
     const handle = renderNodes(true);
     const cb = callbacks();
@@ -911,7 +905,7 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
     act(() => {
       cancel = handle.scrollToEvent("m3", cb);
     });
-    await flushFrames();
+    flushFrames();
     expect(scrolledIndices).not.toEqual([]);
     cancel();
 
