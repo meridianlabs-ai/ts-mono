@@ -128,6 +128,42 @@ describe("visibleOutputTokens and compositionTotal", () => {
       100,
     ],
     [
+      "current Grok log whose cached reads equal its reasoning",
+      usage({
+        input_tokens: 12,
+        input_tokens_cache_read: 20,
+        output_tokens: 29,
+        reasoning_tokens: 20,
+        total_tokens: 61,
+      }),
+      9,
+      61,
+    ],
+    [
+      "older cache-in-input Grok log whose cached reads equal its reasoning",
+      usage({
+        input_tokens: 32,
+        input_tokens_cache_read: 20,
+        output_tokens: 9,
+        reasoning_tokens: 20,
+        total_tokens: 61,
+      }),
+      9,
+      81,
+    ],
+    [
+      "ambiguous with an older cache-in-input log: read as current",
+      usage({
+        input_tokens: 32,
+        input_tokens_cache_read: 20,
+        output_tokens: 29,
+        reasoning_tokens: 20,
+        total_tokens: 81,
+      }),
+      9,
+      81,
+    ],
+    [
       "no reasoning",
       usage({ input_tokens: 10, output_tokens: 5, total_tokens: 15 }),
       5,
