@@ -1,27 +1,24 @@
-/**
- * Minimal column descriptor shared by the column-selector popover and the
- * grid view-state layer: enough to identify a column, label it, and carry
- * its default visibility. Grids build these from their full column defs
- * (see e.g. `toPickerColumns` in SamplesTab).
- */
-export interface PickerColumn {
-  /** Explicit stable id; wins over `field` when both are present. */
-  colId?: string;
-  field?: string;
-  headerName?: string;
-  /** Default visibility when no explicit visibility map is supplied. */
-  hide?: boolean;
-}
+import type { RowData } from "@tanstack/react-table";
+
+import type {
+  ExtendedColumnDef,
+  PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 
 /**
- * Resolves the stable column id for a picker column. Prefers an explicit
- * `colId`, falls back to `field`, then `headerName`, then `"?"`. This is
- * what should be used both as a key into a visibility/state map AND as the
- * grid column id so the two stay in sync.
- *
- * @param col - Picker column descriptor
- * @returns The field key for the column
+ * The picker/view-state descriptor for each grid column that has an id.
+ * The id keys both the visibility map and the grid column.
  */
-export const getFieldKey = (col: PickerColumn): string => {
-  return col.colId || col.field || col.headerName || "?";
-};
+export const toPickerColumns = <TRow extends RowData>(
+  columns: ExtendedColumnDef<TRow>[]
+): PickerColumn[] =>
+  columns.flatMap((col) =>
+    col.id === undefined
+      ? []
+      : [
+          {
+            id: col.id,
+            label: typeof col.header === "string" ? col.header : "",
+          },
+        ]
+  );

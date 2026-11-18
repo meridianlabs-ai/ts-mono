@@ -1,9 +1,11 @@
 import { FC, useCallback } from "react";
 
+import type { PickerColumn } from "@tsmono/inspect-components/dataGrid";
+
 import { ScalarValue } from "../../api/api";
 import { ScansTableState, useStore } from "../../state/store";
 import { useAddFilterPopover } from "../components/columnFilter";
-import { FilterBar, type ColumnInfo } from "../components/FilterBar";
+import { FilterBar } from "../components/FilterBar";
 import { useFilterBarHandlers } from "../components/useFilterBarHandlers";
 
 import {
@@ -16,11 +18,10 @@ import {
   ScanColumnKey,
 } from "./columns";
 
-// Convert column definitions to ColumnInfo array
-const COLUMNS_INFO: ColumnInfo[] = DEFAULT_COLUMN_ORDER.map((key) => ({
+const PICKER_COLUMNS: PickerColumn[] = DEFAULT_COLUMN_ORDER.map((key) => ({
   id: key,
   label: COLUMN_LABELS[key],
-  headerTitle: COLUMN_HEADER_TITLES[key],
+  title: `${key}\n${COLUMN_HEADER_TITLES[key]}`,
 }));
 
 export const ScansFilterBar: FC<{
@@ -75,7 +76,7 @@ export const ScansFilterBar: FC<{
       onFilterColumnChange={onFilterColumnChange}
       popoverIdPrefix="scans"
       addFilterPopoverState={addFilterPopover}
-      columns={includeColumnPicker ? COLUMNS_INFO : undefined}
+      columns={includeColumnPicker ? PICKER_COLUMNS : undefined}
       visibleColumns={visibleColumns ?? DEFAULT_VISIBLE_COLUMNS}
       defaultVisibleColumns={DEFAULT_VISIBLE_COLUMNS}
       onVisibleColumnsChange={

@@ -7,7 +7,10 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import {
+  ColumnSelectorPopover,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import { ErrorPanel, LoadingBar, ProgressBar } from "@tsmono/react/components";
 import { join } from "@tsmono/util";
 
@@ -32,8 +35,7 @@ import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
 import { samplesUrl, toFullUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
-import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
-import { type PickerColumn } from "../shared/gridUtils";
+import { toPickerColumns } from "../shared/gridUtils";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -59,16 +61,6 @@ const sampleRowId = (
   sampleId: string | number,
   epoch: number
 ) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
-
-// Picker-column shim of the column list for `useSampleGridState` /
-// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
-const toPickerColumns = (
-  columns: ExtendedColumnDef<SampleRow>[]
-): PickerColumn[] =>
-  columns.map((col) => ({
-    colId: col.id,
-    headerName: typeof col.header === "string" ? col.header : "",
-  }));
 
 const completedAtTime = (row: SampleRow): number => {
   const v = row.data?.completed_at;
@@ -200,7 +192,7 @@ export const SamplesPanel: FC = () => {
 
   const defaultsForUnseededColumns = useCallback(
     (col: PickerColumn) => {
-      const id = col.colId;
+      const id = col.id;
       if (id === "error") return optionalHasData.error;
       if (id === "limit") return optionalHasData.limit;
       if (id === "retries") return optionalHasData.retries;
@@ -471,6 +463,7 @@ export const SamplesPanel: FC = () => {
       </ApplicationNavbar>
 
       <ColumnSelectorPopover
+        id="column-selector-popover"
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
         columns={pickerColumns}

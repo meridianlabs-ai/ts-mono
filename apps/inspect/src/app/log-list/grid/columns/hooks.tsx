@@ -4,6 +4,7 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import {
   ColumnComparator,
   ExtendedColumnDef,
+  type PickerColumn,
 } from "@tsmono/inspect-components/dataGrid";
 import { Icon, IconName } from "@tsmono/react/icons";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
@@ -21,7 +22,7 @@ import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import sharedStyles from "../../../shared/gridCells.module.css";
-import { type PickerColumn } from "../../../shared/gridUtils";
+import { toPickerColumns } from "../../../shared/gridUtils";
 
 import localStyles from "./columns.module.css";
 import { dateCompare, numberCompare } from "./comparators";
@@ -86,8 +87,7 @@ export const useLogListColumns = (
   /** Visibility map keyed by column id — passed to the DataGrid. */
   visibility: Record<string, boolean>;
   /** Subset passed to the ColumnSelectorPopover so the picker only lists
-   *  checkboxes for the currently active view mode. A lightweight shim
-   *  (`colId` + `headerName`) of the full column defs. */
+   *  checkboxes for the currently active view mode. */
   pickerColumns: PickerColumn[];
   /** Reads a row's raw value for a column id (for client-side filter/sort). */
   getValue: (row: LogListRow, columnId: string) => unknown;
@@ -811,15 +811,10 @@ export const useLogListColumns = (
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
   const pickerColumns = useMemo((): PickerColumn[] => {
-    return allColumns.flatMap((col) =>
-      col.id === undefined || !matchesActiveMode(col.id)
-        ? []
-        : [
-            {
-              colId: col.id,
-              headerName: typeof col.header === "string" ? col.header : "",
-            },
-          ]
+    return toPickerColumns(
+      allColumns.filter(
+        (col) => col.id !== undefined && matchesActiveMode(col.id)
+      )
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
