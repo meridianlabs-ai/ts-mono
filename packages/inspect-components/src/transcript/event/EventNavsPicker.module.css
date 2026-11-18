@@ -30,24 +30,12 @@
   flex-shrink: 0;
 }
 
-.backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  /* Above Bootstrap's sticky-top (1020) so sticky bars don't occlude the menu. */
-  z-index: 1049;
-}
-
 .menu {
-  position: fixed;
+  min-width: anchor-size(width);
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 0.25rem;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  z-index: 1050;
-  overflow: hidden;
   max-height: 60vh;
   overflow-y: auto;
 }

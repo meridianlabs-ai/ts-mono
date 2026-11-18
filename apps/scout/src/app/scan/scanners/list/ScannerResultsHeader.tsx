@@ -89,9 +89,7 @@ const ColumnHeader: FC<{
         }
       }
     },
-    // TODO: lint react-hooks/exhaustive-deps Fix this
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sort, sortResults, setSortResults]
+    [sort, sortResults, setSortResults, label]
   );
 
   return (

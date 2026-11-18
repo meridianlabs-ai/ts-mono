@@ -17,7 +17,7 @@ import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
 import { useFindTarget } from "./FindTargetContext";
-import { prepareSearchTerm } from "./prepareSearchTerm";
+import { normalizeFindText, searchVariants } from "./findText";
 
 // Toggle bar height (20px, see `.moreToggle`) plus a gap. A nested toggle
 // lifts its sticky `bottom` by this per ancestor toggle on the same side, and
@@ -93,14 +93,9 @@ export const useContainsFindTarget = (
       setContainsFindTarget(false);
       return;
     }
-    const text = root.textContent.toLowerCase();
-    const { simple, unquoted, jsonEscaped } = prepareSearchTerm(
-      findTarget.term
-    );
+    const text = normalizeFindText(root.textContent);
     setContainsFindTarget(
-      [simple, unquoted, jsonEscaped].some(
-        (variant) => !!variant && text.includes(variant)
-      )
+      searchVariants(findTarget.term).some((variant) => text.includes(variant))
     );
   });
 

@@ -94,6 +94,7 @@ test("scan results load under a host CSP without 'unsafe-eval'", async ({
                 scans: 2,
                 results: 3,
                 tokens: 0,
+                unscored: 0,
                 errors: 0,
                 model_usage: {},
               },

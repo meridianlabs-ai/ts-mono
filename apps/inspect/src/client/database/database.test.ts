@@ -590,6 +590,49 @@ describe("Database Service", () => {
     });
   });
 
+  describe("Concurrent writes", () => {
+    const file = "/test/logs/eval1.json";
+
+    // Each writer starts before the details write, so an unfenced
+    // read-then-put reads the pre-details row and puts it back afterwards.
+    test.each<[string, () => Promise<void>]>([
+      [
+        "writeLogPreviews",
+        () =>
+          databaseService.writeLogPreviews({ [file]: createTestLogSummary() }),
+      ],
+      [
+        "writeFetchStates",
+        () =>
+          databaseService.writeFetchStates({
+            [file]: {
+              preview_attempts: 1,
+              details_attempts: 0,
+              details_settled_seq: 0,
+            },
+          }),
+      ],
+      [
+        "writeLogs",
+        () => databaseService.writeLogs([{ name: file, mtime: 2 }]),
+      ],
+    ])(
+      "%s racing a details write keeps the details columns",
+      async (_, write) => {
+        await databaseService.writeLogs([{ name: file, mtime: 1 }]);
+
+        await Promise.all([
+          write(),
+          writeLogDetails({ [file]: createTestLogInfo() }),
+        ]);
+
+        const row = await databaseService.readLogRow(file);
+        expect(row?.depth).toBe("detailed");
+        expect(row?.header).toBeDefined();
+      }
+    );
+  });
+
   describe("Unified Database Scoping", () => {
     test("reads and clears are isolated per scope", async () => {
       await databaseService.writeLogs([

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
+import React, { FC, KeyboardEvent, Ref, RefObject, useRef } from "react";
 
 import { Icon } from "../icons";
 
@@ -11,13 +11,13 @@ interface FindBandUIProps {
   onPrevious: () => void;
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
   onChange?: () => void;
-  onBeforeInput?: () => void;
   value?: string;
   matchCount?: number;
   matchIndex?: number;
   noResults?: boolean;
   disableNav?: boolean;
   inputRef?: RefObject<HTMLInputElement | null>;
+  ref?: Ref<HTMLDivElement>;
 }
 
 export const FindBandUI: FC<FindBandUIProps> = ({
@@ -26,13 +26,13 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   onPrevious,
   onKeyDown,
   onChange,
-  onBeforeInput,
   value,
   matchCount,
   matchIndex,
   noResults = false,
   disableNav,
   inputRef: externalRef,
+  ref,
 }) => {
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
@@ -41,7 +41,6 @@ export const FindBandUI: FC<FindBandUIProps> = ({
     type: "text",
     placeholder: "Find",
     onKeyDown,
-    onBeforeInput,
     onChange,
   };
   if (value !== undefined) {
@@ -50,9 +49,6 @@ export const FindBandUI: FC<FindBandUIProps> = ({
 
   const hasCount = matchCount !== undefined && matchIndex !== undefined;
   const showStatus = noResults || (hasCount && matchCount > 0);
-  // noResults wins over the counter: a registered source can report
-  // matches that the DOM find can't reach (unsearchable or unrendered
-  // content), which would otherwise display as "0 of N".
   const statusText =
     !noResults && hasCount && matchCount > 0
       ? `${matchIndex + 1} of ${matchCount}`
@@ -62,7 +58,11 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   // targets the band (e.g. hawk's full-height exclusion). The viewer styles it
   // via the hashed styles.findBand, so this global class carries no rule.
   return (
-    <div data-unsearchable="true" className={clsx(styles.findBand, "findBand")}>
+    <div
+      ref={ref}
+      data-unsearchable="true"
+      className={clsx(styles.findBand, "findBand")}
+    >
       <input ref={inputRef} {...inputProps} />
       <span
         data-testid="find-band-match-count"

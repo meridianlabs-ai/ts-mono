@@ -165,8 +165,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
     return lastModel ? eventNodeOf(lastModel, "model") : undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.events]);
+  }, [childNodes]);
 
   const displayName = resolvedView?.title || title || name;
   const panelTitle = displayName ? `Tool: ${displayName}` : "Tool";

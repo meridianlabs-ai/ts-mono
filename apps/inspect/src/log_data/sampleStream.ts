@@ -13,7 +13,7 @@ import {
   SampleData,
   SampleDataResponse,
 } from "../client/api/types";
-import { resolveAttachments } from "../utils/attachments";
+import { resolveEventAttachments } from "../utils/attachments";
 
 const log = createLogger("sampleStream");
 
@@ -312,17 +312,20 @@ function processEvents(
       };
 
       if (api.log_message) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        api.log_message(
-          logFile,
-          `Unable to resolve attachment ${attachmentId}\n` +
-            JSON.stringify(snapshot)
-        );
+        api
+          .log_message(
+            logFile,
+            `Unable to resolve attachment ${attachmentId}\n` +
+              JSON.stringify(snapshot)
+          )
+          .catch((error: unknown) => {
+            console.warn("Unable to report attachment miss", error);
+          });
       }
       console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
     };
 
-    const withAttachments = resolveAttachments<SampleEvent>(
+    const withAttachments = resolveEventAttachments<SampleEvent>(
       event,
       state.attachments,
       reportAttachmentMiss
@@ -332,7 +335,7 @@ function processEvents(
 
     // Resolve attachments again after pool expansion, since pool entries
     // may contain attachment:// URIs that weren't visible before expansion.
-    const resolvedEvent = resolveAttachments<SampleEvent>(
+    const resolvedEvent = resolveEventAttachments<SampleEvent>(
       withPoolRefs,
       state.attachments,
       reportAttachmentMiss

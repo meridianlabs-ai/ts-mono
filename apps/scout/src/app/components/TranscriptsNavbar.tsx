@@ -66,9 +66,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
     }
 
     return buttons;
-    // TODO: lint react-hooks/exhaustive-deps Fix this
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedBackUrl, singleFileMode]);
+  }, [resolvedBackUrl, singleFileMode, transcriptId]);
 
   const filterText =
     filter && !filter.startsWith("(")

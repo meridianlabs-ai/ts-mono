@@ -1,7 +1,6 @@
 export * from "./api-error";
 export * from "./ansi";
 export * from "./array";
-export * from "./autosizeTextarea";
 export * from "./arrow";
 export * from "./asyncData";
 export * from "./base64";
@@ -11,6 +10,7 @@ export * from "./brand";
 export * from "./chatMessage";
 export * from "./date";
 export * from "./format";
+export * from "./function";
 export * from "./git";
 export * from "./http";
 export * from "./hiddenCharacters";

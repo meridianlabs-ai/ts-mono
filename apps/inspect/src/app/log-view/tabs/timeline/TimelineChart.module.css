@@ -21,13 +21,13 @@
 
 .activeSeries {
   fill: none;
-  stroke: #495057;
+  stroke: light-dark(#495057, #adb5bd);
   stroke-width: 1.2;
 }
 
 .connectionsSeries {
   fill: none;
-  stroke: #3a7bd5;
+  stroke: light-dark(#3a7bd5, #6ea0dc);
   stroke-width: 1.2;
 }
 
@@ -39,11 +39,11 @@
 
 .guideLabel {
   font-size: 9px;
-  fill: #5d3f9e;
+  fill: light-dark(#5d3f9e, #b49ae0);
 }
 
 .rateLimitLine {
-  stroke: #b04a3c;
+  stroke: light-dark(#b04a3c, #d98b7f);
   stroke-width: 1;
   opacity: 0.55;
 }
@@ -71,12 +71,12 @@
 }
 
 .hoverDotActive {
-  fill: #495057;
+  fill: light-dark(#495057, #adb5bd);
   pointer-events: none;
 }
 
 .hoverDotConnections {
-  fill: #3a7bd5;
+  fill: light-dark(#3a7bd5, #6ea0dc);
   pointer-events: none;
 }
 
@@ -130,7 +130,7 @@
 }
 
 .markerLineLog {
-  stroke: #7fa8d0;
+  stroke: light-dark(#7fa8d0, #4d7aa8);
 }
 
 /* Row-hover / selection: the guide line thickens (canvas 36c). */
@@ -176,11 +176,11 @@
 /* The 13px bordered mono box — the same token the History row renders. */
 .ordinalBoxRect {
   fill: var(--bs-body-bg);
-  stroke: #b9a5e0;
+  stroke: light-dark(#b9a5e0, #4a3d63);
 }
 
 .ordinalBoxText {
-  fill: #5d3f9e;
+  fill: light-dark(#5d3f9e, #cbb8ec);
   font-family: var(--bs-font-monospace);
   font-size: 9px;
   pointer-events: none;
@@ -225,9 +225,9 @@
   min-width: 13px;
   height: 13px;
   padding: 0 2px;
-  border: 1px solid #b9a5e0;
+  border: 1px solid light-dark(#b9a5e0, #4a3d63);
   border-radius: 2px;
-  color: #5d3f9e;
+  color: light-dark(#5d3f9e, #cbb8ec);
   font-family: var(--bs-font-monospace);
   font-size: 9px;
   line-height: 1;
@@ -384,9 +384,9 @@
 
 .popoverCallout {
   font-size: 0.72rem;
-  color: #664d03;
-  background: #fffaeb;
-  border: 1px solid #e8d8a0;
+  color: light-dark(#664d03, #e8d8a0);
+  background: light-dark(#fffaeb, #3a3220);
+  border: 1px solid light-dark(#e8d8a0, #5c512f);
   border-radius: 3px;
   padding: 0.3rem 0.45rem;
   overflow-wrap: anywhere;
@@ -410,51 +410,4 @@
   text-decoration: underline;
   /* Outrank the global a:hover link colour. */
   color: var(--bs-link-color);
-}
-
-:global([data-bs-theme="dark"]) .activeSeries {
-  stroke: #adb5bd;
-}
-
-:global([data-bs-theme="dark"]) .connectionsSeries {
-  stroke: #6ea0dc;
-}
-
-:global([data-bs-theme="dark"]) .hoverDotActive {
-  fill: #adb5bd;
-}
-
-:global([data-bs-theme="dark"]) .hoverDotConnections {
-  fill: #6ea0dc;
-}
-
-:global([data-bs-theme="dark"]) .guideLabel {
-  fill: #b49ae0;
-}
-
-:global([data-bs-theme="dark"]) .ordinalBoxRect {
-  stroke: #4a3d63;
-}
-
-:global([data-bs-theme="dark"]) .ordinalBoxText {
-  fill: #cbb8ec;
-}
-
-:global([data-bs-theme="dark"]) .markerPopoverOrdinal {
-  border-color: #4a3d63;
-  color: #cbb8ec;
-}
-
-:global([data-bs-theme="dark"]) .markerLineLog {
-  stroke: #4d7aa8;
-}
-
-:global([data-bs-theme="dark"]) .rateLimitLine {
-  stroke: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .popoverCallout {
-  color: #e8d8a0;
-  background: #3a3220;
-  border-color: #5c512f;
 }

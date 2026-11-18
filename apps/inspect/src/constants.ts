@@ -23,6 +23,7 @@ export const kWorkspaceTabs = [
 // Sample tab constants
 export const kSampleMessagesTabId = `messages`;
 export const kSampleTranscriptTabId = `transcript`;
+export const kSampleCommunicationTabId = `communication`;
 export const kSampleTerminalsTabId = `terminals`;
 export const kSampleScoringTabId = `scoring`;
 export const kSampleActivityTabId = `activity`;
@@ -48,6 +49,7 @@ export const sampleTabAlias = (tabId: string): string =>
 export const kSampleTabIds = [
   kSampleMessagesTabId,
   kSampleTranscriptTabId,
+  kSampleCommunicationTabId,
   kSampleTerminalsTabId,
   kSampleScoringTabId,
   kSampleActivityTabId,

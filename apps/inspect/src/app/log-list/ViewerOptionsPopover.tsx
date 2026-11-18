@@ -66,7 +66,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       setIsOpen={setShowing}
       placement="auto"
       hoverDelay={-1}
-      offset={[-10, 5]}
+      offset={5}
       showArrow={false}
     >
       <div className={clsx(styles.container, "text-size-smaller")}>

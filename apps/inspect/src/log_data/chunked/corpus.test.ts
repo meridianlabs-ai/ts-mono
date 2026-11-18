@@ -290,6 +290,26 @@ describe("chunked corpus", () => {
       expect(filtered.every((row) => row.kind !== "event")).toBe(true);
     }
   });
+
+  it("reads NaN/Infinity constants as numbers", async () => {
+    // non-finite.eval: an unscored (NaN) sample whose dataset metadata holds
+    // NaN/Infinity/-Infinity, which the writer emits as JSON constants in
+    // the shell, metadata.json and events chunks
+    const log = await openLog("non-finite.eval");
+    const [ref] = log.samples;
+    if (!ref) throw new Error("non-finite.eval has no samples");
+    const sample = await log.open(ref);
+
+    const nonFinite = { nan: NaN, inf: Infinity, neg_inf: -Infinity };
+    expect(await sample.readMetadata?.()).toStrictEqual(nonFinite);
+    expect(sample.shell.scores).toMatchObject({ unscored: { value: NaN } });
+
+    const events = await sample.events.getRange(0, sample.events.knownCount);
+    const init = events.find((e) => e.event === "sample_init");
+    expect(init?.sample.metadata).toStrictEqual(nonFinite);
+    const score = events.find((e) => e.event === "score");
+    expect(score?.score.value).toBeNaN();
+  });
 });
 
 installNodeWorker();

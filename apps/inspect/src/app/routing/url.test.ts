@@ -276,6 +276,14 @@ describe("parseLogRouteParams", () => {
       expect(result.sampleId).toBeUndefined();
     });
 
+    test("the communication tab is recognized in samples context", () => {
+      const result = parseLogRouteParams(
+        "path/file.eval/samples/communication"
+      );
+      expect(result.sampleTabId).toBe("communication");
+      expect(result.sampleId).toBeUndefined();
+    });
+
     test("unknown segment after /samples/ is treated as sampleId", () => {
       // /samples/unknownvalue should be treated as sampleId
       const result = parseLogRouteParams("path/file.eval/samples/unknownvalue");
@@ -549,6 +557,19 @@ describe("sample IDs with slashes", () => {
     expect(result.sampleId).toBe("ascii/car");
     expect(result.epoch).toBe("1");
     expect(result.logPath).toBe("path/to/file.eval");
+  });
+
+  test("round-trip: a communication tab link parses back to its tab", () => {
+    const url = logSamplesUrl(
+      "path/to/file.eval",
+      "ascii/car",
+      1,
+      "communication"
+    );
+    const result = parseLogRouteParams(url.replace(/^\/logs\//, ""));
+    expect(result.sampleId).toBe("ascii/car");
+    expect(result.epoch).toBe("1");
+    expect(result.sampleTabId).toBe("communication");
   });
 
   test("round-trip: printSampleUrl then parseLogRouteParams", () => {

@@ -34,11 +34,11 @@
 }
 
 .statusFailed {
-  color: #a13b2c;
+  color: light-dark(#a13b2c, #d98b7f);
 }
 
 .statusRejected {
-  color: #6b4fa8;
+  color: light-dark(#6b4fa8, #b39ddb);
 }
 
 .timeLine {
@@ -145,7 +145,7 @@
   border: none;
   border-top: 1px dotted var(--bs-border-color);
   background: none;
-  color: #2a78d6;
+  color: light-dark(#2a78d6, #6ea0dc);
   font-size: 0.7rem;
   text-align: left;
   cursor: pointer;
@@ -153,18 +153,4 @@
 
 .footer:hover {
   text-decoration: underline;
-}
-
-/* ── dark theme ── */
-
-:global([data-bs-theme="dark"]) .statusFailed {
-  color: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .statusRejected {
-  color: #b39ddb;
-}
-
-:global([data-bs-theme="dark"]) .footer {
-  color: #6ea0dc;
 }

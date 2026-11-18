@@ -44,10 +44,12 @@ const renderList = (cases: ValidationCase[], selected: string[]) => {
           sourceUri={sourceUri}
           onBulkSplitChange={vi.fn()}
           onBulkDelete={vi.fn()}
+          onSingleDelete={vi.fn()}
         />
       </MemoryRouter>
     </Wrapper>
   );
+  return store;
 };
 
 describe("ValidationCasesList", () => {
@@ -84,5 +86,14 @@ describe("ValidationCasesList", () => {
     fireEvent.click(submit!);
 
     await waitFor(() => expect(upserted).toEqual(["picked"]));
+  });
+
+  it("leaves a case unselected when its delete dialog is clicked", () => {
+    const store = renderList([validationCase("kept")], []);
+
+    fireEvent.click(screen.getByTitle("Delete case"));
+    fireEvent.click(screen.getByText("This action cannot be undone."));
+
+    expect(store.getState().validationCaseSelection).toEqual({});
   });
 });

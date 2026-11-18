@@ -1,15 +1,11 @@
-import {
-  VscodeOption,
-  VscodeSingleSelect,
-  VscodeTextfield,
-} from "@vscode-elements/react-elements";
+import { VscodeTextfield } from "@vscode-elements/react-elements";
 import { FC, useMemo, useState } from "react";
 
 import { Modal } from "@tsmono/react/components";
-import { useDropdownPosition } from "@tsmono/react/hooks";
 
 import { eventValue } from "../../utils/formEvents";
 
+import { SelectDropdown } from "./SelectDropdown";
 import styles from "./ValidationSplitSelector.module.css";
 
 interface ValidationSplitSelectorProps {
@@ -56,17 +52,10 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
     return existingSplits;
   }, [existingSplits, value]);
 
-  // Auto-position dropdown based on available viewport space
-  // Option count: 1 (no split) + splits + 1 (new split)
-  const { ref, position } = useDropdownPosition({
-    optionCount: effectiveSplits.length + 2,
-  });
-
   // Map null to internal sentinel value for the select
   const selectValue = value ?? "__none__";
 
-  const handleSelectChange = (e: Event) => {
-    const newValue = eventValue(e);
+  const handleSelectChange = (newValue: string) => {
     if (newValue === "__custom__") {
       setShowCustomModal(true);
       setCustomSplitValue("");
@@ -96,23 +85,17 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
 
   return (
     <>
-      <div ref={ref}>
-        <VscodeSingleSelect
-          value={selectValue}
-          onChange={handleSelectChange}
-          className={className}
-          disabled={disabled}
-          position={position}
-        >
-          <VscodeOption value="__none__">{noSplitLabel}</VscodeOption>
-          {effectiveSplits.map((s) => (
-            <VscodeOption key={s} value={s}>
-              {s}
-            </VscodeOption>
-          ))}
-          <VscodeOption value="__custom__">{newSplitLabel}</VscodeOption>
-        </VscodeSingleSelect>
-      </div>
+      <SelectDropdown
+        value={selectValue}
+        options={[
+          { value: "__none__", label: noSplitLabel },
+          ...effectiveSplits.map((s) => ({ value: s, label: s })),
+          { value: "__custom__", label: newSplitLabel },
+        ]}
+        onChange={handleSelectChange}
+        className={className}
+        disabled={disabled}
+      />
 
       <Modal
         show={showCustomModal}

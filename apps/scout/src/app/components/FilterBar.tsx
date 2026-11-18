@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { FC, useCallback, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
 
 import {
   ColumnFilterEditor,
@@ -78,7 +78,9 @@ export const FilterBar: FC<FilterBarProps> = ({
   onVisibleColumnsChange,
 }) => {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [editingChipEl, setEditingChipEl] = useState<HTMLButtonElement | null>(
+    null
+  );
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
 
   const handleFilterChange = useCallback(
@@ -141,9 +143,11 @@ export const FilterBar: FC<FilterBarProps> = ({
           .map((filter) => (
             <Chip
               key={filter.columnId}
-              ref={(element) => {
-                chipRefs.current[filter.columnId] = element;
-              }}
+              ref={
+                filter.columnId === editingColumnId
+                  ? setEditingChipEl
+                  : undefined
+              }
               label={filter.columnId}
               value={formatFilterSpec(filter.spec)}
               title={`Edit ${filter.columnId} filter`}
@@ -165,8 +169,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           id={`${popoverIdPrefix}-editor-${editingColumnId}`}
           isOpen={isEditorOpen}
           setIsOpen={handleEditorOpenChange}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-          positionEl={chipRefs.current[editingColumnId] ?? null}
+          positionEl={editingChipEl}
           placement="bottom-start"
           showArrow={true}
           hoverDelay={-1}

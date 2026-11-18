@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 function Harness({ jumpToEnd }: { jumpToEnd: () => void }) {
   const listHandle = useRef<VirtualListHandle | null>({
-    scrollToIndex: () => {},
+    scrollToIndex: () => () => {},
     scrollTo: () => {},
     getState: () => {},
     jumpToStart: () => {},

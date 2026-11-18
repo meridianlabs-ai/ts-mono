@@ -17,7 +17,7 @@
 }
 
 .arrowDown {
-  color: #b04a3c;
+  color: light-dark(#b04a3c, #d98d7d);
 }
 
 .newLimit {
@@ -34,47 +34,21 @@
 }
 
 .badgeSlowStart {
-  background: #e7eef8;
-  color: #3a6ea8;
+  background: light-dark(#e7eef8, #253850);
+  color: light-dark(#3a6ea8, #9dc0ea);
 }
 
 .badgeSteadyUp {
-  background: #e9f1eb;
-  color: #4a7a55;
+  background: light-dark(#e9f1eb, #253b2c);
+  color: light-dark(#4a7a55, #9ccaa8);
 }
 
 .badgeRateLimit {
-  background: #f8e9e7;
-  color: #b04a3c;
+  background: light-dark(#f8e9e7, #472a24);
+  color: light-dark(#b04a3c, #e39a8a);
 }
 
 .badgeManual {
-  background: #eceef0;
-  color: #5f6771;
-}
-
-/* Dark mode — dark tinted fills with light text (the light fills above are
-   near-white and glare on a dark surface). */
-:global([data-bs-theme="dark"]) .arrowDown {
-  color: #d98d7d;
-}
-
-:global([data-bs-theme="dark"]) .badgeSlowStart {
-  background: #253850;
-  color: #9dc0ea;
-}
-
-:global([data-bs-theme="dark"]) .badgeSteadyUp {
-  background: #253b2c;
-  color: #9ccaa8;
-}
-
-:global([data-bs-theme="dark"]) .badgeRateLimit {
-  background: #472a24;
-  color: #e39a8a;
-}
-
-:global([data-bs-theme="dark"]) .badgeManual {
-  background: #31353b;
-  color: #aeb6bf;
+  background: light-dark(#eceef0, #31353b);
+  color: light-dark(#5f6771, #aeb6bf);
 }

@@ -10,8 +10,9 @@ const Harness: FC<{
   onClose?: () => void;
   isOpen?: boolean;
   enabled?: boolean;
-}> = ({ onOpen, onClose, isOpen, enabled }) => {
-  useFindBandShortcut(onOpen, { onClose, isOpen, enabled });
+  preempt?: boolean;
+}> = ({ onOpen, onClose, isOpen, enabled, preempt }) => {
+  useFindBandShortcut(onOpen, { onClose, isOpen, enabled, preempt });
   return null;
 };
 
@@ -99,6 +100,22 @@ describe("useFindBandShortcut", () => {
 
     expect(onOpen).not.toHaveBeenCalled();
     expect(bubbled).toBe(true);
+  });
+
+  it("takes the shortcut from a page-level find when preempting", () => {
+    const page = vi.fn();
+    const view = vi.fn();
+    render(
+      <>
+        <Harness onOpen={page} />
+        <Harness onOpen={view} preempt />
+      </>
+    );
+
+    fireEvent.keyDown(document.body, { key: "f", ctrlKey: true });
+
+    expect(view).toHaveBeenCalledOnce();
+    expect(page).not.toHaveBeenCalled();
   });
 
   it("ignores plain f without a modifier", () => {

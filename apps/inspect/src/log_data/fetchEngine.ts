@@ -346,7 +346,6 @@ export class FetchEngine {
         } else if (head?.kind === "details") {
           this.onDetailsComplete(results, inputs);
         }
-        return Promise.resolve();
       },
     });
   }
@@ -858,8 +857,15 @@ export class FetchEngine {
     }
     const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
+    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false).catch(
+      (caught: unknown) => {
+        if (this._pendingFetches.get(key) === waiter) {
+          this._pendingFetches.delete(key);
+          this._activeSettles.delete(key);
+        }
+        waiter.reject(toError(caught));
+      }
+    );
     return waiter.promise;
   }
 

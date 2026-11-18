@@ -10,7 +10,9 @@ import {
 import {
   Explanation,
   ValidationResult,
+  validationSearchText,
   Value,
+  valueSearchText,
 } from "@tsmono/scout-components/scanner-result-detail";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
@@ -18,7 +20,7 @@ import { scanResultRoute } from "../../../../router/url";
 import { useScanRoute } from "../../../../router/useScanRoute";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
-import { TaskName } from "../../../components/TaskName";
+import { TaskName, taskNameText } from "../../../components/TaskName";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
 
@@ -207,6 +209,47 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
       {grid}
     </div>
   );
+};
+
+/** The text a result row renders, one string per block, so Find can count
+ *  matches in rows that aren't mounted. */
+export const scanResultSearchText = (
+  summary: ScanResultSummary,
+  gridDescriptor: GridDescriptor
+): string[] => {
+  const { columns } = gridDescriptor;
+  const texts: string[] = [];
+  if (columns.includes("result")) {
+    texts.push(summary.explanation ?? "");
+    const taskName = taskNameText({
+      taskSet: summary.transcriptTaskSet,
+      taskId: summary.transcriptTaskId,
+      taskRepeat: summary.transcriptTaskRepeat,
+    });
+    texts.push(`${taskName} — ${summary.transcriptModel || ""}`);
+  }
+  if (columns.includes("label")) {
+    texts.push(summary.label || "—");
+  }
+  if (!summary.scanError) {
+    texts.push(...valueSearchText(summary.value, summary.valueType));
+  }
+  if (
+    columns.includes("validations") &&
+    summary.validationResult !== undefined
+  ) {
+    texts.push(
+      ...validationSearchText(
+        summary.validationResult,
+        summary.validationTarget,
+        summary.label
+      )
+    );
+  }
+  if (columns.includes("error") && summary.scanError) {
+    texts.push(summary.scanErrorRefusal ? "Refusal" : summary.scanError);
+  }
+  return texts;
 };
 
 // A row's result derives from its transcript's model output, so it renders

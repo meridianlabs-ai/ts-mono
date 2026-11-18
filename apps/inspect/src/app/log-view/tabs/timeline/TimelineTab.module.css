@@ -78,10 +78,6 @@
 .legendRateLimit {
   width: 1px;
   height: 10px;
-  background: #b04a3c;
+  background: light-dark(#b04a3c, #d98b7f);
   display: inline-block;
-}
-
-:global([data-bs-theme="dark"]) .legendRateLimit {
-  background: #d98b7f;
 }

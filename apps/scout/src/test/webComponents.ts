@@ -67,6 +67,10 @@ export const radio = (label: string): Element & { checked: boolean } => {
   throw new Error(`No vscode-radio labelled "${label}"`);
 };
 
+// With the test suites running in parallel, fetched options took up to ~2.5s
+// to render, past findBy's 1s default.
+const OPTION_TIMEOUT_MS = 4000;
+
 /**
  * Pick an option in a `vscode-single-select` the way a user does: open the
  * dropdown, click the option. Waits for the slotted option first, since
@@ -76,7 +80,9 @@ export const selectOption = async (
   host: HTMLElement,
   optionLabel: string
 ): Promise<void> => {
-  await within(host).findByText(optionLabel);
+  await within(host).findByText(optionLabel, undefined, {
+    timeout: OPTION_TIMEOUT_MS,
+  });
   fireEvent.click(host);
   await waitFor(() => {
     const option = screen

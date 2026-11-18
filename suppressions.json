@@ -14,7 +14,7 @@
   },
   "apps/inspect/src/app/log-list/grid/LogListGrid.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
@@ -57,11 +57,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-view/title-view/AutogrowText.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -73,10 +68,6 @@
     }
   },
   "apps/inspect/src/app/routing/loaders/LogLoadController.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -135,10 +126,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "react-hooks/refs": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 3
     }
@@ -153,7 +140,7 @@
   },
   "apps/inspect/src/app/samples/transcript/chunked/mainViewOutline.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/transcript/hooks.ts": {
@@ -162,34 +149,6 @@
     }
   },
   "apps/inspect/src/app/samples/transcript/TranscriptPanel.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/shared/data-grid/DataGrid.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    },
-    "jsx-a11y/click-events-have-key-events": {
-      "count": 4,
-      "undescribed": 4
-    },
-    "jsx-a11y/interactive-supports-focus": {
-      "count": 3,
-      "undescribed": 3
-    },
-    "jsx-a11y/no-noninteractive-element-interactions": {
-      "count": 2,
-      "undescribed": 2
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -217,11 +176,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/shared/useStableValue.ts": {
-    "react-hooks/refs (file-wide)": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/client/api/client-api.ts": {
     "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
@@ -245,16 +199,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/log_data/chunked/chunkedSample.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/chunked/chunkStore.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/log_data/chunked/outlineRows.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
@@ -267,8 +211,7 @@
   },
   "apps/inspect/src/log_data/fetchEngine.ts": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/FetchEngineController.tsx": {
@@ -308,8 +251,7 @@
   },
   "apps/inspect/src/log_data/sampleMessages.ts": {
     "react-hooks/refs (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/sampleStream.test.ts": {
@@ -318,10 +260,6 @@
     }
   },
   "apps/inspect/src/log_data/sampleStream.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 3
     }
@@ -379,12 +317,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/utils/workQueue.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "apps/scout/src/api/attachmentsHelpers.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
@@ -406,59 +338,6 @@
   "apps/scout/src/app/components/AddFilterButton.tsx": {
     "jsx-a11y/no-autofocus": {
       "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/ColumnPickerButton.tsx": {
-    "react-hooks/refs": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/columnSizing/strategies.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/dataGrid/DataGrid.tsx": {
-    "jsx-a11y/no-noninteractive-tabindex": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "apps/scout/src/app/components/EditableText.tsx": {
-    "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/FilterBar.tsx": {
-    "react-hooks/refs": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/components/TranscriptsNavbar.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/hooks/useEnsureVisibleScannerResults.ts": {
@@ -503,21 +382,9 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/scan/scanners/list/ScannerResultsHeader.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 5
-    }
-  },
-  "apps/scout/src/app/scan/scanners/results/ScannerResultsSearch.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
@@ -526,20 +393,16 @@
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
   "apps/scout/src/app/scans/ScansGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
+      "count": 2
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/scout/src/app/server/useAdjacentTranscriptIds.ts": {
@@ -553,9 +416,6 @@
     }
   },
   "apps/scout/src/app/transcript/TranscriptBody.tsx": {
-    "react-hooks/refs": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -563,16 +423,10 @@
   "apps/scout/src/app/transcripts/columns.tsx": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
     }
   },
   "apps/scout/src/app/transcripts/TranscriptsGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "tsmono/no-raw-use-effect": {
       "count": 2
     }
   },
@@ -581,19 +435,8 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/utils/refs.tsx": {
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/validation/components/ValidationCaseEditor.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/validation/components/ValidationCaseLabelsEditor.tsx": {
-    "react-hooks/refs": {
       "count": 1
     }
   },
@@ -602,11 +445,6 @@
       "count": 1,
       "undescribed": 1
     },
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "apps/scout/src/app/validation/components/ValidationSetSelector.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
     }
@@ -669,11 +507,6 @@
   },
   "packages/inspect-components/src/chat/tools/tool.ts": {
     "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    }
-  },
-  "packages/inspect-components/src/columnFilter/ColumnFilterControl.tsx": {
-    "react-hooks/refs": {
       "count": 1
     }
   },
@@ -754,23 +587,42 @@
       "undescribed": 1
     }
   },
+  "packages/inspect-components/src/dataGrid/DataGrid.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 3,
+      "undescribed": 3
+    },
+    "jsx-a11y/interactive-supports-focus": {
+      "count": 3,
+      "undescribed": 3
+    },
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 2
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "react-hooks/incompatible-library": {
+      "count": 1,
+      "undescribed": 1
+    },
+    "tsmono/no-raw-use-effect": {
+      "count": 1
+    }
+  },
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "react-hooks/refs": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/event/EventNavsPicker.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -791,9 +643,6 @@
     }
   },
   "packages/inspect-components/src/transcript/FocusTurnView.tsx": {
-    "react-hooks/refs": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -872,9 +721,6 @@
     "jsx-a11y/click-events-have-key-events": {
       "count": 1,
       "undescribed": 1
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
@@ -885,12 +731,6 @@
   "packages/inspect-components/src/transcript/timeline/timelineEventNodes.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/ToolEventView.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
@@ -921,7 +761,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/react/src/components/ExpandablePanel.tsx": {
@@ -941,10 +781,6 @@
     }
   },
   "packages/react/src/components/MarkdownDiv.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "jsx-a11y/click-events-have-key-events": {
       "count": 1,
       "undescribed": 1
@@ -971,39 +807,9 @@
       "count": 1
     }
   },
-  "packages/react/src/components/Modal.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "packages/react/src/components/PopOver.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/refs": {
-      "count": 4,
-      "undescribed": 3
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 2
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 5
-    }
-  },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "packages/react/src/components/ToolDropdownButton.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/react/src/hooks/useChromeNavOwnership.ts": {
@@ -1042,6 +848,11 @@
       "count": 1
     },
     "react-hooks/refs": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useStableValue.ts": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },
@@ -1110,12 +921,6 @@
   "packages/util/src/jsonrpc.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/util/src/queue.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
     }
   }
 }

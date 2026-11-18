@@ -848,6 +848,8 @@ export interface components {
              * @constant
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -3513,6 +3515,11 @@ export interface components {
              * @default 0
              */
             tokens: number;
+            /**
+             * Unscored
+             * @default 0
+             */
+            unscored: number;
             validation?: components["schemas"]["ValidationResults"] | null;
         };
         /**
@@ -3563,7 +3570,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3596,7 +3603,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3729,6 +3736,8 @@ export interface components {
              * @constant
              */
             event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Factory */
@@ -4266,6 +4275,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
@@ -4420,6 +4431,8 @@ export interface components {
             message_count?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -4489,6 +4502,8 @@ export interface components {
             limit?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;

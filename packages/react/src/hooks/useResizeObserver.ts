@@ -1,10 +1,13 @@
-import { useEffect, useRef } from "react";
+import { RefObject, useEffect, useRef } from "react";
 
-// Custom hook to observe size changes
-export const useResizeObserver = (
-  callback: (entry: ResizeObserverEntry) => void
+// Custom hook to observe size changes. Observes `ref`'s element when given,
+// for a caller that also needs the element; otherwise the returned ref's.
+export const useResizeObserver = <T extends HTMLElement = HTMLDivElement>(
+  callback: (entry: ResizeObserverEntry) => void,
+  ref?: RefObject<T | null>
 ) => {
-  const elementRef = useRef<HTMLDivElement>(null);
+  const ownRef = useRef<T>(null);
+  const elementRef = ref ?? ownRef;
   const observerRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
@@ -24,7 +27,7 @@ export const useResizeObserver = (
         observerRef.current.disconnect();
       }
     };
-  }, [callback]);
+  }, [callback, elementRef]);
 
   return elementRef;
 };

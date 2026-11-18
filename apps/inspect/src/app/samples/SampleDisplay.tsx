@@ -67,6 +67,7 @@ import {
   useDocumentTitleText,
   useElementHeight,
   useEventListener,
+  useProperty,
   useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
@@ -79,6 +80,7 @@ import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
   kSampleActivityTabId,
+  kSampleCommunicationTabId,
   kSampleErrorTabId,
   kSampleInfoTabId,
   kSampleJsonTabId,
@@ -116,6 +118,9 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 
+import { hasCommunicationEvents } from "./communication/communicationEntries";
+import { CommunicationView } from "./communication/CommunicationView";
+import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -251,15 +256,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  const hideFind = useStore((state) => state.appActions.hideFind);
+  const [communicationMultiline, setCommunicationMultiline] = useProperty(
+    "sample-communication",
+    "multiline",
+    { defaultValue: false }
+  );
   useUnmount(() => {
     clearSampleTab();
   });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const routedTab = sampleTabId || selectedTab;
-  const effectiveSelectedTab = routedTab
-    ? sampleTabAlias(routedTab)
-    : routedTab;
+  // Only samples whose agents communicated (inspect_swarm's swarms) get the
+  // Communication tab; chunked samples' shell events hide it too. A link to
+  // it on another sample shows the Transcript, with the Transcript's controls.
+  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
+  const aliasedTab = routedTab ? sampleTabAlias(routedTab) : routedTab;
+  const effectiveSelectedTab =
+    aliasedTab === kSampleCommunicationTabId && !hasCommunicationTab
+      ? kSampleTranscriptTabId
+      : aliasedTab;
 
   // The Messages tab's rows, assembled by the data layer. Which feed serves
   // the conversation (monolith fetch, chunked hydration, live stream) is
@@ -376,14 +393,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ) ?? terminalSample.agents[0])
     : undefined;
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
-  const sampleMetadatas = metadataViewsForSample(
-    `${baseId}-${id}`,
-    // The helper only forwards scrollRef into JSX props (RecordTree
-    // scrollRef={...}); it never reads .current during render.
-    // eslint-disable-next-line react-hooks/refs
-    scrollRef,
-    sample
-  );
+  const sampleMetadatas = metadataRecordsForSample(sample);
 
   const tabsetId = `task-sample-details-tab-${id}`;
 
@@ -433,11 +443,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     }
   };
 
+  // The print route has no Communication view, so that tab offers no print.
+  const printable =
+    !isVscode() &&
+    effectiveSelectedTab !== kSampleCommunicationTabId &&
+    !!printLogPath &&
+    !!printSampleId &&
+    !!printEpoch;
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  const printShortcutEnabled =
-    !isVscode() && !!printLogPath && !!printSampleId && !!printEpoch;
   useEventListener(
-    printShortcutEnabled ? document : null,
+    printable ? document : null,
     "keydown",
     (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
@@ -461,10 +476,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const setCollapsedMode = useStore(
     (state) => state.sampleActions.setCollapsedMode
   );
-
-  const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
-    return mode === "collapsed"; //null is expanded
-  };
 
   const toggleCollapsedMode = useCallback(() => {
     setCollapsedMode(isCollapsed(collapsedMode) ? "expanded" : "collapsed");
@@ -646,6 +657,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
+  if (effectiveSelectedTab === kSampleCommunicationTabId) {
+    tools.push(
+      <CommunicationViewOptions
+        key="sample-communication-view"
+        multiline={communicationMultiline}
+        setMultiline={setCommunicationMultiline}
+      />
+    );
+  }
+
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
       ? "None"
@@ -811,7 +832,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (!isVscode() && printLogPath && printSampleId && printEpoch) {
+  if (printable) {
     tools.push(
       <ToolButton
         key="sample-print-tool"
@@ -1149,6 +1170,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {hasCommunicationTab ? (
+              <TabPanel
+                key={kSampleCommunicationTabId}
+                id={kSampleCommunicationTabId}
+                className="sample-tab"
+                title="Communication"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleCommunicationTabId)}
+                selected={effectiveSelectedTab === kSampleCommunicationTabId}
+              >
+                <CommunicationView
+                  key={visitId}
+                  events={sampleEvents}
+                  multiline={communicationMultiline}
+                  onShown={hideFind}
+                />
+              </TabPanel>
+            ) : null}
             {terminalSample ? (
               <TabPanel
                 key={kSampleTerminalsTabId}
@@ -1243,7 +1282,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )}
                 >
                   {sampleUsages}
-                  {sampleMetadatas}
+                  {sampleMetadatas.map(
+                    ({ key, label, record, processStore }) => (
+                      <Card key={`sample-${key}-${baseId}-${id}`}>
+                        <CardHeader label={label} />
+                        <CardBody>
+                          <RecordTree
+                            id={`task-sample-${key}-${baseId}-${id}`}
+                            record={record}
+                            className={clsx("tab-pane", styles.noTop)}
+                            scrollRef={scrollRef}
+                            processStore={processStore}
+                            copyButton={true}
+                          />
+                        </CardBody>
+                      </Card>
+                    )
+                  )}
                 </div>
               ) : (
                 <NoContentsPanel text="No sample usage or metadata available" />
@@ -1472,15 +1527,24 @@ const usageViewsForSample = (
   return views;
 };
 
-const metadataViewsForSample = (
-  id: string,
-  scrollRef: RefObject<HTMLDivElement | null>,
+interface SampleMetadataRecord {
+  key: "invalidation" | "metadata" | "store";
+  label: string;
+  record: Record<string, unknown>;
+  processStore?: boolean;
+}
+
+const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
+  return mode === "collapsed"; //null is expanded
+};
+
+const metadataRecordsForSample = (
   sample?: EvalSample
-) => {
+): SampleMetadataRecord[] => {
   if (!sample) {
     return [];
   }
-  const sampleMetadatas = [];
+  const records: SampleMetadataRecord[] = [];
 
   // Show invalidation details prominently if sample is invalidated
   if (sample.invalidation) {
@@ -1507,38 +1571,19 @@ const metadataViewsForSample = (
     if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
-
-    sampleMetadatas.push(
-      <Card key={`sample-invalidation-${id}`}>
-        <CardHeader label="Invalidation" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-invalidation-${id}`}
-            record={invalidationRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "invalidation",
+      label: "Invalidation",
+      record: invalidationRecord,
+    });
   }
 
   if (Object.keys(sample.metadata).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-metadata-${id}`}>
-        <CardHeader label="Metadata" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-metadata-${id}`}
-            record={sample.metadata}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "metadata",
+      label: "Metadata",
+      record: sample.metadata,
+    });
   }
 
   // Asciicasts play in the Terminals tab rather than printing as (very long)
@@ -1548,24 +1593,15 @@ const metadataViewsForSample = (
     Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
   );
   if (Object.keys(storeRecord).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-store-${id}`}>
-        <CardHeader label="Store" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-store-${id}`}
-            record={storeRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            processStore={true}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "store",
+      label: "Store",
+      record: storeRecord,
+      processStore: true,
+    });
   }
 
-  return sampleMetadatas;
+  return records;
 };
 
 const isRunning = (

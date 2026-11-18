@@ -68,9 +68,16 @@ position leaks between samples.
 
 ## Find integration
 
-Lists register with `ExtendedFindContext` under their `persistenceKey`
-(`findScope: "none"` opts out). Matching scans the in-memory data, and
-scroll-to-match goes through `scrollToIndex`, so it works at any scale.
+Lists register a `FindSource` with `ExtendedFindContext` under their
+`persistenceKey`. Every list passes `itemSearchText`: an accessor returning
+each item's text as its row renders it, one string per block, or `null` to
+stay out of Find. The find band highlights
+matches in rendered rows itself, with the CSS Custom Highlight API. The
+source counts matches per item from the in-memory data for rows that aren't
+rendered, maps a DOM node to its item, and reveals an item through
+`settleScrollToIndex`, so stepping reaches any row at any scale. A rendered
+row counts its DOM matches instead of its data matches, so the total always
+agrees with what is highlighted.
 
 ## Testing
 

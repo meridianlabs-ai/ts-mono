@@ -602,6 +602,8 @@ export interface components {
              * @enum {string}
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -637,7 +639,7 @@ export interface components {
          *     ```yaml
          *     approvers:
          *       - name: human
-         *         tools: web_browser*, bash, pyhton
+         *         tools: bash*, python, text_editor
          *         choices: [approve, reject]
          *
          *       - name: human
@@ -1328,7 +1330,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1664,6 +1666,8 @@ export interface components {
             status: "started" | "success" | "cancelled" | "error";
             /** Tags */
             tags: string[];
+            /** Total Samples */
+            total_samples?: number | null;
             /**
              * Version
              * @default 2
@@ -1921,7 +1925,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -3546,7 +3550,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3603,7 +3607,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3777,6 +3781,8 @@ export interface components {
              * @enum {string}
              */
             event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Factory */
@@ -4379,6 +4385,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
@@ -4389,6 +4397,8 @@ export interface components {
             event: "tool";
             /** Events */
             events: unknown[];
+            /** Execution Id */
+            execution_id?: string | null;
             /** Failed */
             failed?: boolean | null;
             /** Function */
