@@ -86,6 +86,22 @@ describe("ColumnSelectorPopover", () => {
     });
   });
 
+  test("the score mode switch appears only when the caller handles it", () => {
+    renderPicker({ scoresHeading: "Metrics" });
+    expect(screen.queryByRole("button", { name: "Per Scorer" })).toBeNull();
+    cleanup();
+
+    const onScoresViewModeChange = vi.fn();
+    renderPicker({
+      scoresHeading: "Metrics",
+      scoresViewMode: "by-metric",
+      onScoresViewModeChange,
+    });
+    screen.getByRole("button", { name: "By Metric", pressed: true });
+    fireEvent.click(screen.getByRole("button", { name: "Per Scorer" }));
+    expect(onScoresViewModeChange).toHaveBeenCalledWith("per-scorer");
+  });
+
   test("Default appears only when the caller can reset", () => {
     renderPicker();
     expect(screen.queryByRole("button", { name: "Default" })).toBeNull();
