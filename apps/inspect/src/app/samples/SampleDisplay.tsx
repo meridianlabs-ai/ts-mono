@@ -393,14 +393,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ) ?? terminalSample.agents[0])
     : undefined;
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
-  const sampleMetadatas = metadataViewsForSample(
-    `${baseId}-${id}`,
-    // The helper only forwards scrollRef into JSX props (RecordTree
-    // scrollRef={...}); it never reads .current during render.
-    // eslint-disable-next-line react-hooks/refs
-    scrollRef,
-    sample
-  );
+  const sampleMetadatas = metadataRecordsForSample(sample);
 
   const tabsetId = `task-sample-details-tab-${id}`;
 
@@ -483,10 +476,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const setCollapsedMode = useStore(
     (state) => state.sampleActions.setCollapsedMode
   );
-
-  const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
-    return mode === "collapsed"; //null is expanded
-  };
 
   const toggleCollapsedMode = useCallback(() => {
     setCollapsedMode(isCollapsed(collapsedMode) ? "expanded" : "collapsed");
@@ -1293,7 +1282,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )}
                 >
                   {sampleUsages}
-                  {sampleMetadatas}
+                  {sampleMetadatas.map(
+                    ({ key, label, record, processStore }) => (
+                      <Card key={`sample-${key}-${baseId}-${id}`}>
+                        <CardHeader label={label} />
+                        <CardBody>
+                          <RecordTree
+                            id={`task-sample-${key}-${baseId}-${id}`}
+                            record={record}
+                            className={clsx("tab-pane", styles.noTop)}
+                            scrollRef={scrollRef}
+                            processStore={processStore}
+                            copyButton={true}
+                          />
+                        </CardBody>
+                      </Card>
+                    )
+                  )}
                 </div>
               ) : (
                 <NoContentsPanel text="No sample usage or metadata available" />
@@ -1522,15 +1527,24 @@ const usageViewsForSample = (
   return views;
 };
 
-const metadataViewsForSample = (
-  id: string,
-  scrollRef: RefObject<HTMLDivElement | null>,
+interface SampleMetadataRecord {
+  key: "invalidation" | "metadata" | "store";
+  label: string;
+  record: Record<string, unknown>;
+  processStore?: boolean;
+}
+
+const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
+  return mode === "collapsed"; //null is expanded
+};
+
+const metadataRecordsForSample = (
   sample?: EvalSample
-) => {
+): SampleMetadataRecord[] => {
   if (!sample) {
     return [];
   }
-  const sampleMetadatas = [];
+  const records: SampleMetadataRecord[] = [];
 
   // Show invalidation details prominently if sample is invalidated
   if (sample.invalidation) {
@@ -1557,38 +1571,19 @@ const metadataViewsForSample = (
     if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
-
-    sampleMetadatas.push(
-      <Card key={`sample-invalidation-${id}`}>
-        <CardHeader label="Invalidation" />
-        <CardBody>
-          <RecordTree
-            id={`task-sample-invalidation-${id}`}
-            record={invalidationRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "invalidation",
+      label: "Invalidation",
+      record: invalidationRecord,
+    });
   }
 
   if (Object.keys(sample.metadata).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-metadata-${id}`}>
-        <CardHeader label="Metadata" />
-        <CardBody>
-          <RecordTree
-            id={`task-sample-metadata-${id}`}
-            record={sample.metadata}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "metadata",
+      label: "Metadata",
+      record: sample.metadata,
+    });
   }
 
   // Asciicasts play in the Terminals tab rather than printing as (very long)
@@ -1598,24 +1593,15 @@ const metadataViewsForSample = (
     Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
   );
   if (Object.keys(storeRecord).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-store-${id}`}>
-        <CardHeader label="Store" />
-        <CardBody>
-          <RecordTree
-            id={`task-sample-store-${id}`}
-            record={storeRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            processStore={true}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "store",
+      label: "Store",
+      record: storeRecord,
+      processStore: true,
+    });
   }
 
-  return sampleMetadatas;
+  return records;
 };
 
 const isRunning = (

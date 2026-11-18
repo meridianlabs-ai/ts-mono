@@ -126,10 +126,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
-    "react-hooks/refs": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 3
     }
@@ -255,8 +251,7 @@
   },
   "apps/inspect/src/log_data/sampleMessages.ts": {
     "react-hooks/refs (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/sampleStream.test.ts": {
@@ -438,12 +433,6 @@
   "apps/scout/src/app/utils/normalizeScanRow.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/utils/refs.tsx": {
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseEditor.tsx": {
