@@ -24,6 +24,7 @@ import {
   buildSentinelStep,
   buildSentinelSteps,
   formatSuspicion,
+  kBridgeCheckSpan,
   pairToolSentinels,
   topScore,
   type SentinelNode,
@@ -774,13 +775,215 @@ describe("pairToolSentinels", () => {
     }
   });
 
-  it("leaves a before-call step standalone when no tool with its id follows it", () => {
-    const result = pairToolSentinels([
-      tool("tool-1", "dup"),
-      span("span-1", [sentinel("s1", { step_id: "dup", action: "reject" })]),
-    ]);
-    expect(result.toolSentinels.size).toBe(0);
-    expect(result.standaloneSentinels.get("span-1")?.verdict).toBe("reject");
+  // A ToolEvent is stamped when its call starts, before the sentinel judges
+  // it, but recorded after the step: the timestamp-ordered tree puts the tool
+  // ahead of its step, the recorded order behind it.
+  const at = (second: number) =>
+    new Date(Date.UTC(2026, 0, 1, 0, 0, second)).toISOString();
+  const proposal = (id: string, requested_model?: string) =>
+    new EventNode(
+      id,
+      testModelEvent({
+        requested_model,
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                tool_calls: [testToolCall({ id: "dup" })],
+              }),
+            }),
+          ],
+        }),
+      }),
+      0
+    );
+  const started = (
+    id: string,
+    second: number,
+    failed?: boolean,
+    completedAt?: number
+  ) =>
+    new EventNode(
+      id,
+      testToolEvent({
+        id: "dup",
+        timestamp: at(second),
+        failed,
+        completed: completedAt === undefined ? undefined : at(completedAt),
+      }),
+      0
+    );
+  const check = (
+    id: string,
+    second: number,
+    action: NonNullable<SentinelEvent["action"]> = "proceed",
+    name = "sentinel"
+  ) => {
+    const node = new EventNode(
+      id,
+      testSpanBeginEvent({
+        id,
+        name,
+        type: "sentinel",
+        timestamp: at(second),
+      }),
+      0
+    );
+    node.children = [
+      sentinel(`${id}:step`, { step_id: "dup", action, timestamp: at(second) }),
+    ];
+    return node;
+  };
+  const agent = (id: string, children: EventNode[]) => {
+    const node = new EventNode(
+      id,
+      testSpanBeginEvent({ id, name: id, type: "agent" }),
+      0
+    );
+    node.children = children;
+    return node;
+  };
+  const judgedBy = (
+    result: ReturnType<typeof pairToolSentinels>,
+    toolId: string
+  ) => {
+    const before = result.toolSentinels.get(toolId)?.before;
+    return before && rowIds(before);
+  };
+
+  describe.each([
+    ["records no execution_id", false],
+    ["records execution_id", true],
+  ])("a before-call step, in a log that %s", (_log, executions) => {
+    const pair = (nodes: EventNode[]) => pairToolSentinels(nodes, executions);
+
+    describe.each([
+      ["timestamp", false],
+      ["recorded", true],
+    ])("in %s order", (_order, recorded) => {
+      const run = (tool: EventNode, step: EventNode) =>
+        recorded ? [step, tool] : [tool, step];
+
+      it("pairs with its tool", () => {
+        const result = pair([
+          proposal("m1"),
+          ...run(started("t1", 1), check("c1", 2)),
+        ]);
+        expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+        expect(result.standaloneSentinels.size).toBe(0);
+        expect(result.sentinelScrollRedirects.get("c1")).toBe("t1");
+      });
+
+      it("keeps repeated call ids apart", () => {
+        const result = pair([
+          proposal("m1"),
+          ...run(started("t1", 1), check("c1", 2)),
+          proposal("m2"),
+          ...run(started("t2", 3), check("c2", 4)),
+        ]);
+        expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+        expect(judgedBy(result, "t2")).toEqual(["c2:step"]);
+      });
+
+      it("keeps repeated call ids apart when no output in view proposed them", () => {
+        const result = pair([
+          ...run(started("t1", 1), check("c1", 2)),
+          ...run(started("t2", 3), check("c2", 4)),
+        ]);
+        expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+        expect(judgedBy(result, "t2")).toEqual(["c2:step"]);
+      });
+
+      it("skips an earlier call under its id that never reached the sentinel", () => {
+        const result = pair([
+          proposal("m1"),
+          started("t1", 1, true),
+          ...run(started("t2", 2, true), check("c2", 3, "reject")),
+        ]);
+        expect(judgedBy(result, "t2")).toEqual(["c2:step"]);
+        expect(result.toolSentinels.has("t1")).toBe(false);
+      });
+
+      it("skips a sub-agent's run under its id", () => {
+        const result = pair([
+          agent("outer", [
+            proposal("m1"),
+            agent("inner", [proposal("m2"), started("t-inner", 1)]),
+            ...run(started("t1", 2), check("c1", 3)),
+          ]),
+        ]);
+        expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+        expect(result.toolSentinels.has("t-inner")).toBe(false);
+      });
+    });
+
+    it("leaves a step whose call recorded no tool standalone rather than pair it with a call that completed before it", () => {
+      const result = pair([started("t1", 1, true, 2), check("c2", 3)]);
+      expect(result.toolSentinels.size).toBe(0);
+      expect(result.standaloneSentinels.has("c2")).toBe(true);
+    });
+
+    it("leaves a step standalone rather than pair it with an earlier output's run", () => {
+      const result = pair([
+        proposal("m1"),
+        started("t1", 1),
+        proposal("m2"),
+        check("c2", 2),
+      ]);
+      expect(result.toolSentinels.size).toBe(0);
+      expect(result.standaloneSentinels.get("c2")?.verdict).toBe("proceed");
+    });
+  });
+
+  describe("a before-call step, in a log that records execution_id", () => {
+    const pair = (nodes: EventNode[]) => pairToolSentinels(nodes, true);
+
+    it("ignores a sub-agent's later proposal of its id", () => {
+      const result = pair([
+        agent("outer", [
+          proposal("m1"),
+          started("t1", 1),
+          agent("inner", [proposal("m2")]),
+          check("c1", 2),
+        ]),
+      ]);
+      expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+    });
+
+    it("ignores a bridge generation's later proposal of its id", () => {
+      const result = pair([
+        proposal("m1"),
+        started("t1", 1),
+        proposal("m2", "client"),
+        check("c1", 2),
+      ]);
+      expect(judgedBy(result, "t1")).toEqual(["c1:step"]);
+    });
+  });
+
+  it("pairs a bridge's before-call step with the host run after it, in a log that records no execution_id", () => {
+    const hostRun = (id: string, second: number) =>
+      new EventNode(
+        id,
+        testToolEvent({
+          id: "dup",
+          timestamp: at(second),
+          metadata: { bridge: {} },
+        }),
+        0
+      );
+    const bridgeCheck = check("c2", 2, "proceed", kBridgeCheckSpan);
+    const result = pairToolSentinels(
+      [
+        proposal("m1", "client"),
+        hostRun("t1", 1),
+        bridgeCheck,
+        hostRun("t2", 3),
+      ],
+      false
+    );
+    expect(judgedBy(result, "t2")).toEqual(["c2:step"]);
+    expect(result.toolSentinels.has("t1")).toBe(false);
   });
 
   it("pairs call and result stages with their tool and hides every event", () => {
