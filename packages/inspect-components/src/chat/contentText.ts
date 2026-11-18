@@ -1,5 +1,7 @@
 import type { Content, ContentReasoning } from "@tsmono/inspect-common/types";
 
+import { serverToolTexts } from "./server-tools/serverToolView";
+
 /**
  * The reasoning text the chat view shows: the summary when the chain is
  * redacted (it is encrypted) or missing, otherwise the chain itself.
@@ -14,15 +16,16 @@ export const reasoningText = (
 };
 
 /**
- * The text strings a message's content shows, one per part, for find and the
+ * The text strings a message's content holds, one per part, for find and the
  * transcript's text exports. Media never contribute their base64 payloads:
- * exports get an `<image />`-style placeholder. The chat view never shows
- * that placeholder, so the Messages tab's Find passes `placeholders: false`
- * rather than report matches it can't land on.
+ * exports get an `<image />`-style placeholder, and server tool calls give
+ * their raw arguments and result. `shown` limits the strings to what the chat
+ * view renders (no placeholders; server tool calls as `ServerToolCall` parses
+ * them), so the Messages tab's Find never reports a match it can't land on.
  */
 export const contentTexts = (
   content: string | readonly Content[],
-  { placeholders = true }: { placeholders?: boolean } = {}
+  { shown = false }: { shown?: boolean } = {}
 ): string[] => {
   if (typeof content === "string") return [content];
   const texts: string[] = [];
@@ -32,11 +35,15 @@ export const contentTexts = (
         texts.push(item.text);
         break;
       case "reasoning": {
-        const shown = reasoningText(item);
-        if (shown) texts.push(shown.text);
+        const reasoning = reasoningText(item);
+        if (reasoning) texts.push(reasoning.text);
         break;
       }
       case "tool_use":
+        if (shown) {
+          texts.push(...serverToolTexts(item));
+          break;
+        }
         for (const text of [
           item.name,
           item.arguments,
@@ -51,7 +58,7 @@ export const contentTexts = (
       case "video":
       case "data":
       case "document":
-        if (placeholders) texts.push(`<${item.type} />`);
+        if (!shown) texts.push(`<${item.type} />`);
         break;
     }
   }
