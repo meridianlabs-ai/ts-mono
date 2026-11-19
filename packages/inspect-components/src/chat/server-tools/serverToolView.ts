@@ -88,11 +88,9 @@ export const serverToolTexts = (
       texts.push(output.message);
       break;
     case "web_search":
-      for (const result of output.results) {
-        texts.push(result.title);
+      for (const { title, url } of output.results) {
         // ExternalLink's inert form appends the destination.
-        if (!policy.links && result.title !== result.url)
-          texts.push(result.url);
+        texts.push(policy.links || title === url ? title : `${title} (${url})`);
       }
       break;
     case "list_tools":

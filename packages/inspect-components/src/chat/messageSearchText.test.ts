@@ -62,7 +62,7 @@ describe("messageSearchText", () => {
       plainContentPolicy
     );
     expect(finds(texts, "A page")).toBe(true);
-    expect(finds(texts, "x.test/a")).toBe(true);
+    expect(finds(texts, "A page (https://x.test/a)")).toBe(true);
   });
 
   it("finds only the error of an errored call", () => {
