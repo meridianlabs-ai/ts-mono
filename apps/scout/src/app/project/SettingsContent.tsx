@@ -294,7 +294,6 @@ export const SettingsContent: FC<SettingsContentProps> = ({
                 value={shuffleSeed?.toString() ?? ""}
                 onInput={(e) => handleShuffleSeedChange(eventValue(e))}
                 placeholder="Seed (optional)"
-                style={{ width: "120px" }}
                 spellCheck={false}
                 autocomplete="off"
               />
