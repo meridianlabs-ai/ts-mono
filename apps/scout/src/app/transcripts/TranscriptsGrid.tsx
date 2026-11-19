@@ -56,9 +56,8 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
     columnSizing,
     focusedRowId,
     visibleColumns = DEFAULT_VISIBLE_COLUMNS,
+    columnFilters,
   } = tableState;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
-  const columnFilters = tableState.columnFilters ?? {};
 
   const routeOf = (row: TranscriptInfo): string | undefined =>
     transcriptsDir
@@ -87,10 +86,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
       onSortingChange={(next) =>
         setTableState((prev) => ({ ...prev, sorting: next }))
       }
-      columnOrder={
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's transcriptsTableState blob is merged wholesale, so keys added since may be absent
-        columnOrder?.length ? columnOrder : DEFAULT_COLUMN_ORDER
-      }
+      columnOrder={columnOrder.length ? columnOrder : DEFAULT_COLUMN_ORDER}
       onColumnOrderChange={(next) =>
         setTableState((prev) => ({ ...prev, columnOrder: next }))
       }

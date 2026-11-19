@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getOwn, nullProtoRecord } from "./object";
+import { fillPersistedDefaults, getOwn, nullProtoRecord } from "./object";
 
 const prototypeNames = [
   "__proto__",
@@ -71,5 +71,40 @@ describe("nullProtoRecord", () => {
   it.each(prototypeNames)("reads absent %s as undefined", (name) => {
     const record = nullProtoRecord(new Map<string, number>([["a", 1]]));
     expect(record[name]).toBeUndefined();
+  });
+});
+
+describe("fillPersistedDefaults", () => {
+  const current = {
+    table: { sorting: [{ id: "a" }], columnFilters: {}, width: 10 },
+    tab: "transcript",
+    act: () => "current",
+  };
+
+  it("fills keys an older blob lacks, at any depth", () => {
+    const merged = fillPersistedDefaults({ table: { width: 20 } }, current);
+    expect(merged.table).toEqual({
+      sorting: [{ id: "a" }],
+      columnFilters: {},
+      width: 20,
+    });
+    expect(merged.tab).toBe("transcript");
+    expect(merged.act()).toBe("current");
+  });
+
+  it("keeps persisted values, including arrays, nulls and legacy keys", () => {
+    const merged = fillPersistedDefaults(
+      { table: { sorting: [], legacy: 1 }, tab: null },
+      current
+    );
+    expect(merged.table.sorting).toEqual([]);
+    expect(merged.table).toHaveProperty("legacy", 1);
+    expect(merged.tab).toBeNull();
+  });
+
+  it("returns the current state when nothing usable was persisted", () => {
+    expect(fillPersistedDefaults(undefined, current)).toBe(current);
+    expect(fillPersistedDefaults(null, current)).toBe(current);
+    expect(fillPersistedDefaults("stale", current)).toBe(current);
   });
 });

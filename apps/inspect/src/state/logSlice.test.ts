@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resolveSamplesView } from "../app/samples/list/samplesView.converters";
+
 import { initializeStore, storeImplementation } from "./store";
 import { testStoreState } from "./testStore";
 
@@ -81,6 +83,61 @@ describe("legacy webview selection", () => {
     expect(storeImplementation?.getState().log).not.toHaveProperty(
       "selectedSampleHandle"
     );
+    vi.runAllTimers();
+  });
+});
+
+describe("persisted state from an older build", () => {
+  it("fills keys added since the blob was written", () => {
+    vi.useFakeTimers();
+    const initial = testStoreState();
+    const app = structuredClone(initial.app);
+    Reflect.deleteProperty(app.tabs, "sample");
+    const logFile = "file:///logs/old.eval";
+    initializeStore(capabilities, {
+      getItem: () => ({
+        version: 4,
+        state: {
+          app,
+          log: initial.log,
+          logs: {
+            ...initial.logs,
+            samplesListState: {
+              ...initial.logs.samplesListState,
+              byLog: {
+                [logFile]: {
+                  name: "Default",
+                  columns: [{ id: "sampleId", visible: true }],
+                  sort: [],
+                  filters: { dsl: "", extraColumnFilters: {} },
+                  multiline: false,
+                  compactScores: false,
+                  colorScalesEnabled: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+
+    const state = storeImplementation?.getState();
+    expect(state?.app.tabs.sample).toBe(initial.app.tabs.sample);
+    const view = state?.logs.samplesListState.byLog[logFile];
+    expect(view?.multiline).toBe(false);
+    expect(view?.columns).toEqual([{ id: "sampleId", visible: true }]);
+    // A view stored before userOverrides existed inherits every toggle.
+    const resolved = resolveSamplesView(view, {
+      name: "Eval",
+      multiline: true,
+      compact_scores: true,
+      color_scales_enabled: false,
+    });
+    expect(resolved.multiline).toBe(true);
+    expect(resolved.compactScores).toBe(true);
+    expect(resolved.colorScalesEnabled).toBe(false);
     vi.runAllTimers();
   });
 });

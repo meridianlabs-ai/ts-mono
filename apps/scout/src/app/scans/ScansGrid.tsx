@@ -62,9 +62,8 @@ export const ScansGrid: FC<ScansGridProps> = ({
     columnSizing,
     focusedRowId,
     visibleColumns = DEFAULT_VISIBLE_COLUMNS,
+    columnFilters,
   } = tableState;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
-  const columnFilters = tableState.columnFilters ?? {};
 
   // Add computed relativeLocation to each scan
   const data = useMemo(
@@ -107,10 +106,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
       onSortingChange={(next) =>
         setTableState((prev) => ({ ...prev, sorting: next }))
       }
-      columnOrder={
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
-        columnOrder?.length ? columnOrder : DEFAULT_COLUMN_ORDER
-      }
+      columnOrder={columnOrder.length ? columnOrder : DEFAULT_COLUMN_ORDER}
       onColumnOrderChange={(next) =>
         setTableState((prev) => ({
           ...prev,

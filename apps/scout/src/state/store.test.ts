@@ -289,4 +289,27 @@ describe("persisted state", () => {
     expect(persisted.selectedScanner).toBe("scanner-a");
     expect(persisted.properties).toEqual({ panel: { open: true } });
   });
+
+  it("fills table state keys an older build's blob lacks", () => {
+    const { blobs, storage } = createMemoryStorage();
+    blobs.set(
+      kStorageKey,
+      JSON.stringify({
+        version: 1,
+        state: {
+          scansTableState: {
+            sorting: [{ id: "timestamp", desc: true }],
+            columnSizing: {},
+          },
+        },
+      })
+    );
+    const store = createStore({ ...apiScoutServer(), storage });
+
+    const { scansTableState, transcriptsTableState } = store.getState();
+    expect(scansTableState.sorting).toEqual([{ id: "timestamp", desc: true }]);
+    expect(scansTableState.columnOrder).toEqual([]);
+    expect(scansTableState.columnFilters).toEqual({});
+    expect(transcriptsTableState.columnFilters).toEqual({});
+  });
 });

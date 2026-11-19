@@ -1054,9 +1054,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 // timestamps hides that tab — fall back here rather than
                 // leaving no panel selected.
                 (effectiveSelectedTab === kSampleActivityTabId &&
-                  !hasActivityTab) ||
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
-                effectiveSelectedTab === undefined
+                  !hasActivityTab)
               }
               scrollable={false}
             >

@@ -96,3 +96,32 @@ export const nullProtoRecord = <T>(
   Object.setPrototypeOf(record, null);
   return record;
 };
+
+/**
+ * zustand-persist `merge` that fills the keys an older build's blob lacks.
+ * The default merge is shallow, so a persisted slice replaces the current
+ * one wholesale and any key added since comes back undefined. Plain objects
+ * merge recursively; a value the blob does have wins, including legacy keys
+ * a slice migration still reads.
+ */
+export const fillPersistedDefaults = <T>(persisted: unknown, current: T): T =>
+  isPlainObject(persisted)
+    ? // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- persisted webview/store state (#555): the blob is whatever an older build wrote; every key T declares is filled from `current`
+      (fillMissing(persisted, current) as T)
+    : current;
+
+const fillMissing = (persisted: unknown, current: unknown): unknown => {
+  if (persisted === undefined) return current;
+  if (!isPlainObject(persisted) || !isPlainObject(current)) return persisted;
+  const merged: Record<string, unknown> = { ...persisted };
+  for (const key of Object.keys(current)) {
+    merged[key] = fillMissing(persisted[key], current[key]);
+  }
+  return merged;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
