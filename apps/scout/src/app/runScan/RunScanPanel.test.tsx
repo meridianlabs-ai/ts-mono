@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { type PropsWithChildren } from "react";
@@ -84,6 +85,7 @@ const finishedStatus = (
         results: 7,
         scans: 10,
         tokens: 0,
+        unscored: 0,
       },
     },
   },
@@ -95,7 +97,7 @@ const finishedStatus = (
  * `scanIds`; the test moves scans in and out of the active list and sets
  * what each scan's status endpoint returns.
  */
-const serve = (scanIds: string[]) => {
+const serve = (scanIds: string[], { listed = true } = {}) => {
   const active: Record<string, ActiveScanInfo> = {};
   const statuses: Record<string, Status> = {};
   let started = 0;
@@ -118,11 +120,14 @@ const serve = (scanIds: string[]) => {
       const scanId = scanIds[started++];
       if (!scanId) throw new Error("Started more scans than the test scripted");
       const status = startedStatus(scanId);
-      statuses[scanId] = status;
-      active[scanId] = createActiveScanInfo({
-        scan_id: scanId,
-        title: `running ${scanId}`,
-      });
+      statuses[scanId] ??= status;
+      if (listed) {
+        active[scanId] = createActiveScanInfo({
+          scan_id: scanId,
+          title: `running ${scanId}`,
+          scanner_names: ["llm_scanner"],
+        });
+      }
       return HttpResponse.json<Status>(status);
     }),
     http.get<{ scanPath: string }>(
@@ -178,25 +183,43 @@ const runScan = async () => {
   fireEvent.click(button("Run Scan"));
 };
 
-const queryNotice = () =>
-  screen.queryByRole("status") ?? screen.queryByRole("alert");
+const outcome = () => screen.getByRole("status").textContent;
+
+const scannerRow = (scanner: string) =>
+  within(screen.getByRole("row", { name: new RegExp(`^${scanner}\\b`) }))
+    .getAllByRole("cell")
+    .map((td) => td.textContent);
 
 const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(kPollMs));
 
-it("replaces a finished scan with a notice linking to its results", async () => {
-  const api = serve(["scanA"]);
+const startListedScan = async (scanIds: string[]) => {
+  const api = serve(scanIds);
   renderPanel();
   await runScan();
   await nextPoll();
   await screen.findByText("running scanA");
+  expect(screen.getByText("workers")).toBeTruthy();
+  return api;
+};
+
+it("keeps the scan's card with its final results and a link to them", async () => {
+  const api = await startListedScan(["scanA"]);
 
   api.finish("scanA", finishedStatus("scanA"));
   await nextPoll();
 
-  const notice = await screen.findByRole("status");
-  expect(notice.textContent).toContain("Scan complete");
-  expect(notice.textContent).toContain("7 results, 0 errors");
-  expect(screen.queryByText("running scanA")).toBeNull();
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete");
+  // Same card, now filled from the final status; the live-only worker stats go.
+  expect(screen.getByText("running scanA")).toBeTruthy();
+  expect(scannerRow("llm_scanner")).toEqual([
+    "llm_scanner",
+    "7",
+    "-",
+    "-",
+    "-",
+  ]);
+  expect(screen.queryByText("workers")).toBeNull();
 
   fireEvent.click(screen.getByRole("link", { name: "View results" }));
   await screen.findByText(
@@ -204,12 +227,8 @@ it("replaces a finished scan with a notice linking to its results", async () => 
   );
 });
 
-it("shows the error style when the scan finished with errors", async () => {
-  const api = serve(["scanA"]);
-  renderPanel();
-  await runScan();
-  await nextPoll();
-  await screen.findByText("running scanA");
+it("counts errors in the outcome of a complete scan", async () => {
+  const api = await startListedScan(["scanA"]);
 
   const status = finishedStatus("scanA");
   const scanner = status.summary.scanners.llm_scanner;
@@ -217,32 +236,31 @@ it("shows the error style when the scan finished with errors", async () => {
   api.finish("scanA", status);
   await nextPoll();
 
-  const notice = await screen.findByRole("alert");
-  expect(notice.textContent).toContain("Scan complete with errors");
-  expect(notice.textContent).toContain("7 results, 2 errors");
-  expect(screen.queryByRole("status")).toBeNull();
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete · 2 errors");
+  expect(scannerRow("llm_scanner")).toEqual([
+    "llm_scanner",
+    "7",
+    "2",
+    "-",
+    "-",
+  ]);
 });
 
-it("shows the error style when the scan left the list without completing", async () => {
-  const api = serve(["scanA"]);
-  renderPanel();
-  await runScan();
-  await nextPoll();
-  await screen.findByText("running scanA");
+it("says incomplete when the scan left the list without completing", async () => {
+  const api = await startListedScan(["scanA"]);
 
   api.finish("scanA", startedStatus("scanA"));
   await nextPoll();
 
-  const notice = await screen.findByRole("alert");
-  expect(notice.textContent).toContain("Scan ended without completing");
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Incomplete");
+  // No final summary yet: the rows come from the last active entry.
+  expect(scannerRow("llm_scanner")[0]).toBe("llm_scanner");
 });
 
-it("says a scan with errors finished with errors and eventually stops polling", async () => {
-  const api = serve(["scanA"]);
-  renderPanel();
-  await runScan();
-  await nextPoll();
-  await screen.findByText("running scanA");
+it("reports an incomplete scan with errors and eventually stops polling", async () => {
+  const api = await startListedScan(["scanA"]);
 
   api.finish("scanA", {
     ...finishedStatus("scanA"),
@@ -257,15 +275,15 @@ it("says a scan with errors finished with errors and eventually stops polling", 
           results: 0,
           scans: 3,
           tokens: 0,
+          unscored: 0,
         },
       },
     },
   });
   await nextPoll();
 
-  const notice = await screen.findByRole("alert");
-  expect(notice.textContent).toContain("Scan finished with errors");
-  expect(notice.textContent).toContain("3 errors");
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Incomplete · 3 errors");
 
   // An incomplete status is re-checked for a while, then polling stops.
   for (let i = 0; i < 20; i++) await nextPoll();
@@ -275,50 +293,47 @@ it("says a scan with errors finished with errors and eventually stops polling", 
   expect(api.statusRequests()).toBe(requests);
 });
 
-it("corrects the notice when the summary is written after the scan left the list", async () => {
-  const api = serve(["scanA"]);
-  renderPanel();
-  await runScan();
-  await nextPoll();
-  await screen.findByText("running scanA");
+it("updates the outcome when the summary is written after the scan left the list", async () => {
+  const api = await startListedScan(["scanA"]);
 
   api.finish("scanA", startedStatus("scanA"));
   await nextPoll();
-  expect((await screen.findByRole("alert")).textContent).toContain(
-    "Scan ended without completing"
-  );
-
-  api.finish("scanA", finishedStatus("scanA"));
-  await nextPoll();
-  expect((await screen.findByRole("status")).textContent).toContain(
-    "Scan complete"
-  );
-});
-
-it("keeps the notice until dismissed", async () => {
-  const api = serve(["scanA"]);
-  renderPanel();
-  await runScan();
-  await nextPoll();
-  await screen.findByText("running scanA");
-  api.finish("scanA", finishedStatus("scanA"));
-  await nextPoll();
   await screen.findByRole("status");
+  expect(outcome()).toBe("Incomplete");
 
+  api.finish("scanA", finishedStatus("scanA"));
   await nextPoll();
-  expect(screen.getByRole("status").textContent).toContain("Scan complete");
-
-  fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-  expect(queryNotice()).toBeNull();
-  await screen.findByText("No scan started");
+  await waitFor(() => expect(outcome()).toBe("Complete"));
+  expect(scannerRow("llm_scanner")).toEqual([
+    "llm_scanner",
+    "7",
+    "-",
+    "-",
+    "-",
+  ]);
 });
 
-it("clears the notice when another scan starts", async () => {
-  const api = serve(["scanA", "scanB"]);
+it("shows a scan that finished before the active list ever showed it", async () => {
+  const api = serve(["scanA"], { listed: false });
+  api.finish("scanA", finishedStatus("scanA"));
   renderPanel();
   await runScan();
   await nextPoll();
-  await screen.findByText("running scanA");
+
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete");
+  expect(screen.getByText("scan: scanA")).toBeTruthy();
+  expect(scannerRow("llm_scanner")).toEqual([
+    "llm_scanner",
+    "7",
+    "-",
+    "-",
+    "-",
+  ]);
+});
+
+it("replaces the finished card when another scan starts", async () => {
+  const api = await startListedScan(["scanA", "scanB"]);
   api.finish("scanA", finishedStatus("scanA"));
   await nextPoll();
   await screen.findByRole("status");
@@ -327,5 +342,6 @@ it("clears the notice when another scan starts", async () => {
   await nextPoll();
 
   await screen.findByText("running scanB");
-  expect(queryNotice()).toBeNull();
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.queryByText("running scanA")).toBeNull();
 });

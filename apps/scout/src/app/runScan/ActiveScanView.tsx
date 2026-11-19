@@ -1,5 +1,7 @@
 import { skipToken } from "@tanstack/react-query";
-import { FC, useState } from "react";
+import { clsx } from "clsx";
+import { FC, ReactNode, useState } from "react";
+import { Link } from "react-router";
 
 import {
   ErrorPanel,
@@ -7,6 +9,7 @@ import {
   NoContentsPanel,
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { basename, getOwn, toRelativePath } from "@tsmono/util";
 
 import { scanRoute } from "../../router/url";
@@ -14,13 +17,13 @@ import {
   ActiveScanInfo,
   ScannerSummary,
   Status,
+  Summary,
   ValidationResults,
 } from "../../types/api-types";
 import { useActiveScan } from "../server/useActiveScan";
 import { useFinishedScan } from "../server/useFinishedScan";
 
 import styles from "./ActiveScanView.module.css";
-import { ScanCompleteNotice } from "./ScanCompleteNotice";
 
 const formatMemory = (bytes: number): string => {
   const gb = bytes / (1024 * 1024 * 1024);
@@ -70,28 +73,25 @@ const getMetricLabel = (scanners: Record<string, ScannerSummary>): string => {
   return names.size === 1 ? ([...names][0] ?? "metric") : "metric";
 };
 
-const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
-  const { metrics, summary } = info;
-  const [now, setNow] = useState(() => Date.now());
-
-  // Update time every second for elapsed/remaining
-  useInterval(() => setNow(Date.now()), 1000);
-
+const ScannerTable: FC<{
+  scannerNames: string[];
+  summary: Summary;
+}> = ({ scannerNames, summary }) => {
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
-  const hasValidations = info.scanner_names.some(
+  const hasValidations = scannerNames.some(
     (name) =>
       (getOwn(summary.scanners, name)?.validation?.entries.length ?? 0) > 0
   );
-  const hasMetrics = info.scanner_names.some(
+  const hasMetrics = scannerNames.some(
     (name) => getOwn(summary.scanners, name)?.metrics !== null
   );
   const metricLabel = hasMetrics ? getMetricLabel(summary.scanners) : "";
-  const hasUnscored = info.scanner_names.some(
+  const hasUnscored = scannerNames.some(
     (name) => (getOwn(summary.scanners, name)?.unscored ?? 0) > 0
   );
 
   // Calculate scanner stats (iterate over scanner_names to show all rows from start)
-  const scannerStats = info.scanner_names.map((name) => {
+  const scannerStats = scannerNames.map((name) => {
     const scanner = getOwn(summary.scanners, name);
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
@@ -119,6 +119,86 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     };
   });
 
+  return (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>scanner</th>
+          {hasMetrics && <th className={styles.numeric}>{metricLabel}</th>}
+          {hasValidations && <th className={styles.numeric}>validation</th>}
+          <th className={styles.numeric}>results</th>
+          {hasUnscored && <th className={styles.numeric}>unscored</th>}
+          <th className={styles.numeric}>errors</th>
+          <th className={styles.numeric}>tokens/scan</th>
+          <th className={styles.numeric}>tokens</th>
+        </tr>
+      </thead>
+      <tbody>
+        {scannerStats.map(
+          ({
+            name,
+            scanner,
+            totalTokens,
+            tokensPerScan,
+            validationScore,
+            metricValue,
+          }) => (
+            <tr key={name}>
+              <td>{name}</td>
+              {hasMetrics && (
+                <td className={styles.numeric}>
+                  {metricValue !== null
+                    ? metricValue === Math.floor(metricValue)
+                      ? metricValue.toLocaleString()
+                      : metricValue.toFixed(2)
+                    : "-"}
+                </td>
+              )}
+              {hasValidations && (
+                <td className={styles.numeric}>
+                  {validationScore !== null ? validationScore.toFixed(2) : "-"}
+                </td>
+              )}
+              <td className={styles.numeric}>{scanner?.results || "-"}</td>
+              {hasUnscored && (
+                <td className={styles.numeric}>{scanner?.unscored || "-"}</td>
+              )}
+              <td className={styles.numeric}>{scanner?.errors || "-"}</td>
+              <td className={styles.numeric}>
+                {tokensPerScan ? tokensPerScan.toLocaleString() : "-"}
+              </td>
+              <td className={styles.numeric}>
+                {totalTokens ? totalTokens.toLocaleString() : "-"}
+              </td>
+            </tr>
+          )
+        )}
+      </tbody>
+    </table>
+  );
+};
+
+const CardHeader: FC<{
+  title: string;
+  config?: string;
+  children?: ReactNode;
+}> = ({ title, config, children }) => (
+  <div className={styles.header}>
+    <div>
+      <span className={styles.scanId}>{title}</span>
+      {config && <div className={styles.configLine}>{config}</div>}
+    </div>
+    {children}
+  </div>
+);
+
+const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
+  const { metrics, summary } = info;
+  const [now, setNow] = useState(() => Date.now());
+
+  // Update time every second for elapsed/remaining
+  useInterval(() => setNow(Date.now()), 1000);
+
   // Progress calculations
   const completed = metrics.completed_scans;
   const total = info.total_scans;
@@ -137,16 +217,10 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   return (
     <div className={styles.card}>
-      <div className={styles.header}>
-        <div>
-          <span className={styles.scanId}>
-            {info.title || `scan: ${info.scan_id}`}
-          </span>
-          {info.config && (
-            <div className={styles.configLine}>{info.config}</div>
-          )}
-        </div>
-      </div>
+      <CardHeader
+        title={info.title || `scan: ${info.scan_id}`}
+        config={info.config}
+      />
 
       {total > 0 && (
         <div className={styles.progressSection}>
@@ -168,71 +242,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
       <div className={styles.content}>
         <div className={styles.mainSection}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>scanner</th>
-                {hasMetrics && (
-                  <th className={styles.numeric}>{metricLabel}</th>
-                )}
-                {hasValidations && (
-                  <th className={styles.numeric}>validation</th>
-                )}
-                <th className={styles.numeric}>results</th>
-                {hasUnscored && <th className={styles.numeric}>unscored</th>}
-                <th className={styles.numeric}>errors</th>
-                <th className={styles.numeric}>tokens/scan</th>
-                <th className={styles.numeric}>tokens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scannerStats.map(
-                ({
-                  name,
-                  scanner,
-                  totalTokens,
-                  tokensPerScan,
-                  validationScore,
-                  metricValue,
-                }) => (
-                  <tr key={name}>
-                    <td>{name}</td>
-                    {hasMetrics && (
-                      <td className={styles.numeric}>
-                        {metricValue !== null
-                          ? metricValue === Math.floor(metricValue)
-                            ? metricValue.toLocaleString()
-                            : metricValue.toFixed(2)
-                          : "-"}
-                      </td>
-                    )}
-                    {hasValidations && (
-                      <td className={styles.numeric}>
-                        {validationScore !== null
-                          ? validationScore.toFixed(2)
-                          : "-"}
-                      </td>
-                    )}
-                    <td className={styles.numeric}>
-                      {scanner?.results || "-"}
-                    </td>
-                    {hasUnscored && (
-                      <td className={styles.numeric}>
-                        {scanner?.unscored || "-"}
-                      </td>
-                    )}
-                    <td className={styles.numeric}>{scanner?.errors || "-"}</td>
-                    <td className={styles.numeric}>
-                      {tokensPerScan ? tokensPerScan.toLocaleString() : "-"}
-                    </td>
-                    <td className={styles.numeric}>
-                      {totalTokens ? totalTokens.toLocaleString() : "-"}
-                    </td>
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
+          <ScannerTable scannerNames={info.scanner_names} summary={summary} />
         </div>
 
         <div className={styles.sidebar}>
@@ -283,6 +293,67 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   );
 };
 
+const plural = (count: number, noun: string): string =>
+  `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
+
+/**
+ * The card a started scan settles into once it leaves the active list: the
+ * same header and scanner table, filled from the scan's final status. The
+ * progress bar, clock and worker stats are dropped because the final status
+ * doesn't report them.
+ */
+const FinishedScanCard: FC<{
+  status: Status;
+  /** The last active-list entry seen for this scan, if it was ever listed. */
+  lastActive: ActiveScanInfo | undefined;
+  resultsHref: string;
+}> = ({ status, lastActive, resultsHref }) => {
+  const scannerErrors = Object.values(status.summary.scanners).reduce(
+    (sum, scanner) => sum + scanner.errors,
+    0
+  );
+  const errors = scannerErrors || status.errors.length;
+  // The summary names every scanner once it's written; until then, use the
+  // last active entry's names so the rows don't vanish.
+  const summarized = Object.keys(status.summary.scanners);
+  const scannerNames =
+    summarized.length > 0 ? summarized : (lastActive?.scanner_names ?? []);
+  // Scout leaves a scan with errors incomplete so it can be resumed.
+  const outcome = status.complete ? "Complete" : "Incomplete";
+  return (
+    <div className={styles.card}>
+      <CardHeader
+        title={lastActive?.title || `scan: ${status.spec.scan_id}`}
+        config={lastActive?.config}
+      >
+        <div className={styles.outcome}>
+          <span
+            role="status"
+            className={clsx(
+              styles.outcomeLabel,
+              errors > 0
+                ? styles.failed
+                : status.complete
+                  ? styles.succeeded
+                  : undefined
+            )}
+          >
+            {(errors > 0 || status.complete) && (
+              <Icon name={errors > 0 ? "error" : "success"} />
+            )}
+            {errors > 0 ? `${outcome} · ${plural(errors, "error")}` : outcome}
+          </span>
+          <Link to={resultsHref} className={styles.resultsLink}>
+            View results
+            <Icon name="arrowRight" />
+          </Link>
+        </div>
+      </CardHeader>
+      <ScannerTable scannerNames={scannerNames} summary={status.summary} />
+    </div>
+  );
+};
+
 const startedScanPath = (location: string, scansDir: string): string => {
   const relative = toRelativePath(location, scansDir);
   return relative === location ? basename(location) : relative;
@@ -292,16 +363,17 @@ interface Props {
   /** The scan this page started; key the view by its id to reset per scan. */
   scan: Status | undefined;
   scansDir: string;
-  onDismiss: () => void;
 }
 
-export const ActiveScanView: FC<Props> = ({ scan, scansDir, onDismiss }) => {
+export const ActiveScanView: FC<Props> = ({ scan, scansDir }) => {
   const { loading, error, data: scanInfo } = useActiveScan(scan?.spec.scan_id);
 
   // Until the scan has been listed once, its absence may only mean the
-  // active-scans poll hasn't picked it up yet.
-  const [seenActive, setSeenActive] = useState(false);
-  if (scanInfo && !seenActive) setSeenActive(true);
+  // active-scans poll hasn't picked it up yet. The last entry also titles the
+  // finished card.
+  const [lastActive, setLastActive] = useState<ActiveScanInfo>();
+  if (scanInfo && scanInfo !== lastActive) setLastActive(scanInfo);
+  const seenActive = lastActive !== undefined;
 
   // Started scans are written straight into the scans directory, and the
   // server may report the location relative to its own working directory.
@@ -338,16 +410,16 @@ export const ActiveScanView: FC<Props> = ({ scan, scansDir, onDismiss }) => {
         <NoContentsPanel icon="running" text="No scan started" />
       )}
       {ended && finalStatus && scanPath && (
-        <ScanCompleteNotice
+        <FinishedScanCard
           status={finalStatus}
+          lastActive={lastActive}
           resultsHref={scanRoute(scansDir, scanPath)}
-          onDismiss={onDismiss}
         />
       )}
       {notActive && !seenActive && !ended && !statusError && (
         <NoContentsPanel icon="running" text="Scan not found" />
       )}
-      {scanInfo && <ActiveScanCard info={scanInfo} />}
+      {scanInfo && !ended && <ActiveScanCard info={scanInfo} />}
     </div>
   );
 };

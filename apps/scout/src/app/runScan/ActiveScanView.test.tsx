@@ -25,6 +25,9 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+const startedScan = (scanId: string) =>
+  createStatus({ spec: { ...createStatus().spec, scan_id: scanId } });
+
 it("updates elapsed, remaining and batch age each second and stops on unmount", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-01-01T00:01:00Z"));
@@ -38,10 +41,9 @@ it("updates elapsed, remaining and batch age each second and stops on unmount", 
   info.metrics.completed_scans = 5;
   info.metrics.batch_oldest_created = started + 5;
   vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
-  const { unmount } = render(
-    <ActiveScanView scan={scan} scansDir="/scans" onDismiss={() => {}} />,
-    { wrapper: createTestWrapper() }
-  );
+  const { unmount } = render(<ActiveScanView scan={scan} scansDir="/scans" />, {
+    wrapper: createTestWrapper(),
+  });
   expect(screen.getByText("0:10")).toBeTruthy();
   expect(screen.getByText("0:30")).toBeTruthy();
   expect(screen.getByText("0:05")).toBeTruthy();
@@ -64,7 +66,12 @@ it("shows a not-yet-started scanner named after an Object.prototype member", () 
     summary: { complete: false, scanners: {} },
   });
   vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
-  render(<ActiveScanView scanId={info.scan_id} />);
+  render(
+    <ActiveScanView scan={startedScan(info.scan_id)} scansDir="/scans" />,
+    {
+      wrapper: createTestWrapper(),
+    }
+  );
   expect(screen.getByText("constructor")).toBeTruthy();
 });
 
@@ -76,9 +83,10 @@ const renderActiveScan = (info: WireActiveScanInfo) => {
       })
     )
   );
-  return render(<ActiveScanView scanId={info.scan_id} />, {
-    wrapper: createTestWrapper(),
-  });
+  return render(
+    <ActiveScanView scan={startedScan(info.scan_id)} scansDir="/scans" />,
+    { wrapper: createTestWrapper() }
+  );
 };
 
 describe("unscored column", () => {

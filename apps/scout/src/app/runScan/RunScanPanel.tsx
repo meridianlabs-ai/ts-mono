@@ -22,7 +22,6 @@ export const RunScanPanel: FC = () => {
         key={startedScan?.spec.scan_id}
         scan={startedScan}
         scansDir={resolvedScansDir}
-        onDismiss={() => setStartedScan(undefined)}
       />
     </div>
   );
