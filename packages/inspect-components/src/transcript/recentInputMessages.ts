@@ -23,8 +23,8 @@ export function recentInputMessages(
   input: ChatMessage[],
   options: RecentInputMessagesOptions
 ): ChatMessage[] {
-  // Collected newest first and reversed once: this runs for every model event
-  // of a sample on each Find, and a long run makes `unshift` quadratic.
+  // Newest first, reversed once: Find runs this for every model event of a
+  // sample, so a long run has to stay linear.
   const result: ChatMessage[] = [];
 
   if (!options.agentResultsFiltered) {

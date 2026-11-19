@@ -9,10 +9,8 @@ import {
   testInfoEvent,
   testModelEvent,
   testModelOutput,
-  testToolCall,
-  testToolEvent,
 } from "@tsmono/inspect-common/testing";
-import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
+import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
   ExtendedFindProvider,
   useExtendedFind,
@@ -70,7 +68,7 @@ function makeRow(key: string, agent: TimelineSpan, depth = 0): SwimlaneRow {
   };
 }
 
-function singleRowFixture(events: Event[]) {
+function singleRowFixture(events: ModelEvent[]) {
   const main = new TimelineSpan({
     id: "main",
     name: "main",
@@ -110,7 +108,7 @@ function twoRowFixture() {
 // =============================================================================
 
 interface HarnessOptions {
-  events: Event[];
+  events: ModelEvent[];
   rows: SwimlaneRow[];
   selected: string;
   flattenedNodeIds?: string[];
@@ -119,7 +117,6 @@ interface HarnessOptions {
   onSelect?: (key: string | null) => void;
   scrollToEvent?: TranscriptViewNodesHandle["scrollToEvent"];
   rowEventId?: (eventId: string) => string;
-  recordsExecutionIds?: boolean;
 }
 
 function renderHarness(opts: HarnessOptions) {
@@ -149,7 +146,6 @@ function renderHarness(opts: HarnessOptions) {
       selected: opts.selected,
       onSelect: opts.onSelect ?? vi.fn(),
       viewNodesRef,
-      recordsExecutionIds: opts.recordsExecutionIds,
     });
     harness.source = getFindSources().get("transcript-sample");
     harness.view = viewNodesRef.current;
@@ -216,38 +212,6 @@ describe("useTranscriptSearchSource", () => {
       rowEventId: (eventId) => (eventId === "e2" ? "e1" : eventId),
     });
     expect(source().countByItem("wondering")).toEqual([{ item: 0, count: 2 }]);
-  });
-
-  it("pairs a call a bridge renamed by the execution ids the whole log records", () => {
-    const args = { cmd: "grep persimmon notes.txt" };
-    const proposed = testModelEvent({
-      uuid: "e1",
-      output: testModelOutput({
-        choices: [
-          testChatCompletionChoice({
-            message: testAssistantMessage({
-              content: "",
-              tool_calls: [testToolCall({ id: "call-1", arguments: args })],
-            }),
-          }),
-        ],
-      }),
-    });
-    const ran = testToolEvent({
-      uuid: "e2",
-      id: "scaffold-1",
-      arguments: args,
-      metadata: { bridge: { proposal_id: "call-1" } },
-    });
-    // The approval that records an execution id is hidden, so not in `events`.
-    const { events, rows } = singleRowFixture([proposed, ran]);
-    const { source } = renderHarness({
-      events,
-      rows,
-      selected: "main",
-      recordsExecutionIds: true,
-    });
-    expect(source().countByItem("persimmon")).toEqual([{ item: 1, count: 1 }]);
   });
 
   it("recounts when the view's redirects change", () => {

@@ -696,7 +696,6 @@ const toToolTodo = (item: unknown): ToolTodo | undefined => {
   };
 };
 
-/** The items a todo-list tool input renders. */
 export const toToolTodos = (obj: unknown): ToolTodo[] =>
   Array.isArray(obj)
     ? obj.map(toToolTodo).filter((todo) => todo !== undefined)

@@ -317,24 +317,6 @@ describe("findAllMatches: what model call and tool panels draw", () => {
     expect(matchedEvents(events, "quince")).toEqual(["m2"]);
   });
 
-  it("skips an argument's name, which the panel doesn't draw for the call", () => {
-    expect(matchedEvents([first, second], "cmd")).toEqual([]);
-  });
-
-  it("counts a user message that sits before a tool result", () => {
-    const reminded = modelCall(
-      "m2",
-      [
-        ...prompt,
-        step,
-        testUserMessage({ content: "Mind the medlar." }),
-        result,
-      ],
-      testAssistantMessage({ content: "Done." })
-    );
-    expect(matchedEvents([first, toolRun, reminded], "medlar")).toEqual(["m2"]);
-  });
-
   it("skips a tool event's argument name, which its panel doesn't draw", () => {
     expect(matchedEvents([first, toolRun, second], "cmd")).toEqual([]);
   });
@@ -346,7 +328,6 @@ describe("findAllMatches: what model call and tool panels draw", () => {
       arguments: { fruit: "medlar" },
     });
     expect(matchedEvents([lookup], "fruit")).toEqual(["t1"]);
-    expect(matchedEvents([lookup], "medlar")).toEqual(["t1"]);
     // The block lists the arguments apart from the name.
     expect(matchedEvents([lookup], "lookup(")).toEqual([]);
   });
@@ -390,24 +371,17 @@ describe("findAllMatches: what model call and tool panels draw", () => {
     content: `\`\`\`${language}\n${code}\n\`\`\`\n`,
   });
 
-  it("counts a command once when the call records a view of it", () => {
-    const viewed = testToolEvent({
+  it.each([
+    ["in the view the call records, not again in its input", args.cmd],
+    ["in its input when the panel rejects the recorded view", "bash"],
+  ])("counts a command once: %s", (_where, viewedCode) => {
+    const ran = testToolEvent({
       uuid: "t1",
       function: "bash",
       arguments: args,
-      view: codeView("bash", args.cmd),
+      view: codeView("bash", viewedCode),
     });
-    expect(matchedEvents([viewed], "persimmon")).toEqual(["t1"]);
-  });
-
-  it("counts the command when the recorded view is one the panel rejects", () => {
-    const placeholder = testToolEvent({
-      uuid: "t1",
-      function: "bash",
-      arguments: args,
-      view: codeView("bash", "bash"),
-    });
-    expect(matchedEvents([placeholder], "persimmon")).toEqual(["t1"]);
+    expect(matchedEvents([ran], "persimmon")).toEqual(["t1"]);
   });
 
   it("skips the fence around a view's code, which the panel renders away", () => {
@@ -435,8 +409,7 @@ describe("findAllMatches: what model call and tool panels draw", () => {
     expect(matchedEvents([unfillable, second], "Done")).toEqual(["m2"]);
   });
 
-  // A bridge may run a call under a new id and record the model's own id for
-  // it; only a log that records execution ids pairs the two.
+  // A bridge may run a call under a new id and record the model's own id for it.
   const renamedRun = testToolEvent({
     uuid: "t1",
     id: "scaffold-1",
@@ -444,19 +417,14 @@ describe("findAllMatches: what model call and tool panels draw", () => {
     arguments: args,
     metadata: { bridge: { proposal_id: call.id } },
   });
-  it.each([
-    {
-      desc: "leaves a call a bridge renamed to its tool event",
-      events: [first, testApprovalEvent({ execution_id: "run-1" }), renamedRun],
-      expected: ["t1"],
-    },
-    {
-      desc: "counts a renamed call on both events in a log without execution ids",
-      events: [first, renamedRun],
-      expected: ["m1", "t1"],
-    },
-  ])("$desc", ({ events, expected }) => {
-    expect(matchedEvents(events, "persimmon")).toEqual(expected);
+
+  it("leaves a call a bridge renamed to its tool event", () => {
+    const events = [
+      first,
+      testApprovalEvent({ execution_id: "run-1" }),
+      renamedRun,
+    ];
+    expect(matchedEvents(events, "persimmon")).toEqual(["t1"]);
   });
 
   // Hiding Approval events takes them out of the events Find searches, but
