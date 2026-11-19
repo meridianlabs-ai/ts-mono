@@ -15,7 +15,11 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import {
+  ColumnSelectorPopover,
+  ExtendedColumnDef,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import {
   ErrorPanel,
   NoContentsPanel,
@@ -62,8 +66,7 @@ import {
   useSamplesViewScoreColorScales,
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
-import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { type PickerColumn } from "../../shared/gridUtils.ts";
+import { toPickerColumns } from "../../shared/gridUtils.ts";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
@@ -91,16 +94,6 @@ const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
 
 // Stable empty fallback for logs with no persisted column widths.
 const kNoColumnSizing: Record<string, number> = Object.freeze({});
-
-// Picker-column shim of the column list for `useSamplesView` /
-// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
-const toPickerColumns = (
-  columns: ExtendedColumnDef<SampleRow>[]
-): PickerColumn[] =>
-  columns.map((col) => ({
-    colId: col.id,
-    headerName: typeof col.header === "string" ? col.header : "",
-  }));
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
@@ -320,7 +313,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const shape = samplesDescriptor?.messageShape;
   const defaultsForUnseededColumns = useCallback(
     (col: PickerColumn) => {
-      const id = col.colId;
+      const id = col.id;
       if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
@@ -512,6 +505,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       ) : null}
       {listDisplay ? (
         <ColumnSelectorPopover
+          id="column-selector-popover"
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
           columns={pickerColumns}

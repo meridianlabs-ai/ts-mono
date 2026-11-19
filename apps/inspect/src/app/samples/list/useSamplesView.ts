@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo } from "react";
 
 import { type TaskSamplesView } from "@tsmono/inspect-common/types";
+import type { PickerColumn } from "@tsmono/inspect-components/dataGrid";
 
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useCurrentLogFile } from "../../routing/currentSelection";
-import { getFieldKey, type PickerColumn } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 import { SCORE_FIELD_RAW_PREFIX } from "../../shared/samples-grid/columns";
 
@@ -155,7 +155,7 @@ export function useSamplesView(
     const known = new Set(view.columns.map((c) => c.id));
     const additions: SamplesViewState["columns"] = [];
     for (const col of allColumns) {
-      const id = getFieldKey(col);
+      const id = col.id;
       if (!known.has(id)) {
         additions.push({ id, visible: seedDefaultVisibility(col) });
       }
@@ -245,7 +245,7 @@ export function useSamplesView(
     const evalCols = liftEvalView(evalDefault).columns;
     const evalMap = new Map(evalCols.map((c) => [c.id, c.visible]));
     const nextColumns: SamplesViewState["columns"] = allColumns.map((col) => {
-      const id = getFieldKey(col);
+      const id = col.id;
       if (evalMap.has(id)) return { id, visible: evalMap.get(id)! };
       return {
         id,
