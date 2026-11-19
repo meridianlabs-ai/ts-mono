@@ -125,9 +125,13 @@ export const finishedScanQuery = (
         ? skipToken
         : () => api.getScan(params.scansDir, params.scanPath),
     staleTime: 0,
+    // A status fetched before the scan was listed (just started, incomplete)
+    // must not come back from cache as the final one when it leaves the list.
+    gcTime: 0,
     refetchInterval: (query) =>
       query.state.data?.complete ||
-      query.state.dataUpdateCount >= kFinishedScanPolls
+      query.state.dataUpdateCount + query.state.errorUpdateCount >=
+        kFinishedScanPolls
         ? false
         : 5000,
   });

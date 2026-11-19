@@ -10,7 +10,7 @@ import {
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
-import { basename, getOwn, toRelativePath } from "@tsmono/util";
+import { basename, dirname, getOwn, join } from "@tsmono/util";
 
 import { scanRoute } from "../../router/url";
 import {
@@ -293,6 +293,10 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   );
 };
 
+// Outstanding errors. Not the scanner counters, which keep counting errors a
+// resumed scan has since retried.
+const errorCount = (status: Status): number => status.errors.length;
+
 const plural = (count: number, noun: string): string =>
   `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
 
@@ -308,11 +312,7 @@ const FinishedScanCard: FC<{
   lastActive: ActiveScanInfo | undefined;
   resultsHref: string;
 }> = ({ status, lastActive, resultsHref }) => {
-  const scannerErrors = Object.values(status.summary.scanners).reduce(
-    (sum, scanner) => sum + scanner.errors,
-    0
-  );
-  const errors = scannerErrors || status.errors.length;
+  const errors = errorCount(status);
   // The summary names every scanner once it's written; until then, use the
   // last active entry's names so the rows don't vanish.
   const summarized = Object.keys(status.summary.scanners);
@@ -354,18 +354,23 @@ const FinishedScanCard: FC<{
   );
 };
 
-const startedScanPath = (location: string, scansDir: string): string => {
-  const relative = toRelativePath(location, scansDir);
-  return relative === location ? basename(location) : relative;
+// The server reports a started scan's location relative to its working
+// directory, the project dir, which is also where the scan subprocess runs.
+const startedScanLocation = (location: string, projectDir: string) => {
+  const absolute = /^([a-z][a-z\d+.-]*:\/\/|\/)/i.test(location)
+    ? location
+    : join(location, projectDir);
+  return { scansDir: dirname(absolute), scanPath: basename(absolute) };
 };
 
 interface Props {
   /** The scan this page started; key the view by its id to reset per scan. */
   scan: Status | undefined;
-  scansDir: string;
+  /** The server's working directory, which started scans' locations are relative to. */
+  projectDir: string;
 }
 
-export const ActiveScanView: FC<Props> = ({ scan, scansDir }) => {
+export const ActiveScanView: FC<Props> = ({ scan, projectDir }) => {
   const { loading, error, data: scanInfo } = useActiveScan(scan?.spec.scan_id);
 
   // Until the scan has been listed once, its absence may only mean the
@@ -375,24 +380,36 @@ export const ActiveScanView: FC<Props> = ({ scan, scansDir }) => {
   if (scanInfo && scanInfo !== lastActive) setLastActive(scanInfo);
   const seenActive = lastActive !== undefined;
 
-  // Started scans are written straight into the scans directory, and the
-  // server may report the location relative to its own working directory.
-  const scanPath = scan ? startedScanPath(scan.location, scansDir) : undefined;
+  const started = scan
+    ? startedScanLocation(scan.location, projectDir)
+    : undefined;
   const notActive = !!scan && !loading && !error && !scanInfo;
 
-  // Latched so the notice persists even if a later active-scans poll fails.
-  const [ended, setEnded] = useState(false);
+  // The final status on screen. Kept in state so a failed poll or a failed
+  // active-scans request doesn't take the card away.
+  const [shown, setShown] = useState<Status>();
   const { error: statusError, data: finalStatus } = useFinishedScan(
-    (notActive || ended) && scanPath ? { scansDir, scanPath } : skipToken
+    (notActive || shown) && started ? started : skipToken
   );
-  if (!ended && finalStatus && (finalStatus.complete || seenActive)) {
-    setEnded(true);
+  // Before the scan has been listed, an incomplete status without errors may
+  // only mean it hasn't started yet; one with errors means it failed early.
+  if (
+    finalStatus &&
+    finalStatus !== shown &&
+    (shown || finalStatus.complete || seenActive || errorCount(finalStatus) > 0)
+  ) {
+    setShown(finalStatus);
   }
+  // A resumed scan is live again; its earlier final status no longer holds.
+  if (scanInfo && shown) setShown(undefined);
 
   return (
     <div className={styles.scansList}>
       <LoadingBar
-        loading={!!scan && (!!loading || (seenActive && notActive && !ended))}
+        loading={
+          !!scan &&
+          (!!loading || (seenActive && notActive && !shown && !statusError))
+        }
       />
       {error && (
         <ErrorPanel
@@ -400,7 +417,7 @@ export const ActiveScanView: FC<Props> = ({ scan, scansDir }) => {
           error={{ message: error.message }}
         />
       )}
-      {statusError && (
+      {statusError && !shown && (
         <ErrorPanel
           title="Error Loading Scan Results"
           error={{ message: statusError.message }}
@@ -409,17 +426,21 @@ export const ActiveScanView: FC<Props> = ({ scan, scansDir }) => {
       {!scan && !error && (
         <NoContentsPanel icon="running" text="No scan started" />
       )}
-      {ended && finalStatus && scanPath && (
-        <FinishedScanCard
-          status={finalStatus}
-          lastActive={lastActive}
-          resultsHref={scanRoute(scansDir, scanPath)}
-        />
-      )}
-      {notActive && !seenActive && !ended && !statusError && (
+      {notActive && !seenActive && !shown && !statusError && (
         <NoContentsPanel icon="running" text="Scan not found" />
       )}
-      {scanInfo && !ended && <ActiveScanCard info={scanInfo} />}
+      {scanInfo ? (
+        <ActiveScanCard info={scanInfo} />
+      ) : (
+        shown &&
+        started && (
+          <FinishedScanCard
+            status={shown}
+            lastActive={lastActive}
+            resultsHref={scanRoute(started.scansDir, started.scanPath)}
+          />
+        )
+      )}
     </div>
   );
 };

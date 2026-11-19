@@ -41,9 +41,12 @@ it("updates elapsed, remaining and batch age each second and stops on unmount", 
   info.metrics.completed_scans = 5;
   info.metrics.batch_oldest_created = started + 5;
   vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
-  const { unmount } = render(<ActiveScanView scan={scan} scansDir="/scans" />, {
-    wrapper: createTestWrapper(),
-  });
+  const { unmount } = render(
+    <ActiveScanView scan={scan} projectDir="/project" />,
+    {
+      wrapper: createTestWrapper(),
+    }
+  );
   expect(screen.getByText("0:10")).toBeTruthy();
   expect(screen.getByText("0:30")).toBeTruthy();
   expect(screen.getByText("0:05")).toBeTruthy();
@@ -67,7 +70,7 @@ it("shows a not-yet-started scanner named after an Object.prototype member", () 
   });
   vi.mocked(useActiveScan).mockReturnValue({ loading: false, data: info });
   render(
-    <ActiveScanView scan={startedScan(info.scan_id)} scansDir="/scans" />,
+    <ActiveScanView scan={startedScan(info.scan_id)} projectDir="/project" />,
     {
       wrapper: createTestWrapper(),
     }
@@ -84,7 +87,7 @@ const renderActiveScan = (info: WireActiveScanInfo) => {
     )
   );
   return render(
-    <ActiveScanView scan={startedScan(info.scan_id)} scansDir="/scans" />,
+    <ActiveScanView scan={startedScan(info.scan_id)} projectDir="/project" />,
     { wrapper: createTestWrapper() }
   );
 };

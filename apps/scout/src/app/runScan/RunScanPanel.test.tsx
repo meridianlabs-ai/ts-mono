@@ -35,6 +35,8 @@ import { useAppConfigAsync } from "../server/useAppConfig";
 
 import { RunScanPanel } from "./RunScanPanel";
 
+type StatusError = Status["errors"][number];
+
 // Vite defines this build flag; the navbars' activity list reads it at import.
 vi.hoisted(() => vi.stubGlobal("__SCOUT_RUN_SCAN__", true));
 
@@ -69,6 +71,14 @@ const startedStatus = (scanId: string): Status =>
     spec: { ...createStatus().spec, scan_id: scanId },
   });
 
+const scanError = (transcriptId: string): StatusError => ({
+  error: "model unavailable",
+  refusal: false,
+  scanner: "llm_scanner",
+  traceback: "",
+  transcript_id: transcriptId,
+});
+
 const finishedStatus = (
   scanId: string,
   overrides: Partial<Status> = {}
@@ -97,15 +107,37 @@ const finishedStatus = (
  * `scanIds`; the test moves scans in and out of the active list and sets
  * what each scan's status endpoint returns.
  */
-const serve = (scanIds: string[], { listed = true } = {}) => {
+const serve = (
+  scanIds: string[],
+  {
+    listed = true,
+    configScansDir = scansDir,
+    absoluteLocation,
+  }: {
+    /** Whether a started scan appears in the active list. */
+    listed?: boolean;
+    /** The app config's scans dir, e.g. one passed to `scout view --scans`. */
+    configScansDir?: string;
+    /** Report started scans at this absolute dir instead of `scans/` relative to the project. */
+    absoluteLocation?: string;
+  } = {}
+) => {
   const active: Record<string, ActiveScanInfo> = {};
   const statuses: Record<string, Status> = {};
   let started = 0;
   let statusRequests = 0;
+  let statusFails = false;
+  const listScan = (scanId: string) => {
+    active[scanId] = createActiveScanInfo({
+      scan_id: scanId,
+      title: `running ${scanId}`,
+      scanner_names: ["llm_scanner"],
+    });
+  };
   server.use(
     http.get("/api/v2/app-config", () =>
       HttpResponse.json<AppConfig>(
-        createAppConfig({ scans: { dir: scansDir, source: "project" } })
+        createAppConfig({ scans: { dir: configScansDir, source: "cli" } })
       )
     ),
     http.get("/api/v2/scanners", () =>
@@ -121,19 +153,18 @@ const serve = (scanIds: string[], { listed = true } = {}) => {
       if (!scanId) throw new Error("Started more scans than the test scripted");
       const status = startedStatus(scanId);
       statuses[scanId] ??= status;
-      if (listed) {
-        active[scanId] = createActiveScanInfo({
-          scan_id: scanId,
-          title: `running ${scanId}`,
-          scanner_names: ["llm_scanner"],
-        });
-      }
-      return HttpResponse.json<Status>(status);
+      if (listed) listScan(scanId);
+      return HttpResponse.json<Status>(
+        absoluteLocation
+          ? { ...status, location: `${absoluteLocation}/scan_id=${scanId}` }
+          : status
+      );
     }),
     http.get<{ scanPath: string }>(
-      `/api/v2/scans/${encodeBase64Url(scansDir)}/:scanPath`,
+      `/api/v2/scans/${encodeBase64Url(absoluteLocation ?? scansDir)}/:scanPath`,
       ({ params }) => {
         statusRequests++;
+        if (statusFails) return new HttpResponse(null, { status: 500 });
         const scanId = decodeBase64Url(params.scanPath).replace("scan_id=", "");
         const status = statuses[scanId];
         if (!status) throw new Error(`No status for scan ${scanId}`);
@@ -145,6 +176,11 @@ const serve = (scanIds: string[], { listed = true } = {}) => {
     finish: (scanId: string, status: Status) => {
       Reflect.deleteProperty(active, scanId);
       statuses[scanId] = status;
+    },
+    /** Puts a scan back in the active list, as resuming it does. */
+    relist: listScan,
+    failStatusRequests: () => {
+      statusFails = true;
     },
     statusRequests: () => statusRequests,
   };
@@ -227,9 +263,11 @@ it("keeps the scan's card with its final results and a link to them", async () =
   );
 });
 
-it("counts errors in the outcome of a complete scan", async () => {
+it("counts outstanding errors, not ones a resumed scan has since retried", async () => {
   const api = await startListedScan(["scanA"]);
 
+  // Scout's scanner counters keep errors a resume retried; its errors list
+  // holds only the outstanding ones.
   const status = finishedStatus("scanA");
   const scanner = status.summary.scanners.llm_scanner;
   if (scanner) scanner.errors = 2;
@@ -237,7 +275,7 @@ it("counts errors in the outcome of a complete scan", async () => {
   await nextPoll();
 
   await screen.findByRole("status");
-  expect(outcome()).toBe("Complete · 2 errors");
+  expect(outcome()).toBe("Complete");
   expect(scannerRow("llm_scanner")).toEqual([
     "llm_scanner",
     "7",
@@ -265,6 +303,7 @@ it("reports an incomplete scan with errors and eventually stops polling", async 
   api.finish("scanA", {
     ...finishedStatus("scanA"),
     complete: false,
+    errors: [scanError("t1"), scanError("t2"), scanError("t3")],
     summary: {
       complete: false,
       scanners: {
@@ -286,6 +325,9 @@ it("reports an incomplete scan with errors and eventually stops polling", async 
   expect(outcome()).toBe("Incomplete · 3 errors");
 
   // An incomplete status is re-checked for a while, then polling stops.
+  const first = api.statusRequests();
+  await nextPoll();
+  expect(api.statusRequests()).toBeGreaterThan(first);
   for (let i = 0; i < 20; i++) await nextPoll();
   const requests = api.statusRequests();
   await nextPoll();
@@ -344,4 +386,104 @@ it("replaces the finished card when another scan starts", async () => {
   await screen.findByText("running scanB");
   expect(screen.queryByRole("status")).toBeNull();
   expect(screen.queryByText("running scanA")).toBeNull();
+});
+
+it("finds the scan where the server wrote it, not in the configured scans dir", async () => {
+  const api = serve(["scanA"], { configScansDir: "/archive" });
+  renderPanel();
+  await runScan();
+  await nextPoll();
+  await screen.findByText("running scanA");
+
+  api.finish("scanA", finishedStatus("scanA"));
+  await nextPoll();
+
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete");
+  fireEvent.click(screen.getByRole("link", { name: "View results" }));
+  await screen.findByText(
+    `scan page /scan/${encodeBase64Url(scansDir)}/scan_id=scanA`
+  );
+});
+
+it("finds a scan whose location the server reports as absolute", async () => {
+  const api = serve(["scanA"], { absoluteLocation: "/data/scans" });
+  renderPanel();
+  await runScan();
+  await nextPoll();
+  await screen.findByText("running scanA");
+
+  api.finish("scanA", finishedStatus("scanA"));
+  await nextPoll();
+
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete");
+  fireEvent.click(screen.getByRole("link", { name: "View results" }));
+  await screen.findByText(
+    `scan page /scan/${encodeBase64Url("/data/scans")}/scan_id=scanA`
+  );
+});
+
+it("shows a scan that failed before the active list ever showed it", async () => {
+  const api = serve(["scanA"], { listed: false });
+  api.finish("scanA", { ...startedStatus("scanA"), errors: [scanError("t1")] });
+  renderPanel();
+  await runScan();
+  await nextPoll();
+
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Incomplete · 1 error");
+  expect(screen.queryByText("Scan not found")).toBeNull();
+});
+
+it("keeps the finished card through a failed status poll", async () => {
+  const api = await startListedScan(["scanA"]);
+  // Incomplete, so the status keeps being polled.
+  api.finish("scanA", { ...startedStatus("scanA"), errors: [scanError("t1")] });
+  await nextPoll();
+  await screen.findByRole("status");
+
+  api.failStatusRequests();
+  const requests = api.statusRequests();
+  await nextPoll();
+  await nextPoll();
+
+  expect(api.statusRequests()).toBeGreaterThan(requests);
+  expect(outcome()).toBe("Incomplete · 1 error");
+  expect(screen.getByRole("link", { name: "View results" })).toBeTruthy();
+  expect(screen.queryByText("Error Loading Scan Results")).toBeNull();
+});
+
+it("stops polling a status that keeps failing", async () => {
+  const api = await startListedScan(["scanA"]);
+  api.failStatusRequests();
+  api.finish("scanA", finishedStatus("scanA"));
+  await nextPoll();
+  await screen.findByText("Error Loading Scan Results");
+
+  for (let i = 0; i < 20; i++) await nextPoll();
+  const requests = api.statusRequests();
+  await nextPoll();
+  await nextPoll();
+  expect(api.statusRequests()).toBe(requests);
+});
+
+it("goes back to the live card when a finished scan is resumed", async () => {
+  const api = await startListedScan(["scanA"]);
+  api.finish("scanA", startedStatus("scanA"));
+  await nextPoll();
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Incomplete");
+
+  api.relist("scanA");
+  await nextPoll();
+  await screen.findByText("workers");
+  expect(screen.queryByRole("status")).toBeNull();
+  // Longer than the finished status is polled for.
+  for (let i = 0; i < 20; i++) await nextPoll();
+
+  api.finish("scanA", finishedStatus("scanA"));
+  await nextPoll();
+  await screen.findByRole("status");
+  expect(outcome()).toBe("Complete");
 });

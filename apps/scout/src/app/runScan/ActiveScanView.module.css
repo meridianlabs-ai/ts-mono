@@ -139,14 +139,14 @@
   align-items: center;
   gap: 0.375rem;
   font-size: 0.875rem;
-  color: var(--bs-secondary);
 }
 
-.succeeded {
+/* Only the icon takes the status colour: as text it falls below 4.5:1 in dark mode. */
+.succeeded i {
   color: var(--bs-success);
 }
 
-.failed {
+.failed i {
   color: var(--bs-danger);
 }
 
