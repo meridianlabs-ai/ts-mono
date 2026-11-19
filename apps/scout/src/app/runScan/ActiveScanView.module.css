@@ -15,6 +15,10 @@
 }
 
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--bs-border-color);
@@ -121,4 +125,45 @@
 .error {
   color: var(--bs-danger);
   font-weight: 600;
+}
+
+.outcome {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.outcomeLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+/* Only the icon takes the status colour: as text it falls below 4.5:1 in dark mode. */
+.succeeded i {
+  color: var(--bs-success);
+}
+
+.failed i {
+  color: var(--bs-danger);
+}
+
+.resultsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--bs-body-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.resultsLink:hover {
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
 }
