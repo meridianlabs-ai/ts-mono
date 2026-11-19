@@ -7,7 +7,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createAppConfig } from "../../test/objectFactories";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
-import { button, inputByPlaceholder } from "../../test/webComponents";
+import {
+  button,
+  byId,
+  innerTextarea,
+  inputByPlaceholder,
+} from "../../test/webComponents";
 import type { ProjectConfig } from "../../types/api-types";
 
 import { ProjectPanel } from "./ProjectPanel";
@@ -96,6 +101,8 @@ const isDisabled = (label: string): boolean => {
   return host instanceof HTMLElement && host.hasAttribute("disabled");
 };
 
+const metadataTextarea = () => innerTextarea(byId("field-metadata"));
+
 // The textfield binds its inner input's value as a Lit property, so a
 // value React sets lands a render later.
 const settled = () => new Promise((r) => setTimeout(r, 0));
@@ -142,6 +149,8 @@ describe("ProjectPanel", () => {
     await waitFor(() => expect(tags.value).toBe("alpha"));
 
     configServer.changeExternally(["external"]);
+    // An unfinished line stays in the field without reaching the config.
+    fireEvent.input(metadataTextarea(), { target: { value: "owner" } });
     type("alpha, beta");
     fireEvent.click(button("Save Changes"));
     fireEvent.click(await waitFor(() => button("Discard My Changes")));
@@ -149,6 +158,7 @@ describe("ProjectPanel", () => {
     await waitFor(() =>
       expect(inputByPlaceholder(tagsPlaceholder).value).toBe("external")
     );
+    await waitFor(() => expect(metadataTextarea().value).toBe(""));
     expect(isDisabled("Save Changes")).toBe(true);
   });
 });

@@ -123,6 +123,9 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setOriginalConfig(deepCopy(initialized));
     setSyncedEtag(data.etag);
   }
+  // Discard re-initializes in the same render, so the null editedConfig never
+  // commits; bumping the key remounts the form to drop fields' local drafts.
+  const [formKey, setFormKey] = useState(0);
 
   const hasChanges = useMemo(() => {
     return !configsEqual(editedConfig, originalConfig);
@@ -253,6 +256,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setEditedConfig(null);
     setOriginalConfig(null);
     setSyncedEtag(null);
+    setFormKey((key) => key + 1);
     queryClient
       .invalidateQueries({ queryKey: projectConfigQuery(api).queryKey })
       .catch(console.error);
@@ -304,7 +308,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
       {/* Split Layout: Tree + Content */}
       {editedConfig && (
-        <div className={styles.splitLayout}>
+        <div key={formKey} className={styles.splitLayout}>
           {/* Navigation */}
           <nav className={styles.treeNav}>
             <ul className={styles.navList}>
