@@ -8,7 +8,7 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, ReactNode, useState } from "react";
 
-import { useDebouncedValue } from "@tsmono/react/hooks";
+import { useTimeout } from "@tsmono/react/hooks";
 
 import { eventValue } from "../../utils/formEvents";
 
@@ -53,13 +53,6 @@ export const TextField: FC<TextFieldProps> = ({
   validate,
 }) => {
   const errorMessage = validate && !disabled ? validate(value ?? null) : null;
-  // Show an error only once it has held for a second, so it doesn't flash
-  // while typing, but hide it as soon as the value is valid.
-  const settledError = useDebouncedValue(errorMessage, 1000);
-  const shownError =
-    errorMessage !== null && settledError === errorMessage
-      ? errorMessage
-      : null;
 
   return (
     <div className={styles.field}>
@@ -75,15 +68,25 @@ export const TextField: FC<TextFieldProps> = ({
         spellCheck={false}
         autocomplete="off"
       />
-      {shownError && (
-        <VscodeFormHelper
-          style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
-        >
-          {shownError}
-        </VscodeFormHelper>
+      {errorMessage && (
+        <DelayedError key={errorMessage} message={errorMessage} />
       )}
     </div>
   );
+};
+
+// Shows the error once it has held for a second, so it doesn't flash while
+// typing. Keyed by message, so each new or returning error waits again.
+const DelayedError: FC<{ message: string }> = ({ message }) => {
+  const [visible, setVisible] = useState(false);
+  useTimeout(() => setVisible(true), 1000);
+  return visible ? (
+    <VscodeFormHelper
+      style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
+    >
+      {message}
+    </VscodeFormHelper>
+  ) : null;
 };
 
 // ===== TextAreaField Component =====

@@ -167,8 +167,8 @@ caught locally. If you changed code, also run `pnpm test`.
     ref" → `useLatestRef`; "remember a route param / derived value in an
     external store" → `useMirrorToStore`; element size → `useResizeObserver` /
     `useElementHeight`; document title → `useDocumentTitle`; debounce →
-    `useDebouncedCallback` / `useDebouncedValue`; scroll tracking →
-    `useScrollDirection` / `useScrollTrack` / `useStatefulScrollPosition`.
+    `useDebouncedCallback`; scroll tracking → `useScrollDirection` /
+    `useScrollTrack` / `useStatefulScrollPosition`.
   - **Most effects shouldn't become a hook at all.** Setting state in
     response to a prop/state change is the anti-pattern from
     [react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect):

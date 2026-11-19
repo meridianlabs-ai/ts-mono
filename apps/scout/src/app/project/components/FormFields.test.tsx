@@ -166,4 +166,28 @@ describe("TextField", () => {
     setValue("ok");
     expect(screen.queryByText("Invalid value")).toBeNull();
   });
+
+  it("waits a second again when an error returns", () => {
+    vi.useFakeTimers();
+    const setValue = renderField("bad");
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(screen.queryByText("Invalid value")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByText("Invalid value")).not.toBeNull();
+
+    setValue("ok");
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    setValue("bad");
+    expect(screen.queryByText("Invalid value")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByText("Invalid value")).not.toBeNull();
+  });
 });
