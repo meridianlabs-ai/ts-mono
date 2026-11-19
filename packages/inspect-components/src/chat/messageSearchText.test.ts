@@ -76,6 +76,24 @@ describe("messageSearchText", () => {
     expect(finds(texts, "\\u00e9")).toBe(false);
   });
 
+  // trim() strips a BOM that JSON.parse rejects; the panel still renders it.
+  it("finds a padded JSON result", () => {
+    const texts = searchText(
+      toolUse({ name: "GOOGLE_SEARCH_WEB", result: '﻿{"title":"Caf\\u00e9"}' })
+    );
+    expect(finds(texts, "Café")).toBe(true);
+  });
+
+  it("adds nothing for a result shown as an image", () => {
+    const texts = searchText(
+      toolUse({
+        name: "screenshot",
+        result: "data:image/png;base64,iVBORw0KGgo=",
+      })
+    );
+    expect(finds(texts, "base64")).toBe(false);
+  });
+
   it("finds listed tools by name and description, not schema", () => {
     const texts = searchText(
       toolUse({

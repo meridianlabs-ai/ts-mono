@@ -1,6 +1,11 @@
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
 import { jsonPanelText } from "@tsmono/react/components";
-import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
+import {
+  asJsonObjArray,
+  isRecord,
+  isRenderableImageSource,
+  parseJsonRecord,
+} from "@tsmono/util";
 
 export interface WebResult {
   title: string;
@@ -97,10 +102,13 @@ export const serverToolTexts = (content: ContentToolUse): string[] => {
   return texts.filter((text) => text.length > 0);
 };
 
-/** The output panel renders a JSON-object string as a pretty-printed
- *  JSONPanel (see `RenderedContent`), with escapes decoded. */
-const shownText = (text: string): string =>
-  isJson(text) ? jsonPanelText(JSON.parse(text)) : text;
+/** The text the output panel shows (see `RenderedContent`): a JSON object
+ *  pretty-printed with escapes decoded, and nothing for an inline image. */
+const shownText = (text: string): string => {
+  const record = parseJsonRecord(text);
+  if (record) return jsonPanelText(record);
+  return isRenderableImageSource(text) ? "" : text;
+};
 
 const resolveOutput = (
   content: ContentToolUse
@@ -138,44 +146,30 @@ const resolveOutput = (
 const maybeCodeExecution = (
   content: ContentToolUse
 ): CodeExecutionOutput | undefined => {
-  if (content.tool_type !== "code_execution" || !isJson(content.result)) {
+  const parsed =
+    content.tool_type === "code_execution"
+      ? parseJsonRecord(content.result)
+      : undefined;
+  if (!parsed) {
     return undefined;
   }
-  try {
-    const parsed: unknown = JSON.parse(content.result);
-    if (!isRecord(parsed)) {
-      return undefined;
-    }
-    // The execution payload nests under `content` (Anthropic's
-    // code_execution_tool_result shape); fall back to the top level.
-    const payload = isRecord(parsed.content) ? parsed.content : parsed;
-    const str = (value: unknown): string | undefined =>
-      typeof value === "string" && value.length > 0 ? value : undefined;
-    return {
-      stdout: str(payload.stdout),
-      stderr: str(payload.stderr),
-      returnCode:
-        typeof payload.return_code === "number"
-          ? payload.return_code
-          : undefined,
-      encrypted: typeof payload.encrypted_stdout === "string",
-    };
-  } catch {
-    return undefined;
-  }
+  // The execution payload nests under `content` (Anthropic's
+  // code_execution_tool_result shape); fall back to the top level.
+  const payload = isRecord(parsed.content) ? parsed.content : parsed;
+  const str = (value: unknown): string | undefined =>
+    typeof value === "string" && value.length > 0 ? value : undefined;
+  return {
+    stdout: str(payload.stdout),
+    stderr: str(payload.stderr),
+    returnCode:
+      typeof payload.return_code === "number" ? payload.return_code : undefined,
+    encrypted: typeof payload.encrypted_stdout === "string",
+  };
 };
 
-const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  if (isJson(content.arguments)) {
-    try {
-      const parsed: unknown = JSON.parse(content.arguments);
-      if (isRecord(parsed)) return parsed;
-    } catch {
-      // Not valid JSON after all: show the raw text below.
-    }
-  }
-  return content.arguments ? { arguments: content.arguments } : {};
-};
+const resolveArgs = (content: ContentToolUse): Record<string, unknown> =>
+  parseJsonRecord(content.arguments) ??
+  (content.arguments ? { arguments: content.arguments } : {});
 
 /** Single-line header summary: the lone arg's value (the query for
  * web_search, the URL for web_fetch), or `key: value` pairs otherwise. */
