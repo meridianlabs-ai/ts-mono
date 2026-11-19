@@ -1,6 +1,6 @@
 .bar {
-  --glint: rgba(64, 72, 104, 0.1);
-  --label: #5c5c63;
+  --glint: light-dark(rgba(64, 72, 104, 0.1), rgba(255, 255, 255, 0.08));
+  --label: light-dark(#5c5c63, #c2c2c9);
 
   position: relative;
   display: flex;
@@ -105,13 +105,6 @@
   }
   40% {
     opacity: 1;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .bar {
-    --glint: rgba(255, 255, 255, 0.08);
-    --label: #c2c2c9;
   }
 }
 

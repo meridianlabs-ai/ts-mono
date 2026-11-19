@@ -1,15 +1,8 @@
 import clsx from "clsx";
-import {
-  FC,
-  Fragment,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, Fragment, ReactNode, useEffect, useMemo, useState } from "react";
 
 import {
+  hasOpenPopover,
   InAppLink,
   PopOver,
   StickyScrollProvider,
@@ -116,6 +109,8 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
       (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey);
     if (!isExitKey) return;
     if (isEditableTarget(document.activeElement)) return;
+    // The lane picker or a toolbar menu is open: the browser closes it.
+    if (e.key === "Escape" && hasOpenPopover()) return;
     e.preventDefault();
     if (laneMenuOpen) {
       setLaneMenuOpen(false);
@@ -133,7 +128,9 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [nav.resolvedEventId, scrollRef]);
 
-  const laneButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [laneButtonEl, setLaneButtonEl] = useState<HTMLButtonElement | null>(
+    null
+  );
   const showLanePicker = laneOptions.length > 1;
 
   // The focus page shares one URL-backed tab (by name) across events, so
@@ -182,7 +179,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
                 )}
                 {isPicker ? (
                   <button
-                    ref={laneButtonRef}
+                    ref={setLaneButtonEl}
                     type="button"
                     className={selectorStyles.selectorButton}
                     title="Select agent"
@@ -263,8 +260,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
           id="focus-lane-picker"
           isOpen={laneMenuOpen}
           setIsOpen={setLaneMenuOpen}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver handles this in effects
-          positionEl={laneButtonRef.current}
+          positionEl={laneButtonEl}
           placement="bottom-start"
           hoverDelay={-1}
         >
@@ -306,13 +302,13 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
             eventCallbacks={eventCallbacks}
             // Slice starts at the focused model, so the per-node back-scan would
             // compute hasToolEvents=false and the model would inline + expand its
-            // input tool messages. Force true so it renders the compact summary;
-            // the slice also lacks the tool events that showed those messages, so
-            // per-call coverage is turned off too.
+            // input tool messages. Force true so it renders the compact summary.
+            // The slice also lacks the tool events that showed those messages,
+            // so per-call coverage applies to the model's own calls only.
             eventNodeContext={{
               hasToolEvents: true,
               ...checks,
-              toolEventIds: undefined,
+              inputShownElsewhere: true,
             }}
           />
         </StickyScrollProvider>

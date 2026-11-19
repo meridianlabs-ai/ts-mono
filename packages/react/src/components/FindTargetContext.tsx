@@ -10,9 +10,6 @@ import {
 export interface FindTarget {
   /** The current search term. Lower-cased comparisons are the consumer's responsibility. */
   term: string;
-  /** ID of the event the search has navigated to. Consumers can use this for
-   *  finer-grained behavior; basic auto-expand uses only `term`. */
-  eventId: string;
 }
 
 interface FindTargetContextValue {
@@ -27,8 +24,7 @@ const FindTargetContext = createContext<FindTargetContextValue | null>(null);
 export const useFindTarget = (): FindTarget | null =>
   useContext(FindTargetContext)?.target ?? null;
 
-/** Returns the setter. Consumers: the search source (sets on match) and
- *  FindBand (clears on close / empty term). */
+/** Returns the setter. Consumer: FindBand (sets the term, clears on close). */
 export const useFindTargetSetter = (): ((
   target: FindTarget | null
 ) => void) => {

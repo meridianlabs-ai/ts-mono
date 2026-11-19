@@ -81,7 +81,6 @@ const renderPanel = () =>
   render(
     <TestApp path={kSampleRoute}>
       <TranscriptPanel
-        selectionKey="test-visit"
         id="test-transcript"
         scrollRef={createRef<HTMLDivElement>()}
         events={[]}

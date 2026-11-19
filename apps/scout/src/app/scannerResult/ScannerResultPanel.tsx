@@ -246,7 +246,6 @@ export const ScannerResultPanel: FC = () => {
       if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(route);
       }
     },

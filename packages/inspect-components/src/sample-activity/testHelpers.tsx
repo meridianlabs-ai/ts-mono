@@ -1,6 +1,5 @@
 /** ResizeObserver that reports a real size synchronously on observe: the
- *  chart renders nothing at width 0, and the virtualizer computes an empty
- *  range from a zero-height scroll rect. jsdom provides neither. */
+ *  chart renders nothing at width 0, and jsdom provides no layout. */
 export class ImmediateResizeObserver implements ResizeObserver {
   private readonly callback: ResizeObserverCallback;
   constructor(callback: ResizeObserverCallback) {

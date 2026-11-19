@@ -133,6 +133,10 @@ export interface DbStats {
 export interface FetchEngineStatus {
   syncing: boolean;
   dbStats: DbStats;
+  /** When a listing sync last landed for the active dir in this session
+   *  (epoch ms). A listing hydrated from the database doesn't count: it may
+   *  be arbitrarily old. Cleared when the dir changes or data is cleared. */
+  lastSyncedAt: number | undefined;
 }
 
 /**
@@ -297,6 +301,7 @@ export class FetchEngine {
   private _status: FetchEngineStatus = {
     syncing: false,
     dbStats: kInitialStats,
+    lastSyncedAt: undefined,
   };
   private readonly _statusListeners = new Set<() => void>();
 
@@ -341,7 +346,6 @@ export class FetchEngine {
         } else if (head?.kind === "details") {
           this.onDetailsComplete(results, inputs);
         }
-        return Promise.resolve();
       },
     });
   }
@@ -771,7 +775,7 @@ export class FetchEngine {
       waiter.reject(error);
     }
     this._pendingFetches.clear();
-    this.setStatus({ dbStats: kInitialStats });
+    this.setStatus({ dbStats: kInitialStats, lastSyncedAt: undefined });
   }
 
   public isStarted(): boolean {
@@ -853,8 +857,15 @@ export class FetchEngine {
     }
     const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
+    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false).catch(
+      (caught: unknown) => {
+        if (this._pendingFetches.get(key) === waiter) {
+          this._pendingFetches.delete(key);
+          this._activeSettles.delete(key);
+        }
+        waiter.reject(toError(caught));
+      }
+    );
     return waiter.promise;
   }
 
@@ -983,6 +994,7 @@ export class FetchEngine {
       full = update.listing;
     }
     this._handles = full;
+    this.setStatus({ lastSyncedAt: Date.now() });
 
     const invalidatedSet = new Set(update.invalidated);
     const invalidated = full.filter((handle) =>
@@ -1005,6 +1017,7 @@ export class FetchEngine {
     void deps.sink.clearAll().catch(() => {});
     this._handles = [];
     this._fetchStates = {};
+    this.setStatus({ lastSyncedAt: undefined });
     this._throttledUpdateDbStats();
   }
 

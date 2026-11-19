@@ -9,6 +9,8 @@
  */
 import { ChatMessage } from "@tsmono/inspect-common/types";
 
+import { resolveMessageAttachments } from "../utils/attachments";
+
 import { type ChunkedSample } from "./chunked";
 import { log } from "./chunked/log";
 import { withAttachmentsResolved } from "./chunkedAttachments";
@@ -98,7 +100,12 @@ export const chunkedConversation = (
       ranges.map(async ([rangeLo, rangeHi], i) => {
         const messages = await chunked.messages.getRange(rangeLo, rangeHi);
         return resolve
-          ? withAttachmentsResolved(messages, chunked, `${label} range ${i}`)
+          ? withAttachmentsResolved(
+              messages,
+              chunked,
+              `${label} range ${i}`,
+              resolveMessageAttachments
+            )
           : messages;
       })
     );

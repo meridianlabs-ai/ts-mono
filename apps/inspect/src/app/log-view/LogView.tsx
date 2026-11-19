@@ -92,8 +92,7 @@ export const LogView: FC = () => {
   // in a contravariant position.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tabs: Record<string, TabDescriptor<any>> = {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
+    samples: samplesTabConfig,
     task: taskTabConfig,
     model: modelsTabConfig,
     timeline: timelineTabConfig,
@@ -111,6 +110,10 @@ export const LogView: FC = () => {
   });
 
   const selectedTab = useStore((state) => state.app.tabs.workspace);
+  // A sample's terminals view wants the height: the title shows collapsed
+  // while one is mounted (derived, so leaving it shows the scroll state
+  // again).
+  const onSampleTerminals = useStore((state) => state.sample.terminalsViewOpen);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
   const onSelected = (e: MouseEvent<HTMLElement>) => {
@@ -129,8 +132,6 @@ export const LogView: FC = () => {
     );
   } else {
     const tabTools = Object.values(tabs)
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;
       })
@@ -153,7 +154,7 @@ export const LogView: FC = () => {
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
           tags={selectedLogDetails?.tags}
-          collapsed={titleCollapsed}
+          collapsed={titleCollapsed || onSampleTerminals}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>
           <div className={clsx("log-detail", styles.tabContainer)}>

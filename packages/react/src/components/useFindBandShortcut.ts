@@ -10,6 +10,9 @@ interface UseFindBandShortcutOptions {
   isOpen?: boolean;
   // Disable entirely, e.g. when the host defers to native browser find
   enabled?: boolean;
+  // Take the shortcut ahead of every document listener (it listens on
+  // window), so a view's own find opens instead of the page's band
+  preempt?: boolean;
 }
 
 /**
@@ -21,21 +24,38 @@ export function useFindBandShortcut(
   onOpen: () => void,
   options?: UseFindBandShortcutOptions
 ): void {
-  const { onClose, isOpen = false, enabled = true } = options ?? {};
+  const {
+    onClose,
+    isOpen = false,
+    enabled = true,
+    preempt = false,
+  } = options ?? {};
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (isFindShortcut(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      onOpen();
+    } else if (e.key === "Escape" && isOpen && onClose) {
+      onClose();
+    }
+  };
 
   // Capture phase so the shortcut wins before the browser's own find.
   useEventListener(
-    enabled ? document : null,
+    enabled && !preempt ? document : null,
     "keydown",
-    (e) => {
-      if (isFindShortcut(e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        onOpen();
-      } else if (e.key === "Escape" && isOpen && onClose) {
-        onClose();
-      }
-    },
-    { capture: true }
+    handleKeyDown,
+    {
+      capture: true,
+    }
+  );
+  useEventListener(
+    enabled && preempt ? window : null,
+    "keydown",
+    handleKeyDown,
+    {
+      capture: true,
+    }
   );
 }

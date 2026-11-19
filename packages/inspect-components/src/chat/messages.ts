@@ -41,6 +41,16 @@ export const hasServerToolUse = (message: Message): boolean => {
 };
 
 /**
+ * `message`, or a copy with the position-based id `msg-${index}` when it has
+ * none (logs that predate message ids); the original is never mutated.
+ */
+export const withDisplayId = (
+  message: ChatMessage,
+  index: number
+): ChatMessage =>
+  message.id === undefined ? { ...message, id: `msg-${index}` } : message;
+
+/**
  * The streaming tool-fold: feed messages in conversation order and receive
  * completed `ResolvedMessage` rows — a row is one non-tool message plus the
  * tool messages that follow it, and it completes when the next non-tool
@@ -55,9 +65,7 @@ export class MessageFold {
   constructor(private readonly onRow: (row: ResolvedMessage) => void) {}
 
   next(message: ChatMessage, index: number): void {
-    // Create a stable id for the item without mutating the original
-    const resolved =
-      message.id === undefined ? { ...message, id: `msg-${index}` } : message;
+    const resolved = withDisplayId(message, index);
     if (resolved.role === "tool") {
       // Add this tool message onto the previous message; a tool message
       // with no preceding non-tool message is dropped

@@ -26,6 +26,9 @@ interface ApplicationNavbarProps {
   /** Extra loading signal for the activity bar (e.g. the log listing
    *  syncing), ORed with the selected log's own loading state. */
   loading?: boolean;
+  /** Non-blocking listing refresh failure shown on the viewer options
+   *  affordance while previously loaded content remains visible. */
+  viewerOptionsError?: Error;
 }
 
 export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
@@ -37,6 +40,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   children,
   breadcrumbsEnabled,
   loading: loadingProp = false,
+  viewerOptionsError,
 }) => {
   const [optionsEl, setOptionsEl] = useState<HTMLButtonElement | null>(null);
   const themePreference = useUserSettings((s) => s.themePreference);
@@ -69,12 +73,14 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
         <ViewerOptionsButton
           showing={isShowing}
           setShowing={setShowing}
+          error={viewerOptionsError}
           ref={setOptionsEl}
         />
         <ViewerOptionsPopover
           positionEl={optionsEl}
           showing={isShowing}
           setShowing={setShowing}
+          error={viewerOptionsError}
         />
       </Navbar>
       <LoadingBar loading={loading} />

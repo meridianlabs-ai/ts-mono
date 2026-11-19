@@ -1,7 +1,8 @@
 import clsx from "clsx";
-import { FC, MouseEvent, ReactNode, useCallback } from "react";
+import { FC, ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-import { useEventListener, useProperty, useTimeout } from "../hooks";
+import { useProperty, useShowModal } from "../hooks";
 import { Icon } from "../icons";
 
 import styles from "./LightboxCarousel.module.css";
@@ -17,144 +18,123 @@ interface LightboxCarouselProps {
 }
 
 /**
- * LightboxCarousel component provides a carousel with lightbox functionality.
+ * Thumbnails that open their slides full screen in a modal `<dialog>`.
+ * Escape and the close button close it; the arrow keys and the side buttons
+ * step between slides.
  */
 export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   const [isOpen, setIsOpen] = useProperty(id, "isOpen", {
     defaultValue: false,
   });
-
   const [currentIndex, setCurrentIndex] = useProperty(id, "currentIndex", {
     defaultValue: 0,
   });
 
-  const [showOverlay, setShowOverlay] = useProperty(id, "showOverlay", {
-    defaultValue: false,
-  });
-
-  const openLightbox = useCallback(
-    (index: number) => {
-      setCurrentIndex(index);
-      setShowOverlay(true);
-
-      // Slight delay before setting isOpen so the fade-in starts from opacity: 0
-      setTimeout(() => setIsOpen(true), 10);
-    },
-    [setCurrentIndex, setIsOpen, setShowOverlay]
-  );
-
-  const closeLightbox = useCallback(() => {
-    setIsOpen(false);
-  }, [setIsOpen]);
-
-  // Remove the overlay after the fade-out; 300ms matches the CSS transition.
-  useTimeout(() => setShowOverlay(false), !isOpen && showOverlay ? 300 : null);
-
-  const showNext = useCallback(() => {
-    setCurrentIndex((currentIndex + 1) % slides.length);
-  }, [setCurrentIndex, currentIndex, slides.length]);
-
-  const showPrev = useCallback(() => {
-    setCurrentIndex((currentIndex - 1 + slides.length) % slides.length);
-  }, [setCurrentIndex, currentIndex, slides.length]);
-
-  // Keyboard Navigation
-  useEventListener(
-    isOpen ? window : null,
-    "keyup",
-    (e) => {
-      if (e.key === "Escape") {
-        closeLightbox();
-      } else if (e.key === "ArrowRight") {
-        showNext();
-      } else if (e.key === "ArrowLeft") {
-        showPrev();
-      }
-      e.preventDefault();
-      e.stopPropagation();
-    },
-    { capture: true }
-  );
-
-  const handleThumbClick = useCallback(
-    (e: MouseEvent<HTMLButtonElement>) => {
-      const index = Number(e.currentTarget.dataset.index);
-      openLightbox(index);
-    },
-    [openLightbox]
-  );
   return (
     <div className={clsx("lightbox-carousel-container")}>
       <div className={clsx(styles.carouselThumbs)}>
-        {slides.map((slide, index) => {
-          return (
-            <button
-              key={index}
-              type="button"
-              data-index={index}
-              className={clsx(styles.carouselThumb)}
-              onClick={handleThumbClick}
-            >
-              <div>{slide.label}</div>
-              <div>
-                <Icon name="play" className={styles.carouselPlayIcon} />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      {showOverlay && (
-        <div
-          className={clsx(
-            styles.lightboxOverlay,
-            isOpen ? styles.open : styles.closed
-          )}
-        >
-          <div className={clsx(styles.lightboxButtonCloseWrapper)}>
-            <button
-              type="button"
-              className={styles.lightboxButtonClose}
-              onClick={closeLightbox}
-              aria-label="Close"
-            >
-              <Icon name="close" />
-            </button>
-          </div>
-          {slides.length > 1 ? (
-            <button
-              type="button"
-              className={clsx(styles.lightboxPreviewButton, styles.prev)}
-              onClick={showPrev}
-              aria-label="Previous"
-            >
-              <Icon name="previous" />
-            </button>
-          ) : (
-            ""
-          )}
-          {slides.length > 1 ? (
-            <button
-              type="button"
-              className={clsx(styles.lightboxPreviewButton, styles.next)}
-              onClick={showNext}
-              aria-label="Next"
-            >
-              <Icon name="next" />
-            </button>
-          ) : (
-            ""
-          )}
-          <div
-            key={`carousel-slide-${currentIndex}`}
-            className={clsx(
-              styles.lightboxContent,
-              isOpen ? styles.open : styles.closed
-            )}
+        {slides.map((slide, index) => (
+          <button
+            key={index}
+            type="button"
+            className={clsx(styles.carouselThumb)}
+            onClick={() => {
+              setCurrentIndex(index);
+              setIsOpen(true);
+            }}
           >
-            {slides[currentIndex]?.render()}
-          </div>
-        </div>
+            <div>{slide.label}</div>
+            <div>
+              <Icon name="play" className={styles.carouselPlayIcon} />
+            </div>
+          </button>
+        ))}
+      </div>
+      {isOpen && (
+        <Lightbox
+          slides={slides}
+          index={currentIndex}
+          onIndexChange={setCurrentIndex}
+          onClose={() => setIsOpen(false)}
+        />
       )}
     </div>
+  );
+};
+
+interface LightboxProps {
+  slides: Slide[];
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}
+
+const Lightbox: FC<LightboxProps> = ({
+  slides,
+  index,
+  onIndexChange,
+  onClose,
+}) => {
+  const { ref, dialog } = useShowModal();
+  const step = (delta: number) =>
+    onIndexChange((index + delta + slides.length) % slides.length);
+
+  return createPortal(
+    <dialog
+      ref={ref}
+      aria-label={slides[index]?.label}
+      className={styles.lightbox}
+      // Handled here rather than left to the dialog: the terminal player
+      // cancels the Escape keydown when it has focus, which would keep the
+      // dialog open.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onClose();
+        } else if (e.key === "ArrowRight") step(1);
+        else if (e.key === "ArrowLeft") step(-1);
+      }}
+      // An Escape this handler didn't see (focus on <body>) closes the dialog
+      // natively. The event is queued: skip it if the dialog is open again
+      // already (React re-runs the ref that opens it in StrictMode).
+      onClose={(e) => {
+        if (!e.currentTarget.open) onClose();
+      }}
+    >
+      <button
+        type="button"
+        className={styles.lightboxButtonClose}
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <Icon name="close" />
+      </button>
+      {slides.length > 1 && (
+        <>
+          <button
+            type="button"
+            className={clsx(styles.lightboxPreviewButton, styles.prev)}
+            onClick={() => step(-1)}
+            aria-label="Previous"
+          >
+            <Icon name="previous" />
+          </button>
+          <button
+            type="button"
+            className={clsx(styles.lightboxPreviewButton, styles.next)}
+            onClick={() => step(1)}
+            aria-label="Next"
+          >
+            <Icon name="next" />
+          </button>
+        </>
+      )}
+      {dialog && (
+        <div key={index} className={styles.lightboxContent}>
+          {slides[index]?.render()}
+        </div>
+      )}
+    </dialog>,
+    document.body
   );
 };

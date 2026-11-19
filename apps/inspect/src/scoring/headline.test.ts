@@ -89,6 +89,20 @@ describe("headlineMetric", () => {
     expect(headlineMetric(evalResults)?.name).toBe("stderr");
   });
 
+  test.each(["constructor", "toString", "__proto__"])(
+    "treats a headline metric named %s as absent unless the score has it",
+    (name) => {
+      const evalResults = results([score("includes", { stderr: 0.1 })], {
+        scorer: "includes",
+        score: "includes",
+        metric: name,
+        reducer: null,
+      });
+      expect(headlineMetric(evalResults)?.name).toBe("stderr");
+      expect(headlineMetric(evalResults)?.value).toBe(0.1);
+    }
+  );
+
   test("distinguishes dict-valued scorers that share a score name", () => {
     const shared = (scorer: string, value: number): EvalScore =>
       testEvalScore({

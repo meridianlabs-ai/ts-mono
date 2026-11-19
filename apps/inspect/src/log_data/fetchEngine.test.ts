@@ -1,5 +1,5 @@
 import Dexie from "dexie";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
@@ -12,8 +12,9 @@ import {
   LogHeader,
   LogPreview,
 } from "../client/api/types";
-import { OpenDatabase } from "../client/database";
+import { DB_NAME, OpenDatabase } from "../client/database";
 import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
+import { queryClient } from "../state/queryClient";
 import { WorkResult } from "../utils/workQueue";
 
 import {
@@ -23,6 +24,7 @@ import {
   LogsContentSink,
 } from "./fetchEngine";
 import { syncListing } from "./listingSync";
+import { createLogsContentSink } from "./logsContent";
 import {
   testClientAPI,
   testEngineDatabase,
@@ -442,6 +444,21 @@ describe("FetchEngine.ensure (detailed)", () => {
     await expect(
       engine.ensure("a.eval", { depth: "detailed", priority: "user" })
     ).rejects.toThrow("fetch failed: a.eval");
+  });
+
+  it("rejects the waiter when the cache read fails", async () => {
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: {
+        ...createFakeDb(),
+        readLogRow: () => Promise.reject(new Error("cache read failed")),
+      },
+    });
+
+    await expect(
+      engine.ensure("a.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow("cache read failed");
   });
 
   it("read-through: cached completed details resolve immediately, then refresh in the background", async () => {
@@ -931,6 +948,7 @@ describe("FetchEngine.applyListing epoch fencing", () => {
 
     expect(result).toEqual(before);
     expect(engine.listing()).toEqual(before);
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
     expect(calls.clearFile).toEqual([]);
     expect(calls.resetDepth).toEqual([]);
     expect(calls.writeListing).toEqual([]);
@@ -1191,6 +1209,37 @@ describe("FetchEngine status", () => {
     expect(engine.getStatus().syncing).toBe(false);
     expect(seen[0]).toBe(true);
     expect(seen[seen.length - 1]).toBe(false);
+  });
+});
+
+describe("FetchEngine lastSyncedAt", () => {
+  it("is set by a listing sync, not by hydration, and cleared by clear or restart", async () => {
+    const hydrated = handle("hydrated.eval", 1);
+    const fake = createFakeApi();
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb([detailedRow(hydrated)]),
+    });
+    const sync = () =>
+      engine.applyListing({
+        listing: [hydrated],
+        invalidated: [],
+        deleted: [],
+        persistListing: false,
+      });
+
+    expect(engine.listing()).toHaveLength(1);
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
+
+    await sync();
+    expect(engine.getStatus().lastSyncedAt).toBeTypeOf("number");
+
+    engine.clearData();
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
+
+    await sync();
+    engine.stop();
+    expect(engine.getStatus().lastSyncedAt).toBeUndefined();
   });
 });
 
@@ -2036,5 +2085,61 @@ describe("FetchEngine records details that fetch but fail ingestion", () => {
     expect(sinkCalls.writeDetails).toContainEqual({
       "good.eval": makeDetails("good.eval"),
     });
+  });
+});
+
+describe("FetchEngine backfill over the real database", () => {
+  const engine = new FetchEngine({ statsDelayMs: 0 });
+  let dbHandle: OpenDatabase | undefined;
+
+  afterEach(async () => {
+    engine.stop();
+    dbHandle?.close();
+    queryClient.clear();
+    await Dexie.delete(DB_NAME);
+  });
+
+  it("leaves every backfilled row detailed, so the next sync fetches nothing", async () => {
+    const logDir = "file:///logs";
+    const listing = Array.from({ length: 60 }, (_, i) =>
+      handle(`${logDir}/f${i}.eval`, 1)
+    );
+    const names = listing.map((h) => h.name);
+    const db = await OpenDatabase.open();
+    dbHandle = db;
+    const fake = createFakeApi();
+    await engine.start({
+      api: fake.api,
+      database: db,
+      sink: createLogsContentSink(db, logDir),
+      logDir,
+    });
+
+    // A cold dir: every file is new, so the listing invalidates all of them.
+    await engine.applyListing({
+      listing,
+      invalidated: names,
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => {
+      expect(fake.detailCalls).toHaveLength(60);
+      expect(engine.getStatus().syncing).toBe(false);
+    });
+    await vi.waitFor(async () => {
+      const rows = await db.readLogRows(names);
+      expect(names.filter((name) => rows[name]?.header === undefined)).toEqual(
+        []
+      );
+    });
+
+    await engine.applyListing({
+      listing,
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(false));
+    expect(fake.detailCalls).toHaveLength(60);
   });
 });

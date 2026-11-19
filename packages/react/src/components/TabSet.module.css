@@ -41,11 +41,7 @@
 }
 
 .pillSmallContainer {
-  gap: 0.25rem;
-}
-
-.pillSmall {
-  padding: 0.3rem 0.5rem;
+  gap: 0.125rem;
 }
 
 .tabIcon {

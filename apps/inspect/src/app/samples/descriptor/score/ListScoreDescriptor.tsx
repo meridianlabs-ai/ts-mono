@@ -27,11 +27,6 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
       return listLength(a.value) - listLength(b.value);
     },
     render: (score) => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (score === null || score === undefined) {
-        return "[null]";
-      }
-
       if (!Array.isArray(score)) {
         throw new Error(
           "Unexpected use of list score descriptor for non-list object"

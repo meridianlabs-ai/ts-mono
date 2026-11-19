@@ -2,7 +2,10 @@ import { from } from "arquero";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import "bootstrap/dist/css/bootstrap.min.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "../../../src/app/App.css";

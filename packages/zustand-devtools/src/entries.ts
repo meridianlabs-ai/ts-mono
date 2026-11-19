@@ -118,10 +118,14 @@ export const toClipboardJson = (value: unknown): string => {
     return v;
   };
   try {
-    return (
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      JSON.stringify(value, (_key, v: unknown) => replace(v), 2) ?? "undefined"
+    // JSON.stringify returns undefined for undefined, functions and symbols,
+    // though its lib type says string.
+    const json: unknown = JSON.stringify(
+      value,
+      (_key, v: unknown) => replace(v),
+      2
     );
+    return typeof json === "string" ? json : "undefined";
   } catch (error) {
     return `<unserializable: ${error instanceof Error ? error.message : String(error)}>`;
   }

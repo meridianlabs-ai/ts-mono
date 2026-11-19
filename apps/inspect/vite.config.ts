@@ -16,6 +16,7 @@ import {
   inlineThemeBootstrap,
   inlineWorkerUrls,
   rewriteLoopbackOrigin,
+  VIEWER_CSP_DIRECTIVES,
 } from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
@@ -39,30 +40,6 @@ function copyToPythonRepo(): Plugin {
 }
 
 const viewServerUrl = "http://127.0.0.1:7575";
-
-// The viewer renders untrusted log content; this is the second layer behind
-// the sanitizer. The build writes it, with hashes of the inline scripts, to
-// dist/content-security-policy.json for hosts to deliver (see
-// contentSecurityPolicy). 'wasm-unsafe-eval' is for the asciinema
-// player's WebAssembly, and inline style attributes carry MathJax's
-// per-glyph layout. Hosts rely on worker-src staying explicit (the VS Code
-// extension adds blob: to it for cross-origin workers) and on an empty list
-// meaning a directive without sources.
-const contentSecurityPolicyDirectives = {
-  "default-src": ["'none'"],
-  "script-src": ["'self'", "'wasm-unsafe-eval'"],
-  "worker-src": ["'self'"],
-  "style-src-elem": ["'self'"],
-  "style-src-attr": ["'unsafe-inline'"],
-  "img-src": ["'self'", "data:"],
-  "media-src": ["data:"],
-  "font-src": ["'self'"],
-  "connect-src": ["'self'"],
-  "object-src": ["'none'"],
-  "frame-src": ["'none'"],
-  "base-uri": ["'none'"],
-  "form-action": ["'none'"],
-};
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
@@ -167,7 +144,7 @@ export default defineConfig(({ mode }) => {
         inlineThemeBootstrap(
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
-        contentSecurityPolicy(contentSecurityPolicyDirectives),
+        contentSecurityPolicy(VIEWER_CSP_DIRECTIVES),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         ...(isE2e ? [] : [copyToPythonRepo()]),
       ],
@@ -179,7 +156,7 @@ export default defineConfig(({ mode }) => {
       css: { postcss: {} },
       server: {
         // Pinned so `pnpm dev` from the root always gives inspect 5173 and
-        // scout 5174 regardless of startup order (e2e uses 5175–5177).
+        // scout 5174 regardless of startup order (e2e uses 5175–5178).
         port: 5173,
         strictPort: true,
         proxy: {

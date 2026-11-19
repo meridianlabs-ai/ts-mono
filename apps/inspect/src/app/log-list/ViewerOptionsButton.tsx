@@ -8,12 +8,13 @@ import styles from "./ViewerOptionsButton.module.css";
 export interface ViewerOptionsButtonProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
+  error?: Error;
 }
 
 export const ViewerOptionsButton = forwardRef<
   HTMLButtonElement,
   ViewerOptionsButtonProps
->(({ showing, setShowing }, ref) => {
+>(({ showing, setShowing, error }, ref) => {
   const toggleShowing = useCallback(() => {
     setShowing(!showing);
   }, [showing, setShowing]);
@@ -25,9 +26,15 @@ export const ViewerOptionsButton = forwardRef<
         type="button"
         className={clsx(styles.button)}
         onClick={toggleShowing}
-        title={"Viewer information and options"}
+        aria-label="Viewer information and options"
+        title={
+          error
+            ? `Listing refresh failed: ${error.message}`
+            : "Viewer information and options"
+        }
       >
         <Icon name="info" className={styles.viewerOptions} />
+        {error && <Icon name="error" className={styles.errorAdornment} />}
       </button>
     </div>
   );

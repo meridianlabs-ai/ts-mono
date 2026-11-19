@@ -27,12 +27,12 @@ export const useEventNodeData = (
   extraContext?: Partial<EventNodeContext>,
   allEvents?: readonly EventType[]
 ): EventNodeData => {
-  const { eventNodes, defaultCollapsedIds, retryAttempts } = useEventNodes(
-    nodeFeed.events,
-    running,
-    nodeFeed.sourceSpans,
-    allEvents
-  );
+  const {
+    eventNodes,
+    defaultCollapsedIds,
+    retryAttempts,
+    recordsExecutionIds,
+  } = useEventNodes(nodeFeed.events, running, nodeFeed.sourceSpans, allEvents);
 
   const eventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
     const messageLabels = scopeMessageLabels(
@@ -44,9 +44,10 @@ export const useEventNodeData = (
       ...extraContext,
       messageLabels,
       retryAttempts,
+      recordsExecutionIds,
       ...(toolLabels ? { toolLabels } : {}),
     };
-  }, [nodeFeed.events, extraContext, retryAttempts]);
+  }, [nodeFeed.events, extraContext, retryAttempts, recordsExecutionIds]);
 
   return { eventNodes, defaultCollapsedIds, eventNodeContext };
 };

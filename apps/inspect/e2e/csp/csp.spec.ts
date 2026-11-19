@@ -150,8 +150,11 @@ test.describe("rendering canary", () => {
   // Known gap, pinned so it flips when fixed: the sanitizer still admits
   // `<table background>` (fixed separately), so the policy has to block, and
   // report, that one fetch. Any other report means another vector got past
-  // the sanitizer. Once it strips the table, expect no report at all.
-  test("the only vector that reaches the policy is <table background>", async ({
+  // the sanitizer, except script-src-attr: Chromium 156+ reports a handler
+  // when DOMPurify parses it into its inert document, before stripping it, so
+  // handlers are checked in the rendered DOM instead. Once the sanitizer
+  // strips the table, expect no other report.
+  test("only <table background> gets past the sanitizer", async ({
     page,
     network,
     cspViolations,
@@ -163,11 +166,26 @@ test.describe("rendering canary", () => {
     await expect
       .poll(() => cspViolations)
       .toContainEqual(expect.stringContaining(`${kProbeHost}/table`));
-    for (const violation of cspViolations) {
+    const reports = cspViolations.filter(
+      (violation) => !violation.startsWith("script-src-attr ")
+    );
+    for (const violation of reports) {
       expect(violation).toContain(`${kProbeHost}/table`);
     }
+    expect(await inlineHandlers(page)).toEqual([]);
   });
 });
+
+/** `element attribute` for each inline event handler in the page. */
+const inlineHandlers = (page: Page): Promise<string[]> =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll("*")).flatMap((element) =>
+      element
+        .getAttributeNames()
+        .filter((name) => name.toLowerCase().startsWith("on"))
+        .map((name) => `${element.localName} ${name}`)
+    )
+  );
 
 /** Wait for the breakout markup, then trigger its interactive vectors. */
 const openVectors = async (page: Page) => {

@@ -1,4 +1,4 @@
-import { isRecord } from "@tsmono/util";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 import type { Score } from "../types";
 
@@ -46,12 +46,13 @@ export const normalizeSampleScores = (
 ): Record<string, Score> | null => {
   if (!isRecord(raw)) return null;
   if (isCleanScoreMap(raw)) return raw;
-  const scores: Record<string, Score> = {};
+  const scores = new Map<string, Score>();
   for (const [name, score] of Object.entries(raw)) {
     if (!hasUsableValue(score)) continue;
-    scores[name] = hasMalformedContext(score)
-      ? clearMalformedContext(score)
-      : score;
+    scores.set(
+      name,
+      hasMalformedContext(score) ? clearMalformedContext(score) : score
+    );
   }
-  return scores;
+  return nullProtoRecord(scores);
 };

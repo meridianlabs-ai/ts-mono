@@ -50,14 +50,19 @@ const renderApp = async () => {
   // Settled: the listing panel's sync has completed. An invalidation landing
   // during a query's first fetch is absorbed by that fetch, so a host event
   // posted earlier would not re-sync.
-  await waitFor(() => {
-    const syncs = syncQueries();
-    expect(syncs.length).toBeGreaterThan(0);
-    for (const sync of syncs) {
-      expect(sync.state.status).toBe("success");
-      expect(sync.state.fetchStatus).toBe("idle");
-    }
-  });
+  await waitFor(
+    () => {
+      const syncs = syncQueries();
+      expect(syncs.length).toBeGreaterThan(0);
+      for (const sync of syncs) {
+        expect(sync.state.status).toBe("success");
+        expect(sync.state.fetchStatus).toBe("idle");
+      }
+    },
+    // The sync runs the real fetch engine and database; on a cold CI runner it
+    // takes ~0.9s, too close to waitFor's 1s default.
+    { timeout: 3000 }
+  );
   expect(getLogs).toHaveBeenCalled();
 };
 

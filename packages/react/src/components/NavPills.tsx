@@ -27,11 +27,7 @@ export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
 
   // Create Nav Pills for each child
   const navPills = children.map((nav, idx) => {
-    const title =
-      typeof nav === "object"
-        ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: conditional/non-element children can reach here at runtime despite the declared type
-          nav["props"]?.title || `Tab ${idx}`
-        : `Tab ${idx}`;
+    const title = nav.props.title || `Tab ${idx}`;
     return (
       <NavPill
         key={`nav-pill-contents-${idx}`}
@@ -48,8 +44,7 @@ export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
       <div
         key={`nav-pill-container-${idx}`}
         className={
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: conditional/non-element children can reach here at runtime despite the declared type
-          child["props"]?.title === activeItem ? styles.visible : styles.hidden
+          child.props.title === activeItem ? styles.visible : styles.hidden
         }
       >
         {child}

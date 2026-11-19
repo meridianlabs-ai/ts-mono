@@ -17,11 +17,7 @@ import {
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
-import {
-  navigateAndForget,
-  useDocumentTitle,
-  useRequiredParams,
-} from "@tsmono/react/hooks";
+import { useDocumentTitle, useRequiredParams } from "@tsmono/react/hooks";
 
 import { parseTranscriptParams, transcriptRoute } from "../../router/url";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
@@ -84,12 +80,13 @@ export const TranscriptEventPanel: FC = () => {
   );
   // The full list keeps uuid-less node ids identical to the transcript's, so
   // focus links and `?event=` resolve here too.
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
-    scope.laneEvents,
-    false,
-    undefined,
-    transcript?.events ?? kNoEvents
-  );
+  const { eventNodes, defaultCollapsedIds, recordsExecutionIds } =
+    useEventNodes(
+      scope.laneEvents,
+      false,
+      undefined,
+      transcript?.events ?? kNoEvents
+    );
   const setParams = useFocusSetParams(setSearchParams);
   const nav = useFocusTurnNavigation(
     eventNodes,
@@ -97,7 +94,8 @@ export const TranscriptEventPanel: FC = () => {
     searchParams.get("tab") ?? "Summary",
     setParams,
     defaultCollapsedIds,
-    scope
+    scope,
+    { recordsExecutionIds }
   );
 
   // Exit focus mode back to the transcript's events tab, deep-linked at the
@@ -115,7 +113,7 @@ export const TranscriptEventPanel: FC = () => {
   }, [transcriptsDir, transcriptId, resolvedEventId]);
   const onExit = useCallback(() => {
     if (!exitUrl) return;
-    navigateAndForget(navigate, exitUrl);
+    navigate(exitUrl);
   }, [exitUrl, navigate]);
 
   // Reuse the transcript view's own header on the focus page (mirrors how the

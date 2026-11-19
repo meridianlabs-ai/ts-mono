@@ -72,6 +72,31 @@ describe("ToolEventView", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "renders an unlabelled tool call whose id is %s",
+    (id) => {
+      const node = new EventNode<ToolEvent>(
+        "tool-1",
+        testToolEvent({ id, function: "bash", arguments: { cmd: "ls" } }),
+        0
+      );
+      render(
+        <ComponentStateProvider hooks={makeStateHooks()}>
+          <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+            <ContentTrustProvider value="trusted">
+              <ToolEventView
+                eventNode={node}
+                childNodes={[]}
+                context={{ messageLabels: { m1: "M1" } }}
+              />
+            </ContentTrustProvider>
+          </ComponentNavigationProvider>
+        </ComponentStateProvider>
+      );
+      expect(screen.getByText("ls")).toBeDefined();
+    }
+  );
+
   it("renders long args of an unknown tool in an expandable input zone", () => {
     // A tool without a dedicated input descriptor whose args are far too long
     // for the one-line header summary (the reported case: thousands of chars).

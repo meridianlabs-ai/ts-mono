@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import {
   testEvalMetric,
@@ -7,6 +7,7 @@ import {
   testEvalSpec,
   testEvalStats,
   testModelUsage,
+  testScore,
 } from "@tsmono/inspect-common/testing";
 
 import { testLogHeader, testSampleSummary } from "../api/testClientApi";
@@ -208,5 +209,57 @@ describe("deriveSampleFields", () => {
     );
     expect(derived.tokens).toBe(30);
     expect(derived.cost).toBeUndefined();
+  });
+});
+
+describe("prototype safety", () => {
+  const prototypeKeys = new Set(Object.getOwnPropertyNames(Object.prototype));
+  const objectStatics = new Set(Object.getOwnPropertyNames(Object));
+  const objectKeys = Object.keys;
+
+  afterEach(() => {
+    for (const key of Object.getOwnPropertyNames(Object.prototype)) {
+      if (!prototypeKeys.has(key))
+        Reflect.deleteProperty(Object.prototype, key);
+    }
+    for (const key of Object.getOwnPropertyNames(Object)) {
+      if (!objectStatics.has(key)) Reflect.deleteProperty(Object, key);
+    }
+    Object.keys = objectKeys;
+  });
+
+  const headerWithScore = (name: string, metric: string) =>
+    makeHeader({
+      results: testEvalResults({
+        scores: [
+          testEvalScore({
+            name,
+            metrics: { [metric]: testEvalMetric({ name: metric, value: 1 }) },
+          }),
+        ],
+      }),
+    });
+
+  test.each([
+    ["__proto__", "planted"],
+    ["constructor", "keys"],
+  ])("keeps a scorer named %s as an ordinary entry", (name, metric) => {
+    const scores = deriveLogFields(headerWithScore(name, metric)).scores;
+
+    expect(Object.hasOwn(Object.prototype, "planted")).toBe(false);
+    expect(Object.keys).toBe(objectKeys);
+    expect(scores && Object.entries(scores)).toEqual([[name, { [metric]: 1 }]]);
+  });
+
+  test("keeps a sample score named __proto__ as an ordinary entry", () => {
+    const derived = deriveSampleFields(
+      makeSummary({
+        scores: { ["__proto__"]: testScore({ value: { planted: 1 } }) },
+      })
+    );
+
+    expect(derived.scores && Object.entries(derived.scores)).toEqual([
+      ["__proto__", { planted: 1 }],
+    ]);
   });
 });

@@ -1,9 +1,6 @@
 /**
- * Generic column sizing types for data grids.
- * These types are used by the column sizing strategies and hooks.
+ * Column sizing types and helpers for the dataframe grid.
  */
-
-import { ColumnSizingState, RowData } from "@tanstack/react-table";
 
 /** Column metadata needed for sizing, independent of a table's feature set. */
 export interface ColumnSizingDefinition {
@@ -16,18 +13,6 @@ export interface ColumnSizingDefinition {
   textValue?: (value: unknown) => string | null;
 }
 
-/**
- * Size constraints for a column.
- */
-export interface ColumnSizeConstraints {
-  /** Default size in pixels */
-  size: number;
-  /** Minimum allowed size in pixels */
-  minSize: number;
-  /** Maximum allowed size in pixels */
-  maxSize: number;
-}
-
 /** Default minimum column size in pixels */
 export const DEFAULT_MIN_SIZE = 40;
 
@@ -38,69 +23,15 @@ export const DEFAULT_MAX_SIZE = 600;
 export const DEFAULT_SIZE = 150;
 
 /**
- * Context provided to sizing strategies for computing column sizes.
- * Generic over TData (row data type).
- */
-export interface SizingStrategyContext<TData extends RowData> {
-  /** The table element for DOM measurements (may be null) */
-  tableElement: HTMLTableElement | null;
-  /** Column definitions */
-  columns: ColumnSizingDefinition[];
-  /** Current data for content measurement */
-  data: TData[];
-  /** Pre-computed constraints for each column */
-  constraints: Map<string, ColumnSizeConstraints>;
-}
-
-/**
- * Interface for column sizing strategies.
- * Each strategy computes column sizes differently.
- * Generic over TData (row data type).
- */
-export interface SizingStrategy {
-  /** Compute sizes for all columns */
-  computeSizes<TData extends RowData>(
-    context: SizingStrategyContext<TData>
-  ): ColumnSizingState;
-}
-
-/**
- * Available sizing strategy keys.
- * - "default": Uses the column's defined `size` property
- * - "fit-content": Measures content and sizes columns to fit within min/max constraints
- */
-export type ColumnSizingStrategyKey = "default" | "fit-content";
-
-/**
- * Clamp a size value to min/max constraints.
+ * Clamp a size to a column's min/max, using the defaults where unset.
  */
 export function clampSize(
   size: number,
-  constraints: ColumnSizeConstraints
+  column: Pick<ColumnSizingDefinition, "minSize" | "maxSize">
 ): number {
-  return Math.max(constraints.minSize, Math.min(constraints.maxSize, size));
-}
-
-/**
- * Merge freshly calculated sizes with the current sizing state: calculated
- * sizes win except for manually resized columns, whose current size is
- * preserved. Module-level (not inline in the hooks) so they stay compilable:
- * React Compiler can't lower loops inside try/catch.
- */
-export function mergeCalculatedSizing(
-  calculatedSizing: ColumnSizingState,
-  resizedSet: Set<string>,
-  currentSizing: ColumnSizingState
-): ColumnSizingState {
-  const newSizing: ColumnSizingState = {};
-  for (const [columnId, size] of Object.entries(calculatedSizing)) {
-    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
-      newSizing[columnId] = currentSizing[columnId];
-    } else {
-      newSizing[columnId] = size;
-    }
-  }
-  return newSizing;
+  const minSize = column.minSize ?? DEFAULT_MIN_SIZE;
+  const maxSize = column.maxSize ?? DEFAULT_MAX_SIZE;
+  return Math.max(minSize, Math.min(maxSize, size));
 }
 
 /**
@@ -120,26 +51,4 @@ export function columnAccessorKey(
   return "accessorKey" in column && typeof column.accessorKey === "string"
     ? column.accessorKey
     : undefined;
-}
-
-/**
- * Extract size constraints from column definitions.
- */
-export function getColumnConstraints(
-  columns: ColumnSizingDefinition[]
-): Map<string, ColumnSizeConstraints> {
-  const constraints = new Map<string, ColumnSizeConstraints>();
-
-  for (const column of columns) {
-    const id = getColumnId(column);
-    if (id) {
-      constraints.set(id, {
-        size: column.size ?? DEFAULT_SIZE,
-        minSize: column.minSize ?? DEFAULT_MIN_SIZE,
-        maxSize: column.maxSize ?? DEFAULT_MAX_SIZE,
-      });
-    }
-  }
-
-  return constraints;
 }

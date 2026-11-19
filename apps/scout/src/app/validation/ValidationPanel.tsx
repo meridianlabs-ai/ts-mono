@@ -119,8 +119,9 @@ export const ValidationPanel: FC = () => {
           );
         }
       };
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      updateCases();
+      updateCases().catch((error: unknown) => {
+        console.error("Bulk split update failed:", error);
+      });
     },
     [selectedUri, cases, updateMutation]
   );

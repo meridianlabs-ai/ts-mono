@@ -87,12 +87,11 @@ export async function expandResultsetRows(
       const valueStr = row.value;
       const results =
         typeof valueStr === "string" && valueStr
-          ? JSON5.parse<Result[]>(valueStr)
+          ? JSON5.parse<Result[] | null>(valueStr)
           : [];
 
       // If the row has an empty result set, just leave it
       // intact
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- untyped boundary: JSON5.parse<T> asserts the element shape but a cell holding "null" parses to null
       if (!results || results.length === 0) {
         const expandedRow = { ...row };
         expandedRow.value = null;

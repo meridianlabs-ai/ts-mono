@@ -6,6 +6,7 @@ import {
   type WireTimeline,
 } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
 
 import type {
   ActiveScanInfo,
@@ -48,12 +49,19 @@ export interface WireValidationResults extends Omit<
 
 export interface WireScannerSummary extends Omit<
   ScannerSummary,
-  "errors" | "results" | "scans" | "tokens" | "model_usage" | "validation"
+  | "errors"
+  | "results"
+  | "scans"
+  | "tokens"
+  | "unscored"
+  | "model_usage"
+  | "validation"
 > {
   errors?: number;
   results?: number;
   scans?: number;
   tokens?: number;
+  unscored?: number;
   model_usage?: unknown;
   validation?: WireValidationResults | null;
 }
@@ -158,6 +166,7 @@ const normalizeScannerSummary = (raw: WireScannerSummary): ScannerSummary => ({
   results: raw.results ?? 0,
   scans: raw.scans ?? 0,
   tokens: raw.tokens ?? 0,
+  unscored: raw.unscored ?? 0,
   model_usage: normalizeModelUsageMap(raw.model_usage),
   validation: raw.validation
     ? normalizeValidationResults(raw.validation)
@@ -228,9 +237,9 @@ const mapRecord = <T, U>(
   record: Record<string, T>,
   map: (value: T) => U
 ): Record<string, U> => {
-  const out: Record<string, U> = {};
+  const out = new Map<string, U>();
   for (const [key, value] of Object.entries(record)) {
-    out[key] = map(value);
+    out.set(key, map(value));
   }
-  return out;
+  return nullProtoRecord(out);
 };

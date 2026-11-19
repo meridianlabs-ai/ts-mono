@@ -126,11 +126,7 @@ const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
       items.push({
         key: `${scorerIdx}-${metricIdx}`,
         label: metricDisplayName(metric),
-        value:
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          metric.value !== undefined && metric.value !== null
-            ? formatPrettyDecimal(metric.value)
-            : "n/a",
+        value: formatPrettyDecimal(metric.value),
         headline: metric.headline === true,
       });
     });

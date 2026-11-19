@@ -748,10 +748,9 @@ export function getCompletions(
 
     // Epoch value completions (suggest actual epoch numbers from loaded samples)
     if (varName === "epoch" && samples) {
-      const epochValues = Array.from(
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined))
-      ).sort((a, b) => a - b);
+      const epochValues = Array.from(new Set(samples.map((s) => s.epoch))).sort(
+        (a, b) => a - b
+      );
       const epochCompletions = epochValues.map((e) =>
         makeLiteralCompletion(String(e))
       );

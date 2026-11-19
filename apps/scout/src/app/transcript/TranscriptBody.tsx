@@ -21,10 +21,12 @@ import {
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
 import {
+  selectionMenuChrome,
+  SelectTool,
+} from "@tsmono/inspect-components/selection";
+import {
   eventsToMarkdown,
   eventsToStr,
-  selectionMenuChrome,
-  TranscriptSelectTool,
   useTranscriptSelection,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
@@ -39,7 +41,6 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useCopyToClipboard,
   useMountEffect,
   useProperty,
@@ -193,7 +194,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate]
   );
@@ -223,7 +224,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   ]);
 
   // Transcript Filtering
-  const transcriptFilterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [transcriptFilterButtonEl, setTranscriptFilterButtonEl] =
+    useState<HTMLButtonElement | null>(null);
   const [transcriptFilterShowing, setTranscriptFilterShowing] = useState(false);
   const toggleTranscriptFilterShowing = useCallback(() => {
     setTranscriptFilterShowing((prev) => !prev);
@@ -373,7 +375,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         onClick={toggleTranscriptFilterShowing}
         className={styles.tabTool}
         subtle={true}
-        ref={transcriptFilterButtonRef}
+        ref={setTranscriptFilterButtonEl}
       />
     );
 
@@ -408,8 +410,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   if (onEventsTab) {
     tabTools.push(
-      <TranscriptSelectTool
+      <SelectTool
         key="events-select"
+        item="event"
         active={evidence.active}
         count={evidence.selectedCount}
         onToggle={evidence.toggleActive}
@@ -532,8 +535,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={transcriptFilterButtonRef.current}
+        positionEl={transcriptFilterButtonEl}
       />
     </TabPanel>
   ) : null;
@@ -626,7 +628,7 @@ const CopyToolbarButton: FC<{
 
   const selectionMenu =
     selectedCount > 0
-      ? selectionMenuChrome(selectedCount, onClearSelection)
+      ? selectionMenuChrome(selectedCount, "event", onClearSelection)
       : undefined;
   const hasSelection = selectionMenu !== undefined;
 

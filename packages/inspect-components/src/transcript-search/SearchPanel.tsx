@@ -1,14 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { VscodeTextarea } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
+  ChangeEvent,
   FC,
   FormEvent,
   KeyboardEvent,
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,11 +25,7 @@ import {
 } from "@tsmono/react/components";
 import { useInterval } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
-import {
-  ApiError,
-  autosizeTextarea,
-  AutosizeTextareaConfig,
-} from "@tsmono/util";
+import { ApiError } from "@tsmono/util";
 
 import styles from "./SearchPanel.module.css";
 import {
@@ -64,28 +59,6 @@ export type SearchPanelProps = {
   modelHistory?: ModelHistoryController;
   onClose: () => void;
 };
-
-function hasStringValue(target: EventTarget | null): target is EventTarget & {
-  value: string;
-} {
-  return (
-    target !== null && "value" in target && typeof target.value === "string"
-  );
-}
-
-function getInputValue(e: Event): string {
-  return hasStringValue(e.target) ? e.target.value : "";
-}
-
-const SEARCH_TEXTAREA_AUTOSIZE: AutosizeTextareaConfig = {
-  minRows: 2,
-  maxRows: 10,
-};
-
-function getInnerTextarea(el: HTMLElement | null): HTMLTextAreaElement | null {
-  const inner = el?.shadowRoot?.querySelector("textarea");
-  return inner instanceof HTMLTextAreaElement ? inner : null;
-}
 
 function isSearchType(value: string): value is SearchType {
   return value === "llm" || value === "grep";
@@ -165,7 +138,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   });
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
-  const recentButtonRef = useRef<HTMLButtonElement>(null);
+  const [recentButtonEl, setRecentButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   const loading =
     createSearchMutation.isPending || cachedSearchQuery.isFetching;
@@ -310,21 +284,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     formRef.current?.requestSubmit();
   }, []);
 
-  const searchTextareaRef = useRef<HTMLElement | null>(null);
-  const handleSearchTextareaRef = useCallback((el: HTMLElement | null) => {
-    searchTextareaRef.current = el;
-  }, []);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useLayoutEffect(() => {
-    const inner = getInnerTextarea(searchTextareaRef.current);
-    if (inner !== null) {
-      autosizeTextarea(inner, SEARCH_TEXTAREA_AUTOSIZE);
-    }
-  }, [query]);
-
   const handleQueryInput = useCallback(
-    (e: Event) => {
-      const value = getInputValue(e);
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
       setState((prev) => ({
         ...prev,
         searches: {
@@ -370,7 +332,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   }, [model, modelHistory.history, handleModelChange]);
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-unsearchable>
       <SidebarHeader
         icon="search"
         title={`Search: ${scope}`}
@@ -399,7 +361,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             </div>
             <div className={styles.topActions}>
               <button
-                ref={recentButtonRef}
+                ref={setRecentButtonEl}
                 type="button"
                 className={clsx(
                   styles.iconAction,
@@ -424,8 +386,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             </div>
           </div>
           <div className={styles.inputShell}>
-            <VscodeTextarea
-              ref={handleSearchTextareaRef}
+            <textarea
               className={styles.textarea}
               placeholder={
                 searchType === "grep"
@@ -433,10 +394,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                   : "Ask a question about this transcript..."
               }
               value={query}
-              onInput={handleQueryInput}
+              onChange={handleQueryInput}
               onKeyDown={handleKeyDown}
               spellCheck={false}
-              autocomplete="off"
+              autoComplete="off"
             />
           </div>
           <div className={styles.controlsRow}>
@@ -508,10 +469,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         id={`recent-searches-${api.cacheKey}`}
         isOpen={isRecentOpen}
         setIsOpen={setIsRecentOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={recentButtonRef.current}
+        positionEl={recentButtonEl}
         placement="bottom-end"
-        offset={[0, 2]}
+        offset={2}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         showArrow={false}
@@ -726,7 +686,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response (#555): search results are not normalized
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -735,10 +695,7 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              ref.type === "event"
-              ? getEventUrl(ref.id)
-              : undefined;
+            : getEventUrl(ref.id);
         refs.push({
           id: ref.id,
           cite: ref.cite,

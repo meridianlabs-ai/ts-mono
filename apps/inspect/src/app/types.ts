@@ -4,6 +4,7 @@ import {
   ApprovalEvent,
   AttachmentData,
   BranchEvent,
+  CommunicationEvent,
   CompactionEvent,
   ContentDocument,
   ContentImage,
@@ -24,6 +25,7 @@ import {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
@@ -147,7 +149,7 @@ export interface EventFilter {
 /** Evidence selection, owned by one sample tab (`key`): reading it under any
  *  other sample or tab yields no mode and no selection, so switching either
  *  resets the Select latch without an effect. */
-export interface EventSelectionState {
+export interface EvidenceSelectionState {
   key: string | null;
   active: boolean;
   selectedIds: string[];
@@ -156,6 +158,9 @@ export interface EventSelectionState {
 
 export interface SampleState {
   visiblePopover?: string;
+  /** A sample's shared terminals view is mounted: the log and sample headers
+   *  collapse to give it the height. */
+  terminalsViewOpen: boolean;
 
   collapsedEvents: Record<string, Record<string, boolean>> | null;
   collapsedIdBuckets: Record<string, Record<string, boolean>>;
@@ -164,7 +169,7 @@ export interface SampleState {
 
   selectedOutlineId?: string;
 
-  eventSelection: EventSelectionState;
+  evidenceSelection: EvidenceSelectionState;
 
   // Timeline swimlane state
   timelineSelected: string | null;
@@ -184,6 +189,8 @@ export type Event =
   | ApprovalEvent
   | ReviewEvent
   | SentinelEvent
+  | CommunicationEvent
+  | SwarmEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

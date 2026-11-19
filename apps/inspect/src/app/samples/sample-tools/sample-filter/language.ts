@@ -35,7 +35,7 @@ export const SAMPLE_VARIABLES: [string, string][] = [
   ["retries", "The number of times the sample was retried (0 if none)"],
   [
     "fallbacks",
-    "The number of generate calls served by a fallback model (0 if none)",
+    "The number of requests served by a fallback model (0 if none)",
   ],
   ["tokens", "Total tokens used across all models (or null)"],
   ["duration", "Total wall-clock time of the sample, in seconds (or null)"],

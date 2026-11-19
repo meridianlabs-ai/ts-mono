@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { FC, useCallback, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
 
 import {
   ColumnFilterEditor,
@@ -13,6 +13,7 @@ import {
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
+import { useCopyToClipboard } from "@tsmono/react/hooks";
 import { IconName } from "@tsmono/react/icons";
 
 import { ScalarValue } from "../../api/api";
@@ -77,7 +78,9 @@ export const FilterBar: FC<FilterBarProps> = ({
   onVisibleColumnsChange,
 }) => {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [editingChipEl, setEditingChipEl] = useState<HTMLButtonElement | null>(
+    null
+  );
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
 
   const handleFilterChange = useCallback(
@@ -140,9 +143,11 @@ export const FilterBar: FC<FilterBarProps> = ({
           .map((filter) => (
             <Chip
               key={filter.columnId}
-              ref={(element) => {
-                chipRefs.current[filter.columnId] = element;
-              }}
+              ref={
+                filter.columnId === editingColumnId
+                  ? setEditingChipEl
+                  : undefined
+              }
               label={filter.columnId}
               value={formatFilterSpec(filter.spec)}
               title={`Edit ${filter.columnId} filter`}
@@ -164,8 +169,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           id={`${popoverIdPrefix}-editor-${editingColumnId}`}
           isOpen={isEditorOpen}
           setIsOpen={handleEditorOpenChange}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-          positionEl={chipRefs.current[editingColumnId] ?? null}
+          positionEl={editingChipEl}
           placement="bottom-start"
           showArrow={true}
           hoverDelay={-1}
@@ -218,7 +222,8 @@ export const FilterBar: FC<FilterBarProps> = ({
 const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
   itemValues,
 }) => {
-  const [icon, setIcon] = useState<IconName>("copy");
+  const { copied, copy } = useCopyToClipboard();
+  const icon: IconName = copied ? "confirm" : "copy";
 
   const items: Record<string, () => void> = {};
   for (const desc of kCopyCodeDescriptors) {
@@ -227,13 +232,7 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
       if (!text) {
         return;
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigator.clipboard.writeText(text);
-      setIcon("confirm");
-      setTimeout(() => {
-        setIcon("copy");
-      }, 1250);
+      copy(text);
     };
   }
 

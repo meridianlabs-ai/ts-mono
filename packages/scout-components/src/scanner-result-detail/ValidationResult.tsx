@@ -24,8 +24,7 @@ export const ValidationResult: FC<ValidationResultProps> = ({
         targetValue={valueStr(resolveTargetValue(target, label))}
       />
     );
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (result !== null && typeof result === "object") {
+  } else {
     const entries = Object.entries(result);
 
     return (
@@ -42,6 +41,19 @@ export const ValidationResult: FC<ValidationResultProps> = ({
     );
   }
 };
+
+/** The text `<ValidationResult>` renders, so Find can count matches in rows
+ *  that aren't mounted. */
+export const validationSearchText = (
+  result: boolean | Record<string, boolean>,
+  target?: unknown,
+  label?: string
+): string[] =>
+  typeof result === "boolean"
+    ? [valueStr(resolveTargetValue(target, label))]
+    : Object.keys(result).map((key) =>
+        valueStr(resolveTargetValue(target, key))
+      );
 
 const Result: FC<{ value: boolean; targetValue?: string }> = ({
   value,

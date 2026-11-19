@@ -6,9 +6,13 @@ import { LogFilesResponse } from "@tsmono/inspect-common/types";
 import type { AppConfig } from "../app_config";
 import { DB_NAME } from "../client/database";
 
+import "../test/testApp";
+import "./replicationControl";
+
 import { testClientAPI, testLogDetails } from "./testFixtures";
 
 // Activation state is module-level, so each test loads a fresh module graph.
+// The side-effect imports keep its cold compile out of the first test's timeout.
 
 let teardown: (() => Promise<void>) | undefined;
 

@@ -80,7 +80,9 @@ invariant holds.
   for a mounted panel and report its `ListingStatus` (`loading` — a sync
   round-trip in flight, for prominent chrome like the navbar activity bar;
   `busy` — additionally folding in engine background fetching, for
-  subordinate indications; `error`);
+  subordinate indications; `error` — no sync of the log dir has
+  succeeded this session, a blocking failure; `refreshError` — a sync failed
+  after one succeeded, so the listing stays up and the navbar flags it);
   subscribing also keeps the listing fresh (a shared client-events poll
   re-syncs on host `refresh-evals` events and periodically).
   `imperativeLogData.invalidateLogListing()` is the invalidation counterpart for
@@ -272,7 +274,7 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
 - React reaches down only through hooks or a subsystem surface (from
   controllers / event handlers).
 - **Only acquisition talks to the backend about log data** — `api.get_logs`,
-  `api.get_log_summaries`, `api.get_log_details`, `api.get_log_sample`,
+  `api.get_log_summaries_settled`, `api.get_log_details`, `api.get_log_sample`,
   `api.get_log_sample_data`, `api.get_log_pending_samples`, and
   `api.client_events` are called from its interior and nowhere else — no
   exceptions. Producers enqueue; consumers await `fetch()` promises or read

@@ -13,6 +13,8 @@ export interface SampleScans {
   /** Scanner-produced scores only (non-scanner scores belong in the Scoring tab). */
   scores: Record<string, Score>;
   hasScans: boolean;
+  /** At least one scanner found something (see `hasScanResults`). */
+  hasResults: boolean;
   selected: string;
   setSelected: (scanner: string) => void;
   makeCiteUrl: MakeCiteUrl;
@@ -48,6 +50,7 @@ export function useSampleScans(opts: {
 
   const scanners = Object.keys(scores);
   const hasScans = scanners.length > 0;
+  const hasResults = hasScanResults(scores);
 
   // Derive the effective selection instead of syncing state in an effect:
   // fall back to the first scanner when the stored choice isn't available.
@@ -78,9 +81,30 @@ export function useSampleScans(opts: {
   return {
     scores,
     hasScans,
+    hasResults,
     selected,
     setSelected,
     makeCiteUrl,
     eventNodeContext,
   };
 }
+
+/**
+ * Whether any scanner produced a result worth showing. A scanner whose value
+ * is falsy (no value/NaN, false, 0, "", or an empty list/dict) and that cites
+ * nothing found nothing, so on its own isn't worth opening the Scans panel for
+ * by default.
+ */
+export const hasScanResults = (scores: Record<string, Score>): boolean =>
+  Object.values(scores).some(
+    (score) =>
+      !isFalsyValue(score.value) ||
+      readScannerReferences(score.metadata).length > 0
+  );
+
+const isFalsyValue = (value: Score["value"]): boolean =>
+  Array.isArray(value)
+    ? value.length === 0
+    : typeof value === "object"
+      ? Object.keys(value).length === 0
+      : !value;

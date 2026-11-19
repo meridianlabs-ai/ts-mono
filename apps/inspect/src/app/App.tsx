@@ -1,4 +1,7 @@
-import "bootstrap/dist/css/bootstrap.css";
+import "@tsmono/theme/tokens";
+import "@tsmono/theme/reset";
+import "@tsmono/theme/components";
+import "@tsmono/theme/utilities";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
@@ -10,7 +13,7 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { FC, useCallback, useLayoutEffect, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
-import { navigateAndForget, useEventListener } from "@tsmono/react/hooks";
+import { useEventListener } from "@tsmono/react/hooks";
 import { getVscodeApi } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
@@ -53,7 +56,7 @@ const ThemePreferenceSyncController: FC = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
   // post-paint effect the icon updates a frame before the colors, flashing the
   // old theme. (The old bespoke hook applied synchronously on write.)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- applies the theme once React commits a new preference: persist has written localStorage, which apply reads, and a layout effect lands before paint
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
@@ -63,7 +66,7 @@ const ThemePreferenceSyncController: FC = () => {
       // Re-apply CSS for this tab (the bootstrap reads the freshly-written
       // value) and pull the new preference into the store.
       window.__APPLY_BROWSER_THEME__?.();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- rehydrate never rejects: zustand routes its errors to onRehydrateStorage, and its anonymous type can't be listed in allowForKnownSafeCalls
       useUserSettings.persist.rehydrate();
     }
   });
@@ -93,11 +96,7 @@ export const AppContent: FC = () => {
             // dir is already seeded by the log-root resolution at startup.
             setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
-            navigateAndForget(
-              router.navigate.bind(router),
-              hostDestinationRoute(e.data),
-              { replace: true }
-            );
+            router.navigate(hostDestinationRoute(e.data), { replace: true });
           }
           break;
         }

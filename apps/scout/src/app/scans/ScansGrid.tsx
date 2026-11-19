@@ -1,33 +1,30 @@
-import { FC, useEffect, useMemo, useRef } from "react";
+import { FC, useEffect, useMemo } from "react";
 
+import { combineFilters } from "@tsmono/inspect-components/columnFilter";
+import { DataGrid } from "@tsmono/inspect-components/dataGrid";
+import { hashRouteUrl } from "@tsmono/react/routing";
 import { toRelativePath } from "@tsmono/util";
 
 import { ScalarValue } from "../../api/api";
+import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanRoute } from "../../router/url";
 import { useStore } from "../../state/store";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
-import { DataGrid } from "../components/dataGrid";
 
 import {
   DEFAULT_COLUMN_ORDER,
-  getScanColumns,
-  ScanColumn,
+  DEFAULT_VISIBLE_COLUMNS,
+  isScanColumnKey,
+  SCAN_COLUMNS,
   ScanRow,
 } from "./columns";
-import { useColumnSizing } from "./columnSizing";
-
-// Generate a stable key for a scan item
-function scanItemKey(index: number, item?: ScanRow): string {
-  if (!item) {
-    return String(index);
-  }
-  return item.scan_id;
-}
 
 interface ScansGridProps {
   scans: ApiScanRow[];
   resultsDir: string | undefined;
-  className?: string | string[];
+  /** The directory the listing comes from: the user's choice or the config's */
+  scansDir: string | undefined;
+  className?: string;
   loading?: boolean;
   /** Called when scroll position nears end */
   onScrollNearEnd?: (distanceFromBottom?: number) => void;
@@ -44,32 +41,30 @@ interface ScansGridProps {
 export const ScansGrid: FC<ScansGridProps> = ({
   scans,
   resultsDir,
+  scansDir,
   className,
   loading,
   onScrollNearEnd,
   hasMore = false,
   fetchThreshold = 500,
-  filterSuggestions = [],
+  filterSuggestions,
   onFilterColumnChange,
 }) => {
-  // Table ref for DOM measurement (used by column sizing)
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  // Table state from store
-  const sorting = useStore((state) => state.scansTableState.sorting);
-  const columnOrder = useStore((state) => state.scansTableState.columnOrder);
-  const columnFilters = useStore(
-    (state) => state.scansTableState.columnFilters
-  );
-  const rowSelection = useStore((state) => state.scansTableState.rowSelection);
-  const focusedRowId = useStore((state) => state.scansTableState.focusedRowId);
-  const visibleColumns = useStore(
-    (state) => state.scansTableState.visibleColumns
-  );
+  const navigate = useLoggingNavigate("ScansGrid");
+  const tableState = useStore((state) => state.scansTableState);
   const setTableState = useStore((state) => state.setScansTableState);
   const setVisibleScanJobCount = useStore(
     (state) => state.setVisibleScanJobCount
   );
+  const {
+    sorting,
+    columnOrder,
+    columnSizing,
+    focusedRowId,
+    visibleColumns = DEFAULT_VISIBLE_COLUMNS,
+  } = tableState;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
+  const columnFilters = tableState.columnFilters ?? {};
 
   // Add computed relativeLocation to each scan
   const data = useMemo(
@@ -87,96 +82,71 @@ export const ScansGrid: FC<ScansGridProps> = ({
     setVisibleScanJobCount(data.length);
   }, [data.length, setVisibleScanJobCount]);
 
-  // Define table columns based on visible columns from store
-  const columns = useMemo<ScanColumn[]>(
-    () => getScanColumns(visibleColumns),
-    [visibleColumns]
-  );
+  const routeOf = (row: ScanRow): string | undefined =>
+    resultsDir ? scanRoute(resultsDir, row.relativeLocation) : undefined;
 
-  // Column sizing with min/max constraints and auto-sizing
-  const {
-    columnSizing,
-    handleColumnSizingChange,
-    applyAutoSizing,
-    resetColumnSize,
-  } = useColumnSizing({
-    columns,
-    tableRef,
-    data,
-  });
-
-  // Track if we've done initial auto-sizing
-  const hasInitializedRef = useRef(false);
-
-  // Track previous visible columns to detect changes
-  const previousVisibleColumnsRef = useRef<typeof visibleColumns | null>(null);
-
-  // Auto-size columns on initial load when data is available
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!hasInitializedRef.current && data.length > 0) {
-      hasInitializedRef.current = true;
-      applyAutoSizing();
-    }
-  }, [data.length, applyAutoSizing]);
-
-  // Auto-size when visible columns change
-  // (applyAutoSizing preserves manually resized columns)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const previousVisibleColumns = previousVisibleColumnsRef.current;
-    previousVisibleColumnsRef.current = visibleColumns;
-
-    if (previousVisibleColumns && previousVisibleColumns !== visibleColumns) {
-      applyAutoSizing();
-    }
-  }, [visibleColumns, applyAutoSizing]);
-
-  // Compute effective column order
-  const effectiveColumnOrder = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
-    if (columnOrder && columnOrder.length > 0) {
-      return columnOrder;
-    }
-    return DEFAULT_COLUMN_ORDER;
-  }, [columnOrder]);
-
-  // Get row ID
-  const getRowId = (row: ScanRow): string => row.scan_id;
-
-  // Get route for navigation
-  const getRowRoute = (row: ScanRow): string => {
-    if (!resultsDir) return "";
-    return scanRoute(resultsDir, row.relativeLocation);
-  };
+  const emptyMessage = !scansDir
+    ? "No scans directory configured."
+    : combineFilters(columnFilters)
+      ? "No matching scans"
+      : "No scans in this directory.";
 
   return (
-    <DataGrid
+    <DataGrid<ScanRow>
       data={data}
-      columns={columns}
-      getRowId={getRowId}
-      getRowKey={scanItemKey}
-      state={{
-        sorting,
-        columnOrder: effectiveColumnOrder,
-        columnFilters,
-        columnSizing,
-        rowSelection,
-        focusedRowId,
+      columns={SCAN_COLUMNS}
+      columnVisibility={Object.fromEntries(
+        DEFAULT_COLUMN_ORDER.map((key) => [key, visibleColumns.includes(key)])
+      )}
+      getRowId={(row) => row.scan_id}
+      ariaLabel="Scans"
+      className={className}
+      loading={loading}
+      emptyMessage={emptyMessage}
+      sorting={sorting}
+      onSortingChange={(next) =>
+        setTableState((prev) => ({ ...prev, sorting: next }))
+      }
+      columnOrder={
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
+        columnOrder?.length ? columnOrder : DEFAULT_COLUMN_ORDER
+      }
+      onColumnOrderChange={(next) =>
+        setTableState((prev) => ({
+          ...prev,
+          columnOrder: next.filter(isScanColumnKey),
+        }))
+      }
+      columnSizing={columnSizing}
+      onColumnSizingChange={(next) =>
+        setTableState((prev) => ({ ...prev, columnSizing: next }))
+      }
+      columnFilters={columnFilters}
+      onColumnFilterChange={(columnId, filterType, spec) =>
+        setTableState((prev) => {
+          const filters = { ...prev.columnFilters };
+          if (spec === null) delete filters[columnId];
+          else filters[columnId] = { columnId, filterType, spec };
+          return { ...prev, columnFilters: filters };
+        })
+      }
+      filterSuggestions={filterSuggestions}
+      onFilterOpenChange={onFilterColumnChange}
+      selectedRowId={focusedRowId ?? undefined}
+      onSelectedRowChange={(row) =>
+        setTableState((prev) => ({ ...prev, focusedRowId: row.scan_id }))
+      }
+      onRowActivate={(row) => {
+        const route = routeOf(row);
+        if (route) navigate(route);
       }}
-      onStateChange={setTableState}
-      getRowRoute={getRowRoute}
+      getRowHref={(row) => {
+        const route = routeOf(row);
+        return route ? hashRouteUrl(route) : undefined;
+      }}
       onScrollNearEnd={onScrollNearEnd}
       hasMore={hasMore}
       fetchThreshold={fetchThreshold}
-      filterSuggestions={filterSuggestions}
-      onFilterColumnChange={onFilterColumnChange}
-      onColumnSizingChange={handleColumnSizingChange}
-      onResetColumnSize={resetColumnSize}
-      className={className}
-      loading={loading}
-      emptyMessage="No matching scans"
-      noConfigMessage="No scans directory configured."
     />
   );
 };

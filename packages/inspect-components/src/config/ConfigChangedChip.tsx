@@ -225,11 +225,7 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
   onViewTimeline,
   timelineHref,
 }) => {
-  const showPrior =
-    !change.cleared &&
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    change.previous !== undefined &&
-    change.previous !== change.value;
+  const showPrior = !change.cleared && change.previous !== change.value;
 
   return (
     <div className={styles.cell}>

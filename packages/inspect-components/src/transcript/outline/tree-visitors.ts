@@ -47,6 +47,8 @@ export const removeStepSpanNameVisitor = (name: string) => {
 export const outlineFilterVisitors = () => [
   removeNodeVisitor("logger"),
   removeNodeVisitor("info"),
+  removeNodeVisitor("communication"),
+  removeNodeVisitor("swarm"),
   removeNodeVisitor("state"),
   removeNodeVisitor("store"),
   removeNodeVisitor("approval"),
@@ -127,7 +129,12 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
 
   // Events that can appear between model and tool events without
   // breaking the turn (e.g. logging, informational events).
-  const kTurnPassthroughEvents = new Set(["logger", "info"]);
+  const kTurnPassthroughEvents = new Set([
+    "logger",
+    "info",
+    "communication",
+    "swarm",
+  ]);
 
   for (const node of eventNodes) {
     if (node.event.event === "model") {

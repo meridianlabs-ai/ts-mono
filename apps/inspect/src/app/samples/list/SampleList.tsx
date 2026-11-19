@@ -1,5 +1,5 @@
 import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
-import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
+import { FC, memo, RefObject, useCallback, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import type {
@@ -7,10 +7,12 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import { useDocumentTitleText } from "@tsmono/react/hooks";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { highlightSample, setDocumentTitle } from "../../../state/actions";
+import { documentTitle, highlightSample } from "../../../state/actions";
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 import { useCurrentLogFile } from "../../routing/currentSelection";
@@ -20,7 +22,6 @@ import {
   toFullUrl,
   useLogRouteParams,
 } from "../../routing/url";
-import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
 import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
@@ -88,10 +89,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec });
-  }, [evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec }));
 
   const handleRowOpen = useCallback(
     (row: SampleRow) => {

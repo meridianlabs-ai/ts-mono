@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 
-import { useMapAsyncData } from "@tsmono/react/hooks";
+import { useMapAsyncData, useStableValue } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { useStableValue } from "../app/shared/useStableValue";
 import { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
 
@@ -58,18 +57,13 @@ export function computeScorerMap(logs: Log[], scopeDir?: string): ScorerMap {
     }
     if (log.header?.results?.scores) {
       for (const evalScore of log.header.results.scores) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (evalScore.metrics) {
-          for (const [metricName, metric] of Object.entries(
-            evalScore.metrics
-          )) {
-            const key = scorerMetricKey(evalScore.name, metricName);
-            info[key] = {
-              scorerName: evalScore.name,
-              metricName,
-              valueType: typeof metric.value,
-            };
-          }
+        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+          const key = scorerMetricKey(evalScore.name, metricName);
+          info[key] = {
+            scorerName: evalScore.name,
+            metricName,
+            valueType: typeof metric.value,
+          };
         }
       }
     }

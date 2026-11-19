@@ -18,6 +18,10 @@ declare global {
   }
 }
 
+// Its own looser host policy replaces the viewer's, and it probes eval on
+// purpose, so it asserts its own violations instead of the fixture's.
+test.use({ allowCspViolations: true });
+
 test("scan results load under a host CSP without 'unsafe-eval'", async ({
   page,
   network,
@@ -90,6 +94,7 @@ test("scan results load under a host CSP without 'unsafe-eval'", async ({
                 scans: 2,
                 results: 3,
                 tokens: 0,
+                unscored: 0,
                 errors: 0,
                 model_usage: {},
               },

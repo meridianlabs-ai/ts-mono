@@ -18,7 +18,11 @@ import {
   deactivateFetchEngine,
 } from "./replicationControl";
 import { testClientAPI } from "./testFixtures";
-import { clientEventsTick, useLogsSync } from "./useLogsSync";
+import {
+  clientEventsTick,
+  invalidateLogListing,
+  useLogsSync,
+} from "./useLogsSync";
 
 const LOG_DIR = "/logs";
 const tickKey = ["log_data", "client-events", LOG_DIR];
@@ -138,6 +142,82 @@ describe("useLogsSync", () => {
     resolveLogs(listing([]));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.busy).toBe(false);
+  });
+
+  it("splits a failed first sync (error) from a failed re-sync (refreshError)", async () => {
+    const getLogs = vi
+      .fn<() => Promise<LogFilesResponse>>()
+      .mockRejectedValueOnce(new Error("first sync failed"))
+      .mockResolvedValueOnce(listing([]))
+      .mockRejectedValueOnce(new Error("re-sync failed"))
+      .mockResolvedValue(listing([]));
+    activateFetchEngine(
+      resolveConfig(
+        testClientAPI({
+          client_events: () => Promise.resolve([]),
+          get_logs: getLogs,
+        }),
+        false
+      )
+    );
+
+    const { result } = renderHook(() => useLogsSync(LOG_DIR, ""), { wrapper });
+
+    // Nothing has synced yet: the failure blocks.
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe("first sync failed")
+    );
+    expect(result.current.refreshError).toBeUndefined();
+
+    // Refetching clears `error` while pending, so wait for the success to
+    // settle before invalidating again (or the next fetch dedupes onto it).
+    invalidateLogListing();
+    await waitFor(() => {
+      expect(getLogs).toHaveBeenCalledTimes(2);
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.refreshError).toBeUndefined();
+
+    // A listing has synced: the failure is a refresh error, not a blocking one.
+    invalidateLogListing();
+    await waitFor(() =>
+      expect(result.current.refreshError?.message).toBe("re-sync failed")
+    );
+    expect(result.current.error).toBeUndefined();
+
+    invalidateLogListing();
+    await waitFor(() => expect(result.current.refreshError).toBeUndefined());
+    expect(result.current.error).toBeUndefined();
+  });
+
+  it("reports a failed sync in a never-visited folder as a refresh error once the dir has synced", async () => {
+    const getLogs = vi
+      .fn<() => Promise<LogFilesResponse>>()
+      .mockResolvedValueOnce(listing([]))
+      .mockRejectedValue(new Error("server down"));
+    activateFetchEngine(
+      resolveConfig(
+        testClientAPI({
+          client_events: () => Promise.resolve([]),
+          get_logs: getLogs,
+        }),
+        false
+      )
+    );
+
+    const root = renderHook(() => useLogsSync(LOG_DIR, ""), { wrapper });
+    await waitFor(() => {
+      expect(getLogs).toHaveBeenCalledTimes(1);
+      expect(root.result.current.loading).toBe(false);
+    });
+
+    // A new folder is a new sync query, but the dir already synced.
+    const sub = renderHook(() => useLogsSync(LOG_DIR, "sub"), { wrapper });
+    await waitFor(() =>
+      expect(sub.result.current.refreshError?.message).toBe("server down")
+    );
+    expect(sub.result.current.error).toBeUndefined();
   });
 
   it("folds engine background fetching into busy but not loading", async () => {

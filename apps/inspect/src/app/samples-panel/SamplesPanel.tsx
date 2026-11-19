@@ -7,6 +7,7 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
 import { ErrorPanel, LoadingBar, ProgressBar } from "@tsmono/react/components";
 import { join } from "@tsmono/util";
 
@@ -32,7 +33,6 @@ import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
 import { samplesUrl, toFullUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
-import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import { type PickerColumn } from "../shared/gridUtils";
 import {
   buildSampleColumns,
@@ -427,7 +427,11 @@ export const SamplesPanel: FC = () => {
 
   return (
     <div className={clsx(styles.panel)}>
-      <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
+      <ApplicationNavbar
+        currentPath={samplesPath}
+        fnNavigationUrl={samplesUrl}
+        viewerOptionsError={listing.refreshError}
+      >
         {hasFilter && (
           <NavbarButton
             key="reset-filters"

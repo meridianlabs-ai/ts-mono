@@ -4,6 +4,9 @@
    precise static type at the assertion site. */
 import { describe, expect, it, vi } from "vitest";
 
+import { testToolEvent } from "@tsmono/inspect-common/testing";
+import type { ContentImage } from "@tsmono/inspect-common/types";
+
 import { ClientAPI, SampleSummary } from "../client/api/types";
 
 import {
@@ -167,6 +170,62 @@ describe("resolveSample", () => {
       "the real failed message body"
     );
   });
+
+  it("leaves tool result text as written", () => {
+    const image = {
+      type: "image",
+      image: "attachment://img",
+      detail: "auto",
+    } satisfies ContentImage;
+    const tool = testToolEvent({
+      result: [{ type: "text", text: "attachment://sys" }, image],
+    });
+    const retryTool = testToolEvent({ result: "tc://sys" });
+    const resolved: any = resolveSample(
+      makeSample({
+        attachments: { sys: "system prompt", img: "image data" },
+        events: [tool],
+        error_retries: [
+          {
+            message: "RuntimeError",
+            traceback: "tb",
+            traceback_ansi: "tb",
+            events: [retryTool],
+          },
+        ],
+      })
+    );
+    expect(resolved.events[0].result).toEqual([
+      { type: "text", text: "attachment://sys" },
+      { ...image, image: "image data" },
+    ]);
+    expect(resolved.error_retries[0].events[0].result).toBe("tc://sys");
+  });
+
+  // inspect_ai's walk_input leaves a string input as written and resolves a
+  // message-list input.
+  it.each(["attachment://", "tc://"])(
+    "resolves %s refs in message-list input but not in string input",
+    (protocol) => {
+      const attachments = { sys: "system prompt" };
+      expect(
+        resolveSample(makeSample({ input: `${protocol}sys`, attachments }))
+          .input
+      ).toBe(`${protocol}sys`);
+      expect(
+        resolveSample(
+          makeSample({
+            input: [msg("m1", "user", `${protocol}sys`)],
+            messages: [msg("m1", "user", `${protocol}sys`)],
+            attachments,
+          })
+        )
+      ).toMatchObject({
+        input: [{ content: "system prompt" }],
+        messages: [{ content: "system prompt" }],
+      });
+    }
+  );
 });
 
 describe("fetchSample", () => {

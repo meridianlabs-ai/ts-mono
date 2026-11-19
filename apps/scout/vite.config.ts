@@ -12,9 +12,11 @@ import {
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
+  contentSecurityPolicy,
   inlineThemeBootstrap,
   inlineWorkerUrls,
   rewriteLoopbackOrigin,
+  VIEWER_CSP_DIRECTIVES,
 } from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
@@ -35,8 +37,20 @@ function copyToPythonRepo(): Plugin {
 
 const scoutServerUrl = "http://127.0.0.1:7576";
 
+// arquero's code generators. arquero's table class keeps them in the bundle,
+// but Scout calls no API that reaches them (#764); its e2e runs under the
+// policy and its @no-unsafe-eval unit tests ban eval outright.
+const unusedArqueroCodegen = [
+  "arquero/src/expression/compile.js",
+  "arquero/src/expression/compare.js",
+  "arquero/src/util/unroll.js",
+];
+
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
+  // The e2e build is served by `vite preview`; it gets its own outDir and
+  // isn't copied into the Python repo.
+  const isE2e = mode === "e2e";
   const baseConfig = {
     plugins: [
       react({
@@ -126,13 +140,16 @@ export default defineConfig(({ mode }) => {
         inlineThemeBootstrap(
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
+        contentSecurityPolicy(VIEWER_CSP_DIRECTIVES, {
+          evalAllowedIn: unusedArqueroCodegen,
+        }),
         warnIfWatchingWithoutSubmodule("inspect_scout"),
-        copyToPythonRepo(),
+        ...(isE2e ? [] : [copyToPythonRepo()]),
       ],
       base: "",
       server: {
         // Pinned so `pnpm dev` from the root always gives scout 5174 and
-        // inspect 5173 regardless of startup order (e2e uses 5175–5177).
+        // inspect 5173 regardless of startup order (e2e uses 5175–5178).
         port: 5174,
         strictPort: true,
         proxy: {
@@ -144,7 +161,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       build: {
-        outDir: "dist",
+        outDir: isE2e ? "dist-e2e" : "dist",
         emptyOutDir: true,
         minify: mode !== "development",
         // Inline small assets (icons, decorative images) to save round trips

@@ -86,3 +86,12 @@
 .simple {
   /* styles for simple display mode */
 }
+
+/* Selected for export — same edge + tint as selected transcript events. The
+   row has no border of its own, so the margin absorbs all 3px and the
+   content doesn't move. */
+.selected {
+  border-left: 3px solid var(--inspect-jump-target-ring-color);
+  margin-left: -3px;
+  background-color: rgba(77, 126, 191, 0.05);
+}

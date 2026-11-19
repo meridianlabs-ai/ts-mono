@@ -26,6 +26,12 @@ import {
   isToolExecutingMessage,
 } from "../indicators/livePlaceholder";
 import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
+import type { RowSelection } from "../selection/rowSelection";
+import {
+  RowToggleContext,
+  SelectableRow,
+} from "../selection/RowSelectionContext";
+import { useListRowSelection } from "../selection/useListRowSelection";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
@@ -98,6 +104,9 @@ export interface ChatViewRowsVirtualListProps {
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  /** Evidence selection (host-owned state). Pass it only while selection
+   *  mode is on; rows are keyed by their head message id. */
+  selection?: RowSelection;
 }
 
 /**
@@ -123,6 +132,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     labels,
     linking,
     tools,
+    selection,
   }: ChatViewRowsVirtualListProps) {
     const listHandle = useRef<VirtualListHandle>(null);
 
@@ -140,6 +150,13 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       scrollRef,
       itemCount: rows.length,
     });
+
+    // Ranges span the loaded rows, as the user sees them.
+    const rowSelection = useListRowSelection(selection, () =>
+      rows
+        .map((row) => row.resolved.message.id)
+        .filter((rowId): rowId is string => typeof rowId === "string")
+    );
 
     // The near-end trigger re-checks on scroll AND when rows grow: a landing
     // page doesn't move the viewport, so the rows-grow case rides on
@@ -200,7 +217,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             item.resolved.message,
             item.resolved.toolMessages.length
           );
-        return (
+        const row = (
           <>
             <ChatMessageRow
               index={index}
@@ -224,6 +241,20 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             ) : null}
           </>
         );
+        if (!rowSelection) {
+          return row;
+        }
+        const rowId = item.resolved.message.id ?? undefined;
+        return (
+          <SelectableRow
+            id={rowId}
+            selected={
+              rowId !== undefined && rowSelection.selectedIds.has(rowId)
+            }
+          >
+            {row}
+          </SelectableRow>
+        );
       },
       [
         id,
@@ -235,6 +266,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         linking,
         tools,
         maxLabelLength,
+        rowSelection,
       ]
     );
 
@@ -259,25 +291,27 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     }
 
     return (
-      <VirtualList<MessageRow>
-        persistenceKey={`chat-${id}`}
-        ref={listHandle}
-        className={clsx(styles.list, className)}
-        scrollRef={scrollRef}
-        data={rows}
-        renderRow={renderRow}
-        initialIndex={initialMessageIndex}
-        scrollPaddingStart={kChatScrollPaddingStart}
-        live={running}
-        navOwned={navOwned}
-        followRequested={followRequested}
-        scrollToTopOnFinish={scrollToTopOnFinish}
-        components={chatComponents}
-        smoothScroll={false}
-        itemSearchText={rowSearchText}
-        showProgress={hasMoreRows}
-        onVisibleRangeChange={handleVisibleRangeChange}
-      />
+      <RowToggleContext.Provider value={rowSelection?.onToggle}>
+        <VirtualList<MessageRow>
+          persistenceKey={`chat-${id}`}
+          ref={listHandle}
+          className={clsx(styles.list, className)}
+          scrollRef={scrollRef}
+          data={rows}
+          renderRow={renderRow}
+          initialIndex={initialMessageIndex}
+          scrollPaddingStart={kChatScrollPaddingStart}
+          live={running}
+          navOwned={navOwned}
+          followRequested={followRequested}
+          scrollToTopOnFinish={scrollToTopOnFinish}
+          components={chatComponents}
+          smoothScroll={false}
+          itemSearchText={rowSearchText}
+          showProgress={hasMoreRows}
+          onVisibleRangeChange={handleVisibleRangeChange}
+        />
+      </RowToggleContext.Provider>
     );
   }
 );

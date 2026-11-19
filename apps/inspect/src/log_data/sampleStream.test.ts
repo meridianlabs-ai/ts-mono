@@ -6,6 +6,7 @@ import {
   testModelCall,
   testModelEvent,
   testModelOutput,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
 
 import { EventData, SampleData, SampleDataResponse } from "../client/api/types";
@@ -89,7 +90,7 @@ const chatMessage = (id: string, role: string, content: string) => ({
 
 const mockApi = {
   get_log_sample_data: vi.fn(),
-  log_message: vi.fn(),
+  log_message: vi.fn((_logFile: string, _message: string) => Promise.resolve()),
 };
 const api = testClientAPI(mockApi);
 
@@ -281,6 +282,24 @@ describe("createSampleStreamSession", () => {
     );
   });
 
+  it("leaves tool result text as written", async () => {
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        attachments: [attachment(1, "sys", "system prompt")],
+        events: [
+          eventData(1, "e1", testToolEvent({ result: "attachment://sys" })),
+          eventData(2, "e2", testToolEvent({ result: "tc://sys" })),
+        ],
+      })
+    );
+
+    const session = makeSession();
+    const { events } = await session.tick(false);
+
+    expect(expectEvent(events[0], "tool").result).toBe("attachment://sys");
+    expect(expectEvent(events[1], "tool").result).toBe("tc://sys");
+  });
+
   it("reports each missing attachment id once per session", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     mockApi.get_log_sample_data
@@ -349,6 +368,28 @@ describe("createSampleStreamSession", () => {
         /Unable to resolve attachment (\S+)/.exec(String(message))?.[1]
     );
     expect(reportedIds).toEqual(["pooled-missing"]);
+    warn.mockRestore();
+  });
+
+  it("logs a failed attachment-miss report instead of rejecting", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failure = new Error("server unreachable");
+    mockApi.log_message.mockRejectedValueOnce(failure);
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        events: [eventData(1, "e1", infoEvent("attachment://missing"))],
+      })
+    );
+
+    const session = makeSession();
+    await session.tick(false);
+
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "Unable to report attachment miss",
+        failure
+      );
+    });
     warn.mockRestore();
   });
 

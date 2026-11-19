@@ -236,43 +236,33 @@ export class MarkdownRenderQueue {
     promise: Promise<T>;
     cancel: () => void;
   } {
-    let cancelled = false;
     let queueTask: QueueTask | undefined;
 
     const promise = new Promise<T>((resolve, reject) => {
-      const wrappedTask = async () => {
-        // Skip if cancelled before execution
-        if (cancelled) {
-          return;
-        }
-
-        try {
-          const result = await task();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (!cancelled) {
-            resolve(result);
-          }
-        } catch (error) {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (!cancelled) {
-            reject(error instanceof Error ? error : new Error(String(error)));
-          }
-        }
-      };
-
-      queueTask = {
-        task: wrappedTask,
+      // processQueue skips an entry cancelled before it runs; one cancelled
+      // mid-run finishes but never settles the promise.
+      const entry: QueueTask = {
         cancelled: false,
+        task: async () => {
+          try {
+            const result = await task();
+            if (!entry.cancelled) {
+              resolve(result);
+            }
+          } catch (error) {
+            if (!entry.cancelled) {
+              reject(error instanceof Error ? error : new Error(String(error)));
+            }
+          }
+        },
       };
+      queueTask = entry;
 
-      this.queue.push(queueTask);
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.queue.push(entry);
       this.processQueue();
     });
 
     const cancel = () => {
-      cancelled = true;
-      // Mark our own task so processQueue skips it without running it
       if (queueTask) {
         queueTask.cancelled = true;
       }
@@ -281,7 +271,7 @@ export class MarkdownRenderQueue {
     return { promise, cancel };
   }
 
-  private async processQueue(): Promise<void> {
+  private processQueue(): void {
     if (this.activeCount >= this.maxConcurrent || this.queue.length === 0) {
       return;
     }
@@ -301,14 +291,11 @@ export class MarkdownRenderQueue {
     }
 
     this.activeCount++;
-
-    try {
-      await queueTask.task();
-    } finally {
+    const done = () => {
       this.activeCount--;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.processQueue();
-    }
+    };
+    queueTask.task().then(done, done);
   }
 }
 

@@ -115,13 +115,7 @@ const Tab: FC<{
     "nav-link",
     className,
     isActive && "active",
-    // "pills" gets bootstrap's nav-pills styling alone; a module-level
-    // .pill rule never existed (styles.pill was always undefined).
-    type === "pills-small"
-      ? styles.pillSmall
-      : type === "pills"
-        ? undefined
-        : styles.tab,
+    type === "tabs" && styles.tab,
     type === "pills-small" ? "text-size-smallest" : "text-size-small",
     "text-style-label"
   );

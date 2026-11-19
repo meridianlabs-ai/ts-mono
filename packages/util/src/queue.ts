@@ -22,13 +22,9 @@ export class AsyncQueue {
     return new Promise<T>((resolve, reject) => {
       this.queue.push(async () => {
         try {
-          const result = await task();
-          resolve(result);
+          resolve(await task());
         } catch (error) {
           reject(error instanceof Error ? error : new Error(String(error)));
-        } finally {
-          this.runningCount--;
-          this.runNext();
         }
       });
 
@@ -44,8 +40,11 @@ export class AsyncQueue {
       const task = this.queue.shift();
       if (task) {
         this.runningCount++;
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        task();
+        const done = () => {
+          this.runningCount--;
+          this.runNext();
+        };
+        task().then(done, done);
       }
     }
   }

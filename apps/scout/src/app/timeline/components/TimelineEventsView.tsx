@@ -1,6 +1,7 @@
 import { FC, RefObject, useCallback, useMemo, useRef } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
+import type { RowSelection } from "@tsmono/inspect-components/selection";
 import {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
@@ -10,7 +11,6 @@ import {
   type MarkerConfig,
   type TranscriptCollapseState,
   type TranscriptLayoutRightRailProps,
-  type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useProperty, useUnmount } from "@tsmono/react/hooks";
@@ -87,7 +87,7 @@ interface TimelineEventsViewProps {
   /** Optional right-side activity rail + resizable panel. */
   rightRail?: TranscriptLayoutRightRailProps;
   /** Evidence selection; present only while selection mode is on. */
-  selection?: TranscriptSelection;
+  selection?: RowSelection;
   className?: string;
 }
 

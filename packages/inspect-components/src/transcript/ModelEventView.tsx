@@ -93,13 +93,24 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     return recentInputMessages(event.input, {
       agentResultsFiltered,
       hasToolEvents: context?.hasToolEvents,
-      toolEventIds: context?.toolEventIds,
+      toolEventIds: context?.inputShownElsewhere
+        ? undefined
+        : context?.toolEventIds,
     });
-  }, [event, context?.hasToolEvents, context?.toolEventIds]);
+  }, [
+    event,
+    context?.hasToolEvents,
+    context?.toolEventIds,
+    context?.inputShownElsewhere,
+  ]);
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);
 
+  const toolEventIds = context?.toolEventIds;
+  // The output names a call by the model's id; a bridge's scaffold may name
+  // it by the new id the bridge handed it over under.
+  const toolProposalIds = context?.toolProposalIds ?? toolEventIds;
   const summaryMessages = useMemo(() => {
     // Filter the synthetic empty-assistant placeholder while the event is in
     // flight, or when it was cancelled (the interrupted generation produced no
@@ -110,13 +121,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       event.pending || isCancelled
         ? outputMessages.filter((m) => !isLivePlaceholderMessage(m))
         : outputMessages;
-    const messages = showAllMessages
-      ? [...event.input, ...outputs]
-      : [...userMessages, ...outputs];
-    const toolEventIds = context?.toolEventIds;
-    return toolEventIds
-      ? messages.map((m) => withoutToolCallsIn(m, toolEventIds))
-      : messages;
+    const inputs = showAllMessages ? event.input : userMessages;
+    if (!toolEventIds || !toolProposalIds) return [...inputs, ...outputs];
+    return [
+      ...inputs.map((m) => withoutToolCallsIn(m, toolEventIds)),
+      ...outputs.map((m) => withoutToolCallsIn(m, toolProposalIds)),
+    ];
   }, [
     showAllMessages,
     event.input,
@@ -124,7 +134,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     isCancelled,
     outputMessages,
     userMessages,
-    context?.toolEventIds,
+    toolEventIds,
+    toolProposalIds,
   ]);
 
   // Folded under their calls, results the summary shows would vanish with calls it omits.

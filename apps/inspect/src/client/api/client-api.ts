@@ -276,70 +276,6 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     }
   };
 
-  /**
-   * Gets log headers
-   */
-  const get_log_summaries = async (
-    log_files: string[]
-  ): Promise<LogPreview[]> => {
-    // Prefer the API's batched endpoint for all formats: reading .eval
-    // headers client-side costs ~5 HTTP round-trips per file, which makes
-    // large log directories take minutes to hydrate.
-    try {
-      const summaries = await api.get_log_summaries(log_files);
-      if (summaries.length === log_files.length) {
-        return summaries;
-      }
-    } catch {
-      // fall through to per-file reads
-    }
-
-    const eval_files: Record<string, number> = {};
-    const json_files: Record<string, number> = {};
-    let index = 0;
-
-    // Separate files into eval_files and json_files
-    for (const file of log_files) {
-      if (isEvalFile(file)) {
-        eval_files[file] = index;
-      } else {
-        json_files[file] = index;
-      }
-      index++;
-    }
-
-    // Get the promises for eval log headers
-    const evalLogHeadersPromises = Object.keys(eval_files).map((file) =>
-      read_eval_file_log_summary(file).then((summary) => ({
-        index: eval_files[file], // Store original index
-        summary,
-      }))
-    );
-
-    // Get the promise for json log headers
-    const jsonLogHeadersPromise = api
-      .get_log_summaries(Object.keys(json_files))
-      .then((summaries) =>
-        summaries.map((summary, i) => ({
-          // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-          index: json_files[Object.keys(json_files)[i]], // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- Store original index; TODO pre-existing noUncheckedIndexedAccess fallout
-          summary,
-        }))
-      );
-
-    // Wait for all promises to resolve
-    const summaries = await Promise.all([
-      ...evalLogHeadersPromises,
-      jsonLogHeadersPromise,
-    ]);
-
-    // Flatten the nested array and sort headers by their original index
-    const orderedSummaries = summaries.flat().sort((a, b) => a.index - b.index);
-
-    // Return only the header values in the correct order
-    return orderedSummaries.map(({ summary }) => summary);
-  };
-
   const read_one_summary = async (log_file: string): Promise<LogPreview> => {
     if (isEvalFile(log_file)) {
       return read_eval_file_log_summary(log_file);
@@ -352,6 +288,8 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     return summary;
   };
 
+  // Batch first: reading .eval headers client-side costs ~5 HTTP round-trips
+  // per file, so large log directories take minutes per-file.
   // TODO(better fix): /log-headers should return per-file success|error results
   // (server: fastapi_server.py api_log_headers + read_eval_log_headers_async).
   // Until then one unreadable file fails the whole batched request, so isolate
@@ -520,7 +458,6 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     get_flow: middleware("get_flow", (dir?: string) => {
       return api.get_flow(dir);
     }),
-    get_log_summaries: middleware("get_log_summaries", get_log_summaries),
     get_log_summaries_settled: middleware(
       "get_log_summaries_settled",
       get_log_summaries_settled

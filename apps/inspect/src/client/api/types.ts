@@ -5,6 +5,7 @@ import type {
   AttachmentData,
   BranchEvent,
   CallPoolData,
+  CommunicationEvent,
   CompactionEvent,
   ConfigUpdate,
   ErrorEvent,
@@ -42,6 +43,7 @@ import type {
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -185,6 +187,8 @@ export interface EventData {
     | ApprovalEvent
     | ReviewEvent
     | SentinelEvent
+    | CommunicationEvent
+    | SwarmEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent
@@ -345,7 +349,6 @@ export interface ClientAPI {
   // Read flow data
   get_flow: (dir?: string) => Promise<string | undefined>;
 
-  get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
   // Per-file settled results, aligned with `log_files` — one unreadable file
   // never fails the others. See client-api.ts for the fallback that backs it.
   get_log_summaries_settled: (

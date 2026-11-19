@@ -319,8 +319,7 @@ export const useEvalDescriptor = () => {
   const scores = useScores();
   const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
+    return createEvalDescriptor(scores, sampleSummaries);
   }, [scores, sampleSummaries]);
 };
 

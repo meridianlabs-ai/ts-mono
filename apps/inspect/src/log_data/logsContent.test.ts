@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
+import { Log } from "../client/api/types";
 import { DB_NAME } from "../client/database/schema";
 import { OpenDatabase } from "../client/database/service";
 import { normalizeEvalHeader } from "../client/utils/normalize";
@@ -19,10 +20,12 @@ import {
 } from "./databaseListings";
 import {
   clearFile,
+  getLogRows,
   logKey,
   mergeFetchStates,
   setListing,
   writeDetails,
+  writeFetchStates,
   writeListing,
   writePreviews,
 } from "./logsContent";
@@ -38,6 +41,7 @@ describe("writeListing", () => {
     queryClient.clear();
     db.close();
     await Dexie.delete(DB_NAME);
+    vi.restoreAllMocks();
   });
 
   test("persists and reads back rows in the dir's namespace", async () => {
@@ -64,6 +68,68 @@ describe("writeListing", () => {
     // ...and nothing was persisted where no scoped read could reach it.
     expect(await db.readLogs({ prefix: "~/logs" })).toHaveLength(0);
     expect(await db.getSyncScope("~/logs")).toBeUndefined();
+  });
+
+  test("keeps a details write that lands in the cache after the read-back", async () => {
+    const logDir = "file:///logs";
+    const name = "file:///logs/a.eval";
+    await writeListing(db, logDir, [{ name, mtime: 1 }]);
+    // The log is open: its per-entity entry is observed.
+    queryClient.setQueryData(logKey(logDir, name), null);
+
+    // A details flush merges into the cache between the listing's read-back
+    // and its cache write; its transaction commits after the read.
+    let details: Promise<unknown> | undefined;
+    const readLogs = db.readLogs.bind(db);
+    vi.spyOn(db, "readLogs").mockImplementationOnce(async (scope) => {
+      const rows = await readLogs(scope);
+      details = writeDetails(db, logDir, { [name]: testLogDetails() });
+      await vi.waitFor(() =>
+        expect(getLogRows(logDir)[0]?.depth).toBe("detailed")
+      );
+      return rows;
+    });
+
+    const rows = await writeListing(db, logDir, [{ name, mtime: 2 }]);
+    await details;
+
+    expect(rows.map((row) => [row.depth, row.mtime])).toEqual([
+      ["detailed", 2],
+    ]);
+    expect(
+      getLogRows(logDir).map((row) => [row.depth, row.mtime, !!row.header])
+    ).toEqual([["detailed", 2, true]]);
+    const entry = queryClient.getQueryData<Log>(logKey(logDir, name));
+    expect([entry?.depth, entry?.mtime, !!entry?.header]).toEqual([
+      "detailed",
+      2,
+      true,
+    ]);
+    expect(await db.readLogRow(name)).toMatchObject({
+      depth: "detailed",
+      mtime: 2,
+    });
+  });
+
+  test("keeps an open log's retrieval facts, which the cached listing row lags", async () => {
+    const logDir = "file:///logs";
+    const name = "file:///logs/a.eval";
+    await writeListing(db, logDir, [{ name, mtime: 1 }]);
+    queryClient.setQueryData(logKey(logDir, name), null);
+    await writeFetchStates(db, logDir, {
+      [name]: {
+        preview_attempts: 0,
+        details_attempts: 0,
+        details_settled_seq: 3,
+      },
+    });
+
+    await writeListing(db, logDir, [{ name, mtime: 2 }]);
+
+    expect(queryClient.getQueryData(logKey(logDir, name))).toMatchObject({
+      mtime: 2,
+      details_settled_seq: 3,
+    });
   });
 });
 

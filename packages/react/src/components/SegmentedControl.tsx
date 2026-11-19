@@ -36,7 +36,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
   id,
   segments,
   onSegmentChange,
-  selectedId: selectedIdProp,
+  selectedId,
   compact = false,
 }) => {
   const handleSegmentClick = useCallback(
@@ -45,9 +45,6 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
     },
     [onSegmentChange]
   );
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const selectedId = selectedIdProp ?? segments[0]?.id ?? "";
 
   return (
     <div id={id} className={clsx(styles.rootControl)}>

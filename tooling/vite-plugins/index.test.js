@@ -1,13 +1,14 @@
 import { createHash } from "crypto";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 
 import { build } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
@@ -21,10 +22,11 @@ afterEach(() => {
 
 /** Build `files` (index.html among them) with the policy plugin; return the
  *  policy file it wrote. */
-const buildWithPolicy = async (files, directives) => {
+const buildWithPolicy = async (files, directives, options, plugins = []) => {
   const root = mkdtempSync(join(tmpdir(), "csp-plugin-"));
   roots.push(root);
   for (const [name, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, name)), { recursive: true });
     writeFileSync(join(root, name), content);
   }
   await build({
@@ -32,7 +34,7 @@ const buildWithPolicy = async (files, directives) => {
     configFile: false,
     logLevel: "silent",
     build: { outDir: "dist", minify: false },
-    plugins: [contentSecurityPolicy(directives)],
+    plugins: [...plugins, contentSecurityPolicy(directives, options)],
   });
   return JSON.parse(readFileSync(join(root, "dist", CSP_FILE), "utf8"));
 };
@@ -182,4 +184,114 @@ describe("contentSecurityPolicy", () => {
       ).rejects.toThrow(`${name} must be set explicitly`);
     }
   );
+
+  describe("evalAllowedIn", () => {
+    // A dependency with a code generator the app never calls.
+    const library = {
+      "node_modules/codegen/package.json": JSON.stringify({
+        name: "codegen",
+        type: "module",
+        main: "index.js",
+      }),
+      "node_modules/codegen/index.js":
+        "export const compile = (body) => new Function(body);\nexport const answer = 42;",
+    };
+    const app = {
+      ...library,
+      "index.html": page(""),
+      "main.js":
+        'import { answer, compile } from "codegen";\nwindow.lib = { answer, compile };',
+    };
+
+    it("names the module that evaluates code", async () => {
+      await expect(buildWithPolicy(app, required)).rejects.toThrow(
+        /evaluate code: assets\/index-.*\.js \(codegen\/index\.js\)/
+      );
+    });
+
+    it("skips an allowed module", async () => {
+      await expect(
+        buildWithPolicy(app, required, {
+          evalAllowedIn: ["codegen/index.js"],
+        })
+      ).resolves.toMatchObject({ version: 1 });
+    });
+
+    it("still fails on eval elsewhere in the same chunk", async () => {
+      await expect(
+        buildWithPolicy(
+          { ...app, "main.js": `${app["main.js"]}\nwindow.e = eval("1");` },
+          required,
+          { evalAllowedIn: ["codegen/index.js"] }
+        )
+      ).rejects.toThrow(/evaluate code: assets\/index-.*\.js \(main\.js\)/);
+    });
+
+    it("still fails on eval added to a chunk outside any module", async () => {
+      const prependEval = {
+        name: "prepend-eval",
+        renderChunk: (code) => `eval("1");\n${code}`,
+      };
+      await expect(
+        buildWithPolicy(
+          app,
+          required,
+          { evalAllowedIn: ["codegen/index.js"] },
+          [prependEval]
+        )
+      ).rejects.toThrow(/evaluate code: assets\/index-[\w-]+\.js(?! \()/);
+    });
+
+    it("fails on an allowance whose module no longer evaluates code", async () => {
+      await expect(
+        buildWithPolicy(app, required, {
+          evalAllowedIn: ["codegen/index.js", "codegen/gone.js"],
+        })
+      ).rejects.toThrow(/no longer evaluate code: codegen\/gone\.js/);
+    });
+
+    it("matches a nested dependency by its own package path", async () => {
+      await expect(
+        buildWithPolicy(
+          {
+            "index.html": page(""),
+            "main.js":
+              'import { compile } from "wrapper";\nwindow.compile = compile;',
+            "node_modules/wrapper/package.json": JSON.stringify({
+              name: "wrapper",
+              type: "module",
+              main: "index.js",
+            }),
+            "node_modules/wrapper/index.js":
+              'export { compile } from "codegen";',
+            ...Object.fromEntries(
+              Object.entries(library).map(([path, content]) => [
+                `node_modules/wrapper/${path}`,
+                content,
+              ])
+            ),
+          },
+          required,
+          { evalAllowedIn: ["codegen/index.js"] }
+        )
+      ).resolves.toMatchObject({ version: 1 });
+    });
+
+    it("never covers a worker that bundles the module", async () => {
+      await expect(
+        buildWithPolicy(
+          {
+            ...library,
+            "index.html": page(""),
+            "main.js":
+              'new Worker(new URL("./worker.js", import.meta.url), { type: "module" });',
+            "worker.js":
+              'import { compile } from "codegen";\nself.compile = compile;',
+          },
+          required,
+          { evalAllowedIn: ["codegen/index.js"] }
+        )
+      ).rejects.toThrow(/evaluate code: assets\/worker-.*\.js/);
+    });
+  });
 });
