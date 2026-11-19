@@ -323,6 +323,21 @@ describe("legacy shape migrations", () => {
     expect(normalizeChatMessages(clean)).toBe(clean);
   });
 
+  // Pydantic resolves an untagged block by its payload field, so one missing
+  // tag must not drop the message.
+  it("tags untagged content blocks in chat messages", () => {
+    const [message] = normalizeChatMessages([
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "a" }, { text: "b" }],
+      },
+    ]);
+    expect(message?.content).toEqual([
+      { type: "text", text: "a" },
+      { type: "text", text: "b" },
+    ]);
+  });
+
   it("migrates a sandbox tuple to a spec object", () => {
     const spec = normalizeEvalSpec({
       task: "t",

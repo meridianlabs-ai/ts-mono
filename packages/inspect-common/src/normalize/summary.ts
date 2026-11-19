@@ -91,12 +91,12 @@ const normalizeInputMessage = (raw: unknown): ChatMessage | undefined => {
 /**
  * Normalize a raw chat message list from a source that skips
  * `normalizeEvalSample` (Scout's transcript API streams `.eval` sample
- * messages as written): legacy tool-use values become their JSON text, and
- * entries without chat-message content are dropped, as pydantic would refuse
- * them; a non-list becomes []. Identity-preserving on clean input.
+ * messages as written): cleaned as `normalizeSampleInput` cleans a message
+ * list, then legacy tool-use values become their JSON text; a non-list
+ * becomes []. Identity-preserving on clean input.
  */
 export const normalizeChatMessages = (raw: unknown): ChatMessage[] => {
-  const normalized = normalizeMessagesContent(raw);
+  const normalized = normalizeMessagesContent(normalizeSampleInput(raw));
   if (!Array.isArray(normalized)) return [];
   const messages = normalized as unknown[];
   return messages.every(hasChatMessageContent)
