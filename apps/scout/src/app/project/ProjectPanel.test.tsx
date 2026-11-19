@@ -107,7 +107,9 @@ const metadataTextarea = () => innerTextarea(byId("field-metadata"));
 // value React sets lands a render later.
 const settled = () => new Promise((r) => setTimeout(r, 0));
 
-describe("ProjectPanel", () => {
+// The full settings form mounts dozens of Lit elements; on CI runners each
+// test takes 4-5s, close to the default timeout.
+describe("ProjectPanel", { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup();
   });
