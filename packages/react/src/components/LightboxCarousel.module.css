@@ -84,14 +84,14 @@
 }
 
 .lightboxContent {
-  max-width: 90vw !important;
-  max-height: 90vh !important;
+  max-width: 90vw;
+  max-height: 90vh;
   display: flex;
   position: relative;
   overflow: hidden;
 }
 
 .lightboxContent > * {
-  max-height: 90vh !important;
-  max-width: 90vw !important;
+  max-height: 90vh;
+  max-width: 90vw;
 }

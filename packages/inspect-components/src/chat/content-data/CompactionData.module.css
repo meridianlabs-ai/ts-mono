@@ -4,8 +4,8 @@
   grid-template-columns: auto 1fr auto;
   column-gap: 0.3em;
   align-items: baseline;
-  color: var(--bs-secondary) !important;
-  font-weight: var(--bs-body-font-weight) !important;
+  color: var(--bs-secondary);
+  font-weight: var(--bs-body-font-weight);
 }
 
 .content {
@@ -19,6 +19,7 @@
   padding: 0.5em;
 }
 
+/* Overrides the .text-style-label utility, which is !important. */
 .content .grid :global(.text-style-label) {
   text-transform: none !important;
 }

@@ -26,6 +26,8 @@ mjx-container[jax="SVG"] > svg a {
   fill: blue;
   stroke: blue;
 }
+/* MathJax ships these as !important so page CSS can't unhide the
+   screen-reader copy of a formula. */
 mjx-container[jax="SVG"] mjx-assistive-mml {
   top: 0px;
   left: 0px;

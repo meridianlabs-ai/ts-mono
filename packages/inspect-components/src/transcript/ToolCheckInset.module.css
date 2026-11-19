@@ -217,7 +217,8 @@
 }
 
 /* The proposal renders through the tool input view; flatten the boxed
-   surface the readable variant gives it. */
+   surface the readable variant gives it. !important outranks those surface
+   rules, whose padding is itself !important. */
 .replaced .code :global(pre.tool-call-input),
 .replaced .code :global(div.tool-call-input),
 .replaced .code :global(.tool-call-input) :global(pre[class*="language-"]) {
@@ -229,7 +230,8 @@
   font-size: inherit;
 }
 
-/* Struck through and without syntax colors, so the tool input reads as what ran. */
+/* Struck through and without syntax colors, so the tool input reads as what ran.
+   !important beats Prism's more specific token colours. */
 .struck,
 .struck * {
   color: rgba(var(--bs-body-color-rgb), 0.6) !important;

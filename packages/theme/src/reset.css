@@ -316,6 +316,7 @@
   [list]:not([type="date"]):not([type="datetime-local"]):not(
       [type="month"]
     ):not([type="week"]):not([type="time"])::-webkit-calendar-picker-indicator {
+    /* !important, as in Reboot, so no other rule brings the datalist arrow back. */
     display: none !important;
   }
 
@@ -413,6 +414,7 @@
   }
 
   [hidden] {
+    /* !important so the hidden attribute wins over any display rule. */
     display: none !important;
   }
 }

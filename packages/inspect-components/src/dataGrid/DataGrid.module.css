@@ -67,7 +67,7 @@
   text-align: left;
   font-weight: 400;
   color: var(--bs-secondary);
-  font-size: var(--inspect-font-size-smallestest) !important;
+  font-size: var(--inspect-font-size-smallestest);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -359,8 +359,8 @@
   color: inherit;
 }
 
-.rowSelected {
-  background: var(--bs-primary-bg-subtle) !important;
+.row.rowSelected {
+  background: var(--bs-primary-bg-subtle);
 }
 
 .cell {
@@ -372,7 +372,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px !important;
+  font-size: 12px;
   /* Re-enable text selection the row-level `user-select: none` suppresses, so
    * cell contents can be selected and copied (parity with the AG grids'
    * `enableCellTextSelection`). A click-drag selects text without firing the

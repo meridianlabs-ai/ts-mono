@@ -55,15 +55,15 @@ li > ul {
   }
 
   body {
-    print-color-adjust: exact !important;
+    print-color-adjust: exact;
     orphans: 3;
     widows: 3;
   }
 
   #app,
   .app-main-grid {
-    height: auto !important;
-    overflow: visible !important;
+    height: auto;
+    overflow: visible;
   }
 
   pre,

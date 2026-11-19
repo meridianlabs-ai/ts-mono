@@ -13,5 +13,6 @@
 
 .tool {
   padding: 0;
+  /* Beats base.css's more specific inline-code colour. */
   color: inherit !important;
 }

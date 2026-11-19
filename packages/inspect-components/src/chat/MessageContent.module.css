@@ -27,6 +27,7 @@
   padding: 0;
 }
 
+/* !important beats Prism's white-space, word-wrap and word-break. */
 .codePanelPre code {
   white-space: pre-wrap !important;
   overflow-wrap: break-word !important;

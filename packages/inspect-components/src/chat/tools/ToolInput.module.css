@@ -5,7 +5,7 @@
 }
 
 .toolView {
-  padding-top: 0 !important;
+  padding-top: 0;
 }
 
 .toolView pre {
@@ -13,12 +13,14 @@
 }
 
 .toolView p > code {
-  font-size: var(--inspect-text-size-small) !important;
+  font-size: var(--inspect-text-size-small);
+  /* Beats base.css's more specific inline-code colour. */
   color: var(--bs-body-color) !important;
 }
 
+/* !important beats Prism's white-space: pre and word-wrap: normal. */
 .outputCode {
-  font-size: var(--inspect-text-size-small) !important;
+  font-size: var(--inspect-text-size-small);
   overflow-wrap: anywhere !important;
   white-space: pre-wrap !important;
 }
