@@ -45,8 +45,8 @@
 }
 
 .clearText.hidden:hover {
-  cursor: default !important;
+  cursor: default;
 }
-.hidden {
-  opacity: 0 !important;
+.clearText.hidden {
+  opacity: 0;
 }

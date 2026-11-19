@@ -4,6 +4,7 @@
 }
 
 .toolTitle {
+  /* Beats base.css's more specific inline-code colour. */
   color: unset !important;
   overflow-wrap: anywhere;
 }

@@ -157,9 +157,9 @@
 /* A single focused event isn't a transcript list — drop the per-card box and
    the expanded-boundary gutter (both are transcript-row chrome). Keep the
    background so the model's sticky header stays opaque as content scrolls. */
-.container [id^="event-panel-"] {
-  border: none !important;
-  box-shadow: none !important;
+.root .container [id^="event-panel-"] {
+  border: none;
+  box-shadow: none;
   padding: 0;
 }
 

@@ -8,6 +8,7 @@
   border-radius: var(--bs-border-radius);
 }
 
+/* !important beats Prism's white-space, word-wrap and background. */
 .sourcePanel .code {
   font-size: var(--inspect-font-size-small);
   white-space: pre-wrap !important;

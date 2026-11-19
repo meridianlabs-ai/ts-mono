@@ -10,5 +10,6 @@
 }
 
 .code {
+  /* Beats Prism's code-block background. */
   background: transparent !important;
 }

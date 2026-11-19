@@ -222,16 +222,18 @@
   border: 1px solid var(--bs-light-border-subtle);
   border-left: 3px solid var(--inspect-readable-tool-call-border);
   border-radius: var(--bs-border-radius);
+  /* !important also outranks ToolBlock's less specific padding: 0 !important,
+     so a tool card's input zone keeps this padding. Dropping it changes that. */
   padding: 0.5em !important;
 }
 
 /* Flatten a fenced code block inside a view — the surface carries the box. */
 :root[data-theme-variant="readable"] .tool-call-input pre[class*="language-"] {
-  background-color: transparent !important;
-  border: 0 !important;
+  background-color: transparent;
+  border: 0;
   border-radius: 0;
-  margin: 0 !important;
-  padding: 0 !important;
+  margin: 0;
+  padding: 0;
 }
 
 /* Nested in a message band: neutral surface with a subtle (not colored) left,
@@ -297,7 +299,8 @@ body:not([class^="vscode-"]) a[role="tab"] {
   grid-template-rows: max-content max-content 1fr;
 }
 
-/* Inspect Text Styles */
+/* Inspect text utilities. Like the Bootstrap utilities in utilities.css, these
+   are !important so they win over component rules whatever the stylesheet order. */
 .text-style-label {
   text-transform: uppercase !important;
 }
@@ -310,7 +313,7 @@ body:not([class^="vscode-"]) a[role="tab"] {
   color: var(--bs-tertiary-color) !important;
 }
 
-/* Inspect Font Size Styles */
+/* Inspect font size utilities (see above). */
 .text-size-title {
   font-size: var(--inspect-font-size-title) !important;
 }
@@ -426,7 +429,7 @@ html.vscode {
 
 html.vscode .sample-input {
   line-height: 1.3em;
-  -webkit-line-clamp: 4 !important;
+  -webkit-line-clamp: 4;
 }
 
 body[class^="vscode-"] code {
@@ -445,7 +448,7 @@ body[class^="vscode-"] .navbar-brand {
   font-size: 1.1em;
 }
 body[class^="vscode-"] .navbar-brand > div {
-  margin-top: -0.2rem !important;
+  margin-top: -0.2rem;
 }
 
 body[class^="vscode-"] .task-title {
@@ -586,7 +589,7 @@ body {
 
 @media (max-width: 575px) {
   .navbar .vertical-metric-label {
-    font-size: 0.7rem !important;
+    font-size: 0.7rem;
   }
 }
 
@@ -598,7 +601,8 @@ body {
 
 @media (max-width: 575px) {
   .navbar .vertical-metric-value {
-    margin-top: 0.2rem !important;
+    margin-top: 0.2rem;
+    /* Beats the .text-size-largest utility on the same element. */
     font-size: 0.9rem !important;
   }
 }
@@ -643,6 +647,7 @@ body {
   --bs-btn-hover-border-color: var(--bs-secondary-bg-subtle);
 }
 
+/* !important beats Prism's white-space: pre and word-wrap: normal. */
 .markdown-content pre > code,
 .markdown-content pre {
   white-space: pre-wrap !important;
@@ -870,15 +875,9 @@ pre[class*="language-"].tool-output,
 .model-call pre[class*="language-"],
 .markdown-content pre[class*="language-"],
 pre[class*="language-"].tool-output {
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: var(--bs-border-radius) !important;
-}
-
-.vscode-dark pre.jsonPanel {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
+  border: none;
+  box-shadow: none;
+  /* Beats the dark Prism theme's 0.5em radius below (same specificity). */
   border-radius: var(--bs-border-radius) !important;
 }
 
@@ -1060,14 +1059,15 @@ ul.jsondiffpatch-textdiff {
   font-weight: bold;
 }
 
-/* prism-custom.css */
+/* prism-custom.css. !important beats the dark Prism theme's more specific
+   font-size: 1em below, and component rules that size code blocks. */
 code[class*="language-"],
 pre[class*="language-"] {
   font-size: 0.7rem !important;
 }
 
 .token {
-  font-size: 0.7rem !important;
+  font-size: 0.7rem;
 }
 
 /* PrismJS 1.29.0 https://prismjs.com/download.html#themes=prism-dark&languages=markup+css+clike+javascript+bash+python */
