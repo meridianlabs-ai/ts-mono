@@ -1,6 +1,7 @@
 import { isRecord, toTitleCase } from "@tsmono/util";
 
 import { contentTexts } from "../chat/contentText";
+import { resolveToolInput } from "../chat/tools/tool";
 import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
 
 import { eventTitle } from "./event/utils";
@@ -69,10 +70,23 @@ const sanitizeStringify = (v: unknown): string => {
   });
 };
 
+/** A sample's tool events, by the ids a model call's panel checks them by. */
+export interface ToolEventIds {
+  /** The events' own ids, which tool results name. */
+  events: ReadonlySet<string>;
+  /** The ids the model's output names those calls by. */
+  proposals: ReadonlySet<string>;
+}
+
 /**
  * Extracts labeled fields from an event for search and text serialization.
+ * Given `toolEvents` (as Find does), a model call yields what its panel draws
+ * rather than every user and system message of its input.
  */
-export const extractEventFields = (event: EventType): [string, string][] => {
+export const extractEventFields = (
+  event: EventType,
+  toolEvents?: ToolEventIds
+): [string, string][] => {
   const fields: [string, string][] = [];
 
   switch (event.event) {
@@ -82,25 +96,40 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Assistant `tool_calls` stay unindexed: the tool event that runs a call
-      // draws it and indexes `function`/`arguments` itself.
+      // Extract text from model output
       for (const choice of modelEvent.output.choices) {
         for (const text of contentTexts(choice.message.content)) {
           fields.push(["output", text]);
         }
+        if (!toolEvents) continue;
+        // The panel draws a call only when no tool event shows it.
+        for (const call of choice.message.tool_calls ?? []) {
+          if (toolEvents.proposals.has(call.id)) continue;
+          const { functionCall, input, description } = resolveToolInput(
+            call.function,
+            call.arguments
+          );
+          fields.push(["function", functionCall]);
+          if (input != null) {
+            fields.push([
+              "arguments",
+              typeof input === "string" ? input : sanitizeStringify(input),
+            ]);
+          }
+          if (description) fields.push(["description", description]);
+        }
       }
-      // Only the input ModelEventView draws: Find counts an unrendered row
-      // from this text, then scrolls to it and has nothing to land on if the
-      // page doesn't show it. Raw events carry no tool-event context, so a
-      // tool message ends the run here, as it does where a tool event shows it.
-      const drawnMessages = recentInputMessages(modelEvent.input, {
-        agentResultsFiltered: readOptionalBoolean(
-          modelEvent,
-          "agentResultsFiltered"
-        ),
-        hasToolEvents: undefined,
-      });
-      for (const msg of drawnMessages) {
+      const input = toolEvents
+        ? recentInputMessages(modelEvent.input, {
+            // The timeline sets this on its own copy of the event, never on these.
+            agentResultsFiltered: false,
+            hasToolEvents: undefined,
+            toolEventIds: toolEvents.events,
+          })
+        : modelEvent.input.filter(
+            (msg) => msg.role === "user" || msg.role === "system"
+          );
+      for (const msg of input) {
         for (const text of contentTexts(msg.content)) {
           fields.push([msg.role, text]);
         }

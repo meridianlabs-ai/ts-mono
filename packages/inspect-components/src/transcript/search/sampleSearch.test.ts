@@ -2,13 +2,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  testApprovalEvent,
   testAssistantMessage,
   testChatCompletionChoice,
   testInfoEvent,
   testModelEvent,
   testModelOutput,
+  testSystemMessage,
+  testToolCall,
+  testToolEvent,
+  testToolMessage,
+  testUserMessage,
 } from "@tsmono/inspect-common/testing";
-import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
+import type {
+  ChatMessage,
+  ChatMessageAssistant,
+  Event,
+  ModelEvent,
+} from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
@@ -235,5 +246,116 @@ describe("findAllMatches", () => {
     const map = new Map([["e1", "main"]]);
     expect(findAllMatches(events, "hello world", map)).toHaveLength(1);
     expect(findAllMatches(events, "σ", map)).toHaveLength(1);
+  });
+});
+
+describe("findAllMatches: what a model call's panel draws", () => {
+  const prompt = [
+    testSystemMessage({ content: "Never mention the kumquat." }),
+    testUserMessage({ content: "Count every kumquat." }),
+  ];
+  const args = { cmd: "grep persimmon notes.txt" };
+  const call = testToolCall({
+    id: "call-1",
+    function: "bash",
+    arguments: args,
+  });
+  const step = testAssistantMessage({
+    content: "Looking.",
+    tool_calls: [call],
+  });
+  const result = testToolMessage({
+    content: "one quince found",
+    tool_call_id: call.id,
+    function: "bash",
+  });
+  const modelCall = (
+    uuid: string,
+    input: ChatMessage[],
+    message: ChatMessageAssistant
+  ): ModelEvent =>
+    testModelEvent({
+      uuid,
+      input,
+      output: testModelOutput({
+        choices: [testChatCompletionChoice({ message })],
+      }),
+    });
+  const first = modelCall("m1", prompt, step);
+  const second = modelCall(
+    "m2",
+    [...prompt, step, result],
+    testAssistantMessage({ content: "Done." })
+  );
+  const toolRun = testToolEvent({
+    uuid: "t1",
+    id: call.id,
+    function: "bash",
+    arguments: args,
+    result: "one quince found",
+  });
+  const rows = new Map(["m1", "t1", "m2"].map((id) => [id, "main"]));
+  const matchedEvents = (events: Event[], term: string) =>
+    findAllMatches(events, term, rows).map((match) => match.eventId);
+
+  it("counts the prompt only on the call that draws it", () => {
+    expect(matchedEvents([first, toolRun, second], "kumquat")).toEqual([
+      "m1",
+      "m1",
+    ]);
+  });
+
+  it("leaves a tool call and its result to the tool event that shows them", () => {
+    const events = [first, toolRun, second];
+    expect(matchedEvents(events, "persimmon")).toEqual(["t1"]);
+    expect(matchedEvents(events, "quince")).toEqual(["t1"]);
+  });
+
+  it("counts a tool call and its result that no tool event shows", () => {
+    const events = [first, second];
+    expect(matchedEvents(events, "persimmon")).toEqual(["m1"]);
+    expect(matchedEvents(events, "quince")).toEqual(["m2"]);
+  });
+
+  it("skips an argument's name, which the panel doesn't draw for the call", () => {
+    expect(matchedEvents([first, second], "cmd")).toEqual([]);
+  });
+
+  it("counts a user message that sits before a tool result", () => {
+    const reminded = modelCall(
+      "m2",
+      [
+        ...prompt,
+        step,
+        testUserMessage({ content: "Mind the medlar." }),
+        result,
+      ],
+      testAssistantMessage({ content: "Done." })
+    );
+    expect(matchedEvents([first, toolRun, reminded], "medlar")).toEqual(["m2"]);
+  });
+
+  // A bridge may run a call under a new id and record the model's own id for
+  // it; only a log that records execution ids pairs the two.
+  const renamedRun = testToolEvent({
+    uuid: "t1",
+    id: "scaffold-1",
+    function: "bash",
+    arguments: args,
+    metadata: { bridge: { proposal_id: call.id } },
+  });
+  it.each([
+    {
+      desc: "leaves a call a bridge renamed to its tool event",
+      events: [first, testApprovalEvent({ execution_id: "run-1" }), renamedRun],
+      expected: ["t1"],
+    },
+    {
+      desc: "counts a renamed call on both events in a log without execution ids",
+      events: [first, renamedRun],
+      expected: ["m1", "t1"],
+    },
+  ])("$desc", ({ events, expected }) => {
+    expect(matchedEvents(events, "persimmon")).toEqual(expected);
   });
 });

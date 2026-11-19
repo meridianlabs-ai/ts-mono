@@ -5,10 +5,11 @@ import {
   searchVariants,
 } from "@tsmono/react/components";
 
-import { extractEventFields } from "../eventText";
+import { extractEventFields, type ToolEventIds } from "../eventText";
 import { TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import { getAgents } from "../timeline/swimlaneRows";
+import { proposalIdOf, recordsExecutionId } from "../transform/toolSentinels";
 
 /**
  * Build a map from event ID to the swimlane row key that contains it.
@@ -76,9 +77,9 @@ export interface SampleMatch {
 /**
  * Find every occurrence of `term` across the sample's events.
  *
- * Reuses `extractEventFields` so the searchable text exactly matches what
- * `eventSearchText` (the per-row counter) would extract. Events whose uuid
- * isn't in `eventToRow` are skipped (they're not addressable by row switch).
+ * Reuses `extractEventFields`, given the sample's tool events so a model call
+ * counts what its panel draws. Events whose uuid isn't in `eventToRow` are
+ * skipped (they're not addressable by row switch).
  *
  * Order: events in input order, fields in `extractEventFields` order,
  * occurrences left-to-right. Stable across calls with the same inputs.
@@ -91,12 +92,13 @@ export function findAllMatches(
   if (!term) return [];
   const variants = searchVariants(term);
   const out: SampleMatch[] = [];
+  const toolEvents = toolEventIdsOf(events);
   for (const event of events) {
     const uuid = event.uuid;
     if (!uuid) continue;
     const rowKey = eventToRow.get(uuid);
     if (rowKey === undefined) continue;
-    const fields = extractEventFields(event);
+    const fields = extractEventFields(event, toolEvents);
     let fieldIndex = 0;
     for (const [fieldKey, text] of fields) {
       const hits = findVariantHits(normalizeFindText(text), variants);
@@ -113,4 +115,20 @@ export function findAllMatches(
     }
   }
   return out;
+}
+
+// Sample-wide, where the panel's ids are per nesting level: an id reused
+// across levels reads as shown here until its row renders.
+function toolEventIdsOf(events: Event[]): ToolEventIds {
+  const ids = new Set<string>();
+  const proposals = new Set<string>();
+  for (const event of events) {
+    if (event.event !== "tool") continue;
+    ids.add(event.id);
+    proposals.add(proposalIdOf(event));
+  }
+  return {
+    events: ids,
+    proposals: events.some(recordsExecutionId) ? proposals : ids,
+  };
 }

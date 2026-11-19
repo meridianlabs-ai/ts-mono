@@ -32,7 +32,6 @@ import {
   testSystemMessage,
   testToolCall,
   testToolEvent,
-  testToolMessage,
   testUserMessage,
 } from "@tsmono/inspect-common/testing";
 import type {
@@ -284,7 +283,6 @@ describe("extractEventFields — model error / traceback", () => {
       "model-1",
       testModelEvent({
         model: "test/model",
-        input: [],
         error: "API rate limit exceeded",
         traceback: "Traceback (most recent call last): ...",
       }),
@@ -293,6 +291,24 @@ describe("extractEventFields — model error / traceback", () => {
     const texts = eventSearchText(node);
     expect(texts).toContain("API rate limit exceeded");
     expect(texts).toContain("Traceback (most recent call last): ...");
+  });
+});
+
+describe("eventsToStr — model input", () => {
+  it("keeps the system and user messages from before the last turn", () => {
+    const text = eventsToStr([
+      testModelEvent({
+        input: [
+          testSystemMessage({ content: "Spend at most $5." }),
+          testUserMessage({ content: "Buy fruit." }),
+          testAssistantMessage({ content: "Buying." }),
+          testUserMessage({ content: "continue" }),
+        ],
+      }),
+    ]);
+    expect(text).toContain("system: Spend at most $5.");
+    expect(text).toContain("user: Buy fruit.");
+    expect(text).toContain("user: continue");
   });
 });
 
@@ -1201,85 +1217,5 @@ describe("communication and swarm events: search and copy", () => {
     expect(markdown.split(fence)[1]).toContain(
       "![payload](https://example.com/remote.png)\\r\\rafter"
     );
-  });
-});
-
-describe("extractEventFields — model input mirrors the SUMMARY panel", () => {
-  it.each([
-    {
-      desc: "skips input messages the panel does not draw",
-      input: [
-        testSystemMessage({ content: "HEAD_OF_HISTORY" }),
-        testUserMessage({ content: "OLD_TURN" }),
-        testAssistantMessage({ content: "old answer" }),
-        testToolMessage({ content: "tool result" }),
-        testUserMessage({ content: "CURRENT_TURN" }),
-      ],
-      indexed: ["CURRENT_TURN"],
-      skipped: ["HEAD_OF_HISTORY", "OLD_TURN"],
-    },
-    {
-      // [system, user] is entirely a trailing run, so nothing is hidden
-      desc: "indexes a first model call's input in full",
-      input: [
-        testSystemMessage({ content: "TASK_PROMPT" }),
-        testUserMessage({ content: "TASK_QUESTION" }),
-      ],
-      indexed: ["TASK_PROMPT", "TASK_QUESTION"],
-      skipped: [],
-    },
-    {
-      desc: "indexes a trailing assistant compaction message, and only that",
-      input: [
-        testUserMessage({ content: "OLD_TURN" }),
-        testAssistantMessage({ content: "COMPACTION_SUMMARY" }),
-      ],
-      indexed: ["COMPACTION_SUMMARY"],
-      skipped: ["OLD_TURN"],
-    },
-    {
-      desc: "stops at a trailing tool message, which its tool event draws",
-      input: [
-        testUserMessage({ content: "PROMPT" }),
-        testToolMessage({ content: "TOOL_RESULT" }),
-      ],
-      indexed: [],
-      skipped: ["TOOL_RESULT", "PROMPT"],
-    },
-  ])("$desc", ({ input, indexed, skipped }) => {
-    const texts = eventSearchText(makeNode(testModelEvent({ input })));
-    for (const text of indexed) {
-      expect(texts).toContain(text);
-    }
-    for (const text of skipped) {
-      expect(texts).not.toContain(text);
-    }
-  });
-
-  it("skips assistant tool_calls, which the tool event that runs them draws", () => {
-    const texts = eventSearchText(
-      makeNode(
-        testModelEvent({
-          input: [testUserMessage({ content: "prompt" })],
-          output: testModelOutput({
-            choices: [
-              testChatCompletionChoice({
-                message: testAssistantMessage({
-                  content: "",
-                  tool_calls: [
-                    testToolCall({
-                      function: "CANCEL_SCORE",
-                      arguments: { job_id: "JOB_ID_BLOB" },
-                    }),
-                  ],
-                }),
-              }),
-            ],
-          }),
-        })
-      )
-    );
-    expect(texts).not.toContain("CANCEL_SCORE");
-    expect(texts.join("\n")).not.toContain("JOB_ID_BLOB");
   });
 });
