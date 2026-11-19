@@ -12,6 +12,7 @@
 
 .tabs :global(.nav-link) {
   padding: 0.3rem 0.5rem;
+  /* Overrides the tab's .text-size-* utility, which is !important. */
   font-size: var(--inspect-font-size-smallest) !important;
 }
 
@@ -38,6 +39,7 @@
   overflow-y: visible;
 }
 
+/* !important beats TabSet's more specific .tabTools .btn. */
 .tabTool {
   font-size: var(--inspect-font-size-smallestest) !important;
   padding: 0.1rem 0.4rem !important;

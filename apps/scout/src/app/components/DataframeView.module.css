@@ -80,7 +80,7 @@
 }
 .row:hover,
 .selected {
-  background: var(--bs-secondary-bg-subtle) !important;
+  background: var(--bs-secondary-bg-subtle);
 }
 .cell {
   flex-shrink: 0;
