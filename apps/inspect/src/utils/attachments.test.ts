@@ -242,6 +242,30 @@ describe.each(["attachment://", "tc://"])("%s positions", (protocol) => {
     );
   });
 
+  // inspect_ai stores text that begins with a ref prefix as an attachment of
+  // its own; one pass reads it back as written, not as the attachment it names
+  it("resolves an escaped literal ref once", () => {
+    const escaped = { ...attachments, lit: ref };
+    const modelEvent = (value: string) =>
+      testModelEvent({
+        input: [testAssistantMessage({ content: value })],
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ content: value }),
+            }),
+          ],
+        }),
+        call: testModelCall({
+          request: { messages: [{ content: value }] },
+          response: { r: value },
+        }),
+      });
+    expect(
+      resolveEventAttachments(modelEvent("attachment://lit"), escaped)
+    ).toEqual(modelEvent(ref));
+  });
+
   it.each<{ name: string; event: (value: string) => Event }>([
     {
       name: "tool arguments and result media",

@@ -325,18 +325,11 @@ function processEvents(
       console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
     };
 
-    const withAttachments = resolveEventAttachments<SampleEvent>(
-      event,
-      state.attachments,
-      reportAttachmentMiss
-    );
-
-    const withPoolRefs = resolvePoolRefs(withAttachments, state);
-
-    // Resolve attachments again after pool expansion, since pool entries
-    // may contain attachment:// URIs that weren't visible before expansion.
+    // Expand pools first so one pass resolves pooled and direct refs alike.
+    // A second pass would resolve the text of an escaped literal (an
+    // attachment holding "attachment://..." as written) as a genuine ref.
     const resolvedEvent = resolveEventAttachments<SampleEvent>(
-      withPoolRefs,
+      resolvePoolRefs(event, state),
       state.attachments,
       reportAttachmentMiss
     );
