@@ -2954,6 +2954,8 @@ export interface components {
              * @enum {string}
              */
             event: "model";
+            /** Handed Call Ids */
+            handed_call_ids?: string[] | null;
             /** Input */
             input: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Input Refs */
