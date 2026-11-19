@@ -102,17 +102,22 @@ export const nullProtoRecord = <T>(
  * The default merge is shallow, so a persisted slice replaces the current
  * one wholesale and any key added since comes back undefined. Plain objects
  * merge recursively; a value the blob does have wins, including legacy keys
- * a slice migration still reads.
+ * a slice migration still reads. Where the current value is an object or
+ * array, a persisted value of another kind (`null`, a string) can't be
+ * state this build reads, so the current value replaces it.
  */
 export const fillPersistedDefaults = <T>(persisted: unknown, current: T): T =>
-  isPlainObject(persisted)
-    ? // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- persisted webview/store state (#555): the blob is whatever an older build wrote; every key T declares is filled from `current`
-      (fillMissing(persisted, current) as T)
-    : current;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- persisted webview/store state (#555): the blob is whatever an older build wrote; every key T declares is filled from `current`
+  fillMissing(persisted, current) as T;
 
 const fillMissing = (persisted: unknown, current: unknown): unknown => {
-  if (persisted === undefined) return current;
-  if (!isPlainObject(persisted) || !isPlainObject(current)) return persisted;
+  if (Array.isArray(current)) {
+    return Array.isArray(persisted) ? persisted : current;
+  }
+  if (!isPlainObject(current)) {
+    return persisted === undefined ? current : persisted;
+  }
+  if (!isPlainObject(persisted)) return current;
   const merged: Record<string, unknown> = { ...persisted };
   for (const key of Object.keys(current)) {
     merged[key] = fillMissing(persisted[key], current[key]);

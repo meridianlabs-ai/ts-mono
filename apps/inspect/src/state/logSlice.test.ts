@@ -140,4 +140,22 @@ describe("persisted state from an older build", () => {
     expect(resolved.colorScalesEnabled).toBe(false);
     vi.runAllTimers();
   });
+
+  it("starts from the initial slices when a blob holds null slices", () => {
+    vi.useFakeTimers();
+    initializeStore(capabilities, {
+      getItem: () => ({
+        version: 4,
+        state: { app: null, log: null, logs: null },
+      }),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+
+    const state = storeImplementation?.getState();
+    expect(state?.app.tabs.sample).toBe(testStoreState().app.tabs.sample);
+    expect(state?.logs.samplesListState.byLog).toEqual({});
+    expect(state?.log.highlightedSample).toBeUndefined();
+    vi.runAllTimers();
+  });
 });

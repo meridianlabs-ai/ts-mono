@@ -290,7 +290,7 @@ describe("persisted state", () => {
     expect(persisted.properties).toEqual({ panel: { open: true } });
   });
 
-  it("fills table state keys an older build's blob lacks", () => {
+  it("fills table state keys an older build's blob lacks or nulled", () => {
     const { blobs, storage } = createMemoryStorage();
     blobs.set(
       kStorageKey,
@@ -301,6 +301,7 @@ describe("persisted state", () => {
             sorting: [{ id: "timestamp", desc: true }],
             columnSizing: {},
           },
+          transcriptsTableState: { columnOrder: null },
         },
       })
     );
@@ -310,6 +311,7 @@ describe("persisted state", () => {
     expect(scansTableState.sorting).toEqual([{ id: "timestamp", desc: true }]);
     expect(scansTableState.columnOrder).toEqual([]);
     expect(scansTableState.columnFilters).toEqual({});
+    expect(transcriptsTableState.columnOrder).toEqual([]);
     expect(transcriptsTableState.columnFilters).toEqual({});
   });
 });
