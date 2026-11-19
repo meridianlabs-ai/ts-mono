@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
+import {
+  plainContentPolicy,
+  richContentPolicy,
+  type ContentRenderingPolicy,
+} from "@tsmono/react/components";
 
 import { messageSearchText } from "./messageSearchText";
 
@@ -15,11 +20,17 @@ const toolUse = (fields: Partial<ContentToolUse>): ContentToolUse => ({
   ...fields,
 });
 
-const searchText = (content: ContentToolUse): string[] =>
-  messageSearchText({
-    message: testAssistantMessage({ content: [content] }),
-    toolMessages: [],
-  });
+const searchText = (
+  content: ContentToolUse,
+  policy: ContentRenderingPolicy = richContentPolicy
+): string[] =>
+  messageSearchText(
+    {
+      message: testAssistantMessage({ content: [content] }),
+      toolMessages: [],
+    },
+    policy
+  );
 
 const finds = (texts: string[], needle: string) =>
   texts.some((text) => text.includes(needle));
@@ -42,6 +53,16 @@ describe("messageSearchText", () => {
     for (const hidden of ['"query"', "title", "page_age", "x.test"]) {
       expect(finds(texts, hidden)).toBe(false);
     }
+  });
+
+  // Untrusted content shows each link's destination as text.
+  it("finds web result URLs when links render as text", () => {
+    const texts = searchText(
+      toolUse({ result: '[{"title":"A page","url":"https://x.test/a"}]' }),
+      plainContentPolicy
+    );
+    expect(finds(texts, "A page")).toBe(true);
+    expect(finds(texts, "x.test/a")).toBe(true);
   });
 
   it("finds only the error of an errored call", () => {
@@ -134,19 +155,22 @@ describe("messageSearchText", () => {
   // The chat view never shows the `<image />` placeholder, so Find can't land
   // on it.
   it("adds nothing for media content", () => {
-    const texts = messageSearchText({
-      message: testAssistantMessage({
-        content: [
-          { type: "text", text: "a picture" },
-          {
-            type: "image",
-            image: "data:image/png;base64,AAAA",
-            detail: "auto",
-          },
-        ],
-      }),
-      toolMessages: [],
-    });
+    const texts = messageSearchText(
+      {
+        message: testAssistantMessage({
+          content: [
+            { type: "text", text: "a picture" },
+            {
+              type: "image",
+              image: "data:image/png;base64,AAAA",
+              detail: "auto",
+            },
+          ],
+        }),
+        toolMessages: [],
+      },
+      richContentPolicy
+    );
     expect(texts).toEqual(["a picture"]);
   });
 });

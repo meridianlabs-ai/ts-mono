@@ -1,4 +1,5 @@
 import type { Content, ContentReasoning } from "@tsmono/inspect-common/types";
+import type { ContentRenderingPolicy } from "@tsmono/react/components";
 
 import { serverToolTexts } from "./server-tools/serverToolView";
 
@@ -19,13 +20,14 @@ export const reasoningText = (
  * The text strings a message's content holds, one per part, for find and the
  * transcript's text exports. Media never contribute their base64 payloads:
  * exports get an `<image />`-style placeholder, and server tool calls give
- * their raw arguments and result. `shown` limits the strings to what the chat
- * view renders (no placeholders; server tool calls as `ServerToolCall` parses
- * them), for the Messages tab's Find.
+ * their raw arguments and result. `shown`, the content policy the chat view
+ * renders under, limits the strings to what that view shows (no placeholders;
+ * server tool calls as `ServerToolCall` parses them), for the Messages tab's
+ * Find.
  */
 export const contentTexts = (
   content: string | readonly Content[],
-  { shown = false }: { shown?: boolean } = {}
+  { shown }: { shown?: ContentRenderingPolicy } = {}
 ): string[] => {
   if (typeof content === "string") return [content];
   const texts: string[] = [];
@@ -41,7 +43,7 @@ export const contentTexts = (
       }
       case "tool_use":
         if (shown) {
-          texts.push(...serverToolTexts(item));
+          texts.push(...serverToolTexts(item, shown));
           break;
         }
         for (const text of [

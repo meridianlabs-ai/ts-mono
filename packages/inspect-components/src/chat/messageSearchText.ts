@@ -1,14 +1,20 @@
+import type { ContentRenderingPolicy } from "@tsmono/react/components";
+
 import { contentTexts } from "./contentText";
 import type { ResolvedMessage } from "./messages";
 
 /**
- * Extracts searchable text from a ResolvedMessage for find-in-page functionality.
+ * Extracts searchable text from a ResolvedMessage for find-in-page
+ * functionality, as the chat view shows it under `policy`.
  */
-export const messageSearchText = (resolved: ResolvedMessage): string[] => {
+export const messageSearchText = (
+  resolved: ResolvedMessage,
+  policy: ContentRenderingPolicy
+): string[] => {
   const texts: string[] = [];
 
   // Extract text from main message content
-  texts.push(...contentTexts(resolved.message.content, { shown: true }));
+  texts.push(...contentTexts(resolved.message.content, { shown: policy }));
 
   // Extract tool call info from assistant messages
   if (
@@ -30,7 +36,7 @@ export const messageSearchText = (resolved: ResolvedMessage): string[] => {
     if (toolMsg.function) {
       texts.push(toolMsg.function);
     }
-    texts.push(...contentTexts(toolMsg.content, { shown: true }));
+    texts.push(...contentTexts(toolMsg.content, { shown: policy }));
     if (toolMsg.error?.message) {
       texts.push(toolMsg.error.message);
     }

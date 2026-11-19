@@ -1,5 +1,8 @@
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
-import { jsonPanelText } from "@tsmono/react/components";
+import {
+  jsonPanelText,
+  type ContentRenderingPolicy,
+} from "@tsmono/react/components";
 import {
   asJsonObjArray,
   isRecord,
@@ -69,10 +72,14 @@ export const serverToolView = (content: ContentToolUse): ServerToolView => {
  * The text a server-side tool call shows, for Find: the title, the args as
  * displayed, and the parsed output fields, so JSON escapes and hidden fields
  * can't match. An errored call contributes only its error. Web results
- * contribute their titles; the URL is a tooltip. A result with no specific
- * view contributes the text its panel shows.
+ * contribute their titles, and their URLs when `policy` shows links as text
+ * (otherwise the URL is a tooltip). A result with no specific view
+ * contributes the text its panel shows.
  */
-export const serverToolTexts = (content: ContentToolUse): string[] => {
+export const serverToolTexts = (
+  content: ContentToolUse,
+  policy: ContentRenderingPolicy
+): string[] => {
   const view = serverToolView(content);
   const texts = [view.title, view.summary, ...view.inputArgs.map(([, v]) => v)];
   const output = view.output;
@@ -81,7 +88,12 @@ export const serverToolTexts = (content: ContentToolUse): string[] => {
       texts.push(output.message);
       break;
     case "web_search":
-      texts.push(...output.results.map((result) => result.title));
+      for (const result of output.results) {
+        texts.push(result.title);
+        // ExternalLink's inert form appends the destination.
+        if (!policy.links && result.title !== result.url)
+          texts.push(result.url);
+      }
       break;
     case "list_tools":
       for (const tool of output.tools) {
