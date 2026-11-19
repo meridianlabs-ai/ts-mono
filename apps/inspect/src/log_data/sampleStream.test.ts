@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   expectEvent,
+  testAssistantMessage,
+  testChatCompletionChoice,
   testInfoEvent,
   testModelCall,
   testModelEvent,
@@ -250,7 +252,7 @@ describe("createSampleStreamSession", () => {
     expect(cursorArgs(1)).toEqual([5, 2, 3, 4]);
   });
 
-  it("resolves attachment refs in events, including a post-pool-expansion pass", async () => {
+  it("resolves attachment refs in events and in expanded pool entries", async () => {
     mockApi.get_log_sample_data.mockResolvedValueOnce(
       okResponse({
         attachments: [
@@ -276,11 +278,89 @@ describe("createSampleStreamSession", () => {
 
     expect(expectEvent(events[0], "info").data).toBe("direct content");
     // The pooled message's attachment:// ref is only visible after ref
-    // expansion; the second resolution pass must have caught it.
+    // expansion.
     expect(expectEvent(events[1], "model").input[0]?.content).toBe(
       "pooled content"
     );
   });
+
+  // inspect_ai stores text that begins with a ref prefix as an attachment of
+  // its own, so resolving once reads it back as written; resolving twice
+  // would turn it into the attachment it names.
+  it.each(["attachment://", "tc://"])(
+    "reads a literal %s string back as written, direct or pooled",
+    async (prefix) => {
+      const literal = `${prefix}sys`;
+      mockApi.get_log_sample_data.mockResolvedValueOnce(
+        okResponse({
+          attachments: [
+            attachment(1, "sys", "system prompt"),
+            attachment(2, "lit", literal),
+          ],
+          message_pool: [
+            messagePoolEntry(
+              1,
+              chatMessage("m1", "system", "attachment://sys")
+            ),
+            messagePoolEntry(
+              2,
+              chatMessage("m2", "assistant", "attachment://lit")
+            ),
+          ],
+          call_pool: [
+            callPoolEntry(1, { role: "system", content: "attachment://sys" }),
+            callPoolEntry(2, {
+              role: "assistant",
+              content: "attachment://lit",
+            }),
+          ],
+          events: [
+            eventData(
+              1,
+              "e1",
+              testModelEvent({
+                input: [],
+                input_refs: [[0, 2]],
+                output: testModelOutput({
+                  choices: [
+                    testChatCompletionChoice({
+                      message: testAssistantMessage({
+                        content: "attachment://lit",
+                      }),
+                    }),
+                  ],
+                }),
+                call: testModelCall({
+                  request: { system: "attachment://sys" },
+                  response: { text: "attachment://lit" },
+                  call_refs: [[0, 2]],
+                  call_key: "messages",
+                }),
+              })
+            ),
+          ],
+        })
+      );
+
+      const session = makeSession();
+      const { events } = await session.tick(false);
+      const model = expectEvent(events[0], "model");
+
+      expect(model.output.choices[0]?.message.content).toBe(literal);
+      expect(model.call?.response).toEqual({ text: literal });
+      expect(model.input.map((m) => m.content)).toEqual([
+        "system prompt",
+        literal,
+      ]);
+      expect(model.call?.request).toEqual({
+        system: "system prompt",
+        messages: [
+          { role: "system", content: "system prompt" },
+          { role: "assistant", content: literal },
+        ],
+      });
+    }
+  );
 
   it("leaves tool result text as written", async () => {
     mockApi.get_log_sample_data.mockResolvedValueOnce(
