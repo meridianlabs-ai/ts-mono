@@ -35,6 +35,9 @@ export interface UseTranscriptSearchSourceOptions {
    *  hook only reflects whatever residual scroll motion useScrollDirection
    *  detected, which doesn't reliably correspond to the user's intent. */
   onHeadroomSetHidden?: (hidden: boolean) => void;
+  /** Whether the sample's log records execution ids, as the panels read it
+   *  from the unfiltered events (`events` may have a type filter applied). */
+  recordsExecutionIds?: boolean;
   /** Stable registration ID. Default `"transcript-sample"`. */
   id?: string;
 }
@@ -57,6 +60,7 @@ export function useTranscriptSearchSource(
     viewNodesRef,
     onHeadroomResetAnchor,
     onHeadroomSetHidden,
+    recordsExecutionIds,
     id = DEFAULT_ID,
   } = options;
   const { registerFindSource } = useExtendedFind();
@@ -84,7 +88,12 @@ export function useTranscriptSearchSource(
         const counts = new Map<number, number>();
         // An approval or sentinel shows inside its tool's row, so its
         // matches count under the item that renders them.
-        for (const match of findAllMatches(events, term, eventToRow)) {
+        for (const match of findAllMatches(
+          events,
+          term,
+          eventToRow,
+          recordsExecutionIds
+        )) {
           const index =
             eventIndex.get(rowEventId(match.eventId)) ??
             eventIndex.get(match.eventId)!;
@@ -152,7 +161,7 @@ export function useTranscriptSearchSource(
         );
       },
     };
-  }, [events, rows, viewNodesRef, latest]);
+  }, [events, rows, viewNodesRef, latest, recordsExecutionIds]);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(

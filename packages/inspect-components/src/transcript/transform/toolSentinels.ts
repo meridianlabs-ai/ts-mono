@@ -176,7 +176,7 @@ export const bridgeOutputs = (): BridgeOutputs => {
   };
 };
 
-export const recordsExecutionId = (event: Event): boolean =>
+const recordsExecutionId = (event: Event): boolean =>
   (event.event === "sentinel" || event.event === "approval") &&
   event.execution_id != null;
 

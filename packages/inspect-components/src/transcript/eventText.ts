@@ -3,6 +3,8 @@ import { isRecord, toTitleCase } from "@tsmono/util";
 
 import { contentTexts } from "../chat/contentText";
 import {
+  fullArgs,
+  isValidView,
   kToolTodoContentType,
   resolveToolInput,
   substituteToolCallContent,
@@ -84,13 +86,17 @@ export interface ToolEventIds {
   proposals: ReadonlySet<string>;
 }
 
-// What a tool block draws for a call: its title, then its custom view or
-// input, or its arguments when it has neither.
-const drawnCallFields = (call: {
+// The panel renders a view's markdown, so the fences around its code never show.
+const withoutCodeFences = (markdown: string): string =>
+  markdown.replace(/^\s*(```|~~~).*$/gm, "");
+
+// What a tool block draws for a call: its name, then its view if it has a
+// usable one, else its input, or its arguments when it has neither.
+const drawnCall = (call: {
   function: string;
   arguments: Record<string, unknown>;
   view?: ToolCallContent | null;
-}): [string, string][] => {
+}): { name: string; fields: [string, string][] } => {
   const { name, title, functionCall, input, description, contentType } =
     resolveToolInput(call.function, call.arguments);
   const view = call.view
@@ -98,26 +104,29 @@ const drawnCallFields = (call: {
     : undefined;
   const displayName = view?.title || title || name;
   const fields: [string, string][] = [["function", displayName]];
-  const shownInput =
-    contentType === kToolTodoContentType
-      ? toToolTodos(input)
-          .map((todo) => todo.content)
-          .join("\n")
-      : input;
-  const shown = [view?.content, shownInput].filter(
-    (v) => v != null && v !== ""
-  );
-  for (const value of shown) {
-    fields.push([
-      "arguments",
-      typeof value === "string" ? value : sanitizeStringify(value),
-    ]);
-  }
-  if (shown.length === 0 && functionCall !== displayName) {
-    fields.push(["arguments", functionCall]);
+  const hasInput = (input != null && input !== "") || !!view?.content;
+  if (!hasInput) {
+    const args = fullArgs(functionCall, displayName);
+    if (args) fields.push(["arguments", args]);
+  } else {
+    const drawn =
+      view && isValidView(view)
+        ? withoutCodeFences(view.content)
+        : contentType === kToolTodoContentType
+          ? toToolTodos(input)
+              .map((todo) => todo.content)
+              .join("\n")
+          : input;
+    const text =
+      typeof drawn === "string"
+        ? drawn
+        : typeof drawn === "object" && drawn !== null
+          ? sanitizeStringify(drawn)
+          : "";
+    if (text) fields.push(["arguments", text]);
   }
   if (description) fields.push(["description", description]);
-  return fields;
+  return { name: displayName, fields };
 };
 
 /**
@@ -147,7 +156,7 @@ export const extractEventFields = (
         // The panel draws a call only when no tool event shows it.
         for (const call of choice.message.tool_calls ?? []) {
           if (!find.proposals.has(call.id)) {
-            fields.push(...drawnCallFields(call));
+            fields.push(...drawnCall(call).fields);
           }
         }
       }
@@ -180,7 +189,9 @@ export const extractEventFields = (
     case "tool": {
       const toolEvent = event;
       if (find) {
-        fields.push(...drawnCallFields(toolEvent));
+        // The panel's own title repeats its block's.
+        const { name, fields: drawn } = drawnCall(toolEvent);
+        fields.push(["title", name], ...drawn);
       } else {
         // Custom tool title (displayed instead of function name)
         if (toolEvent.view?.title) {

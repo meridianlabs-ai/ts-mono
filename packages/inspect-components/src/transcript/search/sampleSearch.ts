@@ -9,7 +9,7 @@ import { extractEventFields, type ToolEventIds } from "../eventText";
 import { TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import { getAgents } from "../timeline/swimlaneRows";
-import { proposalIdOf, recordsExecutionId } from "../transform/toolSentinels";
+import { proposalIdOf, recordsExecutionIds } from "../transform/toolSentinels";
 
 /**
  * Build a map from event ID to the swimlane row key that contains it.
@@ -83,16 +83,20 @@ export interface SampleMatch {
  *
  * Order: events in input order, fields in `extractEventFields` order,
  * occurrences left-to-right. Stable across calls with the same inputs.
+ *
+ * `recordsExecutions` is `recordsExecutionIds` of the sample's unfiltered
+ * events: a type filter on `events` can hide the ones that record them.
  */
 export function findAllMatches(
   events: Event[],
   term: string,
-  eventToRow: Map<string, string>
+  eventToRow: Map<string, string>,
+  recordsExecutions: boolean = recordsExecutionIds(events)
 ): SampleMatch[] {
   if (!term) return [];
   const variants = searchVariants(term);
   const out: SampleMatch[] = [];
-  const toolEvents = toolEventIdsOf(events);
+  const toolEvents = toolEventIdsOf(events, recordsExecutions);
   for (const event of events) {
     const uuid = event.uuid;
     if (!uuid) continue;
@@ -119,7 +123,10 @@ export function findAllMatches(
 
 // Sample-wide, where the panel's ids are per nesting level: an id reused
 // across levels reads as shown here until its row renders.
-function toolEventIdsOf(events: Event[]): ToolEventIds {
+function toolEventIdsOf(
+  events: Event[],
+  recordsExecutions: boolean
+): ToolEventIds {
   const ids = new Set<string>();
   const proposals = new Set<string>();
   for (const event of events) {
@@ -127,8 +134,5 @@ function toolEventIdsOf(events: Event[]): ToolEventIds {
     ids.add(event.id);
     proposals.add(proposalIdOf(event));
   }
-  return {
-    events: ids,
-    proposals: events.some(recordsExecutionId) ? proposals : ids,
-  };
+  return { events: ids, proposals: recordsExecutions ? proposals : ids };
 }
