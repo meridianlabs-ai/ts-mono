@@ -217,8 +217,9 @@
 }
 
 /* The proposal renders through the tool input view; flatten the boxed
-   surface the readable variant gives it. !important outranks those surface
-   rules, whose padding is itself !important. */
+   surface the readable variant gives it. !important overrides those surface
+   rules. Their padding is also !important at the same specificity, so for
+   padding this rule wins on stylesheet order. */
 .replaced .code :global(pre.tool-call-input),
 .replaced .code :global(div.tool-call-input),
 .replaced .code :global(.tool-call-input) :global(pre[class*="language-"]) {

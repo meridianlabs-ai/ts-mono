@@ -106,7 +106,9 @@
   margin: 0 !important;
 }
 
-.inputZone :global(.tool-call-input) :global(pre[class*="language-"]) {
+/* div.tool-call-input outranks base.css's dark .markdown-content pre background
+   (the view's root is both). */
+.inputZone :global(div.tool-call-input) :global(pre[class*="language-"]) {
   margin: 0;
   padding: 0;
   background-color: transparent;

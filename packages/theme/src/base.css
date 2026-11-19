@@ -222,8 +222,8 @@
   border: 1px solid var(--bs-light-border-subtle);
   border-left: 3px solid var(--inspect-readable-tool-call-border);
   border-radius: var(--bs-border-radius);
-  /* !important outranks ToolBlock's flattening padding: 0 !important, so the
-     call keeps this padding inside a tool card's input zone. */
+  /* !important also outranks ToolBlock's less specific padding: 0 !important,
+     so a tool card's input zone keeps this padding. Dropping it changes that. */
   padding: 0.5em !important;
 }
 
@@ -299,8 +299,8 @@ body:not([class^="vscode-"]) a[role="tab"] {
   grid-template-rows: max-content max-content 1fr;
 }
 
-/* Inspect text utilities. Like utilities.css, these are !important so they
-   win over component rules whatever the stylesheet order. */
+/* Inspect text utilities. Like the Bootstrap utilities in utilities.css, these
+   are !important so they win over component rules whatever the stylesheet order. */
 .text-style-label {
   text-transform: uppercase !important;
 }
