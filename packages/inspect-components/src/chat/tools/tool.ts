@@ -667,6 +667,41 @@ const cleanCodexAnswer = (text: string): string => {
   return visibleAnswer.trimEnd();
 };
 
+export interface ToolTodo {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+const kTodoStatuses: readonly ToolTodo["status"][] = [
+  "pending",
+  "in_progress",
+  "completed",
+];
+
+const isTodoStatus = (value: unknown): value is ToolTodo["status"] =>
+  kTodoStatuses.some((status) => status === value);
+
+// One malformed entry shouldn't hide the rest of the list: keep every item
+// with readable text, and let an unrecognized status fall back to the
+// default (unchecked) rendering.
+const toToolTodo = (item: unknown): ToolTodo | undefined => {
+  if (!isRecord(item)) return undefined;
+  const text = [item["content"], item["step"]].find(
+    (value): value is string => typeof value === "string"
+  );
+  if (text === undefined) return undefined;
+  return {
+    content: text,
+    status: isTodoStatus(item["status"]) ? item["status"] : "pending",
+  };
+};
+
+/** The items a todo-list tool input renders. */
+export const toToolTodos = (obj: unknown): ToolTodo[] =>
+  Array.isArray(obj)
+    ? obj.map(toToolTodo).filter((todo) => todo !== undefined)
+    : [];
+
 /**
  * Substitutes `{{param_name}}` placeholders in tool call content
  * with actual values from the tool call arguments.

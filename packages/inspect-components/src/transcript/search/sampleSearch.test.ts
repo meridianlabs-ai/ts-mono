@@ -249,7 +249,7 @@ describe("findAllMatches", () => {
   });
 });
 
-describe("findAllMatches: what a model call's panel draws", () => {
+describe("findAllMatches: what model call and tool panels draw", () => {
   const prompt = [
     testSystemMessage({ content: "Never mention the kumquat." }),
     testUserMessage({ content: "Count every kumquat." }),
@@ -333,6 +333,45 @@ describe("findAllMatches: what a model call's panel draws", () => {
       testAssistantMessage({ content: "Done." })
     );
     expect(matchedEvents([first, toolRun, reminded], "medlar")).toEqual(["m2"]);
+  });
+
+  it("skips a tool event's argument name, which its panel doesn't draw", () => {
+    expect(matchedEvents([first, toolRun, second], "cmd")).toEqual([]);
+  });
+
+  it("counts every argument of a tool whose panel lists them", () => {
+    const lookup = testToolEvent({
+      uuid: "t1",
+      function: "lookup",
+      arguments: { fruit: "medlar" },
+    });
+    expect(matchedEvents([lookup], "fruit")).toEqual(["t1"]);
+    expect(matchedEvents([lookup], "medlar")).toEqual(["t1"]);
+  });
+
+  it("counts a tool event's custom view in place of its arguments", () => {
+    const opened = testToolEvent({
+      uuid: "t1",
+      function: "open_file",
+      arguments: { path: "notes.txt" },
+      view: {
+        title: "Open {{path}}",
+        format: "markdown",
+        content: "Reading {{path}} aloud",
+      },
+    });
+    expect(matchedEvents([opened], "aloud")).toEqual(["t1"]);
+    expect(matchedEvents([opened], "path")).toEqual([]);
+  });
+
+  it("counts a todo list's items, not the fields that hold them", () => {
+    const planned = testToolEvent({
+      uuid: "t1",
+      function: "TodoWrite",
+      arguments: { todos: [{ content: "Buy a medlar", status: "pending" }] },
+    });
+    expect(matchedEvents([planned], "medlar")).toEqual(["t1"]);
+    expect(matchedEvents([planned], "pending")).toEqual([]);
   });
 
   // A bridge may run a call under a new id and record the model's own id for

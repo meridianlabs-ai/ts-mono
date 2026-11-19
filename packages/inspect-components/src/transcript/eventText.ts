@@ -1,7 +1,13 @@
+import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
 import { contentTexts } from "../chat/contentText";
-import { resolveToolInput } from "../chat/tools/tool";
+import {
+  kToolTodoContentType,
+  resolveToolInput,
+  substituteToolCallContent,
+  toToolTodos,
+} from "../chat/tools/tool";
 import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
 
 import { eventTitle } from "./event/utils";
@@ -78,14 +84,50 @@ export interface ToolEventIds {
   proposals: ReadonlySet<string>;
 }
 
+// What a tool block draws for a call: its title, then its custom view or
+// input, or its arguments when it has neither.
+const drawnCallFields = (call: {
+  function: string;
+  arguments: Record<string, unknown>;
+  view?: ToolCallContent | null;
+}): [string, string][] => {
+  const { name, title, functionCall, input, description, contentType } =
+    resolveToolInput(call.function, call.arguments);
+  const view = call.view
+    ? substituteToolCallContent(call.view, call.arguments)
+    : undefined;
+  const displayName = view?.title || title || name;
+  const fields: [string, string][] = [["function", displayName]];
+  const shownInput =
+    contentType === kToolTodoContentType
+      ? toToolTodos(input)
+          .map((todo) => todo.content)
+          .join("\n")
+      : input;
+  const shown = [view?.content, shownInput].filter(
+    (v) => v != null && v !== ""
+  );
+  for (const value of shown) {
+    fields.push([
+      "arguments",
+      typeof value === "string" ? value : sanitizeStringify(value),
+    ]);
+  }
+  if (shown.length === 0 && functionCall !== displayName) {
+    fields.push(["arguments", functionCall]);
+  }
+  if (description) fields.push(["description", description]);
+  return fields;
+};
+
 /**
  * Extracts labeled fields from an event for search and text serialization.
- * Given `toolEvents` (as Find does), a model call yields what its panel draws
- * rather than every user and system message of its input.
+ * Given `find` (the sample's tool events, as Find passes), a model call and a
+ * tool call yield what their panels draw rather than all they record.
  */
 export const extractEventFields = (
   event: EventType,
-  toolEvents?: ToolEventIds
+  find?: ToolEventIds
 ): [string, string][] => {
   const fields: [string, string][] = [];
 
@@ -101,30 +143,20 @@ export const extractEventFields = (
         for (const text of contentTexts(choice.message.content)) {
           fields.push(["output", text]);
         }
-        if (!toolEvents) continue;
+        if (!find) continue;
         // The panel draws a call only when no tool event shows it.
         for (const call of choice.message.tool_calls ?? []) {
-          if (toolEvents.proposals.has(call.id)) continue;
-          const { functionCall, input, description } = resolveToolInput(
-            call.function,
-            call.arguments
-          );
-          fields.push(["function", functionCall]);
-          if (input != null) {
-            fields.push([
-              "arguments",
-              typeof input === "string" ? input : sanitizeStringify(input),
-            ]);
+          if (!find.proposals.has(call.id)) {
+            fields.push(...drawnCallFields(call));
           }
-          if (description) fields.push(["description", description]);
         }
       }
-      const input = toolEvents
+      const input = find
         ? recentInputMessages(modelEvent.input, {
             // The timeline sets this on its own copy of the event, never on these.
             agentResultsFiltered: false,
             hasToolEvents: undefined,
-            toolEventIds: toolEvents.events,
+            toolEventIds: find.events,
           })
         : modelEvent.input.filter(
             (msg) => msg.role === "user" || msg.role === "system"
@@ -147,25 +179,29 @@ export const extractEventFields = (
 
     case "tool": {
       const toolEvent = event;
-      // Custom tool title (displayed instead of function name)
-      if (toolEvent.view?.title) {
-        const resolvedTitle = toolEvent.view.title.replace(
-          /\{\{(\w+)\}\}/g,
-          (match, key: string) => {
-            if (!Object.hasOwn(toolEvent.arguments, key)) return match;
-            const val =
-              toolEvent.arguments[key as keyof typeof toolEvent.arguments];
-            return typeof val === "string" ? val : JSON.stringify(val);
-          }
-        );
-        fields.push(["title", resolvedTitle]);
+      if (find) {
+        fields.push(...drawnCallFields(toolEvent));
+      } else {
+        // Custom tool title (displayed instead of function name)
+        if (toolEvent.view?.title) {
+          const resolvedTitle = toolEvent.view.title.replace(
+            /\{\{(\w+)\}\}/g,
+            (match, key: string) => {
+              if (!Object.hasOwn(toolEvent.arguments, key)) return match;
+              const val =
+                toolEvent.arguments[key as keyof typeof toolEvent.arguments];
+              return typeof val === "string" ? val : JSON.stringify(val);
+            }
+          );
+          fields.push(["title", resolvedTitle]);
+        }
+        // Tool function name
+        if (toolEvent.function) {
+          fields.push(["function", toolEvent.function]);
+        }
+        // Tool arguments
+        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
-      // Tool function name
-      if (toolEvent.function) {
-        fields.push(["function", toolEvent.function]);
-      }
-      // Tool arguments
-      fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
