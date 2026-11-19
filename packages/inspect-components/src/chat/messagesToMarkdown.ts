@@ -8,6 +8,8 @@ import type {
 
 import { fenced, quoted } from "../content/markdownBlocks";
 
+import { reasoningText } from "./contentText";
+
 /**
  * Converts selected messages to a Markdown document suitable for reports
  * and other review artifacts. One section per message, titled by role;
@@ -85,11 +87,10 @@ const textMarkdown = (item: ContentText): string | null => item.text || null;
 // reasoning ends and the reply begins. A redacted chain is never exported,
 // only its reviewer-facing summary.
 const reasoningMarkdown = (item: ContentReasoning): string | null => {
-  const summary = item.redacted || !item.reasoning;
-  const text = summary ? item.summary : item.reasoning;
-  if (!text) return null;
-  const title = summary ? "Reasoning (Summary)" : "Reasoning";
-  return `**${title}**\n\n${quoted(text)}`;
+  const shown = reasoningText(item);
+  if (!shown) return null;
+  const title = shown.summary ? "Reasoning (Summary)" : "Reasoning";
+  return `**${title}**\n\n${quoted(shown.text)}`;
 };
 
 const toolUseMarkdown = (item: ContentToolUse): string => {

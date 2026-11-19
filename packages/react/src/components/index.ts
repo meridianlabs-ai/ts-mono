@@ -11,6 +11,7 @@ export * from "./EmptyPanel";
 export * from "./ErrorPanel";
 export * from "./ExtendedFindContext";
 export * from "./JsonPanel";
+export * from "./jsonPanelText";
 export * from "./LabeledValue";
 export * from "./LoadingBar";
 export * from "./MarkdownDiv";

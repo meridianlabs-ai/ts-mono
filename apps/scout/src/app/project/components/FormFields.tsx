@@ -6,7 +6,9 @@ import {
   VscodeTextarea,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, ReactNode, useEffect, useState } from "react";
+import { FC, ReactNode, useState } from "react";
+
+import { useTimeout } from "@tsmono/react/hooks";
 
 import { eventValue } from "../../utils/formEvents";
 
@@ -50,22 +52,7 @@ export const TextField: FC<TextFieldProps> = ({
   disabled,
   validate,
 }) => {
-  // Debounce validation errors to avoid flashing during typing
-  const [debouncedError, setDebouncedError] = useState<string | null>(null);
   const errorMessage = validate && !disabled ? validate(value ?? null) : null;
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (errorMessage) {
-      const timer = setTimeout(() => setDebouncedError(errorMessage), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Clear error immediately when input becomes valid
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDebouncedError(null);
-    }
-  }, [errorMessage]);
 
   return (
     <div className={styles.field}>
@@ -81,15 +68,25 @@ export const TextField: FC<TextFieldProps> = ({
         spellCheck={false}
         autocomplete="off"
       />
-      {debouncedError && (
-        <VscodeFormHelper
-          style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
-        >
-          {debouncedError}
-        </VscodeFormHelper>
+      {errorMessage && (
+        <DelayedError key={errorMessage} message={errorMessage} />
       )}
     </div>
   );
+};
+
+// Shows the error once it has held for a second, so it doesn't flash while
+// typing. Keyed by message, so each new or returning error waits again.
+const DelayedError: FC<{ message: string }> = ({ message }) => {
+  const [visible, setVisible] = useState(false);
+  useTimeout(() => setVisible(true), 1000);
+  return visible ? (
+    <VscodeFormHelper
+      style={{ color: "var(--vscode-errorForeground)", marginTop: "4px" }}
+    >
+      {message}
+    </VscodeFormHelper>
+  ) : null;
 };
 
 // ===== TextAreaField Component =====

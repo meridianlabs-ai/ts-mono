@@ -3,6 +3,7 @@ import { FC, useCallback, useMemo, useState } from "react";
 import { Navigate } from "react-router";
 
 import { EvalSet } from "@tsmono/inspect-common/types";
+import { ColumnSelectorPopover } from "@tsmono/inspect-components/dataGrid";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useDocumentTitleText, useProperty } from "@tsmono/react/hooks";
 import { directoryRelativeUrl, join } from "@tsmono/util";
@@ -24,7 +25,6 @@ import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
-import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
 import {
   fileLogIdentity,
@@ -325,6 +325,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       </ApplicationNavbar>
 
       <ColumnSelectorPopover
+        id="column-selector-popover"
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
         columns={pickerColumns}
@@ -333,7 +334,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         positionEl={columnButtonEl}
         filteredFields={filteredFields}
         scoresHeading="Metrics"
-        groupableScores
         scoresViewMode={scoresViewMode}
         onScoresViewModeChange={setScoresViewMode}
       />

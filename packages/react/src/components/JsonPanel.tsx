@@ -1,12 +1,11 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useMemo, useRef } from "react";
 
-import { isRecord, maybeBase64 } from "@tsmono/util";
-
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
 
 import { ContentCode } from "./ContentTrust";
 import styles from "./JsonPanel.module.css";
+import { jsonPanelText } from "./jsonPanelText";
 
 interface JSONPanelProps {
   id?: string;
@@ -16,8 +15,6 @@ interface JSONPanelProps {
   style?: CSSProperties;
   className?: string | string[];
 }
-
-const kMaxStringValueDisplay = 1048576;
 
 export const JSONPanel: FC<JSONPanelProps> = ({
   id,
@@ -29,7 +26,7 @@ export const JSONPanel: FC<JSONPanelProps> = ({
 }) => {
   const sourceCode = useMemo(() => {
     if (json) return json;
-    if (data) return JSON.stringify(resolveBase64(data), undefined, 2);
+    if (data) return jsonPanelText(data);
     return "";
   }, [json, data]);
 
@@ -54,40 +51,6 @@ export const JSONPanel: FC<JSONPanelProps> = ({
       </pre>
     </div>
   );
-};
-
-const resolveBase64 = (value: unknown): unknown => {
-  const prefix = "data:image";
-
-  // Handle arrays recursively
-  if (Array.isArray(value)) {
-    return value.map((v) => resolveBase64(v));
-  }
-
-  // Handle objects recursively
-  if (isRecord(value)) {
-    const resolvedObject: Record<string, unknown> = {};
-    for (const key of Object.keys(value)) {
-      resolvedObject[key] = resolveBase64(value[key]);
-    }
-    return resolvedObject;
-  }
-
-  // Handle string values with protocol references
-  if (typeof value === "string") {
-    let resolvedValue = value;
-    if (resolvedValue.startsWith(prefix)) {
-      resolvedValue = "[base64 image]";
-    } else if (resolvedValue.length > kMaxStringValueDisplay) {
-      resolvedValue = "[long data]";
-    } else if (maybeBase64(resolvedValue)) {
-      resolvedValue = "[base64 data]";
-    }
-    return resolvedValue;
-  }
-
-  // Return unchanged for other types
-  return value;
 };
 
 export default JSONPanel;

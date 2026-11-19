@@ -12,6 +12,10 @@ import {
   type FilterCondition,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnSelectorPopover,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
 import { useCopyToClipboard } from "@tsmono/react/hooks";
 import { IconName } from "@tsmono/react/icons";
@@ -24,7 +28,6 @@ import { Chip } from "./Chip";
 import { ChipGroup } from "./ChipGroup";
 import type { AvailableColumn } from "./columnFilter";
 import { ColumnPickerButton } from "./ColumnPickerButton";
-import { ColumnsPopover, type ColumnInfo } from "./ColumnsPopover";
 import styles from "./FilterBar.module.css";
 
 const kCopyCodeDescriptors = [
@@ -54,7 +57,7 @@ export interface FilterBarProps {
 
   // Column picker config (optional - omit to hide)
   /** Column definitions for the picker */
-  columns?: ColumnInfo[];
+  columns?: PickerColumn[];
   /** Currently visible column IDs */
   visibleColumns?: string[];
   /** Default visible column IDs */
@@ -82,6 +85,7 @@ export const FilterBar: FC<FilterBarProps> = ({
     null
   );
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
+  const shownColumns = visibleColumns ?? defaultVisibleColumns ?? [];
 
   const handleFilterChange = useCallback(
     (spec: FilterSpec | null) => {
@@ -200,15 +204,28 @@ export const FilterBar: FC<FilterBarProps> = ({
             <div className={styles.sep}></div>
             <ColumnPickerButton>
               {({ positionEl, isOpen, setIsOpen }) => (
-                <ColumnsPopover
+                <ColumnSelectorPopover
+                  id={`${popoverIdPrefix}-columns`}
+                  showing={isOpen}
+                  setShowing={setIsOpen}
                   positionEl={positionEl}
-                  isOpen={isOpen}
-                  setIsOpen={setIsOpen}
                   columns={columns}
-                  visibleColumns={visibleColumns ?? defaultVisibleColumns ?? []}
-                  defaultVisibleColumns={defaultVisibleColumns ?? []}
-                  onVisibleColumnsChange={onVisibleColumnsChange}
-                  popoverId={`${popoverIdPrefix}-columns`}
+                  visibility={Object.fromEntries(
+                    columns.map((col) => [
+                      col.id,
+                      shownColumns.includes(col.id),
+                    ])
+                  )}
+                  onVisibilityChange={(visibility) =>
+                    onVisibleColumnsChange(
+                      columns
+                        .filter((col) => visibility[col.id])
+                        .map((col) => col.id)
+                    )
+                  }
+                  onResetToDefault={() =>
+                    onVisibleColumnsChange(defaultVisibleColumns ?? [])
+                  }
                 />
               )}
             </ColumnPickerButton>
@@ -270,4 +287,4 @@ const formatFilterSpec = (spec: FilterSpec): string => {
   return `${primary} ${spec.join.toUpperCase()} ${formatFilterCondition(spec.second)}`;
 };
 
-export type { AddFilterPopoverState, AvailableColumn, ColumnInfo };
+export type { AddFilterPopoverState, AvailableColumn };

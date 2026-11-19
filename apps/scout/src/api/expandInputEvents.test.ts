@@ -84,6 +84,32 @@ describe("expandInputEvents", () => {
     ]);
   });
 
+  // inspect_ai 0.3.123–0.3.125 wrote tool-use values as JSON values.
+  it("normalizes message inputs", () => {
+    const legacy = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: { query: "q" },
+          result: [],
+        },
+      ],
+    };
+    const converted = {
+      ...legacy,
+      content: [
+        { ...legacy.content[0], arguments: '{"query":"q"}', result: "[]" },
+      ],
+    };
+
+    expect(expandInputEvents([legacy], "messages", null)).toEqual([converted]);
+    expect(expandInputEvents(legacy, "message", null)).toEqual(converted);
+  });
+
   it("normalizes single-event inputs", () => {
     const result = expandInputEvents(legacyModelEvent, "event", null);
 

@@ -1,4 +1,5 @@
 import {
+  normalizeChatMessages,
   normalizeEvent,
   normalizeEvents,
 } from "@tsmono/inspect-common/normalize";
@@ -51,11 +52,20 @@ export function expandInputEvents(
     return withAttachmentsResolved(normalizeEvent(input) ?? asInput(input));
   }
 
+  if (inputType === "messages") {
+    return withAttachmentsResolved(normalizeChatMessages(input));
+  }
+
+  if (inputType === "message") {
+    const [message] = normalizeChatMessages([input]);
+    return withAttachmentsResolved(message ?? asInput(input));
+  }
+
   return withAttachmentsResolved(asInput(input));
 }
 
 /**
- * Messages, timelines, and event shapes normalizeEvent doesn't recognize pass
+ * Timelines, and messages and events the normalizers don't recognize, pass
  * through untouched: this hands the raw value back under the response's
  * declared input type, which is the same claim the response parse already
  * made about the JSON it came from.

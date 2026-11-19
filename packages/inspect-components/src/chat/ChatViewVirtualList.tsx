@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
-import { NoContentsPanel } from "@tsmono/react/components";
+import { NoContentsPanel, useContentPolicy } from "@tsmono/react/components";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import type {
@@ -270,9 +270,11 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       ]
     );
 
+    const contentPolicy = useContentPolicy();
     const rowSearchText = useCallback(
-      (item: MessageRow): string | string[] => messageSearchText(item.resolved),
-      []
+      (item: MessageRow): string | string[] =>
+        messageSearchText(item.resolved, contentPolicy),
+      [contentPolicy]
     );
 
     // Show a placeholder instead of a blank tab when there's nothing to
