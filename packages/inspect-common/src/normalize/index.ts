@@ -27,6 +27,7 @@ export {
 export { normalizeEvalSample } from "./sample";
 export { normalizeEvalStats, type NormalizedEvalStats } from "./stats";
 export {
+  normalizeChatMessages,
   normalizeModelUsageMap,
   normalizeSampleSummaries,
   normalizeSampleSummary,
