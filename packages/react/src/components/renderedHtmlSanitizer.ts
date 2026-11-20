@@ -304,7 +304,7 @@ const sanitizeStyleAttribute = (style: string): string => {
   return safeDeclarations(scratch.style).join(" ");
 };
 
-// Firefox and/or jsdom 31 enumerate these as longhands we don't allowlist.
+// Firefox and jsdom 31 enumerate vertical-align as longhands; jsdom 31 also does text-align.
 const ENUMERATED_AS_LONGHANDS = ["text-align", "vertical-align"];
 
 const declaredProperties = (style: CSSStyleDeclaration): Set<string> => {
