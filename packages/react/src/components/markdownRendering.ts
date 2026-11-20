@@ -19,13 +19,48 @@ import {
 
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
+const property = (value: unknown, key: string): unknown =>
+  (typeof value === "object" && value !== null) || typeof value === "function"
+    ? Reflect.get(value, key)
+    : undefined;
+
+/**
+ * MathJax's lite DOM serializer writes some attributes (href, src, style, ...)
+ * and the text of some elements (title, ...) without escaping them, and TeX
+ * reaches both (\href, \mmlToken, \unicode, \texttip, echoed errors), so a
+ * formula could inject markup. This makes it escape quotes in every attribute
+ * and markup in every element's text.
+ */
+const escapeMathJaxSerializer = (): void => {
+  const parser = property(
+    property(
+      property(
+        property(Reflect.get(globalThis, "MathJax"), "startup"),
+        "adaptor"
+      ),
+      "parser"
+    ),
+    "constructor"
+  );
+  if (typeof parser !== "function") {
+    throw new Error("MathJax lite parser not found");
+  }
+  for (const unescaped of ["CDATA_ATTR", "PCDATA"]) {
+    if (typeof Reflect.get(parser, unescaped) !== "object") {
+      throw new Error(`MathJax lite parser has no ${unescaped}`);
+    }
+    Reflect.set(parser, unescaped, {});
+  }
+};
+
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
 export const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
-    const loading = import("markdown-it-mathjax3").then(
+    const loading = import("markdown-it-mathjax3").then((m) => {
+      escapeMathJaxSerializer();
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- untyped dependency: markdown-it-mathjax3 ships no types, so its default export arrives as any
-      (m) => m.default as MarkdownItPlugin
-    );
+      return m.default as MarkdownItPlugin;
+    });
     // Reset on rejection so a transient chunk-load failure (network blip,
     // redeploy invalidating the hashed chunk) retries on the next math render
     // instead of disabling math for the rest of the session.

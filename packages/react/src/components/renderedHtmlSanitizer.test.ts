@@ -122,6 +122,90 @@ describe("sanitizeRenderedHtml SVG overflow", () => {
   });
 });
 
+// Each of these fetches its URL as soon as the element renders, with no click.
+describe("sanitizeRenderedHtml fetching attributes", () => {
+  const remote = "https://attacker.example/x.svg#x";
+
+  it("drops background from table cells and keeps the table", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        `<table background="${remote}"><tr><th background="${remote}">h</th><td background="${remote}">d</td></tr></table>`
+      )
+    );
+    expect(root.querySelectorAll("table, th, td")).toHaveLength(3);
+    expect(root.querySelector("[background]")).toBeNull();
+  });
+
+  it.each([
+    ["fill", `url(${remote})`],
+    ["stroke", `url('${remote}')`],
+    ["filter", `url(${remote})`],
+    ["mask", `URL( ${remote} )`],
+    ["clip-path", `url(${remote})`],
+    ["marker-start", `url(${remote})`],
+    ["marker-mid", `url(${remote})`],
+    ["marker-end", `url(${remote})`],
+    ["fill", `url(#ok) url(${remote})`],
+    ["fill", `\\75rl(${remote})`],
+    ["mask", `image-set('${remote}' 1x)`],
+    ["mask", `-webkit-image-set('${remote}' 1x)`],
+  ])("drops %s=%s", (attribute, value) => {
+    const rect = parse(
+      sanitizeRenderedHtml(`<svg><rect ${attribute}="${value}"></rect></svg>`)
+    ).querySelector("rect");
+    expect(rect).not.toBeNull();
+    expect(rect?.hasAttribute(attribute)).toBe(false);
+  });
+
+  it("keeps colours and same-document references", () => {
+    const rect = parse(
+      sanitizeRenderedHtml(
+        `<svg><rect fill="url(#gradient)" stroke="rgb(255, 0, 0)" mask="url('#m')" clip-path="none"></rect></svg>`
+      )
+    ).querySelector("rect");
+    expect(rect?.getAttribute("fill")).toBe("url(#gradient)");
+    expect(rect?.getAttribute("stroke")).toBe("rgb(255, 0, 0)");
+    expect(rect?.getAttribute("mask")).toBe("url('#m')");
+    expect(rect?.getAttribute("clip-path")).toBe("none");
+  });
+
+  it.each([
+    ["pattern", "href"],
+    ["linearGradient", "href"],
+    ["textPath", "xlink:href"],
+  ])("drops a remote %s %s", (tag, attribute) => {
+    const element = parse(
+      sanitizeRenderedHtml(
+        `<svg><${tag} ${attribute}="${remote}"></${tag}></svg>`
+      )
+    ).querySelector(tag);
+    expect(element).not.toBeNull();
+    expect(element?.hasAttribute(attribute)).toBe(false);
+  });
+
+  it("keeps same-document SVG references and link hrefs", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        `<svg><pattern id="p" href="#q"></pattern><a href="https://example.com/">x</a></svg>`
+      )
+    );
+    expect(root.querySelector("pattern")?.getAttribute("href")).toBe("#q");
+    expect(root.querySelector("a")?.getAttribute("href")).toBe(
+      "https://example.com/"
+    );
+  });
+
+  it("drops src from MathML's mglyph", () => {
+    const glyph = parse(
+      sanitizeRenderedHtml(
+        `<math><mglyph src="${remote}" alt="g"></mglyph></math>`
+      )
+    ).querySelector("mglyph");
+    expect(glyph).not.toBeNull();
+    expect(glyph?.hasAttribute("src")).toBe(false);
+  });
+});
+
 describe("sanitizeRenderedHtml inline style attributes", () => {
   const styleOf = (style: string): string =>
     parse(sanitizeRenderedHtml(`<div style="${style}">x</div>`))
