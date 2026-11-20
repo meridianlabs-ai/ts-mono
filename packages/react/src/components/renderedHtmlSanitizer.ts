@@ -61,8 +61,8 @@ const URL_ATTRIBUTES = new Set([
   "xlink:href",
 ]);
 
-// Browsers enumerate a parsed shorthand as its longhands (jsdom lists both),
-// so each allowlist below names the longhands too.
+// Browsers and jsdom enumerate a parsed shorthand as its longhands, so each
+// allowlist below names the longhands too.
 const BOX_EDGES = ["top", "right", "bottom", "left"];
 const BOX_LONGHANDS = [
   "overflow-x",
@@ -304,13 +304,15 @@ const sanitizeStyleAttribute = (style: string): string => {
   return safeDeclarations(scratch.style).join(" ");
 };
 
-// Firefox and jsdom 31 enumerate `vertical-align` as its CSS Inline 3
-// longhands (baseline-shift, ...), which are not allowlisted; read it back as
-// the shorthand so MathJax's baseline offset survives there too.
+// Firefox and/or jsdom 31 enumerate these as longhands we don't allowlist.
+const ENUMERATED_AS_LONGHANDS = ["text-align", "vertical-align"];
+
 const declaredProperties = (style: CSSStyleDeclaration): Set<string> => {
   const properties = new Set(Array.from(style, (p) => p.toLowerCase()));
-  if (style.getPropertyValue("vertical-align")) {
-    properties.add("vertical-align");
+  for (const shorthand of ENUMERATED_AS_LONGHANDS) {
+    if (style.getPropertyValue(shorthand)) {
+      properties.add(shorthand);
+    }
   }
   return properties;
 };
