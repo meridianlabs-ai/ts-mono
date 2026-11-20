@@ -304,21 +304,31 @@ const sanitizeStyleAttribute = (style: string): string => {
   return safeDeclarations(scratch.style).join(" ");
 };
 
+// Firefox and jsdom 31 enumerate `vertical-align` as its CSS Inline 3
+// longhands (baseline-shift, ...), which are not allowlisted; read it back as
+// the shorthand so MathJax's baseline offset survives there too.
+const declaredProperties = (style: CSSStyleDeclaration): Set<string> => {
+  const properties = new Set(Array.from(style, (p) => p.toLowerCase()));
+  if (style.getPropertyValue("vertical-align")) {
+    properties.add("vertical-align");
+  }
+  return properties;
+};
+
 const safeDeclarations = (style: CSSStyleDeclaration): string[] => {
   const declarations: string[] = [];
-  for (const property of Array.from(style)) {
-    const normalizedProperty = property.toLowerCase();
+  for (const property of declaredProperties(style)) {
     const value = style.getPropertyValue(property);
     if (
-      !INLINE_STYLE_PROPERTIES.has(normalizedProperty) ||
+      !INLINE_STYLE_PROPERTIES.has(property) ||
       !value ||
-      !isSafeStyleValue(normalizedProperty, value)
+      !isSafeStyleValue(property, value)
     ) {
       continue;
     }
     const priority = style.getPropertyPriority(property);
     declarations.push(
-      `${normalizedProperty}: ${value}${priority ? ` !${priority}` : ""};`
+      `${property}: ${value}${priority ? ` !${priority}` : ""};`
     );
   }
   return declarations;
