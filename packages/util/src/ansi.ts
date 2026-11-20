@@ -11,7 +11,7 @@
 //    Examples: \x1bM (reverse index), \x1b7 (save cursor)
 // Non-global, so `test` carries no `lastIndex` state between calls.
 const kAnsiEscapePattern =
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-regex -- matching ESC (\x1b) control sequences is this pattern's purpose
   /\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\][^\x07\x1b\n\r\u2028\u2029]*(?:\x07|\x1b\\)|[^[\]>])/;
 
 /**

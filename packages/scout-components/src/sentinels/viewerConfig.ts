@@ -241,7 +241,7 @@ function coerceField(
     if (!kBuiltinNames.has(entry.name)) return null;
     return entry;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- viewer config is read from the eval log without validation; see the docstring for why an unknown kind is dropped
   if (entry.kind === "metadata") return entry;
   return null;
 }

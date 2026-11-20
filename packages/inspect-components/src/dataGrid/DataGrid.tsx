@@ -818,7 +818,7 @@ export function DataGrid<TRow extends RowData>({
   //  - scrollPaddingStart reserves the header's height when aligning to the
   //    top ("start"/"auto"), so a row scrolled in from above sits below the
   //    sticky header instead of behind it.
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns a stable instance whose methods return changing data, so the compiler declines to memoize this component; only primitives from it (index, start) reach the memoized GridRow
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
@@ -1089,10 +1089,7 @@ export function DataGrid<TRow extends RowData>({
                   ) : null;
 
                 return (
-                  // The cell widens the hit area for the mouse; the sortable
-                  // headerContent button inside is the keyboard control, and
-                  // the grid container owns focus for the whole widget.
-                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the click only widens the mouse hit area; the role=button label inside is the focusable keyboard control
                   <div
                     key={header.id}
                     className={clsx(
@@ -1357,9 +1354,7 @@ function GridRowInner<TRow extends RowData>({
     );
   }
   return (
-    // Row selection from the keyboard is the grid container's arrow-key
-    // handler; the row click is the mouse path onto the same action.
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the grid container owns focus and selects rows from its arrow-key handler; the row click is the mouse path onto the same action
     <div
       className={className}
       style={style}
@@ -1454,9 +1449,7 @@ function RotatedHeaderCell<TRow extends RowData>({
     : flexRender(header.column.columnDef.header, header.getContext());
 
   return (
-    // Drag/drop target only; the rotated label inside is the sortable
-    // control and the grid container owns focus.
-    // eslint-disable-next-line jsx-a11y/interactive-supports-focus
+    // eslint-disable-next-line jsx-a11y/interactive-supports-focus -- drag/drop target only; the rotated label inside is the sortable control and the grid container owns focus
     <div
       className={clsx(
         styles.headerCell,
@@ -1487,10 +1480,7 @@ function RotatedHeaderCell<TRow extends RowData>({
           filterSpec && styles.rotatedLabelFiltered
         )}
       >
-        {/* Sortable columns get role/tabIndex/onKeyDown from the spread
-            below; for the rest this is a drag handle, not a control. The
-            conditional spread is invisible to the a11y rules. */}
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- sortable columns get role, tabIndex and onKeyDown from the conditional spread below, which the rules can't see; for the rest this is a drag handle, not a control */}
         <div
           className={styles.rotatedSortTarget}
           // Native tooltip lives on the label (the outer cell is

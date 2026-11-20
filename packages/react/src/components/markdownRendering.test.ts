@@ -2,6 +2,7 @@ import type { MarkdownIt } from "markdown-it";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  preRenderText,
   protectMarkdown,
   renderMarkdown,
   restoreBackslashesForLatex,
@@ -50,6 +51,19 @@ const elapsedMs = (fn: () => unknown): number => {
   fn();
   return performance.now() - start;
 };
+
+describe("preRenderText", () => {
+  it.each(["\u200B", "\u200C", "\u200D", "\u200E", "\u200F", "\uFEFF"])(
+    "strips a leading %j",
+    (char) => {
+      expect(preRenderText(`${char}hello`)).toBe("hello");
+    }
+  );
+
+  it("keeps zero-width characters after the first position", () => {
+    expect(preRenderText("\u200D\u200Dx\u200Dy")).toBe("\u200Dx\u200Dy");
+  });
+});
 
 describe("protectMarkdown", () => {
   it("runs in linear time on a long run of unclosed brackets", () => {
