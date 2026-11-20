@@ -13,11 +13,7 @@ export const useErrorTabConfig = (evalError: EvalError | undefined | null) => {
       id: kLogViewErrorTabId,
       label: "Error",
       scrollable: true,
-      component: ErrorTab,
-      componentProps: {
-        evalError,
-        scrollRef,
-      },
+      content: <ErrorTab evalError={evalError} scrollRef={scrollRef} />,
       scrollRef,
     };
   }, [evalError]);

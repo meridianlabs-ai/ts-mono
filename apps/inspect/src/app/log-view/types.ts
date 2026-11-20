@@ -1,12 +1,11 @@
-import { ComponentType, ReactNode, RefObject } from "react";
+import { ReactNode, RefObject } from "react";
 
-export interface TabDescriptor<P> {
+export interface TabDescriptor {
   id: string;
   scrollable: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   label: string;
-  component: ComponentType<P>;
-  componentProps: P;
+  content: ReactNode;
   className?: string | string[];
   tools?: () => ReactNode[] | undefined;
 }

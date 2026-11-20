@@ -1,11 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access --
-   These tests assert on the dynamically-resolved event payloads produced by
-   resolveSample, which reach into union-typed event fields that carry no
-   precise static type at the assertion site. */
 import { describe, expect, it, vi } from "vitest";
 
 import { testToolEvent } from "@tsmono/inspect-common/testing";
-import type { ContentImage } from "@tsmono/inspect-common/types";
+import type { ContentImage, EvalSample } from "@tsmono/inspect-common/types";
 
 import { ClientAPI, SampleSummary } from "../client/api/types";
 
@@ -74,10 +70,10 @@ describe("resolveSample", () => {
         events_data: { messages: [sys, usr], calls: [] },
         events: [modelEvent([], [[0, 2]])],
       }),
-      check: (resolved: any) => {
-        expect(resolved.events[0].input).toEqual([sys, usr]);
-        expect(resolved.events[0].input_refs).toBeNull();
-        expect(resolved.events_data).toBeNull();
+      check: (resolved: EvalSample) => {
+        expect(resolved).toHaveProperty("events.0.input", [sys, usr]);
+        expect(resolved).toHaveProperty("events.0.input_refs", null);
+        expect(resolved).toHaveProperty("events_data", null);
       },
     },
     {
@@ -92,13 +88,13 @@ describe("resolveSample", () => {
         },
         events: [modelEventWithCall({ model: "test" }, [[0, 2]], "messages")],
       }),
-      check: (resolved: any) => {
-        expect(resolved.events[0].call.request.messages).toEqual([
+      check: (resolved: EvalSample) => {
+        expect(resolved).toHaveProperty("events.0.call.request.messages", [
           { role: "user", content: "Hello" },
           { role: "assistant", content: "Hi" },
         ]);
-        expect(resolved.events[0].call.call_refs).toBeNull();
-        expect(resolved.events_data).toBeNull();
+        expect(resolved).toHaveProperty("events.0.call.call_refs", null);
+        expect(resolved).toHaveProperty("events_data", null);
       },
     },
     {
@@ -110,11 +106,11 @@ describe("resolveSample", () => {
         },
         events: [modelEventWithCall({ model: "test" }, [[0, 1]], "contents")],
       }),
-      check: (resolved: any) => {
-        expect(resolved.events[0].call.request.contents).toEqual([
+      check: (resolved: EvalSample) => {
+        expect(resolved).toHaveProperty("events.0.call.request.contents", [
           { role: "user", content: "Hello via contents" },
         ]);
-        expect(resolved.events[0].call.request.messages).toBeUndefined();
+        expect(resolved).not.toHaveProperty("events.0.call.request.messages");
       },
     },
     {
@@ -127,8 +123,11 @@ describe("resolveSample", () => {
         attachments: { abc123: "resolved content" },
         events: [modelEvent([], [[0, 1]])],
       }),
-      check: (resolved: any) => {
-        expect(resolved.events[0].input[0].content).toBe("resolved content");
+      check: (resolved: EvalSample) => {
+        expect(resolved).toHaveProperty(
+          "events.0.input.0.content",
+          "resolved content"
+        );
       },
     },
     {
@@ -145,8 +144,12 @@ describe("resolveSample", () => {
           ),
         ],
       }),
-      check: (resolved: any) => {
-        expect(resolved.events[0].input).toEqual([msgs[0], msgs[3], msgs[4]]);
+      check: (resolved: EvalSample) => {
+        expect(resolved).toHaveProperty("events.0.input", [
+          msgs[0],
+          msgs[3],
+          msgs[4],
+        ]);
       },
     },
   ])("$name", ({ sample, check }) => {
@@ -165,8 +168,9 @@ describe("resolveSample", () => {
         },
       ],
     });
-    const resolved: any = resolveSample(sample);
-    expect(resolved.error_retries[0].events[0].input[0].content).toBe(
+    const resolved = resolveSample(sample);
+    expect(resolved).toHaveProperty(
+      "error_retries.0.events.0.input.0.content",
       "the real failed message body"
     );
   });
@@ -181,7 +185,7 @@ describe("resolveSample", () => {
       result: [{ type: "text", text: "attachment://sys" }, image],
     });
     const retryTool = testToolEvent({ result: "tc://sys" });
-    const resolved: any = resolveSample(
+    const resolved = resolveSample(
       makeSample({
         attachments: { sys: "system prompt", img: "image data" },
         events: [tool],
@@ -195,11 +199,14 @@ describe("resolveSample", () => {
         ],
       })
     );
-    expect(resolved.events[0].result).toEqual([
+    expect(resolved).toHaveProperty("events.0.result", [
       { type: "text", text: "attachment://sys" },
       { ...image, image: "image data" },
     ]);
-    expect(resolved.error_retries[0].events[0].result).toBe("tc://sys");
+    expect(resolved).toHaveProperty(
+      "error_retries.0.events.0.result",
+      "tc://sys"
+    );
   });
 
   // inspect_ai's walk_input leaves a string input as written and resolves a
@@ -240,7 +247,7 @@ describe("fetchSample", () => {
       })
     );
 
-    const sample: any = await fetchSample(
+    const sample = await fetchSample(
       makeApi(get_log_sample),
       "log.eval",
       "sample-1",
@@ -248,9 +255,9 @@ describe("fetchSample", () => {
     );
 
     expect(get_log_sample).toHaveBeenCalledWith("log.eval", "sample-1", 2);
-    expect(sample.events[0].input).toEqual([sys, usr]);
-    expect(sample.events_data).toBeNull();
-    expect(sample.attachments).toEqual({});
+    expect(sample).toHaveProperty("events.0.input", [sys, usr]);
+    expect(sample).toHaveProperty("events_data", null);
+    expect(sample).toHaveProperty("attachments", {});
   });
 
   it("throws SampleNotFoundError when the backend has no EvalSample", async () => {

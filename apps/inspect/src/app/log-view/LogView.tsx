@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { createElement, FC, Fragment, MouseEvent, useRef } from "react";
+import { FC, Fragment, MouseEvent, useRef } from "react";
 
 import {
   EmptyPanel,
@@ -53,7 +53,6 @@ export const LogView: FC = () => {
   const intoTabConfig = useInfoTabConfig(
     evalSpec,
     selectedLogDetails?.plan,
-    selectedLogDetails?.error,
     selectedLogDetails?.results,
     selectedLogDetails?.status,
     selectedLogDetails?.metadata
@@ -87,11 +86,7 @@ export const LogView: FC = () => {
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
 
-  // Heterogeneous tab configs each bind their own props type; `unknown`
-  // can't unify them because TabDescriptor's `component` puts the prop type
-  // in a contravariant position.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tabs: Record<string, TabDescriptor<any>> = {
+  const tabs: Record<string, TabDescriptor> = {
     samples: samplesTabConfig,
     task: taskTabConfig,
     model: modelsTabConfig,
@@ -182,7 +177,7 @@ export const LogView: FC = () => {
                     className={clsx(tab.className)}
                     style={{ height: tab.scrollable ? "100%" : undefined }}
                   >
-                    {createElement(tab.component, tab.componentProps)}
+                    {tab.content}
                   </TabPanel>
                 );
               })}
