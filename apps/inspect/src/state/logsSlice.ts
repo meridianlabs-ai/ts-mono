@@ -1,4 +1,9 @@
-import type { SamplesViewState } from "../app/samples/list/samplesView";
+import { fillPersistedDefaults } from "@tsmono/util";
+
+import {
+  defaultSamplesView,
+  type SamplesViewState,
+} from "../app/samples/list/samplesView";
 import {
   DisplayedSample,
   LogListGridState,
@@ -159,11 +164,13 @@ export const initializeLogsSlice = <T extends LogsSlice>(
   set: (fn: (state: T) => void) => void
 ) => {
   set((state) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.logs) {
-      state.logs = initialState;
-    }
     if ("selectedLogFile" in state.logs) delete state.logs.selectedLogFile;
+    // Per-log views are keyed by file, so the store's merge has no initial
+    // entry to fill them from; fill each from the default view instead.
+    const byLog = state.logs.samplesListState.byLog;
+    for (const [logFile, view] of Object.entries(byLog)) {
+      byLog[logFile] = fillPersistedDefaults(view, defaultSamplesView());
+    }
   });
 };
 

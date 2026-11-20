@@ -139,10 +139,6 @@ export const initalializeLogSlice = (
   set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.log) {
-      state.log = initialState;
-    }
     if ("selectedSampleHandle" in state.log) {
       const legacy: unknown = state.log.selectedSampleHandle;
       if (

@@ -94,8 +94,8 @@
   },
   "apps/inspect/src/app/samples/list/samplesView.converters.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
+      "count": 2,
+      "undescribed": 2
     }
   },
   "apps/inspect/src/app/samples/list/useSamplesView.ts": {
@@ -123,9 +123,6 @@
     }
   },
   "apps/inspect/src/app/samples/SampleDisplay.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 3
     }
@@ -270,10 +267,6 @@
     }
   },
   "apps/inspect/src/state/appSlice.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
@@ -287,24 +280,12 @@
       "count": 3
     }
   },
-  "apps/inspect/src/state/logSlice.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/inspect/src/state/logsSlice.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
     },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "apps/inspect/src/state/logsSlice.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/inspect/src/state/store.ts": {
@@ -371,9 +352,6 @@
     }
   },
   "apps/scout/src/app/scans/ScansGrid.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -396,11 +374,6 @@
   "apps/scout/src/app/transcripts/columns.tsx": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/transcripts/TranscriptsGrid.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
     }
   },
   "apps/scout/src/app/utils/normalizeScanRow.ts": {
@@ -888,6 +861,11 @@
     }
   },
   "packages/util/src/jsonrpc.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/util/src/object.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }

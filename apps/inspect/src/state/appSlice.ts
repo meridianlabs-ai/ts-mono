@@ -360,9 +360,5 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.app) {
-      state.app = initialState;
-    }
   });
 };

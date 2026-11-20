@@ -108,8 +108,7 @@ export const resolveSamplesView = (
 ): SamplesViewState => {
   if (!stored) return liftEvalView(evalDefault);
   const lifted = liftEvalView(evalDefault);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const overrides = stored.userOverrides ?? {};
+  const overrides = stored.userOverrides;
   return {
     ...stored,
     multiline: overrides.multiline ?? lifted.multiline,

@@ -210,29 +210,6 @@ describe("resolveSamplesView precedence", () => {
       resolveSamplesView(stored, { name: "Eval" }).colorScalesEnabled
     ).toBe(false);
   });
-
-  test("legacy stored without userOverrides treats every toggle as inheriting", () => {
-    // Persisted state from before the userOverrides field landed.
-    // resolveSamplesView should let eval defaults take over each toggle.
-    const legacy = {
-      ...sampleState({
-        multiline: true,
-        compactScores: false,
-        colorScalesEnabled: true,
-      }),
-    };
-    delete (legacy as Partial<SamplesViewState>).userOverrides;
-    const evalDefault: TaskSamplesView = {
-      name: "Eval",
-      multiline: false,
-      compact_scores: true,
-      color_scales_enabled: false,
-    };
-    const resolved = resolveSamplesView(legacy, evalDefault);
-    expect(resolved.multiline).toBe(false);
-    expect(resolved.compactScores).toBe(true);
-    expect(resolved.colorScalesEnabled).toBe(false);
-  });
 });
 
 describe("mergeColumnVisibility", () => {

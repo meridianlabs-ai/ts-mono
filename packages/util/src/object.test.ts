@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getOwn, nullProtoRecord } from "./object";
+import { fillPersistedDefaults, getOwn, nullProtoRecord } from "./object";
 
 const prototypeNames = [
   "__proto__",
@@ -71,5 +71,64 @@ describe("nullProtoRecord", () => {
   it.each(prototypeNames)("reads absent %s as undefined", (name) => {
     const record = nullProtoRecord(new Map<string, number>([["a", 1]]));
     expect(record[name]).toBeUndefined();
+  });
+});
+
+describe("fillPersistedDefaults", () => {
+  const current = {
+    table: {
+      sorting: [{ id: "a" }],
+      columnFilters: {},
+      width: 10,
+      layout: { pinned: { left: [] as string[] } },
+    },
+    tab: "transcript",
+    act: () => "current",
+  };
+
+  it("fills keys an older blob lacks, at any depth", () => {
+    const merged = fillPersistedDefaults(
+      { table: { width: 20, layout: {} } },
+      current
+    );
+    expect(merged.table).toEqual({
+      sorting: [{ id: "a" }],
+      columnFilters: {},
+      width: 20,
+      layout: { pinned: { left: [] } },
+    });
+    expect(merged.tab).toBe("transcript");
+    expect(merged.act()).toBe("current");
+  });
+
+  it("keeps persisted values, including arrays and legacy keys", () => {
+    const merged = fillPersistedDefaults(
+      { table: { sorting: [], legacy: 1 }, tab: "messages" },
+      current
+    );
+    expect(merged.table.sorting).toEqual([]);
+    expect(merged.table).toHaveProperty("legacy", 1);
+    expect(merged.tab).toBe("messages");
+  });
+
+  it("keeps null where the current value is not an object or array", () => {
+    const withNullable: { selected: string | null } = { selected: "a" };
+    const merged = fillPersistedDefaults({ selected: null }, withNullable);
+    expect(merged.selected).toBeNull();
+  });
+
+  it("replaces a value of another kind where the current value is an object or array", () => {
+    const merged = fillPersistedDefaults(
+      { table: { sorting: null, columnFilters: "x" } },
+      current
+    );
+    expect(merged.table.sorting).toEqual([{ id: "a" }]);
+    expect(merged.table.columnFilters).toEqual({});
+  });
+
+  it("returns the current state when nothing usable was persisted", () => {
+    expect(fillPersistedDefaults(undefined, current)).toBe(current);
+    expect(fillPersistedDefaults(null, current)).toBe(current);
+    expect(fillPersistedDefaults("stale", current)).toBe(current);
   });
 });

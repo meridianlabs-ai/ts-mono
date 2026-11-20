@@ -3,7 +3,7 @@ import { create, Mutate, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { createLogger, debounce } from "@tsmono/util";
+import { createLogger, debounce, fillPersistedDefaults } from "@tsmono/util";
 
 import { Capabilities, ClientStorage } from "../client/api/types";
 
@@ -104,6 +104,7 @@ export const initializeStore = (
               logs: state.logs,
             }) as unknown as StoreState,
           version: 4,
+          merge: fillPersistedDefaults,
           onRehydrateStorage: (state: StoreState) => {
             return (hydrationState, error) => {
               log.debug("REHYDRATING STATE");

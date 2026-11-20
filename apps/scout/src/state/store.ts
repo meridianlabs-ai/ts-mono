@@ -3,7 +3,7 @@ import { create, type StateCreator } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { debounce } from "@tsmono/util";
+import { debounce, fillPersistedDefaults } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 
@@ -96,6 +96,7 @@ export const createStore = (api: ScoutApiV2) =>
             createJSONStorage(() => api.storage)
           ),
           version: 1,
+          merge: fillPersistedDefaults,
           partialize: (state) => {
             const { visibleScannerResults, ...persistedState } = state;
             return persistedState;
