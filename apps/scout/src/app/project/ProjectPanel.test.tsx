@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  configure,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
@@ -108,7 +114,10 @@ const metadataTextarea = () => innerTextarea(byId("field-metadata"));
 const settled = () => new Promise((r) => setTimeout(r, 0));
 
 // The full settings form mounts dozens of Lit elements; on CI runners each
-// test takes 4-5s, close to the default timeout.
+// test takes 4-7s, past vitest's 5s default, and a remount or save inside a
+// test can outlast waitFor's 1s default.
+configure({ asyncUtilTimeout: 5_000 });
+
 describe("ProjectPanel", { timeout: 15_000 }, () => {
   afterEach(() => {
     cleanup();
