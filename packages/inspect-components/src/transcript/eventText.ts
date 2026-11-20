@@ -88,7 +88,7 @@ export interface ToolEventIds {
 
 // The panel renders a view's markdown, so the fences around its code never show.
 const withoutCodeFences = (markdown: string): string =>
-  markdown.replace(/^\s*(```|~~~).*$/gm, "");
+  markdown.replace(/^[ \t]*(```|~~~).*$/gm, "");
 
 // What a tool block draws for a call: its name, then its view if it has a
 // usable one, else its input, or its arguments when it has neither.
