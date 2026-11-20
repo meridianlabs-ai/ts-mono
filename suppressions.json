@@ -503,57 +503,9 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/content/RenderedContent.tsx": {
-    "@typescript-eslint/no-base-to-string (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-explicit-any (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-argument (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-assignment (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-call (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-return (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unused-vars (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/unbound-method (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/content/RenderedText.tsx": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 2
-    }
-  },
-  "packages/inspect-components/src/content/types.ts": {
-    "@typescript-eslint/no-explicit-any (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-redundant-type-constituents (file-wide)": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/dataGrid/DataGrid.tsx": {
