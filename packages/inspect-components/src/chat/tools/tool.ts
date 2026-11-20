@@ -667,6 +667,72 @@ const cleanCodexAnswer = (text: string): string => {
   return visibleAnswer.trimEnd();
 };
 
+export interface ToolTodo {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+const kTodoStatuses: readonly ToolTodo["status"][] = [
+  "pending",
+  "in_progress",
+  "completed",
+];
+
+const isTodoStatus = (value: unknown): value is ToolTodo["status"] =>
+  kTodoStatuses.some((status) => status === value);
+
+// One malformed entry shouldn't hide the rest of the list: keep every item
+// with readable text, and let an unrecognized status fall back to the
+// default (unchecked) rendering.
+const toToolTodo = (item: unknown): ToolTodo | undefined => {
+  if (!isRecord(item)) return undefined;
+  const text = [item["content"], item["step"]].find(
+    (value): value is string => typeof value === "string"
+  );
+  if (text === undefined) return undefined;
+  return {
+    content: text,
+    status: isTodoStatus(item["status"]) ? item["status"] : "pending",
+  };
+};
+
+export const toToolTodos = (obj: unknown): ToolTodo[] =>
+  Array.isArray(obj)
+    ? obj.map(toToolTodo).filter((todo) => todo !== undefined)
+    : [];
+
+// Guard against invalid tool views (e.g., malformed bash tool content
+// from older log files).
+export const isValidView = (view: ToolCallContent): boolean => {
+  if (view.content === "```bash\nbash\n```\n") {
+    return false;
+  }
+  return true;
+};
+
+/** The args portion of the rendered function call with formatting preserved;
+ * collapse whitespace for the single-line header summary. */
+export const fullArgs = (
+  functionCall: string,
+  tool: string
+): string | undefined => {
+  if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
+    const inner = functionCall.slice(tool.length + 1, -1).trim();
+    return inner.length > 0 ? inner : undefined;
+  }
+  return functionCall !== tool ? functionCall : undefined;
+};
+
+// `String` throws on an object whose `toString` isn't a function, which a
+// model's arguments can hold.
+const argumentText = (value: unknown): string => {
+  try {
+    return String(value);
+  } catch {
+    return JSON.stringify(value);
+  }
+};
+
 /**
  * Substitutes `{{param_name}}` placeholders in tool call content
  * with actual values from the tool call arguments.
@@ -677,7 +743,7 @@ export const substituteToolCallContent = (
 ): ToolCallContent => {
   const replace = (text: string): string =>
     text.replace(/\{\{(\w+)\}\}/g, (match, key: string) =>
-      Object.hasOwn(args, key) ? String(args[key]) : match
+      Object.hasOwn(args, key) ? argumentText(args[key]) : match
     );
   return {
     ...content,

@@ -342,6 +342,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     viewNodesRef: eventsListRef ?? nullViewNodesRef,
     onHeadroomResetAnchor,
     onHeadroomSetHidden,
+    recordsExecutionIds: mergedEventNodeContext.recordsExecutionIds,
   });
 
   // ---------------------------------------------------------------------------

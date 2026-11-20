@@ -12,7 +12,7 @@ import { useCustomContent } from "../../content/DisplayModeContext";
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
 import { getDefaultCustomToolView } from "./customToolRendering";
-import { iconForTool } from "./tool";
+import { fullArgs, iconForTool } from "./tool";
 import { ToolBlock, ToolBlockInput, ToolBlockOutput } from "./ToolBlock";
 import { ToolCallErrorView } from "./ToolCallErrorView";
 import { ToolCallView, ToolCallViewProps } from "./ToolCallView";
@@ -171,16 +171,6 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
 /** Args longer than this can't meaningfully summarize on the single header
  * line; they render in the input zone instead. */
 const kMaxSummaryArgs = 120;
-
-/** The args portion of the rendered function call with formatting preserved;
- * collapse whitespace for the single-line header summary. */
-const fullArgs = (functionCall: string, tool: string): string | undefined => {
-  if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
-    const inner = functionCall.slice(tool.length + 1, -1).trim();
-    return inner.length > 0 ? inner : undefined;
-  }
-  return functionCall !== tool ? functionCall : undefined;
-};
 
 /** Whether the tool output has anything worth an output well. */
 const hasOutputContent = (output: ToolCallViewProps["output"]): boolean => {

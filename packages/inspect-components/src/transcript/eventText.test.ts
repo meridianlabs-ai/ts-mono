@@ -29,8 +29,10 @@ import {
   testStoreEvent,
   testSubtaskEvent,
   testSwarmEvent,
+  testSystemMessage,
   testToolCall,
   testToolEvent,
+  testUserMessage,
 } from "@tsmono/inspect-common/testing";
 import type {
   CompactionEvent,
@@ -289,6 +291,24 @@ describe("extractEventFields — model error / traceback", () => {
     const texts = eventSearchText(node);
     expect(texts).toContain("API rate limit exceeded");
     expect(texts).toContain("Traceback (most recent call last): ...");
+  });
+});
+
+describe("eventsToStr — model input", () => {
+  it("keeps the system and user messages from before the last turn", () => {
+    const text = eventsToStr([
+      testModelEvent({
+        input: [
+          testSystemMessage({ content: "Spend at most $5." }),
+          testUserMessage({ content: "Buy fruit." }),
+          testAssistantMessage({ content: "Buying." }),
+          testUserMessage({ content: "continue" }),
+        ],
+      }),
+    ]);
+    expect(text).toContain("system: Spend at most $5.");
+    expect(text).toContain("user: Buy fruit.");
+    expect(text).toContain("user: continue");
   });
 });
 

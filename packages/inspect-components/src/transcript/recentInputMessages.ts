@@ -23,6 +23,8 @@ export function recentInputMessages(
   input: ChatMessage[],
   options: RecentInputMessagesOptions
 ): ChatMessage[] {
+  // Newest first, reversed once: Find runs this for every model event of a
+  // sample, so a long run has to stay linear.
   const result: ChatMessage[] = [];
 
   if (!options.agentResultsFiltered) {
@@ -42,7 +44,7 @@ export function recentInputMessages(
         // tool messages are shown here unless a tool event shows them
         (msg.role === "tool" && !shownByToolEvent(msg, options))
       ) {
-        result.unshift(msg);
+        result.push(msg);
       } else if (msg.role === "tool" && options.toolEventIds !== undefined) {
         // with per-call coverage, a result its tool event shows is skipped
         // rather than ending the turn, so the turn's other results still show
@@ -51,6 +53,7 @@ export function recentInputMessages(
         break;
       }
     }
+    result.reverse();
   }
 
   // Multi-Agent V2 forks copy the parent's context into the child as
