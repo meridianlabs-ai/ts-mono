@@ -1,7 +1,6 @@
 import { FC, RefObject, useMemo, useRef } from "react";
 
 import {
-  EvalError,
   EvalPlan,
   EvalResults,
   EvalSpec,
@@ -19,7 +18,6 @@ import { PlanCard } from "../../plan/PlanCard";
 export const useInfoTabConfig = (
   evalSpec: EvalSpec | undefined,
   evalPlan: EvalPlan | undefined,
-  evalError: EvalError | undefined | null,
   evalResults: EvalResults | undefined | null,
   evalStatus: EvalLogStatus | undefined | null,
   metadata?: Record<string, unknown>
@@ -31,37 +29,29 @@ export const useInfoTabConfig = (
       id: kLogViewInfoTabId,
       label: "Info",
       scrollable: true,
-      component: InfoTab,
-      componentProps: {
-        evalSpec,
-        evalPlan,
-        evalError,
-        evalResults,
-        evalStatus,
-        metadata,
-        sampleCount: totalSampleCount,
-        scrollRef,
-      },
+      content: (
+        <InfoTab
+          evalSpec={evalSpec}
+          evalPlan={evalPlan}
+          evalResults={evalResults}
+          evalStatus={evalStatus}
+          metadata={metadata}
+          sampleCount={totalSampleCount}
+          scrollRef={scrollRef}
+        />
+      ),
       scrollRef,
     };
-  }, [
-    evalSpec,
-    evalPlan,
-    evalError,
-    evalResults,
-    evalStatus,
-    metadata,
-    totalSampleCount,
-  ]);
+  }, [evalSpec, evalPlan, evalResults, evalStatus, metadata, totalSampleCount]);
 };
 
 interface InfoTabProps {
   evalSpec?: EvalSpec;
   evalPlan?: EvalPlan;
   evalStats?: EvalStats;
-  evalResults?: EvalResults;
+  evalResults?: EvalResults | null;
   samples?: SampleSummary[];
-  evalStatus?: EvalLogStatus;
+  evalStatus?: EvalLogStatus | null;
   metadata?: Record<string, unknown>;
   sampleCount?: number;
   scrollRef: RefObject<HTMLDivElement | null>;

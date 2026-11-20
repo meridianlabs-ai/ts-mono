@@ -32,14 +32,15 @@ export const useTaskTabConfig = (
       id: kLogViewTaskTabId,
       label: "Task",
       scrollable: true,
-      component: TaskTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        earlyStopping,
-        tags,
-        configUpdates,
-      },
+      content: (
+        <TaskTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          earlyStopping={earlyStopping}
+          tags={tags}
+          configUpdates={configUpdates}
+        />
+      ),
     };
   }, [evalSpec, evalStats, earlyStopping, tags, configUpdates]);
 };

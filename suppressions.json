@@ -22,12 +22,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-view/LogView.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/inspect/src/app/log-view/LogViewContainer.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -237,16 +231,6 @@
   "apps/inspect/src/log_data/messageRowsQuery.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/sampleFetch.test.ts": {
-    "@typescript-eslint/no-explicit-any (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/inspect/src/log_data/sampleMessages.ts": {

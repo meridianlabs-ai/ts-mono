@@ -84,16 +84,17 @@ export const useTimelineTab = (
       label: "Activity",
       scrollable: true,
       scrollRef,
-      component: TimelineTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        evalStatus,
-        configUpdates,
-        logUpdates,
-        earlyStopping,
-        scrollRef,
-      },
+      content: (
+        <TimelineTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          evalStatus={evalStatus}
+          configUpdates={configUpdates}
+          logUpdates={logUpdates}
+          earlyStopping={earlyStopping}
+          scrollRef={scrollRef}
+        />
+      ),
     };
   }, [
     evalSpec,

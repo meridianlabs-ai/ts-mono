@@ -127,14 +127,15 @@ export const useSamplesTabConfig = (
       scrollable: false,
       scrollRef,
       label: totalSampleCount > 1 ? "Samples" : "Sample",
-      component: SamplesTab,
-      componentProps: {
-        running: evalStatus === "started",
-        scrollRef,
-        showColumnSelector,
-        setShowColumnSelector,
-        columnButtonEl,
-      },
+      content: (
+        <SamplesTab
+          running={evalStatus === "started"}
+          scrollRef={scrollRef}
+          showColumnSelector={showColumnSelector}
+          setShowColumnSelector={setShowColumnSelector}
+          columnButtonEl={columnButtonEl}
+        />
+      ),
       tools: () =>
         !samplesDescriptor
           ? undefined

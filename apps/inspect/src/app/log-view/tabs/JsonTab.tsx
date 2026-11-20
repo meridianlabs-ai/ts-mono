@@ -33,12 +33,13 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
       id: kLogViewJsonTabId,
       label: "JSON",
       scrollable: true,
-      component: JsonTab,
-      componentProps: {
-        logFile: selectedLogFile,
-        json,
-        selected: selectedTab === kLogViewJsonTabId,
-      },
+      content: (
+        <JsonTab
+          logFile={selectedLogFile}
+          json={json}
+          selected={selectedTab === kLogViewJsonTabId}
+        />
+      ),
       tools: () => [<CopyJsonButton key="copy-json" json={json} />],
     };
   }, [selectedLogFile, logDetails, selectedTab]);

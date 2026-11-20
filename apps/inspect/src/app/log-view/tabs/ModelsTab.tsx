@@ -34,13 +34,14 @@ export const useModelsTab = (
       id: kLogViewModelsTabId,
       label: "Models",
       scrollable: true,
-      component: ModelTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        evalStatus,
-        configUpdates,
-      },
+      content: (
+        <ModelTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          evalStatus={evalStatus}
+          configUpdates={configUpdates}
+        />
+      ),
     };
   }, [evalSpec, evalStats, evalStatus, configUpdates]);
 };
