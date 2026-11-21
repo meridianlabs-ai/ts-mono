@@ -45,11 +45,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/log-view/tabs/timeline/TimelineTab.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -108,11 +103,6 @@
   "apps/inspect/src/app/samples/sample-tools/sample-filter/SampleFilter.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 4
-    }
-  },
-  "apps/inspect/src/app/samples/SampleDetailComponent.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/samples/SampleDisplay.tsx": {
@@ -260,7 +250,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/inspect/src/state/logsSlice.test.ts": {

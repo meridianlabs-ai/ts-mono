@@ -1,13 +1,5 @@
 import clsx from "clsx";
-import {
-  FC,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useMemo, useRef, useState } from "react";
 
 import type { NormalizedEvalStats } from "@tsmono/inspect-common/normalize";
 import {
@@ -24,7 +16,7 @@ import {
   poolRetunes,
 } from "@tsmono/inspect-components/usage";
 import { ErrorPanel } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useMirrorToStore, useProperty } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
@@ -379,12 +371,10 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
   const timeDescending = timeSort
     ? timeSort === "desc"
     : evalStatus === "started";
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (timeSort === undefined) {
-      setTimeSort(evalStatus === "started" ? "desc" : "asc");
-    }
-  }, [timeSort, setTimeSort, evalStatus]);
+  useMirrorToStore(
+    timeSort === undefined ? (timeDescending ? "desc" : "asc") : undefined,
+    setTimeSort
+  );
 
   const [selectedEventKey, setSelectedEventKey] = useProperty<string | null>(
     kTimelineBag,
