@@ -1038,6 +1038,119 @@ describe("normalizeEvalSpec remaining defaults", () => {
   });
 });
 
+describe("normalizeEvalSpec viewer config", () => {
+  it("leaves an absent viewer absent", () => {
+    expect(normalizeEvalSpec({ task: "t" }).viewer).toBeUndefined();
+  });
+
+  it("defaults scanner_result_view to an empty map", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: { trust_content: false },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({});
+  });
+
+  it("defaults sort dir to asc and column visibility to true", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        sample_score_view: { sort: { column: "value" } },
+        task_samples_view: [
+          {
+            name: "default",
+            columns: [{ id: "input" }, { id: "target", visible: false }],
+            sort: [{ column: "epoch" }, { column: "input", dir: "desc" }],
+          },
+        ],
+      },
+    }).viewer;
+    expect(viewer?.sample_score_view?.sort?.dir).toBe("asc");
+    expect(viewer?.task_samples_view).toEqual([
+      {
+        name: "default",
+        columns: [
+          { id: "input", visible: true },
+          { id: "target", visible: false },
+        ],
+        sort: [
+          { column: "epoch", dir: "asc" },
+          { column: "input", dir: "desc" },
+        ],
+      },
+    ]);
+  });
+
+  it("fills a single task_samples_view the same way", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        task_samples_view: { name: "only", columns: [{ id: "epoch" }] },
+      },
+    }).viewer;
+    expect(viewer?.task_samples_view).toEqual({
+      name: "only",
+      columns: [{ id: "epoch", visible: true }],
+    });
+  });
+
+  it("fills scanner view defaults and drops entries of unknown kind", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        scanner_result_view: {
+          "audit*": {
+            fields: [
+              { kind: "bogus", name: "value" },
+              { kind: "builtin", name: "value" },
+              { kind: "metadata", key: "k", collapsed: true },
+              "explanation",
+            ],
+          },
+        },
+      },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({
+      "audit*": {
+        fields: [
+          { kind: "builtin", name: "value", collapsed: false },
+          { kind: "metadata", key: "k", collapsed: true },
+          "explanation",
+        ],
+        exclude_fields: [],
+      },
+    });
+  });
+
+  it("fills a bare scanner view without treating its keys as globs", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: { scanner_result_view: { exclude_fields: ["answer"] } },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({
+      fields: null,
+      exclude_fields: ["answer"],
+    });
+  });
+});
+
+describe("normalizeEvalSample invalidation", () => {
+  it("fills the provenance fields an invalidation record requires", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      invalidation: { author: "me", reason: "leaked" },
+    });
+    expect(sample.invalidation).toEqual({
+      author: "me",
+      reason: "leaked",
+      timestamp: "",
+      metadata: {},
+    });
+  });
+
+  it("leaves an absent invalidation absent", () => {
+    expect(
+      normalizeEvalSample({ id: 1, epoch: 1 }).invalidation
+    ).toBeUndefined();
+  });
+});
+
 describe("normalizeEvalPlan on garbage input", () => {
   it("produces a complete default plan", () => {
     expect(normalizeEvalPlan(undefined)).toEqual({

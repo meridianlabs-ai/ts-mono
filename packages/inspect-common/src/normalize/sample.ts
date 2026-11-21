@@ -4,6 +4,7 @@ import type { EvalSample } from "../types";
 
 import { normalizeMessagesContent } from "./content";
 import { normalizeEvents, normalizeModelOutput } from "./events";
+import { normalizeProvenance } from "./log";
 import { normalizeSampleScores } from "./scores";
 import {
   normalizeModelFallbacks,
@@ -82,6 +83,10 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     sample["model_fallbacks"] = normalizeModelFallbacks(
       sample["model_fallbacks"]
     );
+  }
+  const invalidation = sample["invalidation"];
+  if (isRecord(invalidation)) {
+    sample["invalidation"] = normalizeProvenance(invalidation);
   }
   if (Array.isArray(sample["error_retries"])) {
     sample["error_retries"] = sample["error_retries"].map((retry: unknown) => {
