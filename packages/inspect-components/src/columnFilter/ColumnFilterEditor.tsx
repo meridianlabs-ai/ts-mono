@@ -305,9 +305,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
   );
 
   return (
-    // Escape/Enter are delegated from the fields inside, all of which are
-    // focusable in their own right — the container is not itself a control.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape/Enter bubble up from the focusable fields inside; the container is not itself a control
     <div className={styles.filterContent} onKeyDown={handleKeyDown}>
       <ConditionRow
         columnId={columnId}

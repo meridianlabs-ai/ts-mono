@@ -29,8 +29,7 @@
   },
   "apps/inspect/src/app/log-view/LogViewLayout.tsx": {
     "jsx-a11y/no-noninteractive-tabindex": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-view/tabs/timeline/HistoryList.tsx": {
@@ -427,8 +426,7 @@
   },
   "packages/inspect-components/src/chat/MessageContent.tsx": {
     "jsx-a11y/media-has-caption": {
-      "count": 2,
-      "undescribed": 1
+      "count": 2
     }
   },
   "packages/inspect-components/src/chat/tools/tool.ts": {
@@ -441,8 +439,7 @@
       "count": 2
     },
     "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "packages/inspect-components/src/columnFilter/DurationInput.tsx": {
@@ -518,23 +515,19 @@
       "count": 1
     },
     "jsx-a11y/click-events-have-key-events": {
-      "count": 3,
-      "undescribed": 3
+      "count": 3
     },
     "jsx-a11y/interactive-supports-focus": {
-      "count": 3,
-      "undescribed": 3
+      "count": 3
     },
     "jsx-a11y/no-noninteractive-element-interactions": {
       "count": 2
     },
     "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     },
     "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     },
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -645,8 +638,7 @@
   },
   "packages/inspect-components/src/transcript/timeline/components/TimelineSwimLanes.tsx": {
     "jsx-a11y/click-events-have-key-events": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
@@ -708,12 +700,10 @@
   },
   "packages/react/src/components/MarkdownDiv.tsx": {
     "jsx-a11y/click-events-have-key-events": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     },
     "jsx-a11y/no-static-element-interactions": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     },
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -722,10 +712,6 @@
   "packages/react/src/components/markdownRendering.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    },
-    "no-misleading-character-class": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/react/src/components/markdownTruncate.test.ts": {
@@ -784,8 +770,7 @@
   },
   "packages/react/src/virtual/use-scaled-virtualizer.ts": {
     "react-hooks/incompatible-library": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "packages/react/src/virtual/VirtualList.tsx": {
@@ -801,13 +786,12 @@
   "packages/scout-components/src/sentinels/viewerConfig.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
-      "undescribed": 2
+      "undescribed": 1
     }
   },
   "packages/util/src/ansi.ts": {
     "no-control-regex": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "packages/util/src/asyncData.ts": {
@@ -826,12 +810,6 @@
   "packages/util/src/browser.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    }
-  },
-  "packages/util/src/json-value.ts": {
-    "@typescript-eslint/no-empty-object-type": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/util/src/json-worker.ts": {

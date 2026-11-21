@@ -30,7 +30,11 @@ export const renderScore = (
   expandable = true
 ): ReactNode => {
   if (Array.isArray(value)) {
-    return value.join(", ");
+    return value
+      .map((item) =>
+        typeof item === "object" ? JSON.stringify(item) : String(item)
+      )
+      .join(", ");
   } else if (isRecord(value)) {
     if (maxRows != null && !expandable) {
       // Slice raw entries so fixed previews count nested groups without rendering MetaDataGrid's expander.

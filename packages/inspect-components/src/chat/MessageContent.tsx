@@ -233,9 +233,7 @@ const renderContent = (
       }
       return (
         <RequireMedia kind="audio" key={key}>
-          {/* Log content carries no caption track and none can be synthesised
-              here; the audio is model input being replayed, not authored media. */}
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- replayed model input from the log, which carries no caption track to attach */}
           <audio controls>
             <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
           </audio>

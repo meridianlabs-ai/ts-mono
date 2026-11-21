@@ -259,8 +259,7 @@ const kLetterListPattern = /^([a-zA-Z][).]\s.*?)$/gm;
 export const preRenderText = (txt: string): string => {
   if (!txt) return txt;
 
-  // eslint-disable-next-line no-misleading-character-class
-  txt = txt.replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, "");
+  txt = txt.replace(/^(?:\u200B|\u200C|\u200D|\u200E|\u200F|\uFEFF)/, "");
 
   // Special handling for ordered lists that look like
   // multiple choice (e.g. a), b), c), d) etc..)

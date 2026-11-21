@@ -92,7 +92,7 @@ export function useScaledVirtualizer(
     []
   );
 
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns a stable instance whose methods return changing data; wrapping it is this hook's job, and VirtualList (which the compiler does not memoize) reads it fresh each render
   const virtualizer = useVirtualizer({
     count: opts.count,
     estimateSize: opts.estimateSize,
