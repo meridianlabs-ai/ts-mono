@@ -364,17 +364,7 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/validation/components/ValidationCaseEditor.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/validation/components/ValidationCaseTargetEditor.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/app/validation/ValidationPanel.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
