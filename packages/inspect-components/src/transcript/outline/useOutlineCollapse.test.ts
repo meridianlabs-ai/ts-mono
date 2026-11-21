@@ -2,7 +2,10 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useOutlineCollapse } from "./useOutlineCollapse";
+import {
+  useOutlineCollapse,
+  type OutlineCollapseState,
+} from "./useOutlineCollapse";
 
 const defaults: Record<string, boolean> = { a: true, b: true };
 
@@ -11,6 +14,29 @@ describe("useOutlineCollapse", () => {
     const onSetCollapsed = vi.fn<(ids: Record<string, boolean>) => void>();
     renderHook(() => useOutlineCollapse(defaults, { onSetCollapsed }));
     expect(onSetCollapsed).toHaveBeenCalledWith(defaults);
+  });
+
+  it("seeds once the store's setter arrives", () => {
+    const onSetCollapsed = vi.fn<(ids: Record<string, boolean>) => void>();
+    const { rerender } = renderHook(
+      (collapse: OutlineCollapseState) =>
+        useOutlineCollapse(defaults, collapse),
+      { initialProps: {} }
+    );
+    rerender({ onSetCollapsed });
+    expect(onSetCollapsed).toHaveBeenCalledWith(defaults);
+  });
+
+  it("re-seeds with new defaults while the store is still unseeded", () => {
+    const onSetCollapsed = vi.fn<(ids: Record<string, boolean>) => void>();
+    const { rerender } = renderHook(
+      (ids: Record<string, boolean>) =>
+        useOutlineCollapse(ids, { onSetCollapsed }),
+      { initialProps: defaults }
+    );
+    const grown = { ...defaults, c: true };
+    rerender(grown);
+    expect(onSetCollapsed).toHaveBeenLastCalledWith(grown);
   });
 
   it("does not re-seed once the store has state", () => {

@@ -510,11 +510,6 @@
       "count": 4
     }
   },
-  "packages/inspect-components/src/transcript/hooks/useFocusLaneScope.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/transcript/hooks/useFocusTurnNavigation.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 2
@@ -553,11 +548,6 @@
   "packages/inspect-components/src/transcript/outline/TranscriptOutline.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "packages/inspect-components/src/transcript/outline/useOutlineCollapse.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/search/useTranscriptSearchSource.ts": {
