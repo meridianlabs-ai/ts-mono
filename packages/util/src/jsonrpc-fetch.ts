@@ -45,6 +45,18 @@ function isHttpProxyResponse(value: unknown): value is HttpProxyResponse {
   return true;
 }
 
+function toBodyText(body: BodyInit): string {
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body instanceof ArrayBuffer) {
+    return new TextDecoder().decode(body);
+  }
+  throw new Error(
+    `Unsupported request body: ${Object.prototype.toString.call(body)}`
+  );
+}
+
 function toHttpMethod(method: string): HttpProxyRequest["method"] {
   const upper = method.toUpperCase();
   if (
@@ -94,19 +106,7 @@ export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
       }
     }
 
-    // Get body as string
-    let body: string | undefined;
-    if (init?.body) {
-      body =
-        typeof init.body === "string"
-          ? init.body
-          : init.body instanceof ArrayBuffer
-            ? new TextDecoder().decode(init.body)
-            : // Last-resort fallback for other BodyInit kinds (Blob, FormData,
-              // streams) which aren't used on this JSON-RPC path; String() is a
-              // reasonable degenerate stringification here.
-              String(init.body);
-    }
+    const body = init?.body ? toBodyText(init.body) : undefined;
 
     const request: HttpProxyRequest = { method, path, headers, body };
     const response = await rpcClient(kMethodHttpRequest, [request]);

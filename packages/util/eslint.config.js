@@ -4,7 +4,7 @@ import baseConfig from "@tsmono/eslint-config/base";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/", "dist/", "bench/"],
+    ignores: ["node_modules/", "dist/", "bench/", "eslint.config.js"],
   },
   ...baseConfig,
   {
@@ -16,18 +16,6 @@ export default tseslint.config(
         },
         tsconfigRootDir: import.meta.dirname,
       },
-    },
-  },
-  // Legacy code overrides — copied from inspect_scout utils
-  {
-    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
-    rules: {
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-base-to-string": "off",
     },
   }
 );

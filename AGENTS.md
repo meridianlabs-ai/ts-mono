@@ -29,9 +29,7 @@ checklist behind. Git history keeps the original.
 - **pnpm only** — never npm or yarn
 - **Workspace deps**: `"workspace:*"` protocol
 - **`@tsmono/util`**: barrel export — import from the package, not individual files
-- **Tooling defaults are fully strict** — new packages get strictest rules;
-  only `packages/util` relaxes lint rules (local override), and
-  `apps/scout/tsconfig.json` still turns off `noImplicitAny`/`noImplicitThis`
+- **Tooling defaults are fully strict** — new packages get strictest rules
 
 ## Before you push
 
