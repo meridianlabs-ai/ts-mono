@@ -98,9 +98,6 @@ export const castScanValue = (value: unknown, valueType: string): unknown => {
     if (typeof value === "number") {
       return value;
     }
-    if (typeof value === "bigint") {
-      return Number(value);
-    }
     if (typeof value !== "string") {
       return null;
     }

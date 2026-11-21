@@ -84,7 +84,7 @@ describe("castScanValue", () => {
     { value: " 3 ", type: "number", expected: 3 },
     { value: "n/a", type: "number", expected: null },
     { value: "", type: "number", expected: null },
-    { value: 10n, type: "number", expected: 10 },
+    { value: [3], type: "number", expected: null },
     { value: "TRUE", type: "boolean", expected: true },
     { value: "False", type: "boolean", expected: false },
     { value: "yes", type: "boolean", expected: null },
