@@ -473,9 +473,6 @@
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {
