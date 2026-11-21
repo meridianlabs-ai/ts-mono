@@ -447,11 +447,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/columnFilter/useColumnFilter.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/content/RecordTree.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
