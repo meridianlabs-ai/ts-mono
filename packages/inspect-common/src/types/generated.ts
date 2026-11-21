@@ -1543,6 +1543,8 @@ export interface components {
             epochs?: number | null;
             /** Epochs Reducer */
             epochs_reducer?: string[] | null;
+            /** Epochs Reducer Specs */
+            epochs_reducer_specs?: components["schemas"]["EvalReducerDefinition"][] | null;
             /** Fail On Error */
             fail_on_error?: boolean | number | null;
             /** Limit */
@@ -1737,6 +1739,15 @@ export interface components {
             };
             /** Solver */
             solver: string;
+        };
+        /** EvalReducerDefinition */
+        EvalReducerDefinition: {
+            /** Name */
+            name: string;
+            /** Options */
+            options?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * EvalResults
