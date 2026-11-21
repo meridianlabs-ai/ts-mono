@@ -202,6 +202,28 @@ describe("RenderedContent scalars and arrays", () => {
     expect(container.textContent).toContain("42");
     expect(container.textContent).not.toContain("undefined");
   });
+
+  it("renders an all-null array nested in a metadata grid", () => {
+    const { container } = renderContent(
+      <MetaDataGrid id="grid" entries={{ empty: [null, null] }} />
+    );
+
+    expect(container.textContent).toContain("[1]");
+    expect(container.textContent).toContain("[null]");
+  });
+
+  it("falls back to a placeholder when a value can't be turned into text", () => {
+    const value = Object.assign(() => {}, {
+      toString: () => {
+        throw new Error("no text");
+      },
+    });
+    const { container } = renderContent(
+      <RenderedContent id="fn" entry={{ name: "fn", value }} />
+    );
+
+    expect(container.textContent).toBe("[Unable to display value]");
+  });
 });
 
 // Raw/Rendered is a display preference: it changes how prose renders, not

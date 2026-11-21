@@ -101,21 +101,21 @@ export const RenderedContent: FC<RenderedContentProps> = ({
 };
 
 const fallbackText = (value: unknown): string => {
-  switch (typeof value) {
-    case "string":
-    case "number":
-    case "boolean":
-    case "bigint":
-    case "symbol":
-    case "undefined":
-    case "function":
-      return String(value).trim();
-    default:
-      try {
+  try {
+    switch (typeof value) {
+      case "string":
+      case "number":
+      case "boolean":
+      case "bigint":
+      case "symbol":
+      case "undefined":
+      case "function":
+        return String(value).trim();
+      default:
         return JSON.stringify(value);
-      } catch {
-        return "[Unable to display value]";
-      }
+    }
+  } catch {
+    return "[Unable to display value]";
   }
 };
 
