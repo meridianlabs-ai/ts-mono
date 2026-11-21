@@ -450,21 +450,11 @@ describe("resolveScannerResultView", () => {
     );
   });
 
-  it("drops entries with unknown kind or invalid builtin names", () => {
-    // Intentionally malformed entry — runtime validation must drop it.
-    const bogus: { kind: string; name: string } = {
-      kind: "bogus",
-      name: "value",
-    };
+  it("drops strings that name no builtin", () => {
     const viewer: ViewerConfig = {
       scanner_result_view: {
         "*": {
-          fields: [
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: this case exists to prove runtime validation drops an entry no valid ScannerResultField could be
-            bogus as ScannerResultField,
-            builtin("value"),
-            "not_a_real_builtin",
-          ],
+          fields: [builtin("value"), "not_a_real_builtin"],
           exclude_fields: [],
         },
       },

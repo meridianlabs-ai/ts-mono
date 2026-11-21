@@ -164,8 +164,7 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      dir: stored.dir ?? "asc",
+      dir: stored.dir,
     };
   }, [stored]);
 };

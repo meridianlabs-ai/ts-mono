@@ -85,22 +85,12 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/samples/list/samplesView.converters.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "apps/inspect/src/app/samples/list/useSamplesView.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
   "apps/inspect/src/app/samples/print/SamplePrintView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -255,10 +245,6 @@
     }
   },
   "apps/inspect/src/state/hooks.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 3
     }
@@ -776,17 +762,6 @@
   "packages/react/src/virtual/VirtualList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 11
-    }
-  },
-  "packages/scout-components/src/sentinels/viewerConfig.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "packages/scout-components/src/sentinels/viewerConfig.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 1
     }
   },
   "packages/util/src/ansi.ts": {
