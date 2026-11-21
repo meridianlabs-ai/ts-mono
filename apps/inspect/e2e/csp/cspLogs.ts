@@ -18,7 +18,7 @@ export const kTerminalText = "csp-terminal-ok";
 // so the app's JSON parse worker runs.
 const kWorkerPadding = "padding ".repeat(8_000);
 
-export const kBrokenPngDataUri = "data:image/png;base64,AAAA";
+const kBrokenPngDataUri = "data:image/png;base64,AAAA";
 
 // A `script -T` recording: header line, then the bytes the timing file meters.
 const terminalHeader =
@@ -74,31 +74,53 @@ export const mainLog: EvalLog = createEvalLog({
   ],
 });
 
-// Markdown entity-escapes raw HTML, so markup reaches the sanitizer through
-// MathJax: `\href` emits its URL unescaped into the SVG, which lets a formula
-// break out of the attribute. That breakout, carrying a `<table background>`,
-// is the sanitizer bug this policy backstops; the other vectors ride the
-// same route.
-const breakout = (markup: string): string => `$\\href{x">${markup}}{z}$`;
+// Markdown entity-escapes raw HTML, so markup can only reach the sanitizer
+// through MathJax. Its serializer used to leave some attributes and <title>
+// text unescaped, so these TeX routes let a formula end one and write markup.
+// The pipeline now escapes both; each vector would fetch or run script if a
+// route reopened and the sanitizer missed it.
+const kOutOfTitle = "</title></g></g></g></svg>";
+const kRoutes = {
+  href: (markup: string) => `$\\href{x">${markup}}{z}$`,
+  mmlToken: (markup: string) => `$\\mmlToken{mi}[href='x">${markup}']{x}$`,
+  texttip: (markup: string) => `$\\texttip{z}{${kOutOfTitle}${markup}}$`,
+  texError: (markup: string) => `$\\begin{${kOutOfTitle}${markup}}x\\end{y}$`,
+};
+
+const svgPaint = (attribute: string): string =>
+  `<svg width="9" height="9"><path d="M0 0L9 9H0Z" ${attribute}="url(${probe(attribute)}.svg#x)"></path></svg>`;
+
+const kTableBackground = `<table background="${probe("table")}"><tr><td>table</td></tr></table>`;
+
+const kVectors = [
+  kTableBackground,
+  `<table><tr><td background="${probe("td")}">td</td></tr></table>`,
+  `<img src="${probe("img")}">`,
+  // A src the sanitizer keeps (inline raster data) that fails to decode, so
+  // the handler fires if it survives.
+  `<img src="${kBrokenPngDataUri}" onerror="fetch('${probe("onerror")}')">`,
+  `<svg onload="fetch('${probe("svg-onload")}')"></svg>`,
+  `<a href="javascript:fetch('${probe("javascript")}')">js link</a>`,
+  `<div style="background-image: url(${probe("css-url")})">css url</div>`,
+  `<svg><image href="${probe("svg-image")}"></image></svg>`,
+  `<video poster="${probe("poster")}"></video>`,
+  ...["fill", "stroke", "filter", "mask", "clip-path", "marker-start"].map(
+    svgPaint
+  ),
+];
+
+const kFormulas = [
+  ...kVectors.map(kRoutes.href),
+  kRoutes.mmlToken(kTableBackground),
+  kRoutes.texttip(kTableBackground),
+  kRoutes.texError(kTableBackground),
+];
+
+export const kCanaryFormulaCount = kFormulas.length;
 
 /** Rendering vectors that must neither run script nor reach the probe host. */
 export const kCanaryMarkdown = [
-  breakout(
-    `<table background="${probe("table")}"><tr><td>table</td></tr></table>`
-  ),
-  breakout(`<img src="${probe("img")}">`),
-  // A src the sanitizer keeps (inline raster data) that fails to decode, so
-  // the handler fires if it survives.
-  breakout(
-    `<img src="${kBrokenPngDataUri}" onerror="fetch('${probe("onerror")}')">`
-  ),
-  breakout(`<svg onload="fetch('${probe("svg-onload")}')"></svg>`),
-  breakout(`<a href="javascript:fetch('${probe("javascript")}')">js link</a>`),
-  breakout(
-    `<div style="background-image: url(${probe("css-url")})">css url</div>`
-  ),
-  breakout(`<svg><image href="${probe("svg-image")}"></image></svg>`),
-  breakout(`<video poster="${probe("poster")}"></video>`),
+  ...kFormulas,
   `![remote](${probe("markdown.png")})`,
 ].join("\n\n");
 

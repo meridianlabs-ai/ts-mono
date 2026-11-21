@@ -33,6 +33,29 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.innerHTML).not.toContain("onbegin");
   });
 
+  // Each writes its input into an attribute or a <title> that MathJax's
+  // serializer left unescaped. A <table> survives the sanitizer, so one in
+  // the output means the formula produced markup.
+  const breakout = '"></title></g></g></g></svg><table></table><b z="';
+  it.each([
+    ["\\href", `$\\href{x${breakout}}{z}$`],
+    ["\\mmlToken href", `$\\mmlToken{mi}[href='x${breakout}']{x}$`],
+    ["\\mmlToken fontfamily", `$\\mmlToken{mi}[fontfamily='x${breakout}']{x}$`],
+    ["\\unicode", `$\\unicode[x${breakout}]{x41}$`],
+    ["\\texttip", `$\\texttip{z}{${breakout}}$`],
+    ["\\mathtip", `$\\mathtip{z}{\\text{${breakout}}}$`],
+    ["an echoed TeX error", `$\\begin{${breakout}}x\\end{y}$`],
+    ["\\bbox", `$\\bbox[${breakout}]{z}$`],
+  ])("keeps %s from injecting markup", async (_label, payload) => {
+    const { container } = render(<MarkdownDiv markdown={payload} />);
+
+    await waitFor(() => {
+      expect(container.querySelector("mjx-container")).not.toBeNull();
+    });
+
+    expect(container.querySelector("table")).toBeNull();
+  });
+
   it("sanitizes HTML added by post-processing before insertion", async () => {
     const { container } = render(
       <MarkdownDiv
