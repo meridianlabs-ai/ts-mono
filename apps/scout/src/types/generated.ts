@@ -4288,6 +4288,8 @@ export interface components {
             event: "tool";
             /** Events */
             events: unknown[];
+            /** Execution Id */
+            execution_id?: string | null;
             /** Failed */
             failed?: boolean | null;
             /** Function */
@@ -4346,7 +4348,7 @@ export interface components {
          *     ```python
          *     ChatCompletionToolParam(
          *         type="function",
-         *         function=tool.model_dump(exclude_none=True),
+         *         function=tool.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
          *
@@ -4358,9 +4360,12 @@ export interface components {
          *     ToolParam(
          *         name=tool.name,
          *         description=tool.description,
-         *         input_schema=tool.parameters.model_dump(exclude_none=True),
+         *         input_schema=tool.parameters.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
+         *
+         *     Dump in JSON mode, as shown, so parameter defaults such as an `Enum`
+         *     member are converted to JSON values.
          */
         ToolInfo: {
             /** Description */
