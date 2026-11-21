@@ -1099,6 +1099,8 @@ describe("normalizeEvalSpec viewer config", () => {
             fields: [
               { kind: "bogus", name: "value" },
               { kind: "builtin", name: "value" },
+              { name: "label" },
+              { key: "k2" },
               { kind: "metadata", key: "k", collapsed: true },
               "explanation",
             ],
@@ -1110,6 +1112,8 @@ describe("normalizeEvalSpec viewer config", () => {
       "audit*": {
         fields: [
           { kind: "builtin", name: "value", collapsed: false },
+          { kind: "builtin", name: "label", collapsed: false },
+          { kind: "metadata", key: "k2", collapsed: false },
           { kind: "metadata", key: "k", collapsed: true },
           "explanation",
         ],
@@ -1142,6 +1146,12 @@ describe("normalizeEvalSample invalidation", () => {
       timestamp: "",
       metadata: {},
     });
+  });
+
+  it("drops an invalidation that isn't an object", () => {
+    expect(
+      normalizeEvalSample({ id: 1, epoch: 1, invalidation: true }).invalidation
+    ).toBeNull();
   });
 
   it("leaves an absent invalidation absent", () => {

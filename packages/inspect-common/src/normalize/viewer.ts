@@ -2,9 +2,10 @@ import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 /**
  * Normalize a raw `EvalSpec.viewer`, filling the defaults pydantic's
- * `inspect_ai.viewer._config` models apply at read time. Scanner-result
- * field entries whose `kind` is neither `builtin` nor `metadata` (only a
- * hand-edited log carries them) are dropped, since no renderer can place them.
+ * `inspect_ai.viewer._config` models apply at read time. A scanner-result
+ * field entry without `kind` gets the one its fields match, as pydantic's
+ * union does; one with any other `kind` (only a hand-edited log carries it)
+ * is dropped, since no renderer can place it.
  */
 export const normalizeViewerConfig = (
   raw: Record<string, unknown>
@@ -89,14 +90,21 @@ const normalizeScannerResultView = (
 const normalizeFieldEntries = (entries: unknown[]): unknown[] =>
   entries.flatMap((entry): unknown[] => {
     if (typeof entry === "string") return [entry];
-    if (
-      !isRecord(entry) ||
-      (entry["kind"] !== "builtin" && entry["kind"] !== "metadata")
-    ) {
-      return [];
-    }
+    if (!isRecord(entry)) return [];
+    const kind = entry["kind"] ?? fieldKindOf(entry);
+    if (kind !== "builtin" && kind !== "metadata") return [];
     const collapsed = entry["collapsed"];
     return [
-      { ...entry, collapsed: typeof collapsed === "boolean" && collapsed },
+      {
+        ...entry,
+        kind,
+        collapsed: typeof collapsed === "boolean" && collapsed,
+      },
     ];
   });
+
+const fieldKindOf = (entry: Record<string, unknown>) => {
+  if (typeof entry["name"] === "string") return "builtin";
+  if (typeof entry["key"] === "string") return "metadata";
+  return undefined;
+};

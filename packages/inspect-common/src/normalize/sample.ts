@@ -87,6 +87,8 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   const invalidation = sample["invalidation"];
   if (isRecord(invalidation)) {
     sample["invalidation"] = normalizeProvenance(invalidation);
+  } else if (invalidation !== undefined) {
+    sample["invalidation"] = null;
   }
   if (Array.isArray(sample["error_retries"])) {
     sample["error_retries"] = sample["error_retries"].map((retry: unknown) => {
