@@ -321,7 +321,7 @@
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 5
+      "count": 2
     }
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
