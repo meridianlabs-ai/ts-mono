@@ -655,7 +655,7 @@
   },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/react/src/hooks/useChromeNavOwnership.ts": {
