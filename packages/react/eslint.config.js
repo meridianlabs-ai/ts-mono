@@ -18,7 +18,6 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           allowDefaultProject: [
-            "eslint.config.js",
             ".storybook/*.ts",
             "vitest.config.ts",
             "vitest.setup.ts",
