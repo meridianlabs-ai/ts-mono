@@ -65,7 +65,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   const longestDisplayName = useMemo(() => {
     if (validationSets.length === 0) return "";
     return validationSets.reduce((longest, uri) => {
-      const name = getDisplayName(uri);
+      const name = getFilenameFromUri(uri);
       return name.length > longest.length ? name : longest;
     }, "");
   }, [validationSets]);
