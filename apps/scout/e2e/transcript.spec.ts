@@ -194,19 +194,22 @@ for (const { view, suffix } of [
   });
 }
 
-test("transcript panel shows error state when API fails", async ({
-  page,
-  network,
-  disableRetries: _,
-}) => {
-  network.use(
-    http.get("*/api/v2/transcripts/:dir/:id/info", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 })
-    )
-  );
+test.describe("with React Query retries disabled", () => {
+  test.use({ disableRetries: true });
 
-  const encodedDir = encodeBase64Url(TRANSCRIPTS_DIR);
-  await page.goto(`/#/transcripts/${encodedDir}/${TRANSCRIPT_ID}`);
+  test("transcript panel shows error state when API fails", async ({
+    page,
+    network,
+  }) => {
+    network.use(
+      http.get("*/api/v2/transcripts/:dir/:id/info", () =>
+        HttpResponse.text("Internal Server Error", { status: 500 })
+      )
+    );
 
-  await expect(page.getByText("Error Loading Transcript")).toBeVisible();
+    const encodedDir = encodeBase64Url(TRANSCRIPTS_DIR);
+    await page.goto(`/#/transcripts/${encodedDir}/${TRANSCRIPT_ID}`);
+
+    await expect(page.getByText("Error Loading Transcript")).toBeVisible();
+  });
 });
