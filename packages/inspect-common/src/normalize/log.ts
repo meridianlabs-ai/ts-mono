@@ -9,6 +9,8 @@ import type {
   EvalSpec,
 } from "../types";
 
+import { normalizeViewerConfig } from "./viewer";
+
 /**
  * Normalize a raw EvalSpec: apply the same legacy migrations as pydantic's
  * `EvalSpec.read_sandbox_spec` / `migrate_values`, then fill fields the
@@ -51,6 +53,8 @@ export const normalizeEvalSpec = (raw: unknown): EvalSpec => {
   ]) {
     if (!isRecord(spec[field])) spec[field] = {};
   }
+  const viewer = spec["viewer"];
+  if (isRecord(viewer)) spec["viewer"] = normalizeViewerConfig(viewer);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return spec as unknown as EvalSpec;
 };
@@ -161,21 +165,27 @@ export const normalizeConfigUpdates = (raw: unknown): ConfigUpdate[] => {
       if (fixed["previous"] === undefined) fixed["previous"] = null;
       changes.push(fixed);
     }
-    const provenance: Record<string, unknown> = isRecord(entry["provenance"])
-      ? { ...entry["provenance"] }
-      : {};
-    if (typeof provenance["timestamp"] !== "string")
-      provenance["timestamp"] = "";
-    if (typeof provenance["author"] !== "string") provenance["author"] = "";
-    if (!isRecord(provenance["metadata"])) provenance["metadata"] = {};
     const update = {
       ...entry,
       changes,
-      provenance,
+      provenance: normalizeProvenance(
+        isRecord(entry["provenance"]) ? entry["provenance"] : {}
+      ),
       scope: entry["scope"] === "process" ? "process" : "task",
     };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
     updates.push(update as unknown as ConfigUpdate);
   }
   return updates;
+};
+
+/** Fill the fields `ProvenanceData` requires (pydantic defaults `metadata`). */
+export const normalizeProvenance = (
+  raw: Record<string, unknown>
+): Record<string, unknown> => {
+  const provenance = { ...raw };
+  if (typeof provenance["timestamp"] !== "string") provenance["timestamp"] = "";
+  if (typeof provenance["author"] !== "string") provenance["author"] = "";
+  if (!isRecord(provenance["metadata"])) provenance["metadata"] = {};
+  return provenance;
 };
