@@ -38,7 +38,7 @@ interface ScanInfoCardProps {
   className?: string | string[];
 }
 const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
-  const record = {
+  const record: Record<string, unknown> = {
     ID: selectedScan.spec.scan_id,
     Name: selectedScan.spec.scan_name,
   };

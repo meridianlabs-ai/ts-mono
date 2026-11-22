@@ -706,11 +706,6 @@
       "count": 2
     }
   },
-  "packages/util/src/jsonrpc-fetch.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "packages/util/src/jsonrpc.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1

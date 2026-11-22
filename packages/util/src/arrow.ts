@@ -83,7 +83,10 @@ export const castScanValue = (value: unknown, valueType: string): unknown => {
     if (typeof value === "boolean") {
       return value;
     }
-    const strVal = String(value).toLowerCase();
+    if (typeof value !== "string") {
+      return null;
+    }
+    const strVal = value.toLowerCase();
     if (strVal === "true") {
       return true;
     }
@@ -95,7 +98,10 @@ export const castScanValue = (value: unknown, valueType: string): unknown => {
     if (typeof value === "number") {
       return value;
     }
-    const strVal = String(value).trim();
+    if (typeof value !== "string") {
+      return null;
+    }
+    const strVal = value.trim();
     if (strVal === "") {
       return null;
     }
