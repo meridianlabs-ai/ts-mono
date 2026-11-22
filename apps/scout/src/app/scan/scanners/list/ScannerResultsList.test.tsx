@@ -24,9 +24,10 @@ import {
   createStatus,
 } from "../../../../test/objectFactories";
 import { server } from "../../../../test/setup-msw";
-import { createTestWrapper } from "../../../../test/test-utils";
-import type { AppConfig } from "../../../../types/api-types";
+import { createTestWrapperWithStore } from "../../../../test/test-utils";
+import type { AppConfig, Status } from "../../../../types/api-types";
 import { useAppConfigAsync } from "../../../server/useAppConfig";
+import { kFilterAllResults } from "../results/ScannerResultsFilter";
 
 import { ScannerResultsList } from "./ScannerResultsList";
 
@@ -73,14 +74,15 @@ const result = (
 
 const renderResults = async (
   rows: ReturnType<typeof result>[],
-  firstText: string
+  firstText: string,
+  selectedScan: Status = createStatus()
 ) => {
   server.use(
     http.get("/api/v2/app-config", () =>
       HttpResponse.json<AppConfig>(createAppConfig())
     )
   );
-  const Wrapper = createTestWrapper();
+  const { wrapper: Wrapper, store } = createTestWrapperWithStore();
   let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
   render(
     <Wrapper>
@@ -92,7 +94,7 @@ const renderResults = async (
               <MemoryRouter>
                 <ScannerResultsList
                   id="results"
-                  selectedScan={createStatus()}
+                  selectedScan={selectedScan}
                   columnTable={from(rows)}
                 />
               </MemoryRouter>
@@ -105,7 +107,7 @@ const renderResults = async (
   expect(await screen.findByText(firstText)).toBeTruthy();
   const source = sources?.().get("results");
   if (!source) throw new Error("expected the results to register for Find");
-  return source;
+  return { source, store };
 };
 
 const expectRenderedCounts = (source: FindSource, terms: string[]) => {
@@ -116,8 +118,33 @@ const expectRenderedCounts = (source: FindSource, terms: string[]) => {
   }
 };
 
+it("seeds the selection, sort and filter a fresh scan view starts from", async () => {
+  const { store } = await renderResults(
+    [
+      result("a", { identifier: "a", explanation: "First result." }),
+      result("b", { identifier: "b", explanation: "Second result." }),
+    ],
+    "First result."
+  );
+
+  const state = store.getState();
+  expect(state.selectedScanResult).toBe("a");
+  expect(state.sortResults).toEqual([{ column: "Result", direction: "asc" }]);
+  expect(state.selectedFilter).toBe(kFilterAllResults);
+});
+
+it("leaves the filter unset for a completed scan", async () => {
+  const { store } = await renderResults(
+    [result("a", { explanation: "First result." })],
+    "First result.",
+    createStatus({ complete: true })
+  );
+
+  expect(store.getState().selectedFilter).toBeUndefined();
+});
+
 it("counts Find matches in the text each result row shows", async () => {
-  const source = await renderResults(
+  const { source } = await renderResults(
     [
       result("a", {
         explanation: "The model refused twice.",
@@ -136,7 +163,7 @@ it("counts Find matches in the text each result row shows", async () => {
 });
 
 it("counts table values, validation targets and errors as they render", async () => {
-  const source = await renderResults(
+  const { source } = await renderResults(
     [
       result("obj", {
         explanation: "Object value.",

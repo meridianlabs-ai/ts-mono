@@ -5,7 +5,7 @@ import {
   VscodeRadioGroup,
 } from "@vscode-elements/react-elements";
 import clsx from "clsx";
-import React, { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import React, { FC, ReactNode, useCallback, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
@@ -16,6 +16,7 @@ import {
   MenuActionButton,
   SidebarHeader,
 } from "@tsmono/react/components";
+import { useMirrorToStore } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 
 import {
@@ -87,7 +88,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
 
   // Only issue case/cases queries for URIs that exist in the current project.
   // The store may hold a stale URI from a previous project/session; gating on
-  // setsData prevents wasted requests and errors before the init effect clears it.
+  // setsData prevents wasted requests and errors before the mirror below clears it.
   const validatedSetUri =
     editorValidationSetUri && setsData?.includes(editorValidationSetUri)
       ? editorValidationSetUri
@@ -112,34 +113,21 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
     error: casesError,
   } = useValidationCases(validatedSetUri ? validatedSetUri : skipToken);
 
-  // Initialize from URL param or fall back to first available set.
-  // URL param always takes precedence when present and valid.
-  // Also clears stale store values that don't exist in the current project.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!setsData) return;
-
-    const validationSetParam = getValidationSetParam(searchParams);
-    if (validationSetParam && setsData.includes(validationSetParam)) {
-      // URL param is valid - use it (even if store has a different value)
-      if (editorValidationSetUri !== validationSetParam) {
-        setEditorSelectedValidationSetUri(validationSetParam);
-      }
-    } else if (
-      !editorValidationSetUri ||
-      !setsData.includes(editorValidationSetUri)
-    ) {
-      // No store value, or store value is stale (not in current project's sets).
-      // Fall back to first set, or clear if no sets exist.
-      const fallback = setsData.length > 0 ? setsData[0] : undefined;
-      setEditorSelectedValidationSetUri(fallback);
-    }
-  }, [
-    setsData,
-    searchParams,
-    editorValidationSetUri,
-    setEditorSelectedValidationSetUri,
-  ]);
+  // `null` means "clear": useMirrorToStore never writes `undefined`.
+  const validationSetParam = getValidationSetParam(searchParams);
+  const wantedSetUri = !setsData
+    ? undefined
+    : validationSetParam && setsData.includes(validationSetParam)
+      ? validationSetParam
+      : validatedSetUri || (setsData[0] ?? null);
+  // An empty store already counts as cleared, so a stale URI written later
+  // still changes the value and gets cleared.
+  useMirrorToStore(
+    (wantedSetUri ?? undefined) === editorValidationSetUri
+      ? undefined
+      : wantedSetUri,
+    (uri) => setEditorSelectedValidationSetUri(uri ?? undefined)
+  );
 
   const error = setsError || casesError || caseError;
   const loading =

@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
-import { useEventListener } from "@tsmono/react/hooks";
+import { useEventListener, useMirrorToStore } from "@tsmono/react/hooks";
 import { openRouteInNewTab } from "@tsmono/react/routing";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
@@ -94,12 +94,12 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const sortResults = useStore((state) => state.sortResults);
   const setSortResults = useStore((state) => state.setSortResults);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (selectedFilter === undefined && selectedScan.complete === false) {
-      setSelectedFilter(kFilterAllResults);
-    }
-  }, [selectedScan, selectedFilter, setSelectedFilter]);
+  useMirrorToStore(
+    selectedFilter === undefined && selectedScan.complete === false
+      ? kFilterAllResults
+      : undefined,
+    setSelectedFilter
+  );
 
   const kDefaultSort: SortColumn[] = useMemo(
     () => [{ column: "Result", direction: "asc" }],
@@ -110,12 +110,10 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const activeSort = sortResults ?? kDefaultSort;
 
   // Sync the default to the store so the column header shows the sort indicator.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!sortResults && scannerSummaries.length > 0) {
-      setSortResults(kDefaultSort);
-    }
-  }, [sortResults, scannerSummaries, kDefaultSort, setSortResults]);
+  useMirrorToStore(
+    !sortResults && scannerSummaries.length > 0 ? kDefaultSort : undefined,
+    setSortResults
+  );
 
   // Apply text filtering to the scanner summaries
   const filteredSummaries = useMemo(() => {
@@ -319,17 +317,12 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     { capture: true }
   );
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // Only set if nothing is selected and we have results
-    if (
-      !selectedScanResult &&
-      filteredSummaries.length > 0 &&
-      filteredSummaries[0]?.identifier
-    ) {
-      setSelectedScanResult(filteredSummaries[0].identifier);
-    }
-  }, [filteredSummaries, selectedScanResult, setSelectedScanResult]);
+  useMirrorToStore(
+    selectedScanResult
+      ? undefined
+      : filteredSummaries[0]?.identifier || undefined,
+    setSelectedScanResult
+  );
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
