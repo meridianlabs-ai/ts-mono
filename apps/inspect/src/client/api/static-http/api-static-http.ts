@@ -7,7 +7,7 @@ import { fetchRange, isUri } from "@tsmono/util";
 
 import { fetchSize } from "../../remote/remoteZipFile";
 import { download_file } from "../shared/api-shared";
-import { Capabilities, LogPreview, LogRoot, LogViewAPI } from "../types";
+import { LogPreview, LogRoot, LogViewAPI } from "../types";
 
 import {
   fetchJsonFile,
@@ -194,11 +194,7 @@ function staticHttpApiForLog(logInfo: {
       console.log(`[CLIENT MESSAGE] (${log_file}): ${message}`);
       return Promise.resolve();
     },
-    get_log_contents: async (
-      log_file: string,
-      _headerOnly?: number,
-      _capabilities?: Capabilities
-    ) => {
+    get_log_contents: async (log_file: string) => {
       const response = await fetchLogFile(log_file);
       if (response) {
         return response;

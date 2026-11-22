@@ -69,8 +69,7 @@ const initialState: LogsState = {
 
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
-  _store: unknown
+  get: () => StoreState
 ): LogsSlice => {
   const slice = {
     // State

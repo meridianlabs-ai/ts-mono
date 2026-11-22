@@ -21,15 +21,5 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
-  },
-  // Test helpers / fixture files — allow _-prefixed unused vars for API compat
-  {
-    files: ["**/*.test.ts", "**/testHelpers.ts", "**/syntheticNodes.ts"],
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-    },
   }
 );

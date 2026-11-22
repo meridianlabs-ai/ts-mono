@@ -41,7 +41,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (values: ScoreValue[], _types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[]) => {
       if (
         values.length === 2 &&
         values.every((val) => {
@@ -90,7 +90,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (types && types.length === 1 && types[0] === "object") {
         if (values.length > 0 && values.every(Array.isArray)) {
-          return listScoreDescriptor(values);
+          return listScoreDescriptor();
         } else if (values.every((value) => !Array.isArray(value))) {
           return objectScoreDescriptor(values);
         }
@@ -98,7 +98,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
     },
   },
   {
-    describe: (_values: ScoreValue[], _types?: ScorerTypes[]) => {
+    describe: () => {
       return otherScoreDescriptor();
     },
   },

@@ -11,7 +11,12 @@ import {
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 
-import { EventData, SampleData, SampleDataResponse } from "../client/api/types";
+import {
+  ClientAPI,
+  EventData,
+  SampleData,
+  SampleDataResponse,
+} from "../client/api/types";
 
 import {
   createSampleStreamSession,
@@ -92,7 +97,9 @@ const chatMessage = (id: string, role: string, content: string) => ({
 
 const mockApi = {
   get_log_sample_data: vi.fn(),
-  log_message: vi.fn((_logFile: string, _message: string) => Promise.resolve()),
+  log_message: vi.fn<NonNullable<ClientAPI["log_message"]>>(() =>
+    Promise.resolve()
+  ),
 };
 const api = testClientAPI(mockApi);
 

@@ -149,8 +149,7 @@ function makeToolEventNode(
   args: Record<string, string>,
   result: string,
   startSec: number,
-  endSec: number,
-  _tokens: number
+  endSec: number
 ): TimelineEvent {
   const event: ToolEvent = {
     event: "tool",
@@ -184,8 +183,7 @@ function makeToolErrorEventNode(
   errorMsg: string,
   errorType: NonNullable<ToolEvent["error"]>["type"],
   startSec: number,
-  endSec: number,
-  _tokens: number
+  endSec: number
 ): TimelineEvent {
   const event: ToolEvent = {
     event: "tool",
@@ -268,8 +266,7 @@ function makeModelErrorEventNode(
 function makeCompactionEventNode(
   tokensBefore: number,
   tokensAfter: number,
-  startSec: number,
-  _endSec: number
+  startSec: number
 ): TimelineEvent {
   const event: CompactionEvent = {
     event: "compaction",
@@ -373,8 +370,7 @@ function sequentialAgents(): TimelineScenario {
         { cmd: "find . -type f" },
         "src/\nlib/\ntests/",
         5,
-        7,
-        800
+        7
       ),
       makeModelEventNode(
         "I see a standard project layout. Let me look at the main module.",
@@ -387,8 +383,7 @@ function sequentialAgents(): TimelineScenario {
         { path: "src/main.py" },
         "def main(): ...",
         10,
-        12,
-        1200
+        12
       ),
       makeModelEventNode("The main entry point is clear.", 12, 14, 1100),
     ],
@@ -410,14 +405,7 @@ function sequentialAgents(): TimelineScenario {
         18,
         1800
       ),
-      makeToolEventNode(
-        "bash",
-        { cmd: "wc -l src/*.py" },
-        "142 total",
-        18,
-        19,
-        400
-      ),
+      makeToolEventNode("bash", { cmd: "wc -l src/*.py" }, "142 total", 18, 19),
       makeModelEventNode(
         "The plan is: 1) Refactor core module, 2) Add tests, 3) Update docs.",
         19,
@@ -449,8 +437,7 @@ function sequentialAgents(): TimelineScenario {
         { path: "src/core.py" },
         "File written successfully",
         29,
-        32,
-        2800
+        32
       ),
       makeModelEventNode(
         "Core module done. Now adding test coverage.",
@@ -463,17 +450,9 @@ function sequentialAgents(): TimelineScenario {
         { path: "tests/test_core.py" },
         "File written successfully",
         36,
-        40,
-        3200
+        40
       ),
-      makeToolEventNode(
-        "bash",
-        { cmd: "pytest tests/" },
-        "5 passed",
-        40,
-        44,
-        1000
-      ),
+      makeToolEventNode("bash", { cmd: "pytest tests/" }, "5 passed", 40, 44),
       makeModelEventNode(
         "All tests pass. Updating documentation.",
         44,
@@ -485,8 +464,7 @@ function sequentialAgents(): TimelineScenario {
         { path: "docs/api.md" },
         "File written successfully",
         48,
-        50,
-        2600
+        50
       ),
       makeModelEventNode(
         "Implementation complete with full test coverage.",
@@ -539,8 +517,7 @@ function iterativeAgents(): TimelineScenario {
       { cmd: "ls -la src/" },
       "core.py\nutils.py\nconfig.py",
       5,
-      6,
-      600
+      6
     ),
     makeModelEventNode("Found key files. Checking dependencies.", 6, 9, 2400),
     makeToolEventNode(
@@ -548,8 +525,7 @@ function iterativeAgents(): TimelineScenario {
       { cmd: "pip list" },
       "requests==2.31\nflask==3.0",
       9,
-      10,
-      1400
+      10
     ),
   ]);
   const plan1 = makeSpan("plan-1", "Plan", "agent", 11, 18, 4600, [
@@ -564,8 +540,7 @@ function iterativeAgents(): TimelineScenario {
       { path: "src/core.py" },
       "class Core: ...",
       14,
-      16,
-      1000
+      16
     ),
     makeModelEventNode("Need more info before finalizing plan.", 16, 18, 1400),
   ]);
@@ -581,8 +556,7 @@ function iterativeAgents(): TimelineScenario {
       { cmd: "grep -r 'TODO' src/" },
       "core.py:12: TODO fix",
       22,
-      23,
-      800
+      23
     ),
     makeModelEventNode("Found TODOs. Reviewing test coverage.", 23, 26, 3900),
   ]);
@@ -602,16 +576,14 @@ function iterativeAgents(): TimelineScenario {
       { path: "src/core.py" },
       "File written",
       38,
-      42,
-      4800
+      42
     ),
     makeToolEventNode(
       "write_file",
       { path: "src/utils.py" },
       "File written",
       42,
-      45,
-      3600
+      45
     ),
     makeModelEventNode("Running tests to verify changes.", 45, 48, 3200),
     makeToolEventNode(
@@ -619,8 +591,7 @@ function iterativeAgents(): TimelineScenario {
       { cmd: "pytest -v" },
       "8 passed, 0 failed",
       48,
-      51,
-      1200
+      51
     ),
     makeModelEventNode("All tests pass. Build complete.", 51, 55, 16600),
   ]);
@@ -652,8 +623,7 @@ function deepNesting(): TimelineScenario {
       { path: "tests/test_gen.py" },
       "File written",
       50,
-      54,
-      1800
+      54
     ),
     makeModelEventNode("Test cases generated successfully.", 54, 58, 1600),
   ]);
@@ -663,16 +633,14 @@ function deepNesting(): TimelineScenario {
       { cmd: "pytest tests/test_gen.py" },
       "Running...",
       59,
-      61,
-      200
+      61
     ),
     makeToolErrorEventNode(
       "bash",
       "Process timed out after 30s",
       "timeout",
       61,
-      64,
-      200
+      64
     ),
   ]);
   const evaluate = makeSpan("evaluate", "Evaluate", "agent", 65, 75, 4200, [
@@ -687,8 +655,7 @@ function deepNesting(): TimelineScenario {
       { path: "tests/test_gen.py" },
       "def test_basic(): ...",
       69,
-      71,
-      600
+      71
     ),
     makeModelEventNode(
       "Test needs adjustment for timeout. Evaluation complete.",
@@ -705,18 +672,16 @@ function deepNesting(): TimelineScenario {
       { path: "src/module.py" },
       "File written",
       26,
-      30,
-      2800
+      30
     ),
-    makeCompactionEventNode(12000, 6500, 30, 31),
+    makeCompactionEventNode(12000, 6500, 30),
     makeModelEventNode("Continuing after context compaction.", 31, 36, 4400),
     makeToolEventNode(
       "write_file",
       { path: "src/helpers.py" },
       "File written",
       36,
-      40,
-      2400
+      40
     ),
     makeModelEventNode("Code implementation phase complete.", 40, 44, 2400),
   ]);
@@ -733,17 +698,9 @@ function deepNesting(): TimelineScenario {
       { path: "tests/test_gen.py" },
       "File updated",
       80,
-      83,
-      1800
+      83
     ),
-    makeToolEventNode(
-      "bash",
-      { cmd: "pytest tests/" },
-      "3 passed",
-      83,
-      86,
-      800
-    ),
+    makeToolEventNode("bash", { cmd: "pytest tests/" }, "3 passed", 83, 86),
     makeModelEventNode("All tests pass after fixes.", 86, 88, 1400),
   ]);
 
@@ -754,8 +711,7 @@ function deepNesting(): TimelineScenario {
       { cmd: "find . -type f" },
       "src/\nlib/\ntests/",
       6,
-      9,
-      800
+      9
     ),
     makeModelEventNode("Project structure understood.", 9, 14, 2000),
     makeToolEventNode(
@@ -763,8 +719,7 @@ function deepNesting(): TimelineScenario {
       { path: "src/main.py" },
       "def main(): ...",
       14,
-      18,
-      1400
+      18
     ),
   ]);
 
@@ -810,8 +765,7 @@ function parallelAgents(): TimelineScenario {
         { cmd: "curl api/docs" },
         '{"endpoints": [...]}',
         5,
-        8,
-        1400
+        8
       ),
       makeModelEventNode("API structure documented.", 8, 11, 2200),
       makeToolEventNode(
@@ -819,8 +773,7 @@ function parallelAgents(): TimelineScenario {
         { path: "api/schema.json" },
         '{"type": "object"}',
         11,
-        14,
-        1700
+        14
       ),
     ],
     { description: "Search for API documentation" }
@@ -839,8 +792,7 @@ function parallelAgents(): TimelineScenario {
         { cmd: "sqlite3 db.sqlite .schema" },
         "CREATE TABLE users ...",
         7,
-        10,
-        1600
+        10
       ),
       makeModelEventNode("Database schema analyzed.", 10, 13, 2800),
       makeToolEventNode(
@@ -848,8 +800,7 @@ function parallelAgents(): TimelineScenario {
         { cmd: "sqlite3 db.sqlite 'SELECT count(*) FROM users'" },
         "1247",
         13,
-        16,
-        1800
+        16
       ),
     ],
     { description: "Analyze existing database schema and data" }
@@ -868,8 +819,7 @@ function parallelAgents(): TimelineScenario {
         { cmd: "ls src/components/" },
         "Header.tsx\nFooter.tsx",
         5,
-        7,
-        800
+        7
       ),
       makeModelEventNode("Frontend component inventory complete.", 7, 10, 2200),
       makeToolEventNode(
@@ -877,8 +827,7 @@ function parallelAgents(): TimelineScenario {
         { path: "src/App.tsx" },
         "function App() { ... }",
         10,
-        12,
-        1400
+        12
       ),
     ],
     { description: "Inventory frontend components and architecture" }
@@ -899,16 +848,14 @@ function parallelAgents(): TimelineScenario {
       { path: "src/api/routes.py" },
       "File written",
       30,
-      34,
-      3800
+      34
     ),
     makeToolEventNode(
       "write_file",
       { path: "src/components/Dashboard.tsx" },
       "File written",
       34,
-      38,
-      4200
+      38
     ),
     makeModelEventNode(
       "Core components built. Adding integration.",
@@ -921,8 +868,7 @@ function parallelAgents(): TimelineScenario {
       { cmd: "npm run build" },
       "Build successful",
       42,
-      46,
-      1200
+      46
     ),
     makeModelEventNode("Build and integration complete.", 46, 52, 10600),
   ]);
@@ -954,8 +900,7 @@ function inlineMarkers(): TimelineScenario {
       { cmd: "npm install" },
       "added 142 packages",
       6,
-      10,
-      1200
+      10
     ),
     makeModelEventNode("Dependencies installed. Writing code.", 10, 16, 4800),
     makeToolEventNode(
@@ -963,8 +908,7 @@ function inlineMarkers(): TimelineScenario {
       { path: "src/feature.ts" },
       "File written",
       16,
-      20,
-      3600
+      20
     ),
     makeModelErrorEventNode(
       "Attempting to call the API",
@@ -984,16 +928,14 @@ function inlineMarkers(): TimelineScenario {
       { cmd: "curl -X POST api/endpoint" },
       '{"status": "ok"}',
       28,
-      31,
-      1400
+      31
     ),
     makeToolErrorEventNode(
       "bash",
       "Command timed out after 60s",
       "timeout",
       31,
-      35,
-      800
+      35
     ),
     makeModelEventNode(
       "Tool timed out. Working around the issue.",
@@ -1001,7 +943,7 @@ function inlineMarkers(): TimelineScenario {
       39,
       3800
     ),
-    makeCompactionEventNode(15000, 8000, 39, 40),
+    makeCompactionEventNode(15000, 8000, 39),
     makeModelEventNode(
       "Context compacted. Continuing with reduced history.",
       40,
@@ -1013,8 +955,7 @@ function inlineMarkers(): TimelineScenario {
       { path: "src/feature.ts" },
       "File updated",
       45,
-      49,
-      4800
+      49
     ),
     makeModelEventNode("Feature implementation complete.", 49, 55, 7600),
   ]);
@@ -1053,8 +994,7 @@ function flatTranscript(): TimelineScenario {
         { cmd: "ls -la" },
         "total 42\ndrwxr-xr-x ...",
         4,
-        6,
-        600
+        6
       ),
       makeModelEventNode(
         "I see the project files. Let me read the config.",
@@ -1067,8 +1007,7 @@ function flatTranscript(): TimelineScenario {
         { path: "config.yaml" },
         "port: 8080\ndb: postgres",
         10,
-        12,
-        800
+        12
       ),
       makeModelEventNode(
         "Configuration loaded. Making the requested change.",
@@ -1081,16 +1020,14 @@ function flatTranscript(): TimelineScenario {
         { path: "config.yaml" },
         "port: 9090\ndb: postgres",
         18,
-        20,
-        600
+        20
       ),
       makeToolEventNode(
         "bash",
         { cmd: "python validate.py" },
         "Config valid",
         20,
-        23,
-        400
+        23
       ),
       makeModelEventNode(
         "Change applied and validated successfully.",
@@ -1103,8 +1040,7 @@ function flatTranscript(): TimelineScenario {
         { cmd: "python -m pytest" },
         "12 passed",
         28,
-        34,
-        800
+        34
       ),
       makeModelEventNode("All tests pass. Task complete.", 34, 40, 900),
     ]
@@ -1175,16 +1111,7 @@ function manyRows(): TimelineScenario {
     ];
 
     for (const [fn, args, result] of evts) {
-      content.push(
-        makeToolEventNode(
-          fn,
-          args,
-          result,
-          mid,
-          mid + 1,
-          Math.floor(tokens * 0.2)
-        )
-      );
+      content.push(makeToolEventNode(fn, args, result, mid, mid + 1));
     }
 
     // Add model error on Test agent (index 4)
@@ -1202,7 +1129,7 @@ function manyRows(): TimelineScenario {
 
     // Add compaction on Refactor agent (index 6)
     if (i === 6) {
-      content.push(makeCompactionEventNode(9000, 5000, mid + 1, mid + 2));
+      content.push(makeCompactionEventNode(9000, 5000, mid + 1));
     }
 
     content.push(
@@ -1261,8 +1188,7 @@ function utilityAgents(): TimelineScenario {
         { cmd: "shellcheck script.sh" },
         "No issues",
         3,
-        4,
-        300
+        4
       ),
     ],
     {
@@ -1276,7 +1202,7 @@ function utilityAgents(): TimelineScenario {
     8,
     9,
     200,
-    [makeToolEventNode("validate", { rule: "safety" }, "Pass", 8, 9, 200)],
+    [makeToolEventNode("validate", { rule: "safety" }, "Pass", 8, 9)],
     {
       utility: true,
     }
@@ -1294,8 +1220,7 @@ function utilityAgents(): TimelineScenario {
         { cmd: "shellcheck deploy.sh" },
         "No issues",
         14,
-        15,
-        300
+        15
       ),
     ],
     {
@@ -1315,8 +1240,7 @@ function utilityAgents(): TimelineScenario {
         { target: "src/" },
         "All files formatted",
         20,
-        21,
-        250
+        21
       ),
     ],
     {
@@ -1333,14 +1257,7 @@ function utilityAgents(): TimelineScenario {
       3800
     ),
     util2,
-    makeToolEventNode(
-      "write_file",
-      { path: "src/build.py" },
-      "Written",
-      9,
-      13,
-      4200
-    ),
+    makeToolEventNode("write_file", { path: "src/build.py" }, "Written", 9, 13),
     makeModelEventNode(
       "Core written. Continuing with more code.",
       13,
@@ -1353,8 +1270,7 @@ function utilityAgents(): TimelineScenario {
       { path: "src/deploy.py" },
       "Written",
       15,
-      19,
-      3600
+      19
     ),
     makeModelEventNode(
       "Deploy script ready. Running format check.",
@@ -1369,8 +1285,7 @@ function utilityAgents(): TimelineScenario {
       { cmd: "python -m build" },
       "Build successful",
       30,
-      40,
-      2400
+      40
     ),
     makeModelEventNode("Package built and ready.", 40, 45, 3400),
   ]);
@@ -1408,8 +1323,7 @@ function branchesSingleFork(): TimelineScenario {
         { path: "src/refactored.py" },
         "Written",
         18,
-        20,
-        1600
+        20
       ),
       makeModelEventNode("Refactoring complete.", 20, 22, 1200),
     ]
@@ -1423,14 +1337,7 @@ function branchesSingleFork(): TimelineScenario {
     3500,
     [
       makeModelEventNode("Validating the refactored code.", 23, 25, 1400),
-      makeToolEventNode(
-        "bash",
-        { cmd: "pytest tests/" },
-        "6 passed",
-        25,
-        27,
-        800
-      ),
+      makeToolEventNode("bash", { cmd: "pytest tests/" }, "6 passed", 25, 27),
       makeModelEventNode("Validation passed.", 27, 28, 1300),
     ]
   );
@@ -1462,8 +1369,7 @@ function branchesSingleFork(): TimelineScenario {
         { path: "src/rewritten.py" },
         "Written",
         19,
-        22,
-        1800
+        22
       ),
       makeModelEventNode("Rewrite approach complete.", 22, 25, 1100),
     ]
@@ -1484,8 +1390,7 @@ function branchesSingleFork(): TimelineScenario {
       { path: "src/module.py" },
       "Written",
       6,
-      10,
-      3200
+      10
     ),
     makeModelEventNode(
       "Initial code written. Iterating on design.",
@@ -1498,8 +1403,7 @@ function branchesSingleFork(): TimelineScenario {
       { path: "src/module.py" },
       "Updated",
       16,
-      20,
-      2000
+      20
     ),
     makeModelEventNode("Code phase finalized.", 20, 24, 1400),
   ]);
@@ -1510,17 +1414,9 @@ function branchesSingleFork(): TimelineScenario {
       { path: "tests/test_module.py" },
       "Written",
       28,
-      32,
-      3400
+      32
     ),
-    makeToolEventNode(
-      "bash",
-      { cmd: "pytest tests/" },
-      "7 passed",
-      32,
-      36,
-      1200
-    ),
+    makeToolEventNode("bash", { cmd: "pytest tests/" }, "7 passed", 32, 36),
     makeModelEventNode("All tests passing.", 36, 40, 3600),
   ]);
 
@@ -1583,8 +1479,7 @@ function branchesMultipleForks(): TimelineScenario {
         { cmd: "python solve.py" },
         "Partial result",
         11,
-        13,
-        1200
+        13
       ),
       makeModelEventNode("Attempt did not fully succeed.", 13, 14, 1000),
     ]
@@ -1605,8 +1500,7 @@ function branchesMultipleForks(): TimelineScenario {
       { cmd: "python solve.py --retry" },
       "Better result",
       33,
-      36,
-      1000
+      36
     ),
     makeModelEventNode("Retry showed improvement.", 36, 38, 1200),
   ]);
@@ -1631,16 +1525,14 @@ function branchesMultipleForks(): TimelineScenario {
       { path: "src/alt_solver.py" },
       "Written",
       34,
-      37,
-      1800
+      37
     ),
     makeToolEventNode(
       "bash",
       { cmd: "python alt_solver.py" },
       "Success!",
       37,
-      40,
-      800
+      40
     ),
     makeModelEventNode("Alternative approach succeeded.", 40, 42, 1100),
   ]);
@@ -1660,8 +1552,7 @@ function branchesMultipleForks(): TimelineScenario {
       { path: "src/solver.py" },
       "Written",
       6,
-      10,
-      2800
+      10
     ),
     makeModelEventNode("Core solver implemented.", 10, 16, 4200),
     makeToolEventNode(
@@ -1669,29 +1560,20 @@ function branchesMultipleForks(): TimelineScenario {
       { cmd: "python solver.py" },
       "Initial results",
       16,
-      20,
-      1400
+      20
     ),
     makeModelEventNode("Optimizing the solver.", 20, 28, 3200),
   ]);
   const test = makeSpan("test", "Test", "agent", 29, 48, 10400, [
     makeModelEventNode("Running comprehensive test suite.", 29, 33, 2800),
-    makeToolEventNode(
-      "bash",
-      { cmd: "pytest tests/ -v" },
-      "12 passed",
-      33,
-      38,
-      1600
-    ),
+    makeToolEventNode("bash", { cmd: "pytest tests/ -v" }, "12 passed", 33, 38),
     makeModelEventNode("Tests validated. Checking edge cases.", 38, 43, 3200),
     makeToolEventNode(
       "bash",
       { cmd: "pytest tests/edge_cases.py" },
       "4 passed",
       43,
-      46,
-      1000
+      46
     ),
     makeModelEventNode("All edge cases handled.", 46, 48, 1800),
   ]);

@@ -163,7 +163,7 @@ describe("useLogHeader", () => {
     // Hold the network read, so re-renders land while the fetch is in flight
     // (a re-demand then would be a new engine request, not a cache hit).
     const details = Promise.withResolvers<LogDetails>();
-    const getLogDetails = vi.fn((_file: string) => details.promise);
+    const getLogDetails = vi.fn(() => details.promise);
     await activate(testClientAPI({ get_log_details: getLogDetails }));
     const ensure = vi.spyOn(fetchEngine, "ensure");
 

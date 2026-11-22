@@ -140,16 +140,13 @@ describe("parseScanResultSummaries", () => {
       [nullMetadataExpectedSummary],
       "row with null transcript_metadata",
     ],
-  ])(
-    "returns expected output for %s",
-    async (input, expected, _desc: string) => {
-      const result = await parseScanResultSummaries(from(input));
-      expect(result).toHaveLength(expected.length);
-      for (const [i, r] of result.entries()) {
-        expect(r).toMatchObject(expected[i]!);
-      }
+  ])("returns expected output for %s", async (input, expected) => {
+    const result = await parseScanResultSummaries(from(input));
+    expect(result).toHaveLength(expected.length);
+    for (const [i, r] of result.entries()) {
+      expect(r).toMatchObject(expected[i]!);
     }
-  );
+  });
 
   it("normalizes a legacy-shaped row at the parse boundary", async () => {
     const legacyRow = {
@@ -212,14 +209,11 @@ describe("parseScanResultData", () => {
       nullMetadataExpectedData,
       "data with null transcript_metadata",
     ],
-  ])(
-    "returns expected output for %s",
-    async (input, expected, _desc: string) => {
-      const table = from([input]);
-      const result = await parseScanResultData(table);
-      expect(result).toMatchObject(expected);
-    }
-  );
+  ])("returns expected output for %s", async (input, expected) => {
+    const table = from([input]);
+    const result = await parseScanResultData(table);
+    expect(result).toMatchObject(expected);
+  });
 
   it("handles missing scan_events column gracefully", async () => {
     const { scan_events: _, ...dataWithoutEvents } = typicalColumnData;
