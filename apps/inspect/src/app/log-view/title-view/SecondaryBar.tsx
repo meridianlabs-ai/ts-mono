@@ -184,11 +184,11 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
       <div
         className={styles.valueGrid}
         style={{
-          gridTemplateColumns: `${values
+          gridTemplateColumns: values
             .map((val) => {
               return val.size;
             })
-            .join(" ")}`,
+            .join(" "),
         }}
       >
         {values.map((val) => {

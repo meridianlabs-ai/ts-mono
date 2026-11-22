@@ -1,13 +1,10 @@
 export const printArray = (arr: unknown[], size: number = 50): string => {
   // Create a truncated display of the array by trying to fit it into specific size
-  const envelope = ["[", "]"];
+  const open = "[";
+  const close = "]";
   const ellipsis = "…";
   const separator = ", ";
-  let remainingSize =
-    size -
-    (envelope[0]?.length || 0) -
-    (envelope[1]?.length || 0) -
-    separator.length;
+  let remainingSize = size - open.length - close.length - separator.length;
 
   // Iterate from the outside in, building the list of items to display
   const headItems: string[] = [];
@@ -60,5 +57,5 @@ export const printArray = (arr: unknown[], size: number = 50): string => {
   }
 
   const allItems = [...headItems, ...tailItems];
-  return envelope[0] + allItems.join(separator) + envelope[1];
+  return open + allItems.join(separator) + close;
 };

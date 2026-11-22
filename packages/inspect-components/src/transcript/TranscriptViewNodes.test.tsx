@@ -10,8 +10,8 @@ import {
   createRef,
   useCallback,
   useState,
-  type MutableRefObject,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,7 +58,7 @@ vi.mock("./TranscriptVirtualList", () => ({
     eventNodes,
     eventCallbacks,
   }: {
-    listHandle: MutableRefObject<VirtualListHandle | null>;
+    listHandle: RefObject<VirtualListHandle | null>;
     eventNodes: EventNode[];
     eventCallbacks?: EventPanelCallbacks;
   }) => {

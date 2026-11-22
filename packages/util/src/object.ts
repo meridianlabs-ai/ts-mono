@@ -1,11 +1,11 @@
 export const printObject = (val: object, size: number = 50): string => {
-  const envelope = ["{", "}"];
+  const open = "{";
+  const close = "}";
   const ellipsis = "…";
   const separator = ", ";
   const kvSeparator = ": ";
 
-  let remainingSize =
-    size - (envelope[0]?.length || 0) - (envelope[1]?.length || 0);
+  let remainingSize = size - open.length - close.length;
 
   const entries = Object.entries(val);
   const headItems: string[] = [];
@@ -65,7 +65,7 @@ export const printObject = (val: object, size: number = 50): string => {
   }
 
   const allItems = [...headItems, ...tailItems];
-  return envelope[0] + allItems.join(separator) + envelope[1];
+  return open + allItems.join(separator) + close;
 };
 
 /**

@@ -92,6 +92,27 @@ export default tseslint.config(
         "error",
         { assertionStyle: "as", objectLiteralTypeAssertions: "never" },
       ],
+      // The strictTypeChecked rules (with that set's options) whose hits all
+      // had real fixes. The rest of the set stays off for now: several of its
+      // rules trust types that un-normalized data (#555) can still violate.
+      "@typescript-eslint/no-deprecated": "error",
+      "@typescript-eslint/no-unnecessary-template-expression": "error",
+      "@typescript-eslint/no-unnecessary-type-arguments": "error",
+      "@typescript-eslint/no-useless-default-assignment": "error",
+      "@typescript-eslint/restrict-plus-operands": [
+        "error",
+        {
+          allowAny: false,
+          allowBoolean: false,
+          allowNullish: false,
+          allowNumberAndString: false,
+          allowRegExp: false,
+        },
+      ],
+      "@typescript-eslint/return-await": [
+        "error",
+        "error-handling-correctness-only",
+      ],
     },
     settings: {
       "import-x/resolver-next": [createTypeScriptImportResolver()],
