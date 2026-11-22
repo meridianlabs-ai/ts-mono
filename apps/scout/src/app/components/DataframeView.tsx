@@ -74,6 +74,11 @@ export const DataframeView: FC<DataframeViewProps> = ({
   onRowDoubleClicked,
   wrapText = false,
 }) => {
+  // Rows read column widths, order and pinning through TanStack's row and
+  // cell objects, which keep their identity when those change. Compiled, the
+  // cached row list skipped such changes and cells drifted from their headers
+  // (e2e/dataframe.spec.ts). Uncompiled, every render lays the rows out again.
+  "use no memo";
   const state =
     useStore((store) => store.gridStates[GRID_STATE_NAME]) ??
     emptyDataframeState;
