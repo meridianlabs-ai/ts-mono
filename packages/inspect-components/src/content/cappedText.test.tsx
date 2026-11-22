@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   ComponentNavigationProvider,
@@ -20,6 +20,7 @@ import {
   ResizeObserverStub,
   TrustedContentWrapper,
 } from "@tsmono/react/testing";
+import { loadMarkdownPipeline } from "@tsmono/react/testing/markdown";
 
 import { ToolOutput } from "../chat/tools/ToolOutput";
 
@@ -51,6 +52,8 @@ const withProviders = (
 
 // 300K characters: a bold opening line, filler, and a marker past 250K.
 const markdown = `**Opening** line\n\n${"filler text\n".repeat(25_000)}TAIL-MARKER`;
+
+beforeAll(loadMarkdownPipeline);
 
 describe("text past 250K characters", () => {
   // Rendering 250K of markdown takes seconds on a loaded machine.
