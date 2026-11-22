@@ -40,12 +40,7 @@ import {
 // Test helpers
 // =============================================================================
 
-function makeTimelineEvent(
-  eventType: string,
-  startSec: number,
-  _endSec: number,
-  _tokens = 10
-): TimelineEvent {
+function makeTimelineEvent(eventType: string, startSec: number): TimelineEvent {
   const event =
     eventType === "compaction"
       ? testCompactionEvent({
@@ -106,8 +101,7 @@ function makeModel(sec: number, label = "m"): TimelineEvent {
 function makeBranch(
   name: string,
   branchedFrom: string,
-  startSec: number,
-  _endSec: number
+  startSec: number
 ): TimelineSpan {
   return new TimelineSpan({
     id: name.toLowerCase(),
@@ -261,9 +255,9 @@ describe("buildSelectionKey", () => {
 describe("computeCompactionRegions", () => {
   it("returns a single region when there are no compaction events", () => {
     const events = [
-      makeTimelineEvent("info", 0, 1),
-      makeTimelineEvent("info", 1, 2),
-      makeTimelineEvent("info", 2, 3),
+      makeTimelineEvent("info", 0),
+      makeTimelineEvent("info", 1),
+      makeTimelineEvent("info", 2),
     ];
 
     const regions = computeCompactionRegions(events);
@@ -278,9 +272,9 @@ describe("computeCompactionRegions", () => {
   });
 
   it("splits at one compaction event into two regions", () => {
-    const e1 = makeTimelineEvent("info", 0, 1);
-    const compaction = makeTimelineEvent("compaction", 1, 1);
-    const e2 = makeTimelineEvent("info", 1, 2);
+    const e1 = makeTimelineEvent("info", 0);
+    const compaction = makeTimelineEvent("compaction", 1);
+    const e2 = makeTimelineEvent("info", 1);
 
     const regions = computeCompactionRegions([e1, compaction, e2]);
     expect(regions).toHaveLength(2);
@@ -289,13 +283,13 @@ describe("computeCompactionRegions", () => {
   });
 
   it("splits at multiple compaction events", () => {
-    const e1 = makeTimelineEvent("info", 0, 1);
-    const c1 = makeTimelineEvent("compaction", 1, 1);
-    const e2 = makeTimelineEvent("info", 1, 2);
-    const c2 = makeTimelineEvent("compaction", 2, 2);
-    const e3 = makeTimelineEvent("info", 2, 3);
-    const c3 = makeTimelineEvent("compaction", 3, 3);
-    const e4 = makeTimelineEvent("info", 3, 4);
+    const e1 = makeTimelineEvent("info", 0);
+    const c1 = makeTimelineEvent("compaction", 1);
+    const e2 = makeTimelineEvent("info", 1);
+    const c2 = makeTimelineEvent("compaction", 2);
+    const e3 = makeTimelineEvent("info", 2);
+    const c3 = makeTimelineEvent("compaction", 3);
+    const e4 = makeTimelineEvent("info", 3);
 
     const regions = computeCompactionRegions([e1, c1, e2, c2, e3, c3, e4]);
     expect(regions).toHaveLength(4);
@@ -306,10 +300,10 @@ describe("computeCompactionRegions", () => {
   });
 
   it("handles consecutive compactions (empty regions)", () => {
-    const e1 = makeTimelineEvent("info", 0, 1);
-    const c1 = makeTimelineEvent("compaction", 1, 1);
-    const c2 = makeTimelineEvent("compaction", 1, 1);
-    const e2 = makeTimelineEvent("info", 1, 2);
+    const e1 = makeTimelineEvent("info", 0);
+    const c1 = makeTimelineEvent("compaction", 1);
+    const c2 = makeTimelineEvent("compaction", 1);
+    const e2 = makeTimelineEvent("info", 1);
 
     const regions = computeCompactionRegions([e1, c1, c2, e2]);
     expect(regions).toHaveLength(3);
@@ -319,8 +313,8 @@ describe("computeCompactionRegions", () => {
   });
 
   it("handles compaction at the start", () => {
-    const c = makeTimelineEvent("compaction", 0, 0);
-    const e = makeTimelineEvent("info", 0, 1);
+    const c = makeTimelineEvent("compaction", 0);
+    const e = makeTimelineEvent("info", 0);
 
     const regions = computeCompactionRegions([c, e]);
     expect(regions).toHaveLength(2);
@@ -329,8 +323,8 @@ describe("computeCompactionRegions", () => {
   });
 
   it("handles compaction at the end", () => {
-    const e = makeTimelineEvent("info", 0, 1);
-    const c = makeTimelineEvent("compaction", 1, 1);
+    const e = makeTimelineEvent("info", 0);
+    const c = makeTimelineEvent("compaction", 1);
 
     const regions = computeCompactionRegions([e, c]);
     expect(regions).toHaveLength(2);
@@ -339,9 +333,9 @@ describe("computeCompactionRegions", () => {
   });
 
   it("excludes compaction events from regions", () => {
-    const e1 = makeTimelineEvent("info", 0, 1);
-    const c = makeTimelineEvent("compaction", 1, 1);
-    const e2 = makeTimelineEvent("info", 1, 2);
+    const e1 = makeTimelineEvent("info", 0);
+    const c = makeTimelineEvent("compaction", 1);
+    const e2 = makeTimelineEvent("info", 1);
 
     const regions = computeCompactionRegions([e1, c, e2]);
     // Compaction events should not appear in any region
@@ -394,8 +388,8 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
   // No non-anchor event sits between the two anchors, so the two
   // fork-navs should collapse into a single node with two groups.
   function rowsWithTwoAdjacentForks() {
-    const branchA1 = makeBranch("B1", "A1", 2, 3);
-    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const branchA1 = makeBranch("B1", "A1", 2);
+    const branchA2 = makeBranch("B2", "A2", 4);
     const root = new TimelineSpan({
       id: "root",
       name: "Root",
@@ -424,8 +418,8 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
   });
 
   it("does not merge when a non-fork event sits between two anchors", () => {
-    const branchA1 = makeBranch("B1", "A1", 2, 3);
-    const branchA2 = makeBranch("B2", "A2", 6, 7);
+    const branchA1 = makeBranch("B1", "A1", 2);
+    const branchA2 = makeBranch("B2", "A2", 6);
     const root = new TimelineSpan({
       id: "root",
       name: "Root",
@@ -453,8 +447,8 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
     // Restart-style fork emits with parent_id = null; anchor fork emits with
     // parent_id = stripped anchor span_id. The anchor must carry a non-null
     // span_id so the two parent_ids differ and the merge is skipped.
-    const restartBranch = makeBranch("BR", "", 0, 1);
-    const anchorBranch = makeBranch("BA", "A1", 3, 4);
+    const restartBranch = makeBranch("BR", "", 0);
+    const anchorBranch = makeBranch("BA", "A1", 3);
     const root = new TimelineSpan({
       id: "root",
       name: "Root",
@@ -475,8 +469,8 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
   });
 
   it("merged groups carry independent selectedIndex values", () => {
-    const branchA1 = makeBranch("B1", "A1", 2, 3);
-    const branchA2 = makeBranch("B2", "A2", 4, 5);
+    const branchA1 = makeBranch("B1", "A1", 2);
+    const branchA2 = makeBranch("B2", "A2", 4);
     const root = new TimelineSpan({
       id: "root",
       name: "Root",
@@ -507,7 +501,7 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
     // selected branch opens with a restart-style fork. Both navs end up
     // with parent_id=null, so the parent_id guard alone would merge them
     // — the segIdx guard must prevent that.
-    const restartBranchOnB1 = makeBranch("BR", "", 4, 5);
+    const restartBranchOnB1 = makeBranch("BR", "", 4);
     const branchB1 = new TimelineSpan({
       id: "b1",
       name: "B1",

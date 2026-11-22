@@ -168,7 +168,7 @@ describe("useDatabaseLogsListingQuery", () => {
     // Before the scorer schema lands, the accessor can't read the filtered
     // column; once it lands (a new accessorsKey), the same filter matches.
     const filter = new Column("score").eq(1);
-    const withoutSchema = (_row: Row, _column: string): unknown => undefined;
+    const withoutSchema = (): unknown => undefined;
     const withSchema = (row: Row, column: string): unknown =>
       column === "score" ? (row.model === "claude" ? 1 : 0) : row[column];
     const { result, rerender } = renderHook(

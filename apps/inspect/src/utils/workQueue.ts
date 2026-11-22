@@ -49,7 +49,7 @@ export class WorkQueue<TInput, TOutput> {
       batchSizeFor: () => 1,
       processingDelay: 100,
       maxRetries: 3,
-      onProcessingChanged: (_processing: boolean) => {},
+      onProcessingChanged: () => {},
       ...options,
     };
   }

@@ -138,9 +138,9 @@ export interface ScoutApiV2 {
 }
 
 export const NoPersistence: ClientStorage = {
-  getItem: (_name: string): string | null => {
+  getItem: (): string | null => {
     return null;
   },
-  setItem: (_name: string, _value: string): void => {},
-  removeItem: (_name: string): void => {},
+  setItem: (): void => {},
+  removeItem: (): void => {},
 };
