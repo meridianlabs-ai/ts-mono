@@ -13,6 +13,8 @@ const defaultParams: UseColumnFilterParams = {
   isOpen: true,
 };
 
+const containsPetri: FilterSpec = { operator: "contains", value: "petri" };
+
 describe("useColumnFilter buildSpec", () => {
   it("returns a spec for a valid input", () => {
     const { result } = renderHook(() => useColumnFilter(defaultParams));
@@ -88,6 +90,67 @@ describe("useColumnFilter editor sync", () => {
     rerender({ ...defaultParams, isOpen: false });
     rerender({ ...defaultParams, isOpen: true });
     expect(result.current.value).toBe("");
+  });
+
+  it("loads a spec applied while closed", () => {
+    const { result, rerender } = renderHook(
+      (props: UseColumnFilterParams) => useColumnFilter(props),
+      { initialProps: { ...defaultParams, isOpen: false } }
+    );
+
+    rerender({ ...defaultParams, isOpen: false, spec: containsPetri });
+    expect(result.current.operator).toBe("contains");
+    expect(result.current.value).toBe("petri");
+  });
+
+  it("keeps edits across re-renders with an equal inline spec", () => {
+    const { result, rerender } = renderHook(
+      (isOpen: boolean) =>
+        useColumnFilter({
+          ...defaultParams,
+          isOpen,
+          spec: { ...containsPetri },
+        }),
+      { initialProps: false }
+    );
+    rerender(true);
+    act(() => {
+      result.current.setValue("x");
+    });
+
+    rerender(true);
+    expect(result.current.value).toBe("x");
+  });
+
+  it("keeps edits when the spec changes while open", () => {
+    const { result, rerender } = renderHook(
+      (props: UseColumnFilterParams) => useColumnFilter(props),
+      { initialProps: { ...defaultParams, isOpen: true } }
+    );
+    act(() => {
+      result.current.setValue("x");
+    });
+
+    rerender({ ...defaultParams, isOpen: true, spec: containsPetri });
+    expect(result.current.value).toBe("x");
+  });
+
+  it("loads the new column's spec when switching columns while open", () => {
+    const { result, rerender } = renderHook(
+      (props: UseColumnFilterParams) => useColumnFilter(props),
+      { initialProps: { ...defaultParams, isOpen: true } }
+    );
+    act(() => {
+      result.current.setValue("x");
+    });
+
+    rerender({
+      ...defaultParams,
+      columnId: "model",
+      isOpen: true,
+      spec: containsPetri,
+    });
+    expect(result.current.value).toBe("petri");
   });
 });
 

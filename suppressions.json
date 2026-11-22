@@ -45,11 +45,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/log-view/tabs/timeline/TimelineTab.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -108,11 +103,6 @@
   "apps/inspect/src/app/samples/sample-tools/sample-filter/SampleFilter.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 4
-    }
-  },
-  "apps/inspect/src/app/samples/SampleDetailComponent.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/samples/SampleDisplay.tsx": {
@@ -260,7 +250,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/inspect/src/state/logsSlice.test.ts": {
@@ -437,11 +427,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/columnFilter/useColumnFilter.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/content/RecordTree.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -478,9 +463,6 @@
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {
@@ -516,11 +498,6 @@
   "packages/inspect-components/src/transcript/hooks/useDeepLinkResolution.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 4
-    }
-  },
-  "packages/inspect-components/src/transcript/hooks/useFocusLaneScope.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/hooks/useFocusTurnNavigation.ts": {
@@ -561,11 +538,6 @@
   "packages/inspect-components/src/transcript/outline/TranscriptOutline.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "packages/inspect-components/src/transcript/outline/useOutlineCollapse.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/search/useTranscriptSearchSource.ts": {
@@ -663,7 +635,7 @@
   },
   "packages/react/src/components/StickyScroll.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/react/src/hooks/useChromeNavOwnership.ts": {

@@ -6,7 +6,6 @@ import {
   FormEvent,
   KeyboardEvent,
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -23,7 +22,7 @@ import {
   SegmentedControl,
   SidebarHeader,
 } from "@tsmono/react/components";
-import { useInterval } from "@tsmono/react/hooks";
+import { useInterval, useMountEffect } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
 import { ApiError } from "@tsmono/util";
 
@@ -317,19 +316,14 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     [setState]
   );
 
-  // Seed the model input with the most recent model on open. Marking the ref
-  // done on the first run (not only when it fills) means a later clear — or a
-  // persisted model — is never fought.
-  const didPrefillModelRef = useRef(false);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (didPrefillModelRef.current) return;
-    didPrefillModelRef.current = true;
+  // Seed the model input with the most recent model on open, once: a later
+  // clear — or a persisted model — is never fought.
+  useMountEffect(() => {
     const mostRecent = modelHistory.history[0];
     if (model === "" && mostRecent !== undefined) {
       handleModelChange(mostRecent);
     }
-  }, [model, modelHistory.history, handleModelChange]);
+  });
 
   return (
     <div className={styles.container} data-unsearchable>

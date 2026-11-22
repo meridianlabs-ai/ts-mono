@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 
 import {
   ExtendedFindProvider,
@@ -6,6 +6,7 @@ import {
   FindTargetProvider,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { useMirrorToStore } from "@tsmono/react/hooks";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -83,13 +84,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   // Sample tab synchronization
   const setSampleTab = useStore((state) => state.appActions.setSampleTab);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // Set the sample tab if specified in the URL
-    if (tabId) {
-      setSampleTab(tabId);
-    }
-  }, [tabId, setSampleTab]);
+  useMirrorToStore(tabId || undefined, setSampleTab);
 
   const openFind = useCallback(() => setShowFind(true), [setShowFind]);
   useFindBandShortcut(openFind, {

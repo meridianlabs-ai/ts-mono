@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { useLatestRef } from "../hooks/useLatestRef";
+import { useResizeObserver } from "../hooks/useResizeObserver";
 
 interface StickyScrollProps {
   children: ReactNode;
@@ -108,22 +109,12 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
     // Track the content's natural height while sticky so that intentional
     // resizes (e.g. the user collapsing the swimlane) update the preserved
     // height instead of leaving a whitespace gap.
-    const childMeasureRef = useRef<HTMLDivElement>(null);
-
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      if (!preserveHeight) return;
-      const el = childMeasureRef.current;
-      if (!el) return;
-
-      const observer = new ResizeObserver(() => {
-        if (!isStickyRef.current) return;
-        const h = el.getBoundingClientRect().height;
-        setPreStickHeight(h);
-      });
-      observer.observe(el);
-      return () => observer.disconnect();
-    }, [preserveHeight]);
+    // The callback closes over preserveHeight so the observer re-attaches
+    // when the measuring wrapper mounts or unmounts with it.
+    const childMeasureRef = useResizeObserver((entry) => {
+      if (!preserveHeight || !isStickyRef.current) return;
+      setPreStickHeight(entry.target.getBoundingClientRect().height);
+    });
 
     const stickyStyle: CSSProperties = {
       position: "sticky",
