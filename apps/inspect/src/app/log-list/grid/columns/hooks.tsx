@@ -64,6 +64,15 @@ const byMetricField = (metricName: string): string => `metric_${metricName}`;
 export type LogListMode = "logs" | "tasks";
 export type ScoresViewMode = "by-metric" | "per-scorer";
 
+// Whether a column belongs to the given scores view mode. Base columns
+// (neither prefix) always match. Per-scorer and by-metric columns only match
+// when the corresponding mode is selected.
+const matchesViewMode = (field: string, viewMode: ScoresViewMode): boolean => {
+  if (field.startsWith("score_")) return viewMode === "per-scorer";
+  if (field.startsWith("metric_")) return viewMode === "by-metric";
+  return true;
+};
+
 export const useLogListColumns = (
   mode: LogListMode = "logs",
   /**
@@ -782,15 +791,6 @@ export const useLogListColumns = (
     return hidden;
   }, [mode, hasSampleLimits]);
 
-  // Determine whether a column belongs to the active scores view mode. Base
-  // columns (neither prefix) always match. Per-scorer and by-metric columns
-  // only match when the corresponding mode is selected.
-  const matchesActiveMode = (field: string): boolean => {
-    if (field.startsWith("score_")) return viewMode === "per-scorer";
-    if (field.startsWith("metric_")) return viewMode === "by-metric";
-    return true;
-  };
-
   // Visibility map keyed by column id, consumed by the DataGrid.
   const visibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
@@ -813,10 +813,9 @@ export const useLogListColumns = (
   const pickerColumns = useMemo((): PickerColumn[] => {
     return toPickerColumns(
       allColumns.filter(
-        (col) => col.id !== undefined && matchesActiveMode(col.id)
+        (col) => col.id !== undefined && matchesViewMode(col.id, viewMode)
       )
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
 
   // Lookup by column id for the client-side listing query's value/comparator
