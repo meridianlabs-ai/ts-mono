@@ -665,6 +665,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     // A compaction with no model call after it (running sample, truncated
     // or completed log) still ends the line at tokens_after: the read-out
     // past the cliff must hold the compacted size, not the pre-drop value.
+    // eslint-disable-next-line react-hooks/invariant -- ActivityChart can't compile until its render-local caches and render-time ref reads move out (a separate refactor); rewriting this loop only uncovers those errors
     for (; dropIndex < drops.length; dropIndex += 1) {
       applyDrop(drops[dropIndex]!);
     }

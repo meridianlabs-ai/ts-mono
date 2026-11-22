@@ -144,8 +144,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
     Math.min(selectedRow ?? 0, rows.length - 1)
   );
 
-  const autoSize = (columnId?: string, element = tableRef.current): void => {
-    const sizes = fitColumnSizes(element, columns, allRows);
+  const autoSize = (columnId?: string, element?: HTMLTableElement): void => {
+    const sizes = fitColumnSizes(element ?? tableRef.current, columns, allRows);
     updateGridState((previous) => ({
       columnSizing: columnId
         ? { ...previous.columnSizing, [columnId]: sizes[columnId] ?? 150 }

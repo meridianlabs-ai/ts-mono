@@ -63,7 +63,7 @@ const useStreamingRowsLatch = (
       messagesFromEvents(runningEvents, messagesRef),
       kDefaultMessageRowOptions
     );
-  }, [active, relieved, runningEvents]);
+  }, [active, relieved, runningEvents, messagesRef]);
 
   if (relieved || heldRef.current?.key !== sampleKey) {
     heldRef.current = null;
