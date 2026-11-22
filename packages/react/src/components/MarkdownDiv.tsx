@@ -38,7 +38,7 @@ interface MarkdownDivProps {
   style?: CSSProperties;
   className?: string | string[];
   postProcess?: (html: string) => string;
-  onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 const sanitizeMarkdown = (md: string): string => {

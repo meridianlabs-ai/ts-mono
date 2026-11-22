@@ -9,11 +9,11 @@ import { isRecord } from "@tsmono/util";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import styles from "./SubtaskEventView.module.css";
-import { EventNode, EventPanelCallbacks, EventType } from "./types";
+import { EventNode, EventPanelCallbacks } from "./types";
 
 interface SubtaskEventViewProps {
   eventNode: EventNode<SubtaskEvent>;
-  childNodes: EventNode<EventType>[];
+  childNodes: EventNode[];
   className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }

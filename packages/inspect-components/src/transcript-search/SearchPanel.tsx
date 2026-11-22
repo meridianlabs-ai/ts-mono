@@ -3,8 +3,8 @@ import clsx from "clsx";
 import {
   ChangeEvent,
   FC,
-  FormEvent,
   KeyboardEvent,
+  SubmitEvent,
   useCallback,
   useId,
   useMemo,
@@ -166,7 +166,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const cacheKey = api.cacheKey;
 
   const handleSubmit = useCallback(
-    (e: FormEvent) => {
+    (e: SubmitEvent) => {
       e.preventDefault();
       const text = query.trim();
       if (!text || loading) return;

@@ -5,7 +5,6 @@ import {
   EventPanel,
   RenderedEventNode,
   type EventPanelCallbacks,
-  type EventType,
 } from "@tsmono/inspect-components/transcript";
 import { formatDateTime } from "@tsmono/util";
 
@@ -25,11 +24,8 @@ export const rowNodeId = (row: ViewRow): string => {
   return typeof uuid === "string" ? uuid : `ordinal-${row.ordinal}`;
 };
 
-const eventNode = (
-  ev: ChunkedEvent,
-  id: string,
-  depth: number
-): EventNode<EventType> => new EventNode(id, ev, depth);
+const eventNode = (ev: ChunkedEvent, id: string, depth: number): EventNode =>
+  new EventNode(id, ev, depth);
 
 const summarizeChildren = (span: SkeletonSpan): string => {
   const parts = Object.entries(span.children).map(

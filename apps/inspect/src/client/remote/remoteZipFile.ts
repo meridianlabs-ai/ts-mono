@@ -231,7 +231,7 @@ export const fetchSize = async (url: string): Promise<number> => {
     // Range requests are preferred since they bypass compression.
     // HEAD requests may return compressed content-length which doesn't
     // match the actual file size needed for downstream operations.
-    const getResponse = await fetch(`${url}`, {
+    const getResponse = await fetch(url, {
       ...logFetchInit,
       method: "GET",
       headers: { Range: "bytes=0-0" },

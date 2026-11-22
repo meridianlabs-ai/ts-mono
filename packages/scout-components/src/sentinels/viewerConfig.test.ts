@@ -180,7 +180,7 @@ describe("resolveScannerResultView", () => {
         ...Array.from(
           { length: 512 },
           (_, index): [string, ScannerResultView] => [
-            "*a".repeat(24) + index,
+            "*a".repeat(24) + String(index),
             { fields: [builtin("answer")], exclude_fields: [] },
           ]
         ),
@@ -241,7 +241,7 @@ describe("resolveScannerResultView", () => {
     const viewer: ViewerConfig = {
       scanner_result_view: Object.fromEntries<ScannerResultView>(
         Array.from({ length: 128 }, (_, index): [string, ScannerResultView] => [
-          "*" + "a".repeat(127) + index,
+          "*" + "a".repeat(127) + String(index),
           { fields: null, exclude_fields: [] },
         ])
       ),
