@@ -64,9 +64,7 @@ const byMetricField = (metricName: string): string => `metric_${metricName}`;
 export type LogListMode = "logs" | "tasks";
 export type ScoresViewMode = "by-metric" | "per-scorer";
 
-// Whether a column belongs to the given scores view mode. Base columns
-// (neither prefix) always match. Per-scorer and by-metric columns only match
-// when the corresponding mode is selected.
+// Base columns (neither prefix) belong to both modes.
 const matchesViewMode = (field: string, viewMode: ScoresViewMode): boolean => {
   if (field.startsWith("score_")) return viewMode === "per-scorer";
   if (field.startsWith("metric_")) return viewMode === "by-metric";
