@@ -30,6 +30,7 @@ export const getScoreDescriptorForValues = (
       return scoreDescriptor;
     }
   }
+  return undefined;
 };
 
 const scoreCategorizers: ScoreCategorizer[] = [
@@ -38,6 +39,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       if (types && types.length === 1 && types[0] === "boolean") {
         return booleanScoreDescriptor();
       }
+      return undefined;
     },
   },
   {
@@ -50,6 +52,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return numericScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -65,6 +68,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return passFailScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -77,6 +81,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return categoricalScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -84,6 +89,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       if (types && types.length === 1 && types[0] === "number") {
         return numericScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -95,6 +101,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
           return objectScoreDescriptor(values);
         }
       }
+      return undefined;
     },
   },
   {
