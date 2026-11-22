@@ -390,6 +390,7 @@ const resolveToolMessage = (toolMessage?: ChatMessageTool): ContentTool[] => {
             type: "tool",
           } satisfies ContentTool;
         }
+        return undefined;
       })
       .filter((con) => con !== undefined);
     return result;

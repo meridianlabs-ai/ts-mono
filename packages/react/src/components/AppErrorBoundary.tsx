@@ -22,12 +22,12 @@ export class AppErrorBoundary extends Component<Props, State> {
     return { hasError: true, error: error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // You can also log the error to an error reporting service
     console.log({ error, errorInfo });
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       console.error({ e: this.state.error });
       if (this.state.error) {
