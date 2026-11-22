@@ -213,7 +213,6 @@ function makeToolErrorEventNode(
 }
 
 function makeModelErrorEventNode(
-  _content: string,
   errorMsg: string,
   startSec: number,
   endSec: number,
@@ -911,7 +910,6 @@ function inlineMarkers(): TimelineScenario {
       20
     ),
     makeModelErrorEventNode(
-      "Attempting to call the API",
       "Rate limit exceeded: 429 Too Many Requests",
       20,
       24,
@@ -1118,7 +1116,6 @@ function manyRows(): TimelineScenario {
     if (i === 4) {
       content.push(
         makeModelErrorEventNode(
-          "Attempting test analysis",
           "Context length exceeded",
           mid + 1,
           mid + 2,

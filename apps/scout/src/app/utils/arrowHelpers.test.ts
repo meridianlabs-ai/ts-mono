@@ -132,15 +132,15 @@ const nullMetadataExpectedSummary: Partial<ScanResultSummary> = {
 };
 
 describe("parseScanResultSummaries", () => {
-  it.each<[object[], Partial<ScanResultSummary>[], string]>([
-    [[], [], "empty array"],
-    [[typicalSummaryRow], [expectedSummary], "typical row"],
+  it.each<[string, object[], Partial<ScanResultSummary>[]]>([
+    ["empty array", [], []],
+    ["typical row", [typicalSummaryRow], [expectedSummary]],
     [
+      "row with null transcript_metadata",
       [nullMetadataSummaryRow],
       [nullMetadataExpectedSummary],
-      "row with null transcript_metadata",
     ],
-  ])("returns expected output for %s", async (input, expected) => {
+  ])("returns expected output for %s", async (_label, input, expected) => {
     const result = await parseScanResultSummaries(from(input));
     expect(result).toHaveLength(expected.length);
     for (const [i, r] of result.entries()) {
@@ -202,14 +202,14 @@ const nullMetadataExpectedData: Partial<ScanResultData> = {
 };
 
 describe("parseScanResultData", () => {
-  it.each<[Record<string, unknown>, Partial<ScanResultData>, string]>([
-    [typicalColumnData, expectedData, "typical data"],
+  it.each<[string, Record<string, unknown>, Partial<ScanResultData>]>([
+    ["typical data", typicalColumnData, expectedData],
     [
+      "data with null transcript_metadata",
       nullMetadataColumnData,
       nullMetadataExpectedData,
-      "data with null transcript_metadata",
     ],
-  ])("returns expected output for %s", async (input, expected) => {
+  ])("returns expected output for %s", async (_label, input, expected) => {
     const table = from([input]);
     const result = await parseScanResultData(table);
     expect(result).toMatchObject(expected);
