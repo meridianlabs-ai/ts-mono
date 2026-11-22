@@ -136,6 +136,11 @@ export function VirtualList<T>({
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
+  // The virtualizer is one stable instance whose getters (getTotalSize,
+  // getVirtualItems) return changing data. Compiled, those reads would be
+  // memoized on the instance's identity and go stale, so this component
+  // stays uncompiled and reads them fresh each render.
+  "use no memo";
   // An embedded list shares a container whose position the host owns;
   // resetting it on mount would yank the host's scroller.
   const resetScrollOnMount = resetScrollOnMountProp ?? !embedded;
