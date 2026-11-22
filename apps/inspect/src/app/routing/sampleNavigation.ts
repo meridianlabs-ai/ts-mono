@@ -108,7 +108,7 @@ export const useSampleNavigationActions = () => {
 };
 
 export const useSampleDetailNavigation = () => {
-  const [searchParams, _setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const message = searchParams.get("message");
   const event = searchParams.get("event");
   // Explicit `follow=1` arms the transcript's live-tail at mount (a shareable

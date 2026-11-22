@@ -218,7 +218,7 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
             label: kSegmentDataframe,
           },
         ]}
-        onSegmentChange={(segmentId: string, _index: number) => {
+        onSegmentChange={(segmentId: string) => {
           setSelectedResultsView(segmentId);
         }}
       />

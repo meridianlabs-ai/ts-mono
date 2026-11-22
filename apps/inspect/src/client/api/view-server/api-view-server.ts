@@ -19,7 +19,6 @@ import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleDa
 import { normalizeEvalLog } from "../../utils/normalize";
 import { download_file } from "../shared/api-shared";
 import {
-  Capabilities,
   EditLogResult,
   EvalHeader,
   LogContents,
@@ -214,8 +213,7 @@ export function viewServerApi(
 
   const get_log_contents = async (
     file: string,
-    headerOnly?: number,
-    _capabilities?: Capabilities
+    headerOnly?: number
   ): Promise<LogContents> => {
     const result = await requestApi.fetchString(
       "GET",

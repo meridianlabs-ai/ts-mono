@@ -28,9 +28,7 @@ import {
 
 function makeBranchObj(
   branchedFrom: string,
-  content: TimelineEvent[],
-  _startSec?: number,
-  _endSec?: number
+  content: TimelineEvent[]
 ): TimelineSpan {
   return new TimelineSpan({
     id: `branch-${branchedFrom || "empty"}`,
@@ -341,7 +339,7 @@ describe("collectMarkers", () => {
     });
 
     it("falls back to parent start time when branchedFrom is empty", () => {
-      const branch = makeBranchObj("", [makeModelEventNode(2)], 2, 4);
+      const branch = makeBranchObj("", [makeModelEventNode(2)]);
 
       const parent = makeSpan("Root", 0, 20, 1000, [makeModelEventNode(0)], {
         branches: [branch],

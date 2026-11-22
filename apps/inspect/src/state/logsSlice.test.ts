@@ -11,7 +11,7 @@ const createHarness = () => {
   });
   const get = () => state;
 
-  const slice = createLogsSlice(set, get, {});
+  const slice = createLogsSlice(set, get);
   // Deep-clone: the slice's initial state is a module-level object and
   // `set` mutates in place — a shallow copy would leak across harnesses.
   state.logs = structuredClone(slice.logs);

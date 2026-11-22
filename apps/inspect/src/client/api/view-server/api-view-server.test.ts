@@ -63,7 +63,7 @@ describe("viewServerApi mutation requests", () => {
   });
 
   test("posts client messages with the viewer request header", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+    const fetchMock = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         new Response(null, { status: 204, statusText: "No Content" })
       )
@@ -90,7 +90,7 @@ describe("viewServerApi mutation requests", () => {
   });
 
   test("adds the viewer request header to log edits", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+    const fetchMock = vi.fn<typeof fetch>(() =>
       Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }))
     );
     globalThis.fetch = fetchMock;
@@ -133,9 +133,7 @@ describe("viewServerApi.get_eval_set", () => {
     Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }));
 
   test("sends the construction log_dir with no dir param at the listing root", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const api = viewServerApi({
@@ -151,9 +149,7 @@ describe("viewServerApi.get_eval_set", () => {
   });
 
   test("sends the subdir as dir alongside the construction log_dir", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const api = viewServerApi({
@@ -185,9 +181,7 @@ describe("viewServerApi dir independence", () => {
     // The LogViewAPI contract: an instance is bound to its construction dir.
     // Every dir-scoped request carries that dir explicitly, so nothing the
     // server (or host) considers "current" can leak into the answers.
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const a = viewServerApi({

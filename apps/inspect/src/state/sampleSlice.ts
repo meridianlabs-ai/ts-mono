@@ -84,9 +84,7 @@ const initialState: SampleState = {
 };
 
 export const createSampleSlice = (
-  set: (fn: (state: StoreState) => void) => void,
-  _get: () => StoreState,
-  _store: unknown
+  set: (fn: (state: StoreState) => void) => void
 ): SampleSlice => {
   const slice = {
     // Actions

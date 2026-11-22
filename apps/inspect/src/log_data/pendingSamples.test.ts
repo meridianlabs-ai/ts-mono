@@ -117,9 +117,7 @@ describe("fetchPendingSamples", () => {
     info: { size: number } = { size: 100 }
   ) => {
     const getPending = vi.fn().mockResolvedValue(response);
-    const getDetails = vi.fn((_file: string, _cached?: boolean) =>
-      Promise.resolve(runningDetails())
-    );
+    const getDetails = vi.fn(() => Promise.resolve(runningDetails()));
     let currentInfo = info;
     const api: ClientAPI = testClientAPI({
       get_log_pending_samples: getPending,
