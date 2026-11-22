@@ -154,6 +154,25 @@ const followRedirects = (
   return id;
 };
 
+// Module-level so the self-scheduling closure isn't inside a useCallback,
+// where the React Compiler reads the recursion as a missing dependency.
+const retryEachFrame = (retry: {
+  attempts: number;
+  find: () => number;
+  onFound: (index: number) => void;
+  onGiveUp: () => void;
+  isCancelled: () => boolean;
+}): void => {
+  requestAnimationFrame(() => {
+    if (retry.isCancelled()) return;
+    const index = retry.find();
+    if (index !== -1) retry.onFound(index);
+    else if (retry.attempts > 0)
+      retryEachFrame({ ...retry, attempts: retry.attempts - 1 });
+    else retry.onGiveUp();
+  });
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -313,27 +332,21 @@ export const TranscriptViewNodes = forwardRef<
     };
   }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
 
-  const flattenedNodesLatest = useLatestRef<EventNode[]>(flattenedNodes);
+  const flattenedNodesRef = useLatestRef<EventNode[]>(flattenedNodes);
 
   // Latest turn lookup for scrollRowToTop's stamp: an expansion retry lands
   // after the turn map is recomputed, so closed-over values may be stale.
-  const turnLookupLatest = useLatestRef({ turnAnchorIds, computedTurnMap });
+  const turnLookupRef = useLatestRef({ turnAnchorIds, computedTurnMap });
 
   // The turn at the top of the viewport (tracked by useScrollTrack below);
   // seeded from the deep-link target so a keypress can't race the tracker's
   // first report (e.g. the "double f" right after a route transition).
   // Lazily seeded: a useRef initializer expression would re-run the
   // O(#turns) scan on every render just to be discarded.
-  const turnIndexSeededRef = useRef(false);
-  const currentTurnIndexRef = useRef(-1);
-  if (!turnIndexSeededRef.current) {
-    turnIndexSeededRef.current = true;
-    currentTurnIndexRef.current = anchorIndexForEvent(
-      turnAnchorIds,
-      computedTurnMap,
-      scrollEventId
-    );
-  }
+  const [seedTurnIndex] = useState(() =>
+    anchorIndexForEvent(turnAnchorIds, computedTurnMap, scrollEventId)
+  );
+  const currentTurnIndexRef = useRef(seedTurnIndex);
 
   // The one scroll primitive for every programmatic row scroll — and the
   // single choke point stamping the current turn, so a j/k/f fired before
@@ -345,9 +358,9 @@ export const TranscriptViewNodes = forwardRef<
       onAbandon?: () => void
     ): (() => void) => {
       onProgrammaticScroll?.(true);
-      const rowId = flattenedNodesLatest.current[index]?.id;
+      const rowId = flattenedNodesRef.current[index]?.id;
       if (rowId !== undefined) {
-        const lookup = turnLookupLatest.current;
+        const lookup = turnLookupRef.current;
         currentTurnIndexRef.current = anchorIndexForEvent(
           lookup.turnAnchorIds,
           lookup.computedTurnMap,
@@ -367,7 +380,7 @@ export const TranscriptViewNodes = forwardRef<
         onAbandon,
       });
     },
-    [onProgrammaticScroll, flattenedNodesLatest, turnLookupLatest]
+    [onProgrammaticScroll, flattenedNodesRef, turnLookupRef]
   );
 
   const scrollToEvent = useCallback(
@@ -411,24 +424,20 @@ export const TranscriptViewNodes = forwardRef<
         // Once a scroll starts (or the retries give up), it reports itself.
         let started = false;
         let cancelScroll = () => {};
-        const retryScroll = (attemptsLeft: number) => {
-          if (cancelled) return;
-          const newIdx = flattenedNodesLatest.current.findIndex(
-            (e) => e.id === eventId
-          );
-          if (newIdx !== -1) {
+        retryEachFrame({
+          attempts: 3,
+          find: () =>
+            flattenedNodesRef.current.findIndex((e) => e.id === eventId),
+          onFound: (newIdx) => {
             started = true;
             cancelScroll = tryScroll(newIdx);
-            return;
-          }
-          if (attemptsLeft > 0) {
-            requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
-          } else {
+          },
+          onGiveUp: () => {
             started = true;
             callbacks?.onDone?.();
-          }
-        };
-        requestAnimationFrame(() => retryScroll(3));
+          },
+          isCancelled: () => cancelled,
+        });
         return () => {
           if (cancelled) return;
           cancelled = true;
@@ -457,7 +466,7 @@ export const TranscriptViewNodes = forwardRef<
       scrollRef,
       onProgrammaticScroll,
       onHeadroomSetHidden,
-      flattenedNodesLatest,
+      flattenedNodesRef,
     ]
   );
 
@@ -467,11 +476,11 @@ export const TranscriptViewNodes = forwardRef<
     ref,
     () => ({
       scrollToEvent,
-      getFlattenedNodes: () => flattenedNodesLatest.current,
+      getFlattenedNodes: () => flattenedNodesRef.current,
       getElement: () => rootRef.current,
       rowEventId: redirectEventId,
     }),
-    [scrollToEvent, flattenedNodesLatest, redirectEventId]
+    [scrollToEvent, flattenedNodesRef, redirectEventId]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a
@@ -599,7 +608,7 @@ export const TranscriptViewNodes = forwardRef<
         return;
       }
       const clamped = Math.max(0, Math.min(turnAnchorIds.length - 1, index));
-      const flatIdx = flattenedNodesLatest.current.findIndex(
+      const flatIdx = flattenedNodesRef.current.findIndex(
         (n) => n.id === turnAnchorIds[clamped]
       );
       if (flatIdx === -1) {
@@ -623,7 +632,7 @@ export const TranscriptViewNodes = forwardRef<
       scrollRowToTop,
       onNavigatedToEvent,
       onHeadroomSetHidden,
-      flattenedNodesLatest,
+      flattenedNodesRef,
     ]
   );
 
@@ -718,12 +727,12 @@ export const TranscriptViewNodes = forwardRef<
   // chrome via the same primitive j/k use, so the new tab starts from its top.
   const onTabSelected = useCallback(
     (eventNodeId: string) => {
-      const idx = flattenedNodesLatest.current.findIndex(
+      const idx = flattenedNodesRef.current.findIndex(
         (n) => n.id === eventNodeId
       );
       if (idx !== -1) scrollRowToTop(idx);
     },
-    [scrollRowToTop, flattenedNodesLatest]
+    [scrollRowToTop, flattenedNodesRef]
   );
 
   // Last-known selected tab per anchor panel, reported by EventPanel, so the
