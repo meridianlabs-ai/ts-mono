@@ -82,10 +82,8 @@ export const countMatchesByItem = (
 
 type SettleTick = "stop" | "moved" | "still";
 
-// Ticks once per frame until the layout holds still for three frames in a
-// row, 30 frames pass, or the tick says stop; then finishes. Module-level
-// because a self-scheduling closure inside useCallback reads to the
-// compiler's dependency check as a missing dependency of itself.
+// Module-level because a self-scheduling closure inside useCallback reads to
+// the compiler's dependency check as a missing dependency of itself.
 const settleEachFrame = (
   frameRef: { current: number },
   tick: () => SettleTick,
