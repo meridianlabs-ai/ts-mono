@@ -14,13 +14,23 @@ export function useAnimationFrameLoop(
   const callbackRef = useLatestRef(callback);
   useEffect(() => {
     if (!active) return;
-    let previous: number | undefined;
-    let id = requestAnimationFrame(function frame(now) {
-      const elapsed = previous === undefined ? 0 : (now - previous) / 1000;
-      previous = now;
+    return startFrameLoop((elapsed, now) => {
       callbackRef.current(elapsed, now);
-      id = requestAnimationFrame(frame);
     });
-    return () => cancelAnimationFrame(id);
   }, [active, callbackRef]);
 }
+
+const startFrameLoop = (
+  onFrame: (elapsedSeconds: number, now: number) => void
+): (() => void) => {
+  let previous: number | undefined;
+  let id = 0;
+  const frame = (now: number) => {
+    const elapsed = previous === undefined ? 0 : (now - previous) / 1000;
+    previous = now;
+    onFrame(elapsed, now);
+    id = requestAnimationFrame(frame);
+  };
+  id = requestAnimationFrame(frame);
+  return () => cancelAnimationFrame(id);
+};

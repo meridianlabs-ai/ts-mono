@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 let visitCounter = 0;
+// The React Compiler can't lower `++` on a module variable inside a hook.
+const nextNonce = (): number => ++visitCounter;
 
 /**
  * A key identifying one VISIT: this mount's continuous engagement with
@@ -16,10 +18,10 @@ let visitCounter = 0;
 export function useVisitId(identity: string): string {
   const [visit, setVisit] = useState(() => ({
     identity,
-    nonce: ++visitCounter,
+    nonce: nextNonce(),
   }));
   if (visit.identity !== identity) {
-    setVisit({ identity, nonce: ++visitCounter });
+    setVisit({ identity, nonce: nextNonce() });
   }
   return `${visit.identity}@v${visit.nonce}`;
 }

@@ -64,6 +64,12 @@ const kModes: readonly Mode[] = ["model", "role", "connections"];
 const isMode = (value: string): value is Mode =>
   kModes.some((mode) => mode === value);
 
+const keysOf = (...maps: (Record<string, unknown> | undefined)[]): string[] => {
+  const out = new Set<string>();
+  for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
+  return Array.from(out);
+};
+
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   label,
   model_usage,
@@ -85,14 +91,6 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   onViewTimeline,
   timelineHref,
 }) => {
-  const keysOf = (
-    ...maps: (Record<string, unknown> | undefined)[]
-  ): string[] => {
-    const out = new Set<string>();
-    for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
-    return Array.from(out);
-  };
-
   // Memoized so mode-toggle / modal renders don't rebuild the lanes and the
   // stable identities keep ConnectionLogModal's useMemo effective.
   const usageWindow = useMemo(
