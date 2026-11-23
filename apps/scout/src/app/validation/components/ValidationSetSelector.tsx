@@ -56,16 +56,11 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   const [newSetName, setNewSetName] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Extract display name from URI (last part of path with extension)
-  const getDisplayName = (uri: string): string => {
-    return getFilenameFromUri(uri);
-  };
-
   // Find the longest display name for sizing
   const longestDisplayName = useMemo(() => {
     if (validationSets.length === 0) return "";
     return validationSets.reduce((longest, uri) => {
-      const name = getDisplayName(uri);
+      const name = getFilenameFromUri(uri);
       return name.length > longest.length ? name : longest;
     }, "");
   }, [validationSets]);
@@ -214,7 +209,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           className={`${styles.item} ${selectedUri === uri ? styles.selected : ""}`}
           onClick={() => handleSelect(uri)}
         >
-          <div className={styles.primaryText}>{getDisplayName(uri)}</div>
+          <div className={styles.primaryText}>{getFilenameFromUri(uri)}</div>
           <div className={styles.secondaryText}>
             {getDisplayPath(uri, appConfig) || (hasNonRootDir ? "\u00A0" : "")}
           </div>
@@ -261,7 +256,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             )}
             {selectedUri ? (
               <span className={styles.triggerPrimary}>
-                {getDisplayName(selectedUri)}
+                {getFilenameFromUri(selectedUri)}
               </span>
             ) : (
               <span className={styles.triggerPlaceholder}>

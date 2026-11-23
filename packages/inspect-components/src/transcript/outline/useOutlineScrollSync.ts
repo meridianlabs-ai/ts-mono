@@ -76,7 +76,7 @@ export function useOutlineScrollSync(
   const lastScrollPosition = useRef<number | null>(null);
   const stableFrameCount = useRef(0);
 
-  const beginProgrammaticScroll = useCallback(() => {
+  const beginProgrammaticScroll = () => {
     isProgrammaticScrolling.current = true;
     lastScrollPosition.current = null;
     stableFrameCount.current = 0;
@@ -101,15 +101,12 @@ export function useOutlineScrollSync(
     };
 
     requestAnimationFrame(checkScrollStabilized);
-  }, [scrollRef]);
+  };
 
-  const onOutlineSelect = useCallback(
-    (nodeId: string) => {
-      setSelectedOutlineId?.(nodeId);
-      beginProgrammaticScroll();
-    },
-    [setSelectedOutlineId, beginProgrammaticScroll]
-  );
+  const onOutlineSelect = (nodeId: string) => {
+    setSelectedOutlineId?.(nodeId);
+    beginProgrammaticScroll();
+  };
 
   // Stable identities: a fresh array/callback per render would make the
   // tracker re-run its content compare (O(n)) on every streaming re-render.
