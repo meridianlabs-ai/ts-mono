@@ -80,6 +80,33 @@ export const countMatchesByItem = (
   return counts;
 };
 
+type SettleTick = "stop" | "moved" | "still";
+
+// Module-level because a self-scheduling closure inside useCallback reads to
+// the compiler's dependency check as a missing dependency of itself.
+const settleEachFrame = (
+  frameRef: { current: number },
+  tick: () => SettleTick,
+  finish: () => void
+): void => {
+  let frames = 0;
+  let stable = 0;
+  const settle = () => {
+    const result = tick();
+    if (result === "stop") {
+      finish();
+      return;
+    }
+    stable = result === "moved" ? 0 : stable + 1;
+    if (stable < 3 && (frames += 1) < 30) {
+      frameRef.current = requestAnimationFrame(settle);
+    } else {
+      finish();
+    }
+  };
+  frameRef.current = requestAnimationFrame(settle);
+};
+
 export function VirtualList<T>({
   persistenceKey,
   persistScroll = true,
@@ -532,27 +559,23 @@ export function VirtualList<T>({
         return cancel;
       }
       settleAbandonRef.current = abandon;
-      let frames = 0;
-      let stable = 0;
       let lastTop = el.scrollTop;
       // A keyboard-initiated jump must finish measuring; only input AFTER the
       // request cancels it, not the keypress that requested the jump itself.
       const interactionAtStart = interactionSequenceRef.current;
-      const settle = () => {
-        if (interactionSequenceRef.current !== interactionAtStart) {
-          finish();
-          return;
-        }
-        jump();
-        stable = Math.abs(el.scrollTop - lastTop) <= 1 ? stable + 1 : 0;
-        lastTop = el.scrollTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
-      };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      settleEachFrame(
+        settleFrameRef,
+        () => {
+          if (interactionSequenceRef.current !== interactionAtStart) {
+            return "stop";
+          }
+          jump();
+          const moved = Math.abs(el.scrollTop - lastTop) > 1;
+          lastTop = el.scrollTop;
+          return moved ? "moved" : "still";
+        },
+        finish
+      );
       return cancel;
     },
     [virtualizer, getScrollElement, abandonSettle]
@@ -596,10 +619,8 @@ export function VirtualList<T>({
         return;
       }
       el.scrollTop = getTargetSpacerTop();
-      let frames = 0;
-      let stable = 0;
       let lastTop = el.scrollTop;
-      const settle = () => {
+      const tick = (): SettleTick => {
         // A key change mid-settle means this restore belongs to the previous
         // sample — stop before writing its offset into the new one's list.
         // User input always wins over a pending restore.
@@ -607,8 +628,7 @@ export function VirtualList<T>({
           userInteractingRef.current ||
           lastInitialKeyRef.current !== keyAtStart
         ) {
-          finish();
-          return;
+          return "stop";
         }
         // Read BEFORE re-forcing: the drift being waited out (re-measure
         // compensation nudging scrollTop after our write) happens between
@@ -621,15 +641,10 @@ export function VirtualList<T>({
         // grew, postTop) — means the layout is still moving.
         const moved =
           Math.abs(preTop - lastTop) > 1 || Math.abs(postTop - lastTop) > 1;
-        stable = moved ? 0 : stable + 1;
         lastTop = postTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
+        return moved ? "moved" : "still";
       };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      settleEachFrame(settleFrameRef, tick, finish);
     },
     [getScrollElement, abandonSettle]
   );

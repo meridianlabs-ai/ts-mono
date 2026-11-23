@@ -441,6 +441,11 @@
       "count": 1
     }
   },
+  "packages/inspect-components/src/sample-activity/ActivityChart.tsx": {
+    "react-hooks/invariant": {
+      "count": 1
+    }
+  },
   "packages/inspect-components/src/transcript-search/SearchPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -623,7 +628,23 @@
     "react-hooks/immutability": {
       "count": 3
     },
+    "react-hooks/memo-dependencies (file-wide)": {
+      "count": 1
+    },
     "react-hooks/refs": {
+      "count": 1
+    },
+    "react-hooks/todo (file-wide)": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useCollapsedState.ts": {
+    "react-hooks/hooks (file-wide)": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useCollapsibleIds.ts": {
+    "react-hooks/hooks (file-wide)": {
       "count": 1
     }
   },
@@ -639,6 +660,9 @@
   },
   "packages/react/src/hooks/useProperty.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
+    "react-hooks/hooks (file-wide)": {
       "count": 1
     }
   },
