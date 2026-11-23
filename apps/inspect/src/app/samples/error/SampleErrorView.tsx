@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CSSProperties, FC } from "react";
+import { FC } from "react";
 
 import { Icon } from "@tsmono/react/icons";
 
@@ -8,7 +8,6 @@ import styles from "./SampleErrorView.module.css";
 
 interface SampleErrorViewProps {
   message?: string;
-  style?: CSSProperties;
 }
 
 /**

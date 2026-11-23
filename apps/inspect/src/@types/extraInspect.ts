@@ -25,7 +25,6 @@ export type EvalPlanSteps = EvalPlanStep[];
 export type EvalSampleLimitType = EvalSampleLimit["type"];
 export type EvalSampleScore = EvalSample["scores"];
 export type EvalSampleTarget = EvalSample["target"];
-export type EvalSampleWorkingTime = EvalSample["working_time"];
 export type EvalScores = EvalScore[];
 export type EvalSpecModelRoles = EvalSpec["model_roles"];
 export type EvalStatsModelUsage = EvalStats["model_usage"];
