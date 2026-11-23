@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { loadMarkdownPipeline } from "../test/markdown";
 
 import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
@@ -38,6 +40,8 @@ const Permissions = () => {
   const policy = useContentPolicy();
   return <span>{JSON.stringify(policy)}</span>;
 };
+
+beforeAll(loadMarkdownPipeline);
 
 describe("content trust", () => {
   it("intersects source permissions with the application ceiling", () => {

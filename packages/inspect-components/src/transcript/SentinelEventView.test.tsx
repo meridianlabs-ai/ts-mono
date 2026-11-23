@@ -7,7 +7,15 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   testAssistantMessage,
@@ -25,6 +33,7 @@ import {
   ContentTrustProvider,
 } from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
+import { loadMarkdownPipeline } from "@tsmono/react/testing/markdown";
 
 import { SentinelEventView } from "./SentinelEventView";
 import { InMemoryStateWrapper } from "./testHelpers";
@@ -161,6 +170,8 @@ const rejectEvents = () => [
   decision("guard", "guard", "inspect_sentinel/sequential", "reject"),
   decision("root", "", "inspect_sentinel/concurrent", "reject"),
 ];
+
+beforeAll(loadMarkdownPipeline);
 
 describe("sentinel checks in a tool card", () => {
   beforeEach(() => {

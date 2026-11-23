@@ -32,7 +32,6 @@ import {
   EventNodeContext,
   eventNodeOf,
   EventPanelCallbacks,
-  EventType,
 } from "./types";
 
 interface Blocker {
@@ -88,7 +87,7 @@ const ranCall = (
 
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
-  childNodes: EventNode<EventType>[];
+  childNodes: EventNode[];
   className?: string;
   context?: EventNodeContext;
   eventCallbacks?: EventPanelCallbacks;

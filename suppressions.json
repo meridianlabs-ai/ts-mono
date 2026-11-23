@@ -7,11 +7,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
-    "react-hooks/exhaustive-deps": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-list/grid/LogListGrid.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1

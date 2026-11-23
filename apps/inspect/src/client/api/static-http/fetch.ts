@@ -11,7 +11,7 @@ export async function fetchTextFile(
   handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, {
+  const response = await fetch(safe_url, {
     ...logFetchInit,
     method: "GET",
   });
@@ -39,7 +39,7 @@ export async function fetchFile<T>(
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, {
+  const response = await fetch(safe_url, {
     ...logFetchInit,
     method: "GET",
   });

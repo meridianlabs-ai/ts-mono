@@ -2,7 +2,6 @@ import { fixupPluginRules } from "@eslint/compat";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
-import reactRefreshPlugin from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 import baseConfig from "./base.js";
@@ -238,7 +237,6 @@ export default tseslint.config(...baseConfig, {
     // (e.g. context.getFilename); fixup shims them until it ships v10 support.
     react: fixupPluginRules(reactPlugin),
     "react-hooks": reactHooksPlugin,
-    "react-refresh": reactRefreshPlugin,
     "jsx-a11y": jsxA11yPlugin,
     tsmono: {
       rules: {

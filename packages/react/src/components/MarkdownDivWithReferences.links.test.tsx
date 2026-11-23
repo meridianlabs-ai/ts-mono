@@ -6,10 +6,11 @@ import {
   render,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
 import { makeStateHooks, TrustedContentWrapper } from "../test";
+import { loadMarkdownPipeline } from "../test/markdown";
 
 import { ComponentNavigationProvider } from "./ComponentNavigationContext";
 import { MarkdownDivWithReferences } from "./MarkdownDivWithReferences";
@@ -53,6 +54,8 @@ const click = (el: HTMLElement, init: MouseEventInit) => {
 // With hover previews off, the component's React click handler routes
 // reference links in-app; with them on (the default), a native listener stops
 // propagation first and the link behaves natively.
+beforeAll(loadMarkdownPipeline);
+
 describe("MarkdownDivWithReferences reference links", () => {
   it("navigates in-app on a plain click", async () => {
     const { link, navigate } = await renderRefs(false);

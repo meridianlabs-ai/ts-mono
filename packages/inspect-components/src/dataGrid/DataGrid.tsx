@@ -78,7 +78,7 @@ function resolveHeaderTitle<TRow extends RowData>(
  *  key handler doesn't also treat Enter/Space as "activate the selected row".
  *  Shift/Cmd/Ctrl carry through to the toggle handler for multi-sort. */
 function makeSortKeyDownHandler<TRow extends RowData>(
-  header: Header<DataGridFeatures, TRow, unknown>
+  header: Header<DataGridFeatures, TRow>
 ) {
   return (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== "Enter" && e.key !== " ") return;
@@ -142,7 +142,7 @@ function ariaMaxSize(maxSize: number | undefined): number | undefined {
  *  the press's default focus, so focus the grid as the press used to (arrow
  *  keys keep working after a resize). */
 function startColumnResize<TRow extends RowData>(
-  header: Header<DataGridFeatures, TRow, unknown>
+  header: Header<DataGridFeatures, TRow>
 ): (e: MouseEvent<HTMLElement>) => void {
   const resize = header.getResizeHandler();
   return (e) => {
@@ -211,7 +211,7 @@ interface ColumnLayout<TRow extends RowData> {
   /** The table's visible leaf columns. Compared by identity so the layout
    *  also changes when column defs do (new cell renderers or styles at the
    *  same widths), since rows read their cells through it. */
-  columns: Column<DataGridFeatures, TRow, unknown>[];
+  columns: Column<DataGridFeatures, TRow>[];
   byId: ReadonlyMap<
     string,
     { size: number; width: number; pinnedLeft: number | undefined }
@@ -219,7 +219,7 @@ interface ColumnLayout<TRow extends RowData> {
 }
 
 function buildColumnLayout<TRow extends RowData>(
-  columns: Column<DataGridFeatures, TRow, unknown>[],
+  columns: Column<DataGridFeatures, TRow>[],
   afterRotatedIds: ReadonlySet<string>
 ): ColumnLayout<TRow> {
   return {
@@ -672,7 +672,7 @@ export function DataGrid<TRow extends RowData>({
   // correctly. The result commits through the normal sizing path, so it
   // persists exactly like a drag-resize.
   const autoSizeColumn = useCallback(
-    (column: Column<DataGridFeatures, TRow, unknown>) => {
+    (column: Column<DataGridFeatures, TRow>) => {
       const container = containerRef.current;
       if (!container) return;
       const selector = `[role="gridcell"][data-col-id="${CSS.escape(column.id)}"]`;
@@ -697,7 +697,7 @@ export function DataGrid<TRow extends RowData>({
   // `getSize()` is the fit-resolved width (the table's sizing state is
   // `resolvedSizing`), so a flex column steps from where the user sees it.
   const resizeColumnBy = useCallback(
-    (column: Column<DataGridFeatures, TRow, unknown>, delta: number) => {
+    (column: Column<DataGridFeatures, TRow>, delta: number) => {
       const def = column.columnDef as ExtendedColumnDef<TRow>;
       const width = clampColumnWidth(
         column.getSize() + delta,
@@ -745,14 +745,14 @@ export function DataGrid<TRow extends RowData>({
     onColumnSizingChange: handleColumnSizingChange,
   });
 
-  // `table` is a fresh object every render; its store is the stable handle.
-  const tableStore = table.store;
+  // `table` is a fresh object every render; its atoms are the stable handles.
+  const columnResizingAtom = table.atoms.columnResizing;
   const handleHeaderDragStart = useCallback(
     (e: DragEvent<HTMLElement>, colId: string, label: string) => {
       // Backstop for `startColumnResize`: a drag that starts mid-resize would
       // take the mouseup that ends it. Cancelling dragstart is the one
       // drag-abort every browser honors.
-      if (tableStore.state.columnResizing.isResizingColumn !== false) {
+      if (columnResizingAtom.get().isResizingColumn !== false) {
         e.preventDefault();
         return;
       }
@@ -780,7 +780,7 @@ export function DataGrid<TRow extends RowData>({
         if (dragSessionRef.current === colId) setDraggedColId(colId);
       }, 0);
     },
-    [tableStore]
+    [columnResizingAtom]
   );
 
   const { rows } = table.getRowModel();
@@ -796,7 +796,7 @@ export function DataGrid<TRow extends RowData>({
   const visibleColumns = table.getVisibleLeafColumns();
   // The sort-order number is noise for a single sort, so it only appears for
   // multi-sorts — matching the previous AG grid.
-  const multiSorted = table.store.state.sorting.length > 1;
+  const multiSorted = table.state.sorting.length > 1;
 
   // Header and body cells both place themselves from this, and rows must
   // read it rather than `getSize()`: widths can shift between columns at a
@@ -1405,7 +1405,7 @@ function RotatedHeaderCell<TRow extends RowData>({
   size,
   onResizeBy,
 }: {
-  header: Header<DataGridFeatures, TRow, unknown>;
+  header: Header<DataGridFeatures, TRow>;
   /** From the grid's column layout, not `header.getSize()`: `header` keeps
    *  its identity across resizes, so the compiled component would reuse a
    *  width read off it. */

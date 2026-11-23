@@ -259,7 +259,9 @@ const FullText: FC<{
       const now = contentTop(view);
       still = now === top ? still + 1 : 0;
       top = now;
-      frames++;
+      // Not `frames++`: the React Compiler can't lower `++` on a variable a
+      // closure captures, and would skip FullText.
+      frames += 1;
       if (
         view.isConnected &&
         check(view) &&

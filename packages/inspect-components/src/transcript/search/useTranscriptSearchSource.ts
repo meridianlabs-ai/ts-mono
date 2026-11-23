@@ -113,9 +113,10 @@ export function useTranscriptSearchSource(
         const container = root();
         if (!container?.contains(node)) return null;
         let el = node instanceof Element ? node : node.parentElement;
-        for (; el && el !== container; el = el.parentElement) {
+        while (el && el !== container) {
           const index = el.id ? eventIndex.get(el.id) : undefined;
           if (index !== undefined) return index;
+          el = el.parentElement;
         }
         return null;
       },

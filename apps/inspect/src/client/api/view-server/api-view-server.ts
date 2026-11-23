@@ -353,6 +353,7 @@ export function viewServerApi(
             status: "NotModified",
           };
         }
+        return undefined;
       },
     };
 
@@ -413,6 +414,7 @@ export function viewServerApi(
             status: "NotModified",
           };
         }
+        return undefined;
       },
     };
 

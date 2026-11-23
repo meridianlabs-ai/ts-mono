@@ -284,7 +284,7 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
 // The compact card's fixed columns ellipsize long names; the title keeps the
 // full text reachable on hover. The full view never truncates, so it skips it.
 const compactTitle = (
-  header: Header<ScoreGridFeatures, ScoreGridRow, unknown>,
+  header: Header<ScoreGridFeatures, ScoreGridRow>,
   compact: boolean | undefined
 ): string | undefined => {
   const label = header.column.columnDef.header;
@@ -296,7 +296,7 @@ const LeafHeader = ({
   isLast,
   compact,
 }: {
-  header: Header<ScoreGridFeatures, ScoreGridRow, unknown>;
+  header: Header<ScoreGridFeatures, ScoreGridRow>;
   isLast: boolean;
   compact: boolean | undefined;
 }): ReactElement => {

@@ -1,5 +1,9 @@
 import { createContext, useContext } from "react";
-import { create, type StateCreator } from "zustand";
+import {
+  create,
+  useStore as useZustandStore,
+  type StateCreator,
+} from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
@@ -119,14 +123,13 @@ const selectWholeState = (state: StoreState) => state;
 export function useStore(): StoreState;
 export function useStore<T>(selector: (state: StoreState) => T): T;
 export function useStore<T>(selector?: (state: StoreState) => T) {
-  // Named `use*` so React Compiler recognizes the call below as a hook. Under
-  // any other name it treats `store(selector)` as a plain call and memoizes it
-  // away, skipping zustand's useSyncExternalStore on later renders.
-  const useBoundStore = useContext(StoreContext);
-  if (!useBoundStore)
-    throw new Error("useStore must be used within StoreProvider");
+  const store = useContext(StoreContext);
+  if (!store) throw new Error("useStore must be used within StoreProvider");
 
-  return useBoundStore<T | StoreState>(selector ?? selectWholeState);
+  return useZustandStore<StoreApi, T | StoreState>(
+    store,
+    selector ?? selectWholeState
+  );
 }
 
 /**

@@ -11,7 +11,7 @@ interface ScannerResultsGroupProps {
 }
 
 export const ScannerResultsGroup: FC<ScannerResultsGroupProps> = ({
-  options = ["source", "label", "id", "epoch", "model"],
+  options,
 }) => {
   const setGroupResultsBy = useStore((state) => state.setGroupResultsBy);
   const groupResultsBy = useStore((state) => state.groupResultsBy);

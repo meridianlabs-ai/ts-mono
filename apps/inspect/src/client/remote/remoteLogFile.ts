@@ -244,7 +244,7 @@ export const openRemoteLogFile = async (
 
       // Send bytes directly to the worker pool, avoiding a redundant
       // TextDecoder.decode + TextEncoder.encode round-trip on the main thread.
-      return asyncJsonParseBytes(data);
+      return await asyncJsonParseBytes(data);
     } catch (error) {
       if (error instanceof FileSizeLimitError) {
         throw error;

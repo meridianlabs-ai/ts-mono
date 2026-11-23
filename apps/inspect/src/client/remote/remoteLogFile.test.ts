@@ -31,15 +31,18 @@ import {
 } from "./remoteLogFile";
 
 // Entries of the in-memory .eval served to openRemoteLogFile: entry name →
-// JSON content. Populated per-test; zipped when the api is created.
+// JSON content, or raw bytes for a malformed entry. Zipped when the api is
+// created.
 const zipEntries = new Map<string, unknown>();
 
-const zipBytes = (): Uint8Array =>
+const zipBytes = (entries: Map<string, unknown>): Uint8Array =>
   zipSync(
     Object.fromEntries(
-      Array.from(zipEntries, ([name, content]) => [
+      Array.from(entries, ([name, content]) => [
         name,
-        strToU8(JSON.stringify(content)),
+        content instanceof Uint8Array
+          ? content
+          : strToU8(JSON.stringify(content)),
       ])
     )
   );
@@ -169,31 +172,31 @@ function makeSummary(
   return testSampleSummary({ id, epoch, error });
 }
 
+// Serves a real zip of `zipEntries` through the byte-range api, the way a
+// view server serves a .eval.
+const fakeApi = (entries = zipEntries): LogViewAPI => {
+  const bytes = zipBytes(entries);
+  return {
+    client_events: notImplemented("client_events"),
+    get_eval_set: notImplemented("get_eval_set"),
+    get_flow: notImplemented("get_flow"),
+    get_logs: notImplemented("get_logs"),
+    get_log_contents: notImplemented("get_log_contents"),
+    get_log_info: () => Promise.resolve({ size: bytes.length }),
+    get_log_bytes: (_file, start, end) =>
+      Promise.resolve(bytes.slice(start, end + 1)),
+    get_log_summaries: notImplemented("get_log_summaries"),
+    log_message: notImplemented("log_message"),
+    download_file: notImplemented("download_file"),
+    open_log_file: notImplemented("open_log_file"),
+    get_app_config: notImplemented("get_app_config"),
+  };
+};
+
 // Wiring tests for boundary normalization (#555): these fail if the
 // normalizeSampleSummaries call is removed from readSampleSummaries /
 // readFallbackSummaries, not just if the normalizer itself regresses.
 describe("readLogSummary summary normalization", () => {
-  // Serves a real zip of `zipEntries` through the byte-range api, the way a
-  // view server serves a .eval.
-  const fakeApi = (): LogViewAPI => {
-    const bytes = zipBytes();
-    return {
-      client_events: notImplemented("client_events"),
-      get_eval_set: notImplemented("get_eval_set"),
-      get_flow: notImplemented("get_flow"),
-      get_logs: notImplemented("get_logs"),
-      get_log_contents: notImplemented("get_log_contents"),
-      get_log_info: () => Promise.resolve({ size: bytes.length }),
-      get_log_bytes: (_file, start, end) =>
-        Promise.resolve(bytes.slice(start, end + 1)),
-      get_log_summaries: notImplemented("get_log_summaries"),
-      log_message: notImplemented("log_message"),
-      download_file: notImplemented("download_file"),
-      open_log_file: notImplemented("open_log_file"),
-      get_app_config: notImplemented("get_app_config"),
-    };
-  };
-
   // A finalized 2024-era header; normalizeEvalHeader fills the rest.
   const vintageHeader = {
     version: 2,
@@ -260,6 +263,16 @@ describe("readLogSummary summary normalization", () => {
     const details = await remoteLog.readLogSummary();
     expect(details.sampleSummaries).toHaveLength(1);
     expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+});
+
+describe("readEvalBasicInfo", () => {
+  test("names the file when its JSON fails to parse", async () => {
+    const entries = new Map([["header.json", strToU8("{not json")]]);
+    const remoteLog = await openRemoteLogFile(fakeApi(entries), "log.eval", 1);
+    await expect(remoteLog.readEvalBasicInfo()).rejects.toThrow(
+      "Failed to read or parse file header.json"
+    );
   });
 });
 
