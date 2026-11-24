@@ -2458,6 +2458,8 @@ export interface components {
          * @description Call to a language model.
          */
         ModelEvent: {
+            /** Agent Tool Call Ids */
+            agent_tool_call_ids?: string[] | null;
             /** Cache */
             cache?: ("read" | "write") | null;
             call?: components["schemas"]["ModelCall"] | null;
@@ -3726,6 +3728,8 @@ export interface components {
              * @default false
              */
             audit: boolean;
+            /** Completed */
+            completed?: string | null;
             /** Conversation */
             conversation: string;
             /** Error */
@@ -3760,8 +3764,11 @@ export interface components {
             path: string;
             /** Pending */
             pending?: boolean | null;
+            /** Reason */
+            reason?: string | null;
             /** References */
             references: components["schemas"]["Reference"][];
+            sidecar?: components["schemas"]["SentinelSidecar"] | null;
             /** Span Id */
             span_id?: string | null;
             /**
@@ -3773,7 +3780,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged";
             /** Step Id */
             step_id: string;
             /** Suspicion */
@@ -3786,6 +3793,72 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+            /** Working Time */
+            working_time?: number | null;
+        };
+        /**
+         * SentinelSidecar
+         * @description Where a report a sentinel sidecar made came from: the sidecar behind a model's proxy, and the agent's model call it judged.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecar: {
+            /** Models */
+            models?: components["schemas"]["SentinelSidecarModel"][] | null;
+            /** Proxy */
+            proxy: string;
+            /**
+             * Release
+             * @enum {string}
+             */
+            release: "whole" | "early";
+            /** Reply Received */
+            reply_received?: string | null;
+            /** Request Id */
+            request_id?: string | null;
+            /** Request Received */
+            request_received?: string | null;
+            /** Reviews */
+            reviews?: components["schemas"]["SentinelSidecarReview"][] | null;
+            /**
+             * Trimmed
+             * @default false
+             */
+            trimmed: boolean;
+            /** Version */
+            version: number;
+        };
+        /**
+         * SentinelSidecarModel
+         * @description A model a sentinel sidecar's monitors and protocols called while judging a step.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecarModel: {
+            /** Model */
+            model: string;
+            /** Role */
+            role?: string | null;
+        };
+        /**
+         * SentinelSidecarReview
+         * @description A question a sentinel sidecar asked a person about a step, and how it ended.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecarReview: {
+            /** Answered */
+            answered?: string | null;
+            /** Asked */
+            asked?: string | null;
+            /** Cause */
+            cause?: string | null;
+            /** Decision */
+            decision?: string | null;
+            /** Id */
+            id: string;
+            /** Resolution */
+            resolution?: ("answered" | "timed_out" | "cancelled") | null;
         };
         /**
          * SnapshotDetails
@@ -4288,6 +4361,8 @@ export interface components {
             event: "tool";
             /** Events */
             events: unknown[];
+            /** Execution Id */
+            execution_id?: string | null;
             /** Failed */
             failed?: boolean | null;
             /** Function */
@@ -4346,7 +4421,7 @@ export interface components {
          *     ```python
          *     ChatCompletionToolParam(
          *         type="function",
-         *         function=tool.model_dump(exclude_none=True),
+         *         function=tool.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
          *
@@ -4358,9 +4433,12 @@ export interface components {
          *     ToolParam(
          *         name=tool.name,
          *         description=tool.description,
-         *         input_schema=tool.parameters.model_dump(exclude_none=True),
+         *         input_schema=tool.parameters.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
+         *
+         *     Dump in JSON mode, as shown, so parameter defaults such as an `Enum`
+         *     member are converted to JSON values.
          */
         ToolInfo: {
             /** Description */
