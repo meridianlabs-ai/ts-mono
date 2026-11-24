@@ -591,14 +591,17 @@ function getEventTokens(event: Event): number {
  * Requires at least one node (all nodes have non-null startTime).
  */
 function minStartTime(nodes: (TimelineEvent | TimelineSpan)[]): Date {
-  const first = nodes[0];
-  if (!first) {
+  // Read each node's time once: re-reading recurses, which doubles the work
+  // per level of single-child nesting.
+  let min: Date | undefined;
+  for (const node of nodes) {
+    const start = node.startTime();
+    if (!min || start < min) min = start;
+  }
+  if (!min) {
     throw new Error("minStartTime requires at least one node");
   }
-  return nodes.reduce(
-    (min, n) => (n.startTime() < min ? n.startTime() : min),
-    first.startTime()
-  );
+  return min;
 }
 
 /**
@@ -606,14 +609,15 @@ function minStartTime(nodes: (TimelineEvent | TimelineSpan)[]): Date {
  * Requires at least one node (all nodes have non-null endTime).
  */
 function maxEndTime(nodes: (TimelineEvent | TimelineSpan)[]): Date {
-  const first = nodes[0];
-  if (!first) {
+  let max: Date | undefined;
+  for (const node of nodes) {
+    const end = node.endTime();
+    if (!max || end > max) max = end;
+  }
+  if (!max) {
     throw new Error("maxEndTime requires at least one node");
   }
-  return nodes.reduce(
-    (max, n) => (n.endTime() > max ? n.endTime() : max),
-    first.endTime()
-  );
+  return max;
 }
 
 /**

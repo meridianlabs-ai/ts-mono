@@ -92,7 +92,7 @@ function buildSpanLookup(events: Event[]): Map<string, SpanInfo> {
  * Walks the orphaned events, groups them by their direct parent span, and
  * recursively builds only the ancestor spans that contain at least one orphan.
  * Spans that are already represented in a server timeline are not recreated —
- * their orphaned children are promoted to the level above.
+ * their orphaned children are promoted to root.
  */
 function buildOrphanContent(
   orphanEvents: Event[],
@@ -124,20 +124,43 @@ function buildOrphanContent(
     }
   }
 
-  // Walk up parent chains to find all ancestor spans needed
-  const allNeededSpanIds = new Set(neededSpanIds);
+  // Cache completed ancestor paths so shared ancestry is traversed only once.
+  const spanDepths = new Map<string, number>();
+  const cycleRoots = new Set<string>();
   for (const spanId of neededSpanIds) {
+    const path: string[] = [];
+    const visiting = new Set<string>();
     let current = spanLookup.get(spanId);
-    while (current?.parentId) {
-      if (referencedSpanIds.has(current.parentId)) break;
-      if (!spanLookup.has(current.parentId)) break;
-      allNeededSpanIds.add(current.parentId);
-      current = spanLookup.get(current.parentId);
+    while (
+      current &&
+      !referencedSpanIds.has(current.id) &&
+      !spanDepths.has(current.id)
+    ) {
+      visiting.add(current.id);
+      path.push(current.id);
+      const parent = current.parentId
+        ? spanLookup.get(current.parentId)
+        : undefined;
+      if (parent && visiting.has(parent.id)) {
+        // Promote every ring member, not just the closing one, so a ring adds
+        // no nesting; members without orphans of their own are then skipped.
+        const ring = path.slice(path.indexOf(parent.id));
+        for (const id of ring) cycleRoots.add(id);
+        console.warn(
+          `Invalid transcript: cyclic span parent chain of ${ring.length} spans at "${parent.id}"; promoting them to root.`
+        );
+        current = undefined;
+        break;
+      }
+      current = parent;
     }
+
+    const base = current ? (spanDepths.get(current.id) ?? -1) : -1;
+    path.forEach((id, i) => spanDepths.set(id, base + path.length - i));
   }
 
-  // Build the span tree bottom-up: for each needed span, determine its
-  // effective parent (the nearest needed ancestor, or null for root)
+  // Build the span tree bottom-up: each needed span goes under its direct
+  // parent when that parent is also rebuilt, otherwise at root.
   const spanChildren = new Map<
     string | null,
     (TimelineEvent | TimelineSpan)[]
@@ -154,21 +177,11 @@ function buildOrphanContent(
     group.push(...items);
   }
 
-  // Register each needed span under its effective parent
-  // Process from leaves to roots by sorting by depth
-  const spanDepth = (id: string): number => {
-    let depth = 0;
-    let current = spanLookup.get(id);
-    while (current?.parentId && allNeededSpanIds.has(current.parentId)) {
-      depth++;
-      current = spanLookup.get(current.parentId);
-    }
-    return depth;
-  };
-
-  const sortedSpanIds = [...allNeededSpanIds].sort(
-    (a, b) => spanDepth(b) - spanDepth(a)
-  );
+  // Leaves first. Ties list spans holding orphans before walked ancestors so
+  // spans that start together keep a stable lane order.
+  const sortedSpanIds = [
+    ...new Set([...neededSpanIds, ...spanDepths.keys()]),
+  ].sort((a, b) => spanDepths.get(b)! - spanDepths.get(a)!);
 
   for (const spanId of sortedSpanIds) {
     const info = spanLookup.get(spanId)!;
@@ -187,17 +200,12 @@ function buildOrphanContent(
       utility: false,
     });
 
-    // Find effective parent: nearest needed ancestor, or null for root
-    let parentId: string | null = null;
-    let current = info;
-    while (current.parentId) {
-      if (allNeededSpanIds.has(current.parentId)) {
-        parentId = current.parentId;
-        break;
-      }
-      current = spanLookup.get(current.parentId) ?? current;
-      if (current === info) break; // safety: prevent infinite loop
-    }
+    // Every unrepresented ancestor is included, so only the direct parent
+    // can contain this span. Referenced or missing parents promote it to root.
+    const parentId =
+      !cycleRoots.has(spanId) && info.parentId && spanDepths.has(info.parentId)
+        ? info.parentId
+        : null;
 
     let parentGroup = spanChildren.get(parentId);
     if (!parentGroup) {

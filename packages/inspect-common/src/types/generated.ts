@@ -2130,10 +2130,6 @@ export interface components {
             };
             /** Samples */
             samples: number;
-            /** Selected */
-            selected: number;
-            /** Selection Digest */
-            selection_digest: string;
             /** Shard */
             shard: string;
             /** Size */
