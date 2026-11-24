@@ -105,7 +105,7 @@ export const LogView: FC = () => {
     stayHiddenOnUpScroll: true,
   });
 
-  const selectedTab = useWorkspaceTab();
+  const selectedTab = useWorkspaceTab(Object.values(tabs).map((tab) => tab.id));
   // A sample's terminals view wants the height: the title shows collapsed
   // while one is mounted (derived, so leaving it shows the scroll state
   // again).

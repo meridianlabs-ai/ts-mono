@@ -13,10 +13,9 @@ import { useCurrentLogFile } from "../currentSelection";
 
 /**
  * Reacts to the selected log's settled details — only the side effects that
- * can't be derived: resetting per-log selection state. All
- * fetching lives in the hook/engine. Rendered below the loader gate (by both
- * loader hosts) so the log dir the hook is keyed on is resolved before it
- * runs.
+ * can't be derived: resetting per-log selection state. All fetching lives in
+ * the hook/engine. Rendered below the loader gate (by both loader hosts) so
+ * the log dir the hook is keyed on is resolved before it runs.
  *
  * The effect keys off `details_settled_seq`, not `detail.data` identity: the
  * details cache entry also receives poll-tick merges (running logs), which
