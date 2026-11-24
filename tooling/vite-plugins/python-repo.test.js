@@ -42,7 +42,7 @@ const buildWithCopy = (plugins = [], outDir = join(root, "dist")) =>
     configFile: false,
     logLevel: "silent",
     build: { outDir, minify: false },
-    plugins: [...plugins, copyDistToPythonRepo(PKG)],
+    plugins: [copyDistToPythonRepo(PKG), ...plugins],
   });
 
 const expectViewerUntouched = () => {
