@@ -2458,6 +2458,8 @@ export interface components {
          * @description Call to a language model.
          */
         ModelEvent: {
+            /** Agent Tool Call Ids */
+            agent_tool_call_ids?: string[] | null;
             /** Cache */
             cache?: ("read" | "write") | null;
             call?: components["schemas"]["ModelCall"] | null;
