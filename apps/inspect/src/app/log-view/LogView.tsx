@@ -31,6 +31,7 @@ import { useTaskTabConfig } from "./tabs/TaskTab";
 import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
 import { TabDescriptor } from "./types";
+import { useWorkspaceTab } from "./useWorkspaceTab";
 
 export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
@@ -104,19 +105,15 @@ export const LogView: FC = () => {
     stayHiddenOnUpScroll: true,
   });
 
-  const selectedTab = useStore((state) => state.app.tabs.workspace);
+  const selectedTab = useWorkspaceTab(Object.values(tabs).map((tab) => tab.id));
   // A sample's terminals view wants the height: the title shows collapsed
   // while one is mounted (derived, so leaving it shows the scroll state
   // again).
   const onSampleTerminals = useStore((state) => state.sample.terminalsViewOpen);
-  const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
   const onSelected = (e: MouseEvent<HTMLElement>) => {
     const id = e.currentTarget.id;
-    if (id) {
-      setSelectedTab(id);
-      navigation.selectTab(id);
-    }
+    if (id) navigation.selectTab(id);
   };
 
   if (evalSpec === undefined) {

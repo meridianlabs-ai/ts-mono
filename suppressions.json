@@ -17,11 +17,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-view/LogViewContainer.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/LogViewLayout.tsx": {
     "jsx-a11y/no-noninteractive-tabindex": {
       "count": 1

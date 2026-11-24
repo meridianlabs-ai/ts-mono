@@ -3,7 +3,7 @@ import { clearDocumentSelection, getOwn } from "@tsmono/util";
 
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
-import { kLogViewSamplesTabId, kSampleTranscriptTabId } from "../constants";
+import { kSampleTranscriptTabId } from "../constants";
 
 import { StoreState } from "./store";
 
@@ -17,8 +17,6 @@ export interface AppSlice {
 
     setShowingTranscriptFilterDialog: (showing: boolean) => void;
     setShowingOptionsDialog: (showing: boolean) => void;
-    setWorkspaceTab: (tab: string) => void;
-    clearWorkspaceTab: () => void;
 
     setSampleTab: (tab: string) => void;
     clearSampleTab: () => void;
@@ -61,7 +59,6 @@ export interface AppSlice {
   };
 }
 
-const kDefaultWorkspaceTab = kLogViewSamplesTabId;
 const kDefaultSampleTab = kSampleTranscriptTabId;
 
 const initialState: AppState = {
@@ -71,7 +68,6 @@ const initialState: AppState = {
     options: false,
   },
   tabs: {
-    workspace: kDefaultWorkspaceTab,
     sample: kDefaultSampleTab,
   },
   scrollPositions: {},
@@ -146,16 +142,6 @@ export const createAppSlice = (
         }
         set((state) => {
           state.app.dialogs.options = showing;
-        });
-      },
-      setWorkspaceTab: (tab: string) => {
-        set((state) => {
-          state.app.tabs.workspace = tab;
-        });
-      },
-      clearWorkspaceTab: () => {
-        set((state) => {
-          state.app.tabs.workspace = kDefaultWorkspaceTab;
         });
       },
       setSampleTab: (tab: string) => {

@@ -114,6 +114,23 @@ test.describe("Top-level views", () => {
     // task-gamma sits inside the subdir folder, not at the root.
     await expect(gridCell(page, "task-gamma")).toHaveCount(0);
   });
+
+  test("a log with no samples opens on Info unless the URL names a tab", async ({
+    page,
+    network,
+  }) => {
+    serveEvalLog(network, createEvalLog(), "no-samples.json");
+    await page.goto("/#/logs/no-samples.json/timeline");
+    await expect(page.getByText("History", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Activity", exact: true })
+    ).toHaveAttribute("aria-selected", "true");
+
+    await page.goto("/#/logs/no-samples.json");
+    await expect(
+      page.getByRole("tab", { name: "Info", exact: true })
+    ).toHaveAttribute("aria-selected", "true");
+  });
 });
 
 test.describe("Sorting", () => {

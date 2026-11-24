@@ -33,12 +33,10 @@ vi.mock("../../../app_config", () => ({
 }));
 
 const clearSelectedScores = vi.hoisted(() => vi.fn());
-const setWorkspaceTab = vi.hoisted(() => vi.fn());
 vi.mock("../../../state/store", () => ({
   useStore: (selector: (state: unknown) => unknown) =>
     selector({
       logActions: { clearSelectedScores },
-      appActions: { setWorkspaceTab },
     }),
 }));
 
@@ -55,7 +53,6 @@ const makeDetails = (n: number): LogDetails =>
 
 beforeEach(() => {
   clearSelectedScores.mockReset();
-  setWorkspaceTab.mockReset();
   useLogHeader.mockReset();
   resolveLogKey.mockReset();
   resolveLogKey.mockReturnValue("run.eval");

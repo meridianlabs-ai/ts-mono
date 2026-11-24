@@ -3,7 +3,6 @@ import { FC, useEffect } from "react";
 import { useLatestRef } from "@tsmono/react/hooks";
 
 import { useLogDir } from "../../../app_config";
-import { kLogViewInfoTabId } from "../../../constants";
 import {
   resolveLogKey,
   useLogFetchState,
@@ -14,11 +13,9 @@ import { useCurrentLogFile } from "../currentSelection";
 
 /**
  * Reacts to the selected log's settled details — only the side effects that
- * can't be derived: resetting per-log
- * selection state, and defaulting the workspace tab for empty logs. All
- * fetching lives in the hook/engine. Rendered below the loader gate (by both
- * loader hosts) so the log dir the hook is keyed on is resolved before it
- * runs.
+ * can't be derived: resetting per-log selection state. All fetching lives in
+ * the hook/engine. Rendered below the loader gate (by both loader hosts) so
+ * the log dir the hook is keyed on is resolved before it runs.
  *
  * The effect keys off `details_settled_seq`, not `detail.data` identity: the
  * details cache entry also receives poll-tick merges (running logs), which
@@ -39,7 +36,6 @@ export const LogLoadController: FC = () => {
   const clearSelectedScores = useStore(
     (state) => state.logActions.clearSelectedScores
   );
-  const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   // Read through a ref so only a settled-seq bump refires the effect, not
   // every poll-tick merge into the details cache.
   const detailDataRef = useLatestRef(detail.data);
@@ -51,17 +47,7 @@ export const LogLoadController: FC = () => {
       return;
     }
     clearSelectedScores();
-    if (details.status !== "started" && details.sampleCount === 0) {
-      // If there are no samples, use the info tab by default
-      setWorkspaceTab(kLogViewInfoTabId);
-    }
-  }, [
-    settledSeq,
-    selectedLogFile,
-    clearSelectedScores,
-    setWorkspaceTab,
-    detailDataRef,
-  ]);
+  }, [settledSeq, selectedLogFile, clearSelectedScores, detailDataRef]);
 
   return null;
 };

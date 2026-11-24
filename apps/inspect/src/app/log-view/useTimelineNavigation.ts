@@ -37,12 +37,8 @@ export interface TimelineNavigation<Args extends unknown[] = []> {
  * in-app navigation for plain clicks.
  */
 export const useTimelineNavigation = (): TimelineNavigation => {
-  const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const navigation = useLogNavigationAction();
-  const show = useCallback(() => {
-    setWorkspaceTab(kLogViewTimelineTabId);
-    navigation.selectTab(kLogViewTimelineTabId);
-  }, [setWorkspaceTab, navigation]);
+  const show = () => navigation.selectTab(kLogViewTimelineTabId);
   return {
     href: toFullUrlMaybe(navigation.getTabUrl(kLogViewTimelineTabId)),
     show,
