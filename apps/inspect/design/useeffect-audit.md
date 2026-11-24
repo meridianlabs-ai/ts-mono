@@ -12,8 +12,6 @@ history for this file.
 
 ## State mirrors
 
-- `app/log-view/LogViewContainer.tsx`: URL `tabId` is mirrored into
-  `tabs.workspace`. Fix: make the URL canonical and have clicks only navigate.
 - `app/samples/SampleDetailComponent.tsx`: URL `tabId` is copied into the
   store's sample tab for store-only readers. Fix: the reader hook derives
   `urlTabId ?? storeTab`.

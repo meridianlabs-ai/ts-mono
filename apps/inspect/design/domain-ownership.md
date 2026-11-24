@@ -174,8 +174,8 @@ writes; a binding that grows a queryFn has sunk too low.
   `useEvalSampleData(logDir, currentSampleHandle)`; likewise
   `useSelectedSampleInvalidation()`. (`state/hooks.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
-  details query settling: per-log score resets,
-  workspace-tab default for empty logs. No fetching. (`LogLoadController`)
+  details query settling: per-log score resets. No fetching.
+  (`LogLoadController`)
 - **Sample reaction controller** — resets per-sample UI state that isn't
   derivable from the new sample (scroll/list positions, collapsed events,
   timeline selection), keyed on sample identity. No fetching.

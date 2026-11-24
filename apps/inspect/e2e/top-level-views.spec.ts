@@ -496,6 +496,23 @@ test.describe("Open in new tab", () => {
     await expect(page).toHaveURL(/#\/logs\/two-samples\.json\/info$/);
   });
 
+  test("a log with no samples opens on Info unless the URL names a tab", async ({
+    page,
+    network,
+  }) => {
+    serveEvalLog(network, createEvalLog(), "no-samples.json");
+    await page.goto("/#/logs/no-samples.json/timeline");
+    await expect(page.getByText("History", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Activity", exact: true })
+    ).toHaveAttribute("aria-selected", "true");
+
+    await page.goto("/#/logs/no-samples.json");
+    await expect(
+      page.getByRole("tab", { name: "Info", exact: true })
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
   test("sample tabs and prev/next open in a new tab", async ({
     page,
     context,

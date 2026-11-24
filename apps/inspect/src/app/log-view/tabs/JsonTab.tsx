@@ -17,7 +17,6 @@ const kJsonMaxSize = 10000000;
 // Individual hook for JSON tab
 export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
   const selectedLogFile = useCurrentLogFile();
-  const selectedTab = useStore((state) => state.app.tabs.workspace);
 
   return useMemo(() => {
     // Show the log's own fields, not the client-derived sample facts.
@@ -33,16 +32,10 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
       id: kLogViewJsonTabId,
       label: "JSON",
       scrollable: true,
-      content: (
-        <JsonTab
-          logFile={selectedLogFile}
-          json={json}
-          selected={selectedTab === kLogViewJsonTabId}
-        />
-      ),
+      content: <JsonTab logFile={selectedLogFile} json={json} />,
       tools: () => [<CopyJsonButton key="copy-json" json={json} />],
     };
-  }, [selectedLogFile, logDetails, selectedTab]);
+  }, [selectedLogFile, logDetails]);
 };
 
 /**
@@ -65,7 +58,6 @@ export const CopyJsonButton: FC<{ json: string }> = ({ json }) => {
 
 interface JsonTabProps {
   logFile?: string;
-  selected: boolean;
   json: string;
 }
 

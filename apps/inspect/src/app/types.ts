@@ -39,7 +39,6 @@ export interface AppState {
   nativeFind?: boolean;
   showFind: boolean;
   tabs: {
-    workspace: string;
     sample: string;
   };
   dialogs: {
