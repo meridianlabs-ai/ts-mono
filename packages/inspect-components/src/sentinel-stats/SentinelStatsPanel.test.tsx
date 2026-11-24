@@ -17,7 +17,7 @@ const sampleStats: SentinelStats = {
     model_output: { total: 5, judged: 5, unjudged: {} },
   },
   actions: { reject: 1, proceed: 6 },
-  human_reviews: { asked: 2, answered: 1, timed_out: 1, cancelled: 0 },
+  human_reviews: { total: 2, answered: 1, timed_out: 1, cancelled: 0 },
   complete: true,
 };
 
@@ -38,10 +38,10 @@ describe("SentinelStatsPanel", () => {
       "2 questions · 1 answered · 1 timed out · 0 cancelled"
     );
     expect(entry.textContent).not.toContain("Incomplete");
-    expect(entry.textContent).not.toContain("Sidecar");
+    expect(entry.textContent).not.toContain("Remote");
   });
 
-  it("says why a sidecar's stats are incomplete, and what the sidecar saw", () => {
+  it("says why a remote sentinel's stats are incomplete, and what it saw", () => {
     render(
       <SentinelStatsPanel
         stats={{
@@ -49,10 +49,12 @@ describe("SentinelStatsPanel", () => {
             steps: null,
             complete: false,
             incomplete_reason: "cancelled",
-            sidecar: {
-              proxy: "http://127.0.0.1:4000",
+            remote: {
+              proxy_url: "http://127.0.0.1:4000",
+              version: 1,
+              release: "whole",
               model_calls: 3,
-              unknown_calls: 1,
+              unrecorded_calls: 1,
               results_withheld: true,
             },
           },
@@ -65,7 +67,7 @@ describe("SentinelStatsPanel", () => {
     expect(entry.textContent).toContain("Incomplete: cancelled");
     expect(entry.textContent).toContain("No step counts.");
     expect(entry.textContent).toContain(
-      "3 model calls · 1 unknown to the sidecar · results withheld from the eval"
+      "3 model calls · 1 unrecorded by the remote sentinel · results withheld from the eval"
     );
     expect(within(entry).queryByRole("table")).toBeNull();
   });
@@ -74,17 +76,19 @@ describe("SentinelStatsPanel", () => {
     [false, /results sent to the eval/],
     [undefined, /results withheld: not reported/],
   ])(
-    "says whether a sidecar withheld results when it reports %s",
+    "says whether a remote sentinel withheld results when it reports %s",
     (withheld, text) => {
       render(
         <SentinelStatsPanel
           stats={{
             guard: {
               ...sampleStats,
-              sidecar: {
-                proxy: "http://127.0.0.1:4000",
+              remote: {
+                proxy_url: "http://127.0.0.1:4000",
+                version: 1,
+                release: "whole",
                 model_calls: 1,
-                unknown_calls: 0,
+                unrecorded_calls: 0,
                 results_withheld: withheld,
               },
             },
@@ -95,10 +99,13 @@ describe("SentinelStatsPanel", () => {
     }
   );
 
-  it("gives an eval's count of samples, and how many it left out", () => {
+  it("gives an eval's count of samples, how many it left out, and its remote calls", () => {
     const evalStats: SentinelEvalStats = {
-      ...sampleStats,
-      complete: false,
+      steps: sampleStats.steps,
+      actions: sampleStats.actions,
+      human_reviews: sampleStats.human_reviews,
+      model_calls: 12,
+      unrecorded_calls: 2,
       samples: 9,
       incomplete_samples: 1,
     };
@@ -107,7 +114,10 @@ describe("SentinelStatsPanel", () => {
     expect(entry.textContent).toContain(
       "9 samples counted · 1 left out as incomplete"
     );
-    expect(entry.textContent).toContain("Incomplete");
+    expect(entry.textContent).toContain(
+      "12 model calls · 2 unrecorded by the remote sentinel"
+    );
+    expect(entry.textContent).not.toContain("Incomplete");
   });
 
   it("renders nothing without stats", () => {

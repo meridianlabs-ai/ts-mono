@@ -18,7 +18,7 @@ interface SentinelStatsPanelProps {
   className?: string;
 }
 
-/** What each sentinel did over a sample or an eval: its steps, decisions and questions for a person. */
+/** What each sentinel did over a sample or an eval: its steps, decisions and questions for a person, and for a sentinel outside the eval, the calls Inspect sent through it. */
 export const SentinelStatsPanel: FC<SentinelStatsPanelProps> = ({
   stats,
   className,
@@ -46,7 +46,6 @@ const SentinelStatsEntry: FC<{
   const steps = stats.steps ? orderedStages(stats.steps) : undefined;
   const actions = stats.actions ? orderedActions(stats.actions) : [];
   const reviews = stats.human_reviews;
-  const sidecar = stats.sidecar;
   return (
     <section className={styles.entry} aria-label={name}>
       <div className={styles.head}>
@@ -59,7 +58,7 @@ const SentinelStatsEntry: FC<{
               : null}
           </span>
         ) : null}
-        {!stats.complete ? (
+        {!isEvalStats(stats) && !stats.complete ? (
           <span className={styles.incomplete}>
             {stats.incomplete_reason
               ? `Incomplete: ${stats.incomplete_reason}`
@@ -98,30 +97,35 @@ const SentinelStatsEntry: FC<{
             .join(" · ")}
         </Line>
       ) : null}
-      {reviews && reviews.asked > 0 ? (
+      {reviews && reviews.total > 0 ? (
         <Line label="Asked a person">
           {[
-            plural(reviews.asked, "question"),
+            plural(reviews.total, "question"),
             `${formatNumber(reviews.answered)} answered`,
             `${formatNumber(reviews.timed_out)} timed out`,
             `${formatNumber(reviews.cancelled)} cancelled`,
           ].join(" · ")}
         </Line>
       ) : null}
-      {sidecar ? (
-        <Line label="Sidecar">
-          <span className={styles.mono}>{sidecar.proxy}</span>
-          {` · ${plural(sidecar.model_calls, "model call")}`}
-          {sidecar.unknown_calls > 0
-            ? ` · ${formatNumber(sidecar.unknown_calls)} unknown to the sidecar`
-            : null}
-          {sidecar.results_withheld === true
+      {isEvalStats(stats) ? (
+        stats.model_calls > 0 ? (
+          <Line label="Remote">
+            {plural(stats.model_calls, "model call")}
+            {unrecordedText(stats.unrecorded_calls)}
+          </Line>
+        ) : null
+      ) : stats.remote ? (
+        <Line label="Remote">
+          <span className={styles.mono}>{stats.remote.proxy_url}</span>
+          {` · ${plural(stats.remote.model_calls, "model call")}`}
+          {unrecordedText(stats.remote.unrecorded_calls)}
+          {stats.remote.results_withheld === true
             ? " · results withheld from the eval"
             : null}
-          {sidecar.results_withheld === false
+          {stats.remote.results_withheld === false
             ? " · results sent to the eval"
             : null}
-          {sidecar.results_withheld == null
+          {stats.remote.results_withheld == null
             ? " · results withheld: not reported"
             : null}
         </Line>
@@ -188,6 +192,11 @@ const unjudgedText = (unjudged: Record<string, number>): string => {
     .join(", ");
   return `${formatNumber(total)} (${detail})`;
 };
+
+const unrecordedText = (count: number): string | null =>
+  count > 0
+    ? ` · ${formatNumber(count)} unrecorded by the remote sentinel`
+    : null;
 
 const plural = (count: number, noun: string): string =>
   `${formatNumber(count)} ${noun}${count === 1 ? "" : "s"}`;

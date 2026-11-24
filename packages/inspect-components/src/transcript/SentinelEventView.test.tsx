@@ -872,14 +872,12 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.getByText("4 sec")).toBeTruthy();
   });
 
-  it("names the call a sidecar's report is about, and says it was trimmed", () => {
+  it("names the call a remote sentinel's report is about, and says it was trimmed", () => {
     renderTool([
       decision("root", "", "sidecar_guard", "proceed", {
         function: "",
-        sidecar: {
-          proxy: "http://127.0.0.1:4000",
-          version: 1,
-          release: "whole",
+        remote: {
+          proxy_url: "http://127.0.0.1:4000",
           request_id: "irid-42",
           trimmed: true,
         },

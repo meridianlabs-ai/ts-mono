@@ -3,7 +3,7 @@ import { FC, Fragment } from "react";
 
 import type {
   SentinelEvent,
-  SentinelSidecar,
+  SentinelRemote,
   ToolCall,
 } from "@tsmono/inspect-common/types";
 import { resolveToolInput } from "@tsmono/inspect-components/chat";
@@ -239,6 +239,9 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   if (event.status === "error") {
     return <span className={styles.failed}>failed</span>;
   }
+  if (event.status !== "reported" && event.status !== "superseded") {
+    return <span>{event.status}</span>;
+  }
   if (event.status === "superseded") {
     return (
       <span>
@@ -334,7 +337,7 @@ const CheckDetail: FC<CheckDetailProps> = ({
         {timing.length ? (
           <div className={styles.meta}>{timing.join(" · ")}</div>
         ) : null}
-        {event.sidecar ? <SidecarMeta sidecar={event.sidecar} /> : null}
+        {event.remote ? <RemoteMeta remote={event.remote} /> : null}
         {scores ? (
           <div className={styles.scoreGrid}>
             {scores.map(([dimension, value]) => (
@@ -388,17 +391,17 @@ const CheckDetail: FC<CheckDetailProps> = ({
   );
 };
 
-const SidecarMeta: FC<{ sidecar: SentinelSidecar }> = ({ sidecar }) => (
+const RemoteMeta: FC<{ remote: SentinelRemote }> = ({ remote }) => (
   <div className={styles.meta}>
-    sidecar
-    {sidecar.request_id ? (
+    remote
+    {remote.request_id ? (
       <>
         {" · x-irid "}
-        <span className={checkClasses.mono}>{sidecar.request_id}</span>
+        <span className={checkClasses.mono}>{remote.request_id}</span>
       </>
     ) : null}
-    {sidecar.trimmed ? (
-      <span title="The sidecar withheld this step's reports from the eval and sent only its decision.">
+    {remote.trimmed ? (
+      <span title="The remote sentinel withheld this step's reports from the eval and sent only its decision.">
         {" · trimmed"}
       </span>
     ) : null}
