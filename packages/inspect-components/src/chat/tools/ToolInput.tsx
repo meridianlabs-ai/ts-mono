@@ -2,11 +2,12 @@ import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
+import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { RenderedText } from "../../content/RenderedText";
 
-import { kToolTodoContentType } from "./tool";
+import { isValidView, kToolTodoContentType } from "./tool";
 import { TodoWriteInput } from "./tool-input/TodoWriteInput";
 import styles from "./ToolInput.module.css";
 
@@ -81,26 +82,16 @@ const RenderTool: FC<RenderToolProps> = ({
   return (
     <div ref={parentRef}>
       <pre className={clsx("tool-call-input", styles.outputPre, className)}>
-        <code
+        <ContentCode
           className={clsx(
             "source-code",
             "sourceCode",
             contentType ? `language-${contentType}` : undefined,
             styles.outputCode
           )}
-        >
-          {formattedContent}
-        </code>
+          text={formattedContent}
+        />
       </pre>
     </div>
   );
-};
-
-// Guard against invalid tool views (e.g., malformed bash tool content
-// from older log files).
-const isValidView = (view: ToolCallContent): boolean => {
-  if (view.content === "```bash\nbash\n```\n") {
-    return false;
-  }
-  return true;
 };

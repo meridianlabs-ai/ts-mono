@@ -40,6 +40,10 @@ const useStreamingRowsLatch = (
   runningEvents: Events,
   sampleKey: string | null
 ): MessageRow[] | undefined => {
+  // Deliberate render-time ref cache: the incremental fold and the held
+  // rows must survive across polls, and keeping them in state would
+  // re-render SampleDisplay a second time on every poll.
+  "use no memo";
   // Incremental messagesFromEvents state: the polling pipeline only ever
   // appends to the running events array (or replaces a tail event during
   // streaming updates), so a pure-extension call processes only the new
@@ -49,7 +53,7 @@ const useStreamingRowsLatch = (
     null
   );
 
-  /* eslint-disable react-hooks/refs */
+  /* eslint-disable react-hooks/refs -- deliberate render-time ref cache; see "use no memo" above */
   const built = useMemo(() => {
     if (!active || relieved || runningEvents.length === 0) {
       messagesRef.current = null;
@@ -59,7 +63,7 @@ const useStreamingRowsLatch = (
       messagesFromEvents(runningEvents, messagesRef),
       kDefaultMessageRowOptions
     );
-  }, [active, relieved, runningEvents]);
+  }, [active, relieved, runningEvents, messagesRef]);
 
   if (relieved || heldRef.current?.key !== sampleKey) {
     heldRef.current = null;

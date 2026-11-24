@@ -3,8 +3,6 @@ import { FC, ReactNode } from "react";
 
 import { formatDateTime, formatTime } from "@tsmono/util";
 
-import { useRevokableUrls } from "../hooks";
-
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import styles from "./HumanBaselineView.module.css";
 import { LightboxCarousel } from "./LightboxCarousel";
@@ -39,7 +37,6 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
   running,
   sessionLogs,
 }) => {
-  const createRevokableUrl = useRevokableUrls();
   const player_fns: Array<{ label: string; render: () => ReactNode }> = [];
 
   // Make a player for each session log
@@ -62,9 +59,9 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
       render: () => (
         <AsciinemaPlayer
           id={`${id}-player-${currentCount}`}
-          inputUrl={createRevokableUrl(sessionLog.input)}
-          outputUrl={createRevokableUrl(sessionLog.output)}
-          timingUrl={createRevokableUrl(sessionLog.timing)}
+          input={sessionLog.input}
+          output={sessionLog.output}
+          timing={sessionLog.timing}
           rows={rows}
           cols={cols}
           style={{

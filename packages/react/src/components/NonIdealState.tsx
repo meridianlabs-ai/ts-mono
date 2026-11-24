@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Icon, IconName } from "../icons";
+
 import styles from "./NonIdealState.module.css";
 
 interface NonIdealStateProps {
-  icon?: string;
+  icon?: IconName;
   title: string;
   description?: string;
   action?: ReactNode;
@@ -20,7 +22,7 @@ export const NonIdealState: FC<NonIdealStateProps> = ({
 }) => {
   return (
     <div className={clsx(styles.container, className)}>
-      {icon && <i className={clsx(styles.icon, icon)} />}
+      {icon && <Icon name={icon} className={styles.icon} />}
       <div className={styles.title}>{title}</div>
       {description && <div className={styles.description}>{description}</div>}
       {action && <div className={styles.action}>{action}</div>}

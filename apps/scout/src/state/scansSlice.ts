@@ -1,12 +1,7 @@
-import {
-  ColumnSizingState,
-  RowSelectionState,
-  SortingState,
-} from "@tanstack/react-table";
+import { ColumnSizingState, SortingState } from "@tanstack/react-table";
 
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
-import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
 import type { ScanColumnKey } from "../app/scans/columns";
 
 import type { StoreSlice } from "./store";
@@ -16,12 +11,9 @@ export interface ScansTableState {
   columnSizing: ColumnSizingState;
   columnOrder: ScanColumnKey[];
   sorting: SortingState;
-  rowSelection: RowSelectionState;
   focusedRowId: string | null;
   columnFilters: Record<string, ColumnFilter>;
   visibleColumns?: ScanColumnKey[];
-  sizingStrategy: ColumnSizingStrategyKey;
-  manuallyResizedColumns: string[];
 }
 
 // The list of scans (as opposed to one open scan, see scanSlice).
@@ -41,11 +33,8 @@ export const createScansSlice: StoreSlice<ScansSlice> = (set) => ({
     columnSizing: {},
     columnOrder: [],
     sorting: [{ id: "timestamp", desc: true }],
-    rowSelection: {},
     focusedRowId: null,
     columnFilters: {},
-    sizingStrategy: "fit-content",
-    manuallyResizedColumns: [],
   },
 
   setVisibleScanJobCount: (count: number) =>
@@ -67,7 +56,6 @@ export const createScansSlice: StoreSlice<ScansSlice> = (set) => ({
       state.selectedFilter = undefined;
       state.selectedScanner = undefined;
       state.selectedScanResult = undefined;
-      state.displayedScanResult = undefined;
       state.sortResults = undefined;
     });
   },

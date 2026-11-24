@@ -24,14 +24,13 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
-  buildSelectableEventIndex,
+  hasEventTimestamps,
+  SampleActivityPanel,
+} from "@tsmono/inspect-components/sample-activity";
+import { SelectTool } from "@tsmono/inspect-components/selection";
+import {
   dynamicDefaultExcludeEvents,
-  eventsToMarkdown,
   eventsToStr,
-  resolveSelectedEvents,
-  resolveSelectedIds,
-  selectionMenuChrome,
-  TranscriptSelectTool,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
 import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
@@ -65,51 +64,63 @@ import {
 import {
   useChromeNavOwnership,
   useCopyToClipboard,
+  useDocumentTitleText,
   useElementHeight,
+  useEventListener,
+  useProperty,
+  useUnmount,
   useVisitId,
 } from "@tsmono/react/hooks";
+import { IconName } from "@tsmono/react/icons";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
 import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
+  kSampleActivityTabId,
+  kSampleCommunicationTabId,
   kSampleErrorTabId,
+  kSampleInfoTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
-  kSampleMetdataTabId,
   kSampleRetriesTabId,
   kSampleScoringTabId,
+  kSampleTerminalsTabId,
   kSampleTranscriptTabId,
-  kSampleUsageTabId,
+  sampleTabAlias,
 } from "../../constants";
 import {
   kDefaultMessageRowOptions,
+  messagesFromEvents,
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
-import { setDocumentTitle } from "../../state/actions";
+import { documentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { eventSelectionKey } from "../../state/sampleSlice";
 import { useStore } from "../../state/store";
 import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
-import { ApplicationIcons } from "../appearance/icons";
+import { useCurrentSampleHandle } from "../routing/currentSelection";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
+  sampleEventUrl,
+  toFullUrl,
   useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
-import { openInNewTab } from "../shared/openInNewTab";
-import type { EventSelectionState } from "../types";
 
+import { hasCommunicationEvents } from "./communication/communicationEntries";
+import { CommunicationView } from "./communication/CommunicationView";
+import { CommunicationViewOptions } from "./communication/CommunicationViewOptions";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -117,6 +128,13 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { AgentPicker } from "./terminals/AgentPicker";
+import { storeCasts } from "./terminals/asciicast";
+import {
+  buildTerminalSample,
+  parseTerminalCasts,
+} from "./terminals/terminalModel";
+import { TerminalsView, type TerminalsResume } from "./terminals/TerminalsView";
 import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
@@ -125,6 +143,10 @@ import { SearchPanelSlot } from "./transcript/search/SearchPanelSlot";
 import { useInspectSearchReferenceLabels } from "./transcript/search/useInspectSearchReferenceLabels";
 import { TranscriptFilterPopover } from "./transcript/TranscriptFilter";
 import { TranscriptPanel } from "./transcript/TranscriptPanel";
+import {
+  useEvidenceSelection,
+  type EvidenceFormat,
+} from "./useEvidenceSelection";
 
 interface SampleDisplayProps {
   id: string;
@@ -138,19 +160,6 @@ type ActivityRailItemId = "search" | "scans";
 // stable empty rows while the messages read is pending, so the list's
 // props don't churn per render
 const kNoMessageRows: MessageRow[] = [];
-const kNoEventSelection: EventSelectionState = {
-  key: null,
-  active: false,
-  selectedIds: [],
-  lastToggledId: null,
-};
-
-// Selected ids that no longer resolve (e.g. a failed retry attempt the live
-// stream folded away) still reach the print page, which reports them as not
-// found instead of printing the whole sample.
-const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
-  ids.length > 0 ? ids : [...stored];
-
 /**
  * Component to display a sample with relevant context and visibility control.
  */
@@ -173,10 +182,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec, sample });
-  }, [sample, evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec, sample }));
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);
@@ -197,7 +203,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // sample: each tab's VirtualList snapshot is keyed by the visit, so a
   // later return to the same sample (or a hop to a sibling) can never
   // restore this visit's offsets — a fresh visit starts at the top.
-  const visitHandle = useStore((state) => state.log.selectedSampleHandle);
+  const visitHandle = useCurrentSampleHandle();
   const visitId = useVisitId(
     `${visitHandle?.logFile}-${visitHandle?.id}-${visitHandle?.epoch}`
   );
@@ -250,23 +256,33 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearSampleTab();
-    };
-  }, [clearSampleTab]);
+  const hideFind = useStore((state) => state.appActions.hideFind);
+  const [communicationMultiline, setCommunicationMultiline] = useProperty(
+    "sample-communication",
+    "multiline",
+    { defaultValue: false }
+  );
+  useUnmount(() => {
+    clearSampleTab();
+  });
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
-  const effectiveSelectedTab = sampleTabId || selectedTab;
+  const routedTab = sampleTabId || selectedTab;
+  // Only samples whose agents communicated (inspect_swarm's swarms) get the
+  // Communication tab; chunked samples' shell events hide it too. A link to
+  // it on another sample shows the Transcript, with the Transcript's controls.
+  const hasCommunicationTab = hasCommunicationEvents(sampleEvents);
+  const aliasedTab = routedTab ? sampleTabAlias(routedTab) : routedTab;
+  const effectiveSelectedTab =
+    aliasedTab === kSampleCommunicationTabId && !hasCommunicationTab
+      ? kSampleTranscriptTabId
+      : aliasedTab;
 
   // The Messages tab's rows, assembled by the data layer. Which feed serves
   // the conversation (monolith fetch, chunked hydration, live stream) is
   // subsystem-private; the tab-open gate keeps chunked hydration from ever
   // being paid at sample open.
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const sampleHandle = useCurrentSampleHandle();
 
   // Dynamic Default event-filter exclusions: store events with rich renderers
   // (e.g. human-baseline terminal sessions) are visible by default. Chunked
@@ -278,7 +294,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
-    selectedSampleHandle,
+    sampleHandle,
     sampleData,
     messagesTabOpen,
     running,
@@ -299,6 +315,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Tab selection
   const sampleUrlBuilder = useSampleUrlBuilder();
+  const sampleTabHref = (tabId: string) =>
+    urlLogPath
+      ? toFullUrl(sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, tabId))
+      : undefined;
   const onSelectedTab = useCallback(
     (e: MouseEvent<HTMLElement>) => {
       const el = e.currentTarget;
@@ -308,7 +328,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(url);
       }
     },
@@ -344,15 +363,37 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     []
   );
 
-  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
-  const sampleMetadatas = metadataViewsForSample(
-    `${baseId}-${id}`,
-    // The helper only forwards scrollRef into JSX props (RecordTree
-    // scrollRef={...}); it never reads .current during render.
-    // eslint-disable-next-line react-hooks/refs
-    scrollRef,
-    sample
+  // The casts (multi-MB strings) parse once per store; a running sample's
+  // event polls only redo the join. Memoised for that identity, not speed.
+  const sampleStore = sample?.store;
+  const terminalCasts = useMemo(() => {
+    const casts = sampleStore ? storeCasts(sampleStore) : [];
+    return casts.length > 0 ? parseTerminalCasts(casts) : undefined;
+  }, [sampleStore]);
+  const terminalSample = useMemo(
+    () =>
+      terminalCasts
+        ? buildTerminalSample(terminalCasts, sampleEvents)
+        : undefined,
+    [terminalCasts, sampleEvents]
   );
+  const [pickedTerminalAgent, setPickedTerminalAgent] = useState<string>();
+  const [terminalsFill, setTerminalsFill] = useState(false);
+  const terminalsKey = sample
+    ? sample.uuid || `${sample.id}:${sample.epoch}`
+    : undefined;
+  // Where this sample's terminals left off when the tab was last left.
+  const [terminalsResume, setTerminalsResume] = useState<{
+    key: string;
+    resume: TerminalsResume;
+  }>();
+  const terminalAgent = terminalSample
+    ? (terminalSample.agents.find(
+        (agent) => agent.id === pickedTerminalAgent
+      ) ?? terminalSample.agents[0])
+    : undefined;
+  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
+  const sampleMetadatas = metadataRecordsForSample(sample);
 
   const tabsetId = `task-sample-details-tab-${id}`;
 
@@ -368,50 +409,27 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     useState<HTMLButtonElement | null>(null);
   const optionsRef = useRef<HTMLButtonElement | null>(null);
 
-  // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const printLogPath = urlLogPath || selectedLogFile;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
+  // Inline single-sample routes omit id/epoch; the current handle derives them.
+  const printLogPath = urlLogPath;
+  const printSampleId = urlSampleId ?? sampleHandle?.id.toString();
+  const printEpoch = urlEpoch ?? sampleHandle?.epoch.toString();
 
-  // Evidence selection: with events selected, Copy/Download/Print act on them.
-  const isTranscriptTab = effectiveSelectedTab === kSampleTranscriptTabId;
-  // The selection belongs to one visit of one sample tab: leaving the tab or
-  // the sample (even briefly) is a new visit, so the Select latch reads as off.
-  const selectionKey = useVisitId(
-    eventSelectionKey(visitHandle, effectiveSelectedTab)
-  );
-  const storedSelection = useStore((state) => state.sample.eventSelection);
-  const eventSelection =
-    isTranscriptTab && storedSelection.key === selectionKey
-      ? storedSelection
-      : kNoEventSelection;
-  const setEventSelectionActive = useStore(
-    (state) => state.sampleActions.setEventSelectionActive
-  );
-  const clearEventSelection = useStore(
-    (state) => state.sampleActions.clearEventSelection
-  );
-  const resetEventSelection = useStore(
-    (state) => state.sampleActions.resetEventSelection
-  );
-  const selectedIdSet = useMemo(
-    () => new Set(eventSelection.selectedIds),
-    [eventSelection.selectedIds]
-  );
-  // Ids → events needs a full tree build, so it happens at export/print time,
-  // never per render; the toolbar counts the stored ids.
-  const selectionCount = eventSelection.active ? selectedIdSet.size : 0;
-  const resolveIndex = () => buildSelectableEventIndex(sampleEvents, running);
-  const hasSelection = isTranscriptTab && selectionCount > 0;
-  // Chunked samples window their events, so there is no full event list to
-  // select from or export.
-  const canSelectEvents =
-    isTranscriptTab && !isChunked && sampleEvents.length > 0;
+  // Evidence selection: with rows selected, Copy/Download/Print act on them.
+  const evidence = useEvidenceSelection({
+    handle: visitHandle,
+    tab: effectiveSelectedTab,
+    selectable:
+      !isChunked &&
+      (effectiveSelectedTab === kSampleTranscriptTabId
+        ? sampleEvents.length > 0
+        : (sampleMessages.rows.data?.length ?? 0) > 0),
+    events: sampleEvents,
+    running,
+    messages: () => sample?.messages ?? messagesFromEvents(runningSampleData),
+  });
+  const selected = evidence.selected;
 
-  const handlePrintClick = useCallback(() => {
+  const handlePrintClick = () => {
     if (printLogPath && printSampleId && printEpoch) {
       const printUrl = printSampleUrl(
         printLogPath,
@@ -419,48 +437,32 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         printEpoch,
         effectiveSelectedTab,
         prefix,
-        hasSelection
-          ? withStoredFallback(
-              resolveSelectedIds(
-                buildSelectableEventIndex(sampleEvents, running),
-                selectedIdSet
-              ),
-              selectedIdSet
-            )
-          : undefined
+        selected ? { item: selected.item, ids: selected.printIds() } : undefined
       );
-      openInNewTab(printUrl);
+      openRouteInNewTab(printUrl);
     }
-  }, [
-    printLogPath,
-    printSampleId,
-    printEpoch,
-    effectiveSelectedTab,
-    prefix,
-    hasSelection,
-    selectedIdSet,
-    sampleEvents,
-    running,
-  ]);
+  };
 
+  // The print route has no Communication view, so that tab offers no print.
+  const printable =
+    !isVscode() &&
+    effectiveSelectedTab !== kSampleCommunicationTabId &&
+    !!printLogPath &&
+    !!printSampleId &&
+    !!printEpoch;
   // Intercept Cmd+P / Ctrl+P to use custom print route
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isVscode() || !printLogPath || !printSampleId || !printEpoch) return;
-
-    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+  useEventListener(
+    printable ? document : null,
+    "keydown",
+    (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
         e.preventDefault();
         e.stopPropagation();
         handlePrintClick();
       }
-    };
-
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [handlePrintClick, printLogPath, printSampleId, printEpoch]);
+    },
+    { capture: true }
+  );
 
   const toggleFilter = useCallback(() => {
     setShowing(!isShowing);
@@ -475,10 +477,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (state) => state.sampleActions.setCollapsedMode
   );
 
-  const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
-    return mode === "collapsed"; //null is expanded
-  };
-
   const toggleCollapsedMode = useCallback(() => {
     setCollapsedMode(isCollapsed(collapsedMode) ? "expanded" : "collapsed");
   }, [collapsedMode, setCollapsedMode]);
@@ -486,11 +484,45 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter(defaultExcludeEvents);
 
+  // ── Activity tab ──────────────────────────────────────────────────────
+  // Hidden entirely for old logs whose events lack timestamps (design spec);
+  // chunked samples carry an empty shell events array, so they hide it too.
+  const hasActivityTab = hasEventTimestamps(sampleEvents);
+  // Durable Activity UI state (band toggles, filters, selection) is keyed
+  // per log + sample so it survives tab switches without leaking across
+  // samples.
+  const activityPersistScope = `${sampleHandle?.logFile ?? ""}:${String(
+    sampleHandle?.id ?? id
+  )}:${sampleHandle?.epoch ?? 1}`;
+  // Click-through target for every Activity span, glyph, and history row:
+  // the Transcript tab scrolled to the event (?event=<uuid>). Modifier
+  // clicks open the same route in a new browser tab.
+  const openEventInTranscript = (uuid: string, event: MouseEvent) => {
+    const sampleId = urlSampleId ?? sampleHandle?.id;
+    const sampleEpoch = urlEpoch ?? sampleHandle?.epoch;
+    if (!urlLogPath || sampleId === undefined || sampleEpoch === undefined) {
+      return;
+    }
+    const url = sampleEventUrl(
+      sampleUrlBuilder,
+      uuid,
+      urlLogPath,
+      sampleId,
+      sampleEpoch
+    );
+    if (event.metaKey || event.ctrlKey || event.shiftKey) {
+      openRouteInNewTab(url);
+      return;
+    }
+    setSelectedTab(kSampleTranscriptTabId);
+    navigate(url);
+  };
+
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const { copied, copy: copyText } = useCopyToClipboard();
-  const icon = copied ? ApplicationIcons.confirm : ApplicationIcons.copy;
+  const icon: IconName = copied ? "confirm" : "copy";
   const downloadFile = (name: string, content: string | Blob) => {
     api.download_file(name, content).catch((error: unknown) => {
       console.error("Failed to download:", error);
@@ -498,17 +530,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   };
   // An export whose ids resolve to nothing is refused rather than copying or
   // downloading an empty document under a success icon.
-  const exportSelected = (action: (events: Events) => void) => {
-    const events = resolveSelectedEvents(resolveIndex(), selectedIdSet);
-    if (events.length === 0) {
-      console.warn("Selected events are no longer in this sample.");
-      return;
-    }
-    action(events);
+  const copySelected = (format: EvidenceFormat) => {
+    const content = selected?.render(format);
+    if (content !== undefined) copyText(content);
   };
-  const selectionMenu = hasSelection
-    ? selectionMenuChrome(selectionCount, clearEventSelection)
-    : undefined;
+  const downloadSelected = (
+    format: EvidenceFormat,
+    sampleId: string | number
+  ) => {
+    const content = selected?.render(format);
+    if (selected && content !== undefined) {
+      const ext =
+        format === "markdown" ? "md" : format === "text" ? "txt" : "json";
+      downloadFile(`${sampleId}-${selected.item}s.${ext}`, content);
+    }
+  };
 
   // Right-docked sidebar — search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
@@ -534,11 +570,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleEpoch: sample?.epoch ?? undefined,
     open: storedDock === undefined || storedDock === "scans",
   });
-  // Default the dock to Scans when the sample has them and this log has no
-  // stored choice — including "none": a user who closed the dock shouldn't
+  // Default the dock to Scans when the sample has scan results and this log
+  // has no stored choice — including "none": a user who closed the dock shouldn't
   // have it forced back open. Derived rather than persisted; nothing is
   // written until the user acts.
-  const rightDock = storedDock ?? (scans.hasScans ? "scans" : "none");
+  const rightDock = storedDock ?? (scans.hasResults ? "scans" : "none");
   const setRightDock = useCallback(
     (value: "none" | "search" | "scans") =>
       setPropertyValue("rail-dock", dockKey, value),
@@ -583,17 +619,53 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const messagesSearchLabels =
     searchScope === "messages" ? searchReferenceLabels : undefined;
   const transcriptEventNodeContext = useMemo(
-    () =>
-      mergeTranscriptLabelContext(
+    () => ({
+      ...mergeTranscriptLabelContext(
         scans.eventNodeContext,
         transcriptSearchLabels
       ),
-    [scans.eventNodeContext, transcriptSearchLabels]
+      makeCiteUrl: scans.makeCiteUrl,
+    }),
+    [scans.eventNodeContext, transcriptSearchLabels, scans.makeCiteUrl]
   );
 
   // Build the toolbar in left-to-right groups separated by thin dividers:
   //   [tab-specific view controls] | [shared sample actions] | [Search]
   const tools: ReactNode[] = [];
+
+  const terminalAgentPicker =
+    terminalSample && terminalAgent && terminalSample.agents.length > 1 ? (
+      <AgentPicker
+        key="sample-terminals-agent"
+        agents={terminalSample.agents}
+        selected={terminalAgent}
+        onSelect={setPickedTerminalAgent}
+      />
+    ) : null;
+  if (effectiveSelectedTab === kSampleTerminalsTabId && terminalSample) {
+    if (terminalAgentPicker) tools.push(terminalAgentPicker);
+    tools.push(
+      <ToolButton
+        key="sample-terminals-fill"
+        className={styles.fullscreenTool}
+        label="Fullscreen"
+        icon="fullscreen"
+        onClick={() => setTerminalsFill(true)}
+        subtle
+        collapseLabel
+      />
+    );
+  }
+
+  if (effectiveSelectedTab === kSampleCommunicationTabId) {
+    tools.push(
+      <CommunicationViewOptions
+        key="sample-communication-view"
+        multiline={communicationMultiline}
+        setMultiline={setCommunicationMultiline}
+      />
+    );
+  }
 
   if (effectiveSelectedTab === kSampleTranscriptTabId) {
     const label = isNoneFilter
@@ -608,7 +680,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       <ToolButton
         key="sample-filter-transcript"
         label={`Events: ${label}`}
-        icon={ApplicationIcons.filter}
+        icon="filter"
         onClick={toggleFilter}
         ref={setFilterButtonEl}
         subtle
@@ -616,13 +688,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       <ToolButton
         key="sample-collapse-transcript"
         label={isCollapsed(collapsedMode) ? "Expand" : "Collapse"}
-        icon={
-          isCollapsed(collapsedMode)
-            ? ApplicationIcons.expand.all
-            : ApplicationIcons.collapse.all
-        }
+        icon={isCollapsed(collapsedMode) ? "expandAll" : "collapseAll"}
         onClick={toggleCollapsedMode}
         subtle
+        collapseLabel
       />
     );
   }
@@ -631,11 +700,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     <ToolButton
       key="options-button"
       label={"Raw"}
-      icon={ApplicationIcons.display}
+      icon="display"
       onClick={toggleDisplayMode}
       ref={optionsRef}
       latched={displayMode === "raw"}
       subtle
+      collapseLabel
     />
   );
 
@@ -647,17 +717,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (canSelectEvents) {
+  if (evidence.tool) {
     tools.push(
-      <TranscriptSelectTool
-        key="sample-select-events"
-        active={eventSelection.active}
-        count={selectionCount}
-        onToggle={() =>
-          setEventSelectionActive(selectionKey, !eventSelection.active)
-        }
-        onClear={resetEventSelection}
-      />
+      <SelectTool key="sample-select" {...evidence.tool} collapseLabel />
     );
   }
 
@@ -667,16 +729,15 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       label="Copy"
       icon={icon}
       subtle
+      collapseLabel
       dropdownClassName="text-size-smallest"
-      heading={selectionMenu?.heading}
-      footer={selectionMenu?.footer}
+      heading={selected?.menu.heading}
+      footer={selected?.menu.footer}
       items={
-        hasSelection
+        selected
           ? {
-              Markdown: () =>
-                exportSelected((events) => copyText(eventsToMarkdown(events))),
-              Text: () =>
-                exportSelected((events) => copyText(eventsToStr(events))),
+              Markdown: () => copySelected("markdown"),
+              Text: () => copySelected("text"),
             }
           : {
               UUID: () => {
@@ -716,32 +777,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       <ToolDropdownButton
         key="sample-download"
         label="Download"
-        icon={ApplicationIcons.downloadLog}
+        icon="download"
         subtle
+        collapseLabel
         dropdownClassName="text-size-smallest"
-        heading={selectionMenu?.heading}
-        footer={selectionMenu?.footer}
+        heading={selected?.menu.heading}
+        footer={selected?.menu.footer}
         items={
-          hasSelection
+          selected
             ? {
-                Markdown: () =>
-                  exportSelected((events) =>
-                    downloadFile(
-                      `${sampleId}-events.md`,
-                      eventsToMarkdown(events)
-                    )
-                  ),
-                Text: () =>
-                  exportSelected((events) =>
-                    downloadFile(`${sampleId}-events.txt`, eventsToStr(events))
-                  ),
-                JSON: () =>
-                  exportSelected((events) =>
-                    downloadFile(
-                      `${sampleId}-events.json`,
-                      JSON.stringify(events, null, 2)
-                    )
-                  ),
+                Markdown: () => downloadSelected("markdown", sampleId),
+                Text: () => downloadSelected("text", sampleId),
+                JSON: () => downloadSelected("json", sampleId),
               }
             : {
                 "Sample JSON": () => {
@@ -785,19 +832,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  if (!isVscode() && printLogPath && printSampleId && printEpoch) {
+  if (printable) {
     tools.push(
       <ToolButton
         key="sample-print-tool"
-        label={hasSelection ? `Print · ${selectionCount}` : "Print"}
+        label={selected ? `Print · ${selected.count}` : "Print"}
         title={
-          hasSelection
-            ? `Print ${selectionCount} selected ${selectionCount === 1 ? "event" : "events"}`
+          selected
+            ? `Print ${selected.count} selected ${selected.item}${selected.count === 1 ? "" : "s"}`
             : undefined
         }
-        icon={ApplicationIcons.copy}
+        icon="print"
         onClick={handlePrintClick}
         subtle
+        collapseLabel
       />
     );
   }
@@ -831,6 +879,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const mountsAtDeepLink = !!(
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );
+  const onTerminalsTab =
+    effectiveSelectedTab === kSampleTerminalsTabId && !!terminalSample;
   // Shared with TranscriptPanel: while navigation owns the chrome (deep-link
   // mounts, f/h/j/k/l forces), the header's natural-scroll detection is fully
   // suppressed; a physical user gesture on the scroller hands ownership back.
@@ -845,8 +895,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     navOwnsRef: chromeNavOwnsRef,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => mountsAtDeepLink,
+    // The header survives sibling navigation; its collapse belongs to this visit.
+    resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
+
+  // The Terminals tab shows the header collapsed (the terminals want the
+  // height); it's derived rather than written into the header's scroll state,
+  // so leaving the tab shows that state again untouched. Leaving also ends
+  // fullscreen.
+  const sampleHeaderCollapsed = headerCollapsed || onTerminalsTab;
+  if (!onTerminalsTab && terminalsFill) setTerminalsFill(false);
 
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
   const headerHeight = useElementHeight(
@@ -885,14 +944,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       items.push({
         id: "search",
         label: "Search",
-        icon: ApplicationIcons.search,
+        icon: "search",
       });
     }
     if (scans.hasScans) {
       items.push({
         id: "scans",
         label: "Scans",
-        icon: ApplicationIcons.scoringSidebar,
+        icon: "scanner",
       });
     }
     return items;
@@ -966,7 +1025,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               <SampleSummaryView
                 parent_id={id}
                 sample={selectedSampleSummary}
-                collapsed={headerCollapsed}
+                collapsed={sampleHeaderCollapsed}
               />
             </div>
           </StickyScroll>
@@ -988,10 +1047,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className={clsx("sample-tab", styles.overflowVisible)}
               title="Transcript"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleTranscriptTabId)}
               selected={
                 effectiveSelectedTab === kSampleTranscriptTabId ||
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
-                effectiveSelectedTab === undefined
+                // A shared /activity URL on a log whose events lack
+                // timestamps hides that tab — fall back here rather than
+                // leaving no panel selected.
+                (effectiveSelectedTab === kSampleActivityTabId &&
+                  !hasActivityTab)
               }
               scrollable={false}
             >
@@ -1045,7 +1108,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     rightRail={hasRail ? transcriptRail : undefined}
-                    selectionKey={selectionKey}
+                    selection={evidence.listSelection}
                   />
                 </div>
               )}
@@ -1060,6 +1123,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               )}
               title="Messages"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleMessagesTabId)}
               selected={effectiveSelectedTab === kSampleMessagesTabId}
               scrollable={false}
             >
@@ -1099,16 +1163,73 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     backfilling={backfilling || sampleMessages.rows.loading}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     className={styles.fullWidth}
+                    selection={evidence.listSelection}
                   />
                 )}
               </RailSidebarHost>
             </TabPanel>
+            {hasCommunicationTab ? (
+              <TabPanel
+                key={kSampleCommunicationTabId}
+                id={kSampleCommunicationTabId}
+                className="sample-tab"
+                title="Communication"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleCommunicationTabId)}
+                selected={effectiveSelectedTab === kSampleCommunicationTabId}
+              >
+                <CommunicationView
+                  key={visitId}
+                  events={sampleEvents}
+                  multiline={communicationMultiline}
+                  onShown={hideFind}
+                />
+              </TabPanel>
+            ) : null}
+            {terminalSample ? (
+              <TabPanel
+                key={kSampleTerminalsTabId}
+                id={kSampleTerminalsTabId}
+                className="sample-tab"
+                title="Terminals"
+                onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleTerminalsTabId)}
+                selected={effectiveSelectedTab === kSampleTerminalsTabId}
+              >
+                <TerminalsView
+                  key={terminalsKey}
+                  id={`${baseId}-${id}-terminal-sessions`}
+                  sample={terminalSample}
+                  scrollRef={scrollRef}
+                  agentId={terminalAgent?.id}
+                  fill={
+                    terminalsFill
+                      ? {
+                          tools: terminalAgentPicker,
+                          onExit: () => setTerminalsFill(false),
+                        }
+                      : undefined
+                  }
+                  onFullscreen={() => setTerminalsFill(true)}
+                  resume={
+                    terminalsResume?.key === terminalsKey
+                      ? terminalsResume?.resume
+                      : undefined
+                  }
+                  onSuspend={(resume) =>
+                    terminalsKey &&
+                    setTerminalsResume({ key: terminalsKey, resume })
+                  }
+                />
+              </TabPanel>
+            ) : null}
             <TabPanel
               key={kSampleScoringTabId}
               id={kSampleScoringTabId}
               className="sample-tab"
               title="Scoring"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleScoringTabId)}
               selected={effectiveSelectedTab === kSampleScoringTabId}
             >
               <SampleScoresView
@@ -1117,14 +1238,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 scrollRef={scrollRef}
               />
             </TabPanel>
-            {sampleUsages.length > 0 ? (
+            {hasActivityTab ? (
               <TabPanel
-                id={kSampleUsageTabId}
-                className={clsx("sample-tab")}
-                title="Usage"
+                key={kSampleActivityTabId}
+                id={kSampleActivityTabId}
+                className={clsx("sample-tab", styles.fullWidth)}
+                title="Activity"
                 onSelected={onSelectedTab}
-                selected={effectiveSelectedTab === kSampleUsageTabId}
+                selected={effectiveSelectedTab === kSampleActivityTabId}
+                scrollable={false}
               >
+                <div className={styles.tabContent}>
+                  <SampleActivityPanel
+                    events={sampleEvents}
+                    startedAt={sample?.started_at}
+                    completedAt={sample?.completed_at}
+                    workingTime={sample?.working_time}
+                    totalTime={sample?.total_time}
+                    running={running}
+                    scrollRef={scrollRef}
+                    persistScope={activityPersistScope}
+                    onOpenEvent={openEventInTranscript}
+                  />
+                </div>
+              </TabPanel>
+            ) : null}
+            <TabPanel
+              id={kSampleInfoTabId}
+              className={clsx("sample-tab")}
+              title="Info"
+              onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleInfoTabId)}
+              selected={effectiveSelectedTab === kSampleInfoTabId}
+            >
+              {sampleUsages.length > 0 || sampleMetadatas.length > 0 ? (
                 <div
                   className={clsx(
                     styles.padded,
@@ -1133,28 +1280,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   )}
                 >
                   {sampleUsages}
-                </div>
-              </TabPanel>
-            ) : null}
-            <TabPanel
-              id={kSampleMetdataTabId}
-              className={clsx("sample-tab")}
-              title="Metadata"
-              onSelected={onSelectedTab}
-              selected={effectiveSelectedTab === kSampleMetdataTabId}
-            >
-              {sampleMetadatas.length > 0 ? (
-                <div
-                  className={clsx(
-                    styles.padded,
-                    styles.fullWidth,
-                    styles.metadataPanel
+                  {sampleMetadatas.map(
+                    ({ key, label, record, processStore }) => (
+                      <Card key={`sample-${key}-${baseId}-${id}`}>
+                        <CardHeader label={label} />
+                        <CardBody>
+                          <RecordTree
+                            id={`task-sample-${key}-${baseId}-${id}`}
+                            record={record}
+                            className={clsx("tab-pane", styles.noTop)}
+                            scrollRef={scrollRef}
+                            processStore={processStore}
+                            copyButton={true}
+                          />
+                        </CardBody>
+                      </Card>
+                    )
                   )}
-                >
-                  {sampleMetadatas}
                 </div>
               ) : (
-                <NoContentsPanel text="No sample metadata available" />
+                <NoContentsPanel text="No sample usage or metadata available" />
               )}
             </TabPanel>
             {sample?.error && (
@@ -1163,6 +1308,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Error"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleErrorTabId)}
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
@@ -1189,6 +1335,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Retries"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleRetriesTabId)}
                 selected={effectiveSelectedTab === kSampleRetriesTabId}
               >
                 <div className={styles.retriedErrors}>
@@ -1209,6 +1356,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className={"sample-tab"}
               title="JSON"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleJsonTabId)}
               selected={effectiveSelectedTab === kSampleJsonTabId}
             >
               {!sample ? (
@@ -1377,15 +1525,24 @@ const usageViewsForSample = (
   return views;
 };
 
-const metadataViewsForSample = (
-  id: string,
-  scrollRef: RefObject<HTMLDivElement | null>,
+interface SampleMetadataRecord {
+  key: "invalidation" | "metadata" | "store";
+  label: string;
+  record: Record<string, unknown>;
+  processStore?: boolean;
+}
+
+const isCollapsed = (mode: "collapsed" | "expanded" | null) => {
+  return mode === "collapsed"; //null is expanded
+};
+
+const metadataRecordsForSample = (
   sample?: EvalSample
-) => {
+): SampleMetadataRecord[] => {
   if (!sample) {
     return [];
   }
-  const sampleMetadatas = [];
+  const records: SampleMetadataRecord[] = [];
 
   // Show invalidation details prominently if sample is invalidated
   if (sample.invalidation) {
@@ -1412,59 +1569,37 @@ const metadataViewsForSample = (
     if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
-
-    sampleMetadatas.push(
-      <Card key={`sample-invalidation-${id}`}>
-        <CardHeader label="Invalidation" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-invalidation-${id}`}
-            record={invalidationRecord}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "invalidation",
+      label: "Invalidation",
+      record: invalidationRecord,
+    });
   }
 
   if (Object.keys(sample.metadata).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-metadata-${id}`}>
-        <CardHeader label="Metadata" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-metadata-${id}`}
-            record={sample.metadata}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+    records.push({
+      key: "metadata",
+      label: "Metadata",
+      record: sample.metadata,
+    });
   }
 
-  if (Object.keys(sample.store).length > 0) {
-    sampleMetadatas.push(
-      <Card key={`sample-store-${id}`}>
-        <CardHeader label="Store" />
-        <CardBody padded={false}>
-          <RecordTree
-            id={`task-sample-store-${id}`}
-            record={sample.store}
-            className={clsx("tab-pane", styles.noTop)}
-            scrollRef={scrollRef}
-            processStore={true}
-            copyButton={true}
-          />
-        </CardBody>
-      </Card>
-    );
+  // Asciicasts play in the Terminals tab rather than printing as (very long)
+  // strings in the store tree.
+  const castKeys = new Set(storeCasts(sample.store).map((cast) => cast.key));
+  const storeRecord = Object.fromEntries(
+    Object.entries(sample.store).filter(([key]) => !castKeys.has(key))
+  );
+  if (Object.keys(storeRecord).length > 0) {
+    records.push({
+      key: "store",
+      label: "Store",
+      record: storeRecord,
+      processStore: true,
+    });
   }
 
-  return sampleMetadatas;
+  return records;
 };
 
 const isRunning = (

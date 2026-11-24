@@ -29,6 +29,10 @@ export {
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
+export { messagesToMarkdown } from "./messagesToMarkdown";
+
+export { buildSelectableMessageIndex } from "./selection/messageSelection";
+
 export { messageSearchText } from "./messageSearchText";
 
 // Tool utilities
@@ -44,7 +48,13 @@ export type { ToolCallViewProps } from "./tools/ToolCallView";
 export { ToolCallView } from "./tools/ToolCallView";
 export type { ClientToolCallProps } from "./tools/ClientToolCall";
 export { ClientToolCall } from "./tools/ClientToolCall";
-export { ToolBlock, ToolBlockInput, ToolBlockOutput } from "./tools/ToolBlock";
+export {
+  ToolBlock,
+  ToolBlockInput,
+  ToolBlockInset,
+  ToolBlockOutput,
+} from "./tools/ToolBlock";
+export { ToolInput } from "./tools/ToolInput";
 export { ToolCallErrorView } from "./tools/ToolCallErrorView";
 export { ToolOutput } from "./tools/ToolOutput";
 export { MessageContent, isMessageContent } from "./MessageContent";

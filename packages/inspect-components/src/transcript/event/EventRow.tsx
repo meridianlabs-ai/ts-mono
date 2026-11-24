@@ -1,20 +1,20 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import {
-  EventSelectCheckbox,
-  useEventRowSelection,
-} from "../selection/EventSelectCheckbox";
+  RowSelectCheckbox,
+  useSelectableRow,
+} from "../../selection/RowSelectCheckbox";
 
 import styles from "./EventRow.module.css";
-
-const kDefaultIcon = "bi bi-table";
 
 interface EventRowProps {
   /** The row's node id; enables the evidence-selection checkbox. */
   eventNodeId?: string;
   title: ReactNode;
-  icon: string;
+  icon: IconName;
   iconClassName?: string;
   className?: string;
   children?: ReactNode | ReactNode[];
@@ -33,7 +33,7 @@ export const EventRow: FC<EventRowProps> = ({
   children,
   below,
 }) => {
-  const rowSelection = useEventRowSelection(eventNodeId);
+  const rowSelection = useSelectableRow(eventNodeId);
   const contentEl = title ? (
     <>
       <div
@@ -44,8 +44,10 @@ export const EventRow: FC<EventRowProps> = ({
           className
         )}
       >
-        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
-        <i className={clsx(icon || kDefaultIcon, iconClassName)} />
+        {rowSelection ? (
+          <RowSelectCheckbox selection={rowSelection} item="event" />
+        ) : null}
+        <Icon name={icon} className={iconClassName} />
         <div className={clsx("text-style-label")}>{title}</div>
         <div>{children}</div>
       </div>

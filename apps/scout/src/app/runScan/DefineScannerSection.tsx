@@ -6,7 +6,9 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, useState } from "react";
 
-import { ApplicationIcons } from "../../icons";
+import { Icon } from "@tsmono/react/icons";
+
+import { Status } from "../../types/api-types";
 import { ScansNavbar } from "../components/ScansNavbar";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useTranscriptsFilterBarProps } from "../hooks/useTranscriptsFilterBarProps";
@@ -27,7 +29,7 @@ function getSelectValue(e: Event): string {
 }
 
 interface Props {
-  onScanStarted: (scanId: string) => void;
+  onScanStarted: (scan: Status) => void;
 }
 
 const defaultLlmParams: LlmScannerParamsValue = {
@@ -92,7 +94,7 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
           },
         ],
       },
-      { onSuccess: (data) => onScanStarted(data.spec.scan_id) }
+      { onSuccess: onScanStarted }
     );
   };
 
@@ -152,7 +154,7 @@ export const DefineScannerSection: FC<Props> = ({ onScanStarted }) => {
         {/* Run Button */}
         <div className={styles.runScanRow}>
           <VscodeButton disabled={!canRunScan} onClick={handleRunScan}>
-            <i className={ApplicationIcons.play} />
+            <Icon name="play" />
             Run Scan
           </VscodeButton>
           <div className={styles.mutationStatus}>

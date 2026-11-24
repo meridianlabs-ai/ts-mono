@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { FC, useCallback, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
 
 import {
   ColumnFilterEditor,
@@ -12,10 +12,15 @@ import {
   type FilterCondition,
   type FilterSpec,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnSelectorPopover,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
+import { useCopyToClipboard } from "@tsmono/react/hooks";
+import { IconName } from "@tsmono/react/icons";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../icons";
 import type { ColumnFilter } from "../../state/store";
 
 import { AddFilterButton, type AddFilterPopoverState } from "./AddFilterButton";
@@ -23,7 +28,6 @@ import { Chip } from "./Chip";
 import { ChipGroup } from "./ChipGroup";
 import type { AvailableColumn } from "./columnFilter";
 import { ColumnPickerButton } from "./ColumnPickerButton";
-import { ColumnsPopover, type ColumnInfo } from "./ColumnsPopover";
 import styles from "./FilterBar.module.css";
 
 const kCopyCodeDescriptors = [
@@ -53,7 +57,7 @@ export interface FilterBarProps {
 
   // Column picker config (optional - omit to hide)
   /** Column definitions for the picker */
-  columns?: ColumnInfo[];
+  columns?: PickerColumn[];
   /** Currently visible column IDs */
   visibleColumns?: string[];
   /** Default visible column IDs */
@@ -77,8 +81,11 @@ export const FilterBar: FC<FilterBarProps> = ({
   onVisibleColumnsChange,
 }) => {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [editingChipEl, setEditingChipEl] = useState<HTMLButtonElement | null>(
+    null
+  );
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
+  const shownColumns = visibleColumns ?? defaultVisibleColumns ?? [];
 
   const handleFilterChange = useCallback(
     (spec: FilterSpec | null) => {
@@ -140,9 +147,11 @@ export const FilterBar: FC<FilterBarProps> = ({
           .map((filter) => (
             <Chip
               key={filter.columnId}
-              ref={(element) => {
-                chipRefs.current[filter.columnId] = element;
-              }}
+              ref={
+                filter.columnId === editingColumnId
+                  ? setEditingChipEl
+                  : undefined
+              }
               label={filter.columnId}
               value={formatFilterSpec(filter.spec)}
               title={`Edit ${filter.columnId} filter`}
@@ -164,8 +173,7 @@ export const FilterBar: FC<FilterBarProps> = ({
           id={`${popoverIdPrefix}-editor-${editingColumnId}`}
           isOpen={isEditorOpen}
           setIsOpen={handleEditorOpenChange}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-          positionEl={chipRefs.current[editingColumnId] ?? null}
+          positionEl={editingChipEl}
           placement="bottom-start"
           showArrow={true}
           hoverDelay={-1}
@@ -196,15 +204,28 @@ export const FilterBar: FC<FilterBarProps> = ({
             <div className={styles.sep}></div>
             <ColumnPickerButton>
               {({ positionEl, isOpen, setIsOpen }) => (
-                <ColumnsPopover
+                <ColumnSelectorPopover
+                  id={`${popoverIdPrefix}-columns`}
+                  showing={isOpen}
+                  setShowing={setIsOpen}
                   positionEl={positionEl}
-                  isOpen={isOpen}
-                  setIsOpen={setIsOpen}
                   columns={columns}
-                  visibleColumns={visibleColumns ?? defaultVisibleColumns ?? []}
-                  defaultVisibleColumns={defaultVisibleColumns ?? []}
-                  onVisibleColumnsChange={onVisibleColumnsChange}
-                  popoverId={`${popoverIdPrefix}-columns`}
+                  visibility={Object.fromEntries(
+                    columns.map((col) => [
+                      col.id,
+                      shownColumns.includes(col.id),
+                    ])
+                  )}
+                  onVisibilityChange={(visibility) =>
+                    onVisibleColumnsChange(
+                      columns
+                        .filter((col) => visibility[col.id])
+                        .map((col) => col.id)
+                    )
+                  }
+                  onResetToDefault={() =>
+                    onVisibleColumnsChange(defaultVisibleColumns ?? [])
+                  }
                 />
               )}
             </ColumnPickerButton>
@@ -218,7 +239,8 @@ export const FilterBar: FC<FilterBarProps> = ({
 const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
   itemValues,
 }) => {
-  const [icon, setIcon] = useState<string>(ApplicationIcons.copy);
+  const { copied, copy } = useCopyToClipboard();
+  const icon: IconName = copied ? "confirm" : "copy";
 
   const items: Record<string, () => void> = {};
   for (const desc of kCopyCodeDescriptors) {
@@ -227,13 +249,7 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
       if (!text) {
         return;
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigator.clipboard.writeText(text);
-      setIcon(ApplicationIcons.confirm);
-      setTimeout(() => {
-        setIcon(ApplicationIcons.copy);
-      }, 1250);
+      copy(text);
     };
   }
 
@@ -271,4 +287,4 @@ const formatFilterSpec = (spec: FilterSpec): string => {
   return `${primary} ${spec.join.toUpperCase()} ${formatFilterCondition(spec.second)}`;
 };
 
-export type { AddFilterPopoverState, AvailableColumn, ColumnInfo };
+export type { AddFilterPopoverState, AvailableColumn };

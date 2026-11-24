@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useMemo } from "react";
+import { FC, ReactNode, useCallback } from "react";
 import { useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
@@ -9,6 +9,7 @@ import {
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { MarkdownReference } from "@tsmono/react/components";
+import { getOwn } from "@tsmono/util";
 
 import { scanResultRoute } from "../../router/url";
 import { useScanRoute } from "../../router/useScanRoute";
@@ -35,30 +36,19 @@ export const useMarkdownRefs = (
   const { scansDir, scanPath } = useScanRoute();
   const [currentSearchParams] = useSearchParams();
 
-  // Build URL to the scan result with the appropriate query parameters
-  // TODO: lint react-hooks/preserve-manual-memoization - the lint seems to be a bug in the rule that doesn't account for the ?
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const buildUrl = useMemo(() => {
-    if (!summary?.identifier) {
-      return (queryParams: string) => `?${queryParams}`;
+  const buildUrl = (queryParams: string) => {
+    if (!summary?.identifier || !scansDir) {
+      return `?${queryParams}`;
     }
-
-    return (queryParams: string) => {
-      if (!scansDir) {
-        return `?${queryParams}`;
-      }
-      // Start with current search params to preserve validation, etc.
-      const mergedParams = new URLSearchParams(currentSearchParams);
-      // Add/override with new params
-      const newParams = new URLSearchParams(queryParams);
-      for (const [key, value] of newParams) {
-        mergedParams.set(key, value);
-      }
-      return `#${scanResultRoute(scansDir, scanPath, summary.identifier, mergedParams)}`;
-    };
-    // Use .toString() for currentSearchParams since URLSearchParams object reference
-    // may not change when URL changes, causing stale closures
-  }, [summary?.identifier, scanPath, scansDir, currentSearchParams]);
+    // Start with current search params to preserve validation, etc.
+    const mergedParams = new URLSearchParams(currentSearchParams);
+    // Add/override with new params
+    const newParams = new URLSearchParams(queryParams);
+    for (const [key, value] of newParams) {
+      mergedParams.set(key, value);
+    }
+    return `#${scanResultRoute(scansDir, scanPath, summary.identifier, mergedParams)}`;
+  };
 
   const refs: MarkdownReference[] = summary
     ? toMarkdownRefs(
@@ -85,7 +75,7 @@ export const toMarkdownRefs = (
 
   const refs: MarkdownReference[] = [];
   for (const ref of summary.messageReferences) {
-    const renderPreview = refLookup[ref.id];
+    const renderPreview = getOwn(refLookup, ref.id);
     const refUrl = makeReferenceUrl(ref.id, "message");
     if (ref.cite && (renderPreview || refUrl)) {
       refs.push({
@@ -98,7 +88,7 @@ export const toMarkdownRefs = (
   }
 
   for (const ref of summary.eventReferences) {
-    const renderPreview = refLookup[ref.id];
+    const renderPreview = getOwn(refLookup, ref.id);
     const refUrl = makeReferenceUrl(ref.id, "event");
     if (ref.cite && (renderPreview || refUrl)) {
       refs.push({

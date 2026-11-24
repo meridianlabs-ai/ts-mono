@@ -2,8 +2,9 @@ import { clsx } from "clsx";
 import { FC } from "react";
 import { useLocation } from "react-router";
 
+import { Icon } from "@tsmono/react/icons";
+
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
-import { ApplicationIcons } from "../../icons";
 import { getActivityByRoute } from "../../router/activities";
 import { ThemeToggleControl } from "../../theme/ThemeToggleControl";
 import { AppConfig } from "../../types/api-types";
@@ -31,7 +32,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             aria-label="Back"
             title="Back"
           >
-            <i className={ApplicationIcons.navbar.back} />
+            <Icon name="navBack" />
           </button>
           <button
             type="button"
@@ -40,7 +41,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             aria-label="Forward"
             title="Forward"
           >
-            <i className={ApplicationIcons.navbar.forward} />
+            <Icon name="navForward" />
           </button>
           <button
             type="button"
@@ -53,7 +54,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             aria-label="Home"
             title="Home"
           >
-            <i className={ApplicationIcons.navbar.home} />
+            <Icon name="navHome" />
           </button>
         </div>
         <span className={styles.center}>

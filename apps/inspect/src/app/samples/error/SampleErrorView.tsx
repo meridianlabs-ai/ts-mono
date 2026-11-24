@@ -1,8 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties, FC } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
-import { ApplicationStyles } from "../../appearance/styles";
+import { Icon } from "@tsmono/react/icons";
 
 import { errorType } from "./error";
 import styles from "./SampleErrorView.module.css";
@@ -25,10 +24,8 @@ export const SampleErrorView: FC<SampleErrorViewProps> = ({ message }) => {
         isCanceledError(type) ? styles.safe : undefined
       )}
     >
-      <i className={clsx(ApplicationIcons.error, styles.iconSmall)} />
-      <div className={styles.message} style={ApplicationStyles.lineClamp(2)}>
-        {type}
-      </div>
+      <Icon name="error" className={styles.iconSmall} />
+      <div className={styles.message}>{type}</div>
     </div>
   );
 };

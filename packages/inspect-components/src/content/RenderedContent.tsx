@@ -1,14 +1,15 @@
-// TODO: lint strict type safety (eliminate any)
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unused-vars, @typescript-eslint/no-base-to-string, @typescript-eslint/unbound-method */
 import clsx from "clsx";
 import JSON5 from "json5";
 import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
 import {
   ANSIDisplay,
+  ContentText,
   JSONPanel,
   MarkdownReference,
+  RequireMedia,
 } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import {
   formatNumber,
   isJson,
@@ -16,21 +17,19 @@ import {
   isRenderableImageSource,
 } from "@tsmono/util";
 
-import { useContentRenderers } from "./ContentRenderersContext";
 import { ExternalLink } from "./ExternalLink";
 import { isHtmlEscape } from "./htmlEscape";
-import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
-import { Buckets, ContentRenderer, RenderOptions } from "./types";
+import { Buckets, ContentRenderer, RenderEntry, RenderOptions } from "./types";
 
 interface RenderedContentProps {
   id: string;
-  entry: { name: string; value: unknown };
+  entry: RenderEntry;
   references?: MarkdownReference[];
   renderOptions?: RenderOptions;
-  renderObject?(entry: any): ReactNode;
+  renderObject?: (value: Record<string, unknown>) => ReactNode;
 }
 
 interface WebSearchResult {
@@ -74,10 +73,6 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   renderOptions = { renderString: "markdown" },
   renderObject,
 }): JSX.Element => {
-  const icons = useContentIcons();
-  const externalRenderers = useContentRenderers();
-
-  // Explicitly specify return type
   if (entry.value === null) {
     return (
       <span>
@@ -87,223 +82,174 @@ export const RenderedContent: FC<RenderedContentProps> = ({
       </span>
     );
   }
-  const renderers = contentRenderers(
-    icons,
-    renderObject,
-    externalRenderers?.renderers
+  const rendered = renderEntry(
+    contentRenderers(renderObject),
+    id,
+    entry,
+    renderOptions,
+    references
   );
-  const renderer = Object.keys(renderers)
-    .map((key) => {
-      return renderers[key];
-    })
-    .sort((a, b) => {
-      if (!a || !b) {
-        return 0;
-      }
-      return a.bucket - b.bucket;
-    })
-    .find((renderer) => {
-      return renderer?.canRender(entry);
-    });
-
-  if (renderer) {
-    const { rendered } = renderer.render(id, entry, renderOptions, references);
-    if (rendered !== undefined && isValidElement(rendered)) {
-      return rendered;
-    }
+  if (isValidElement(rendered)) {
+    return rendered;
   }
 
-  // Safely convert any value to a string representation
-  const displayValue = (() => {
-    try {
-      if (typeof entry.value === "object") {
-        return JSON.stringify(entry.value);
-      }
-      return String(entry.value).trim();
-    } catch (e) {
-      return "[Unable to display value]";
-    }
-  })();
-
-  return <span>{displayValue}</span>;
+  return (
+    <span>
+      <ContentText text={fallbackText(entry.value)} />
+    </span>
+  );
 };
 
-interface ContentIconsForRenderers {
-  model: string;
-  search: string;
-}
+const fallbackText = (value: unknown): string => {
+  try {
+    switch (typeof value) {
+      case "string":
+      case "number":
+      case "boolean":
+      case "bigint":
+      case "symbol":
+      case "undefined":
+      case "function":
+        return String(value).trim();
+      default:
+        return JSON.stringify(value);
+    }
+  } catch {
+    return "[Unable to display value]";
+  }
+};
 
 /**
- * Object containing different content renderers.
- * Each renderer is responsible for rendering a specific type of content.
+ * The first renderer, in bucket order, that claims the entry decides it; its
+ * output is returned even when it isn't an element.
  */
-const contentRenderers: (
-  icons: ContentIconsForRenderers,
-  renderObject?: (object: any) => ReactNode,
-  externalRenderers?: Record<string, ContentRenderer>
-) => Record<string, ContentRenderer> = (
-  icons,
-  renderObject,
-  externalRenderers
-) => {
-  const contentRenderers: Record<string, ContentRenderer> = {
-    AnsiString: {
-      bucket: Buckets.first,
-      canRender: (entry) => {
-        return (
-          typeof entry.value === "string" && entry.value.indexOf("\u001b") > -1
-        );
-      },
-      render: (_id, entry, _options) => {
-        return {
-          rendered: <ANSIDisplay output={entry.value} />,
-        };
-      },
-    },
-    JsonString: {
-      bucket: Buckets.first,
-      canRender: (entry) => {
-        if (typeof entry.value === "string") {
-          const trimmed = entry.value.trim();
-          return isJson(trimmed);
-        }
-        return false;
-      },
-      render: (_id, entry, _options) => {
-        const obj: unknown = JSON5.parse(entry.value);
-        return {
-          rendered: <JSONPanel data={isRecord(obj) ? obj : {}} />,
-        };
-      },
-    },
+const renderEntry = (
+  renderers: ContentRenderer[],
+  id: string,
+  entry: RenderEntry,
+  options: RenderOptions,
+  references: MarkdownReference[] | undefined
+): ReactNode => {
+  for (const renderer of renderers) {
+    const result = renderer.render(id, entry, options, references);
+    if (result) return result.rendered;
+  }
+  return undefined;
+};
 
-    Model: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => isModelValue(entry.value),
-      render: (_id, entry, _options) => {
-        const value: unknown = entry.value;
-        if (!isModelValue(value)) {
-          return { rendered: undefined };
+const renderString = (
+  text: string,
+  options: RenderOptions,
+  references?: MarkdownReference[]
+): ReactNode => {
+  const trimmed = text.trim();
+  if (options.renderString === "markdown") {
+    return (
+      <RenderedText
+        markdown={trimmed}
+        references={references}
+        options={{ previewRefsOnHover: options.previewRefsOnHover }}
+      />
+    );
+  }
+  return (
+    <pre className={clsx(styles.preWrap, styles.preCompact)}>
+      <ContentText text={trimmed} />
+    </pre>
+  );
+};
+
+/**
+ * The content renderers, sorted by bucket. Each returns undefined for an
+ * entry that isn't its kind.
+ */
+const contentRenderers = (
+  renderObject?: (value: Record<string, unknown>) => ReactNode
+): ContentRenderer[] => {
+  const renderers: ContentRenderer[] = [
+    {
+      bucket: Buckets.first,
+      render: (_id, { value }) =>
+        typeof value === "string" && value.includes("\u001b")
+          ? { rendered: <ANSIDisplay output={value} /> }
+          : undefined,
+    },
+    {
+      bucket: Buckets.first,
+      render: (_id, { value }) => {
+        if (typeof value !== "string" || !isJson(value.trim())) {
+          return undefined;
         }
+        const obj: unknown = JSON5.parse(value);
+        return { rendered: <JSONPanel data={isRecord(obj) ? obj : {}} /> };
+      },
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { value }) =>
+        isModelValue(value)
+          ? {
+              rendered: (
+                <Fragment>
+                  <Icon name="model" /> {value._model}
+                </Fragment>
+              ),
+            }
+          : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { value }, options) =>
+        typeof value === "boolean"
+          ? { rendered: renderString(value.toString(), options) }
+          : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { value }, options) =>
+        typeof value === "number"
+          ? { rendered: renderString(formatNumber(value), options) }
+          : undefined,
+    },
+    {
+      bucket: Buckets.final,
+      render: (_id, { value }, options, references) =>
+        typeof value === "string"
+          ? { rendered: renderString(value, options, references) }
+          : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (id, { value }) => {
+        if (!Array.isArray(value)) return undefined;
+        const arrayMap: Record<string, unknown> = {};
+        value.forEach((e: unknown, index) => {
+          arrayMap[`[${index}]`] = e;
+        });
         return {
-          rendered: (
-            <Fragment>
-              <i className={icons.model} /> {value._model}
-            </Fragment>
+          rendered: renderObject ? (
+            renderObject(arrayMap)
+          ) : (
+            <MetaDataGrid
+              id={id}
+              className={"font-size-small"}
+              entries={arrayMap}
+              options={{ plain: true }}
+            />
           ),
         };
       },
     },
-    Boolean: {
+    {
       bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "boolean";
-      },
-      render: (id, entry, options) => {
-        entry.value = entry.value.toString();
-        return (
-          contentRenderers.String?.render(id, entry, options) || {
-            rendered: <span>{entry.value}</span>,
-          }
-        );
-      },
-    },
-    Number: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "number";
-      },
-      render: (id, entry, options) => {
-        entry.value = formatNumber(entry.value);
-        return (
-          contentRenderers.String?.render(id, entry, options) || {
-            rendered: <span>{entry.value}</span>,
-          }
-        );
-      },
-    },
-    String: {
-      bucket: Buckets.final,
-      canRender: (entry) => {
-        return typeof entry.value === "string";
-      },
-      render: (_id, entry, options, references) => {
-        const rendered = entry.value.trim();
-        if (options.renderString === "markdown") {
-          return {
-            rendered: (
-              <RenderedText
-                markdown={rendered}
-                references={references}
-                options={{ previewRefsOnHover: options.previewRefsOnHover }}
-              />
-            ),
-          };
-        } else {
-          return {
-            rendered: (
-              <pre className={clsx(styles.preWrap, styles.preCompact)}>
-                {rendered}
-              </pre>
-            ),
-          };
-        }
-      },
-    },
-    Array: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        const isArray = Array.isArray(entry.value);
-        if (isArray) {
-          if (entry.value.length === 0 || entry.value.length === 1) {
-            return true;
-          }
-          const types = new Set(
-            entry.value
-              .filter((e: unknown) => e !== null)
-              .map((e: unknown) => {
-                return typeof e;
-              })
-          );
-          return types.size === 1;
-        } else {
-          return false;
-        }
-      },
-      render: (id, entry, _options) => {
-        const arrayMap: Record<string, unknown> = {};
-        entry.value.forEach((e: unknown, index: number) => {
-          arrayMap[`[${index}]`] = e;
-        });
-
-        const arrayRendered = renderObject ? (
-          renderObject(arrayMap)
-        ) : (
-          <MetaDataGrid
-            id={id}
-            className={"font-size-small"}
-            entries={arrayMap}
-            options={{ plain: true }}
-          />
-        );
-        return { rendered: arrayRendered };
-      },
-    },
-    // Merge in any external renderers (e.g. ChatMessage, MessageContent from apps)
-    ...externalRenderers,
-    web_search: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) =>
-        entry.name === "web_search" && isWebSearchValue(entry.value),
-      render: (_id, entry, _options) => {
-        const value: unknown = entry.value;
-        if (!isWebSearchValue(value)) {
-          return { rendered: undefined };
+      render: (_id, { name, value }) => {
+        if (name !== "web_search" || !isWebSearchValue(value)) {
+          return undefined;
         }
         const results: ReactNode[] = [];
         results.push(
           <div key="query" className={styles.query}>
-            <i className={icons.search}></i> {value.query}
+            <Icon name="search" /> <ContentText text={value.query ?? ""} />
           </div>
         );
         value.results.forEach((result, index) => {
@@ -317,76 +263,64 @@ const contentRenderers: (
               key={`summary-${index}`}
               className={clsx("text-size-smaller", styles.summary)}
             >
-              {result.summary}
+              <ContentText text={result.summary ?? ""} />
             </div>
           );
         });
         // The caller keeps only a valid element; a bare array falls through
         // to the JSON fallback.
+        return { rendered: <Fragment>{results}</Fragment> };
+      },
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { name, value }) =>
+        typeof value === "string" && name.startsWith("web_browser")
+          ? {
+              rendered: (
+                <pre className={styles.preWrap}>
+                  <ContentText text={value} />
+                </pre>
+              ),
+            }
+          : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { value }) =>
+        isHtmlEscape(value) ? { rendered: value._html } : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (_id, { value }) =>
+        typeof value === "string" && isRenderableImageSource(value)
+          ? {
+              rendered: (
+                <RequireMedia kind="image">
+                  <img src={value} alt="Attachment" />
+                </RequireMedia>
+              ),
+            }
+          : undefined,
+    },
+    {
+      bucket: Buckets.intermediate,
+      render: (id, { value }) => {
+        if (!isRecord(value)) return undefined;
         return {
-          rendered: <Fragment>{results}</Fragment>,
+          rendered: renderObject ? (
+            renderObject(value)
+          ) : (
+            <MetaDataGrid
+              id={id}
+              className={"font-size-small"}
+              entries={value}
+              options={{ plain: true }}
+            />
+          ),
         };
       },
     },
-    web_browser: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return (
-          typeof entry.value === "string" &&
-          entry.name?.startsWith("web_browser")
-        );
-      },
-      render: (_id, entry, _options) => {
-        return {
-          rendered: <pre className={styles.preWrap}>{entry.value}</pre>,
-        };
-      },
-    },
-    Html: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => isHtmlEscape(entry.value),
-      render: (_id, entry, _options) => {
-        return {
-          rendered: entry.value._html,
-        };
-      },
-    },
-    Image: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return (
-          typeof entry.value === "string" &&
-          isRenderableImageSource(entry.value)
-        );
-      },
-      render: (_id, entry, _options) => {
-        return {
-          rendered: <img src={entry.value} alt="Attachment" />,
-        };
-      },
-    },
-    Object: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "object";
-      },
-      render: (id, entry, _options) => {
-        if (renderObject) {
-          return { rendered: renderObject(entry.value) };
-        } else {
-          return {
-            rendered: (
-              <MetaDataGrid
-                id={id}
-                className={"font-size-small"}
-                entries={isRecord(entry.value) ? entry.value : {}}
-                options={{ plain: true }}
-              />
-            ),
-          };
-        }
-      },
-    },
-  };
-  return contentRenderers;
+  ];
+  return renderers.sort((a, b) => a.bucket - b.bucket);
 };

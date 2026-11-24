@@ -1,14 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { VscodeTextarea } from "@vscode-elements/react-elements";
 import clsx from "clsx";
 import {
+  ChangeEvent,
   FC,
-  FormEvent,
   KeyboardEvent,
+  SubmitEvent,
   useCallback,
-  useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -24,12 +22,9 @@ import {
   SegmentedControl,
   SidebarHeader,
 } from "@tsmono/react/components";
-import { baseApplicationIcons } from "@tsmono/react/icons";
-import {
-  ApiError,
-  autosizeTextarea,
-  AutosizeTextareaConfig,
-} from "@tsmono/util";
+import { useInterval, useMountEffect } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
+import { ApiError } from "@tsmono/util";
 
 import styles from "./SearchPanel.module.css";
 import {
@@ -63,28 +58,6 @@ export type SearchPanelProps = {
   modelHistory?: ModelHistoryController;
   onClose: () => void;
 };
-
-function hasStringValue(target: EventTarget | null): target is EventTarget & {
-  value: string;
-} {
-  return (
-    target !== null && "value" in target && typeof target.value === "string"
-  );
-}
-
-function getInputValue(e: Event): string {
-  return hasStringValue(e.target) ? e.target.value : "";
-}
-
-const SEARCH_TEXTAREA_AUTOSIZE: AutosizeTextareaConfig = {
-  minRows: 2,
-  maxRows: 10,
-};
-
-function getInnerTextarea(el: HTMLElement | null): HTMLTextAreaElement | null {
-  const inner = el?.shadowRoot?.querySelector("textarea");
-  return inner instanceof HTMLTextAreaElement ? inner : null;
-}
 
 function isSearchType(value: string): value is SearchType {
   return value === "llm" || value === "grep";
@@ -164,7 +137,8 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   });
 
   const [isRecentOpen, setIsRecentOpen] = useState(false);
-  const recentButtonRef = useRef<HTMLButtonElement>(null);
+  const [recentButtonEl, setRecentButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   const loading =
     createSearchMutation.isPending || cachedSearchQuery.isFetching;
@@ -192,7 +166,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const cacheKey = api.cacheKey;
 
   const handleSubmit = useCallback(
-    (e: FormEvent) => {
+    (e: SubmitEvent) => {
       e.preventDefault();
       const text = query.trim();
       if (!text || loading) return;
@@ -309,21 +283,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     formRef.current?.requestSubmit();
   }, []);
 
-  const searchTextareaRef = useRef<HTMLElement | null>(null);
-  const handleSearchTextareaRef = useCallback((el: HTMLElement | null) => {
-    searchTextareaRef.current = el;
-  }, []);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useLayoutEffect(() => {
-    const inner = getInnerTextarea(searchTextareaRef.current);
-    if (inner !== null) {
-      autosizeTextarea(inner, SEARCH_TEXTAREA_AUTOSIZE);
-    }
-  }, [query]);
-
   const handleQueryInput = useCallback(
-    (e: Event) => {
-      const value = getInputValue(e);
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
       setState((prev) => ({
         ...prev,
         searches: {
@@ -354,27 +316,21 @@ export const SearchPanel: FC<SearchPanelProps> = ({
     [setState]
   );
 
-  // Seed the model input with the most recent model on open. Marking the ref
-  // done on the first run (not only when it fills) means a later clear — or a
-  // persisted model — is never fought.
-  const didPrefillModelRef = useRef(false);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (didPrefillModelRef.current) return;
-    didPrefillModelRef.current = true;
+  // Seed the model input with the most recent model on open, once: a later
+  // clear — or a persisted model — is never fought.
+  useMountEffect(() => {
     const mostRecent = modelHistory.history[0];
     if (model === "" && mostRecent !== undefined) {
       handleModelChange(mostRecent);
     }
-  }, [model, modelHistory.history, handleModelChange]);
+  });
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-unsearchable>
       <SidebarHeader
-        icon={baseApplicationIcons.search}
+        icon="search"
         title={`Search: ${scope}`}
         onClose={onClose}
-        closeIcon={baseApplicationIcons.close}
       />
       <div className={styles.body}>
         <form
@@ -399,7 +355,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
             </div>
             <div className={styles.topActions}>
               <button
-                ref={recentButtonRef}
+                ref={setRecentButtonEl}
                 type="button"
                 className={clsx(
                   styles.iconAction,
@@ -410,10 +366,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 aria-label="Recent searches"
                 aria-expanded={isRecentOpen}
               >
-                <i
-                  className={baseApplicationIcons.history}
-                  aria-hidden="true"
-                />
+                <Icon name="history" />
               </button>
               <button
                 type="button"
@@ -422,13 +375,12 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                 title="New search"
                 aria-label="New search"
               >
-                <i className={baseApplicationIcons.add} aria-hidden="true" />
+                <Icon name="add" />
               </button>
             </div>
           </div>
           <div className={styles.inputShell}>
-            <VscodeTextarea
-              ref={handleSearchTextareaRef}
+            <textarea
               className={styles.textarea}
               placeholder={
                 searchType === "grep"
@@ -436,10 +388,10 @@ export const SearchPanel: FC<SearchPanelProps> = ({
                   : "Ask a question about this transcript..."
               }
               value={query}
-              onInput={handleQueryInput}
+              onChange={handleQueryInput}
               onKeyDown={handleKeyDown}
               spellCheck={false}
-              autocomplete="off"
+              autoComplete="off"
             />
           </div>
           <div className={styles.controlsRow}>
@@ -447,19 +399,19 @@ export const SearchPanel: FC<SearchPanelProps> = ({
               {searchType === "grep" ? (
                 <div className={styles.modeControls}>
                   <ModeToggle
-                    icon="case-sensitive"
+                    icon="matchCase"
                     title="Ignore Case"
                     active={grepOptions.ignoreCase}
                     onClick={() => toggleGrepOption("ignoreCase")}
                   />
                   <ModeToggle
-                    icon="regex"
+                    icon="matchRegex"
                     title="Regex"
                     active={grepOptions.regex}
                     onClick={() => toggleGrepOption("regex")}
                   />
                   <ModeToggle
-                    icon="whole-word"
+                    icon="matchWholeWord"
                     title="Whole Word"
                     active={grepOptions.wordBoundary}
                     onClick={() => toggleGrepOption("wordBoundary")}
@@ -511,10 +463,9 @@ export const SearchPanel: FC<SearchPanelProps> = ({
         id={`recent-searches-${api.cacheKey}`}
         isOpen={isRecentOpen}
         setIsOpen={setIsRecentOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={recentButtonRef.current}
+        positionEl={recentButtonEl}
         placement="bottom-end"
-        offset={[0, 2]}
+        offset={2}
         hoverDelay={-1}
         closeOnMouseLeave={false}
         showArrow={false}
@@ -538,7 +489,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
 
 const ModeToggle: FC<{
   active: boolean;
-  icon: string;
+  icon: IconName;
   title: string;
   onClick: () => void;
 }> = ({ active, icon, title, onClick }) => (
@@ -549,7 +500,7 @@ const ModeToggle: FC<{
     aria-pressed={active}
     title={title}
   >
-    <i className={`codicon codicon-${icon}`} />
+    <Icon name={icon} />
   </button>
 );
 
@@ -614,13 +565,9 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   const [start] = useState(() => performance.now());
   const [elapsed, setElapsed] = useState(0);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsed(Math.floor((performance.now() - start) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [start]);
+  useInterval(() => {
+    setElapsed(Math.floor((performance.now() - start) / 1000));
+  }, 1000);
 
   const message =
     searchType === "grep"
@@ -631,8 +578,7 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   return (
     <div className={styles.emptyState}>
       <p className={styles.searchingText}>
-        <i className={baseApplicationIcons.search} aria-hidden="true" />{" "}
-        {message}
+        <Icon name="search" /> {message}
         <span className={styles.searchingElapsed}> · {elapsed}s</span>
       </p>
     </div>
@@ -734,7 +680,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- API response (#555): search results are not normalized
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -743,10 +689,7 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              ref.type === "event"
-              ? getEventUrl(ref.id)
-              : undefined;
+            : getEventUrl(ref.id);
         refs.push({
           id: ref.id,
           cite: ref.cite,

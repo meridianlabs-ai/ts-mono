@@ -1,8 +1,11 @@
-import { RefObject, useEffect, useRef } from "react";
+import { RefObject, useRef } from "react";
 
-import { useListKeyboardNavigation } from "@tsmono/react/hooks";
+import {
+  useEventListener,
+  useListKeyboardNavigation,
+} from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { isEditableTarget } from "@tsmono/util";
+import { isEditableTarget, isElementShown } from "@tsmono/util";
 
 interface TranscriptKeyboardNavigationOptions {
   listHandle: RefObject<VirtualListHandle | null>;
@@ -55,20 +58,17 @@ export function useTranscriptKeyboardNavigation({
 
   // Timestamp of the last lone `g`, for recognizing the `gg` two-stroke.
   const lastGTimeRef = useRef(0);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+  useEventListener(
+    window,
+    "keydown",
+    (event) => {
       if (disabled) return;
       // Several transcripts can be mounted at once (e.g. a reference-preview
       // popover over the main view). Only the visible one may claim these
       // window-capture keys — otherwise a hidden/offscreen instance swallows
       // them via stopImmediatePropagation. Mirrors GoToTurnBar's gate.
       const container = scrollRef?.current;
-      if (
-        container &&
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
-        (!container.isConnected || container.checkVisibility?.() === false)
-      ) {
+      if (container && !isElementShown(container)) {
         return;
       }
       const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
@@ -139,21 +139,7 @@ export function useTranscriptKeyboardNavigation({
           lastGTimeRef.current = now;
         }
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, { capture: true });
-    };
-  }, [
-    onNext,
-    onPrev,
-    onPrevAgent,
-    onNextAgent,
-    onFocusCurrentTurn,
-    onFirst,
-    onLast,
-    disabled,
-    scrollRef,
-  ]);
+    },
+    { capture: true }
+  );
 }

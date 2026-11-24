@@ -1,7 +1,6 @@
 import { CompressionType, setCompressionCodec } from "@uwdata/flechette";
 import type { Codec } from "@uwdata/flechette";
-import type { ColumnTable } from "arquero";
-import { table as arqueroTable, escape, fromArrow } from "arquero";
+import { table as arqueroTable, fromArrow } from "arquero";
 import * as lz4js from "lz4js";
 
 export const decodeArrowBase64 = (base64: string) => {
@@ -23,11 +22,7 @@ export const decodeArrowBytes = (bytes: ArrayBuffer | Uint8Array) => {
   ensureLZ4CodecRegistered();
 
   const input = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let table = fromArrow(input);
-
-  // Cast columns to appropriate types
-  // (Mixed-type columns get converted to strings by Arrow/Pandas)
-  table = castColumns(table);
+  const table = fromArrow(input);
 
   // Eagerly materialize the table to prevent Safari from
   // detaching the underlying ArrayBuffer during navigation.
@@ -47,6 +42,9 @@ export const decodeArrowBytes = (bytes: ArrayBuffer | Uint8Array) => {
       ? colData
       : Array.from(colData as Iterable<unknown>);
   }
+
+  // Mixed-type columns get converted to strings by Arrow/Pandas
+  castColumns(columns);
 
   // Recreate the table from the materialized column arrays
   // This ensures the table no longer has any references to detachable buffers
@@ -70,85 +68,67 @@ function ensureLZ4CodecRegistered(): void {
   }
 }
 
-// When Arrow/Pandas encounters mixed-type columns (e.g., numbers and nulls),
-// it converts everything to strings for safety. This function restores the
-// original types based on the value_type column (or a known type).
-function castColumns(table: ColumnTable): ColumnTable {
-  const columnNames = table.columnNames();
-  const hasValue =
-    columnNames.includes("value") && columnNames.includes("value_type");
-  const hasScanRefusal = columnNames.includes("scan_error_refusal");
-
-  // If neither column needs casting, return as-is
-  if (!hasValue && !hasScanRefusal) {
-    return table;
+/**
+ * Cast one scan `value` cell to its `value_type`. Mixed-type value columns
+ * arrive as text; boolean/number text decodes, anything it can't decode is
+ * null, and other types pass through. Also used for resultset rows, which
+ * are expanded after the table-level cast.
+ */
+export const castScanValue = (value: unknown, valueType: string): unknown => {
+  if (value === null || value === undefined) {
+    return null;
   }
 
-  // Helper function to cast a single value based on its type
-  // Returns unknown, not a scalar: the string/array/object branch passes the
-  // input straight through.
-  const castValue = (value: unknown, valueType: string): unknown => {
-    if (value === null || value === undefined) {
-      return null;
-    }
-
-    if (valueType === "boolean") {
-      // Already boolean
-      if (typeof value === "boolean") {
-        return value;
-      }
-      // Cast string to boolean
-      const strVal = String(value).toLowerCase();
-      if (strVal === "true") {
-        return true;
-      }
-      if (strVal === "false") {
-        return false;
-      }
-      return null;
-    } else if (valueType === "number") {
-      // Already a number
-      if (typeof value === "number") {
-        return value;
-      }
-
-      const strVal = String(value).trim();
-      if (strVal === "") {
-        // Empty values should be null
-        return null;
-      }
-      const num = Number(strVal);
-      return isNaN(num) ? null : num;
-    } else {
-      // For string, null, array, object - keep as-is
+  if (valueType === "boolean") {
+    if (typeof value === "boolean") {
       return value;
     }
-  };
+    if (typeof value !== "string") {
+      return null;
+    }
+    const strVal = value.toLowerCase();
+    if (strVal === "true") {
+      return true;
+    }
+    if (strVal === "false") {
+      return false;
+    }
+    return null;
+  } else if (valueType === "number") {
+    if (typeof value === "number") {
+      return value;
+    }
+    if (typeof value !== "string") {
+      return null;
+    }
+    const strVal = value.trim();
+    if (strVal === "") {
+      return null;
+    }
+    const num = Number(strVal);
+    return isNaN(num) ? null : num;
+  } else {
+    return value;
+  }
+};
 
-  // Build derivation object for all columns that need casting
-  const derivations: {
-    value?: ReturnType<typeof escape>;
-    scan_error_refusal?: ReturnType<typeof escape>;
-  } = {};
+// When Arrow/Pandas encounters mixed-type columns (e.g., numbers and nulls),
+// it converts everything to strings for safety. This function restores the
+// original types based on the value_type column (or a known type). Plain
+// loops, since arquero's derive() needs 'unsafe-eval'.
+function castColumns(columns: Record<string, unknown[]>): void {
+  const { value, value_type: valueType, scan_error_refusal } = columns;
 
-  if (hasValue) {
-    derivations.value = escape((d: { value: unknown; value_type: string }) => {
-      return castValue(d.value, d.value_type);
+  if (value && valueType) {
+    columns.value = value.map((cell, row) => {
+      const type = valueType[row];
+      return castScanValue(cell, typeof type === "string" ? type : "");
     });
   }
 
-  if (hasScanRefusal) {
-    derivations.scan_error_refusal = escape(
-      (d: { scan_error_refusal: string }) => {
-        if (typeof d.scan_error_refusal === "string") {
-          return d.scan_error_refusal.toLowerCase() === "true";
-        }
-
-        return !!d.scan_error_refusal;
-      }
+  if (scan_error_refusal) {
+    columns.scan_error_refusal = scan_error_refusal.map((cell) =>
+      typeof cell === "string" ? cell.toLowerCase() === "true" : !!cell
     );
   }
-
-  // Apply all derivations in a single pass
-  return table.derive(derivations);
 }

@@ -54,7 +54,7 @@ export const useSearches = ({
   searchType: SearchType;
   count?: number;
 }) => {
-  return useQuery<SearchInputListResponse, Error>({
+  return useQuery<SearchInputListResponse>({
     queryKey: searchQueryKeys.searches({ searchType, count }),
     queryFn: () => api.listRecentSearches(searchType, count),
     staleTime: 60 * 1000,
@@ -70,7 +70,6 @@ export const useCreateSearch = ({
   return useMutation<SearchResponse, Error, SearchRequest>({
     mutationFn: (request) => api.createSearch(request),
     onSuccess: (_response, request) => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       queryClient.invalidateQueries({
         queryKey: searchQueryKeys.searches({ searchType: request.type }),
       });
@@ -87,7 +86,7 @@ export const useCachedSearchResult = ({
   scope: SearchResultScope;
   searchId: string | null;
 }) => {
-  return useQuery<Result | null, Error>({
+  return useQuery<Result | null>({
     queryKey: searchQueryKeys.cachedResult({
       cacheKey: api?.cacheKey ?? null,
       scope,

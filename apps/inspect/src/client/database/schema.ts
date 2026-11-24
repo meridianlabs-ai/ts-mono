@@ -4,8 +4,7 @@ import { Log, SampleDerived, SampleSummary } from "../api/types";
 import { DERIVE_VERSION } from "../utils/derive";
 
 // Logs Table — THE Log entity row: identity + attribute columns at
-// progressive depth + retrieval facts (see
-// design/migration/log-data-summaries-entity.md, phase 3). `id` preserves
+// progressive depth + retrieval facts. `id` preserves
 // insertion order for listings without mtimes.
 export interface LogRecord extends Omit<Log, "name"> {
   // Auto-incrementing primary key for insertion order
@@ -63,7 +62,7 @@ export interface SyncScopeRecord {
 // The schema's shape version — bump on any table/index change, or when the
 // shape of stored row content changes (e.g. boundary normalization now fills
 // fields rows cached before it existed would lack).
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 17;
 
 // Runtime backstop for derive.ts's DeriveVersion type constraint: at 100 the
 // composition below aliases into the next schema version's namespace, and an
@@ -183,16 +182,19 @@ export class AppDatabase extends Dexie {
  * Best-effort: `indexedDB.databases()` is not universally available and a
  * database held open by another (older) tab may survive until it closes.
  */
-export const deleteLegacyDatabases = async (): Promise<void> => {
-  try {
-    const databases = await indexedDB.databases();
-    await Promise.all(
-      databases
-        .map((info) => info.name)
-        .filter((name): name is string => !!name?.startsWith(`${DB_NAME}_`))
-        .map((name) => Dexie.delete(name).catch(() => {}))
-    );
-  } catch {
-    // Enumeration unavailable or failed — legacy databases linger, harmless.
-  }
+export const deleteLegacyDatabases = (): void => {
+  // Deferred so a missing `indexedDB.databases` rejects into the .catch.
+  Promise.resolve()
+    .then(() => indexedDB.databases())
+    .then((databases) =>
+      Promise.all(
+        databases
+          .map((info) => info.name)
+          .filter((name): name is string => !!name?.startsWith(`${DB_NAME}_`))
+          .map((name) => Dexie.delete(name).catch(() => {}))
+      )
+    )
+    .catch(() => {
+      // Enumeration unavailable or failed — legacy databases linger, harmless.
+    });
 };

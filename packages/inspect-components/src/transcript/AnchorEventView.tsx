@@ -3,7 +3,6 @@ import { FC } from "react";
 import type { AnchorEvent } from "@tsmono/inspect-common/types";
 
 import { EventRow } from "./event/EventRow";
-import { TranscriptIcons } from "./icons";
 import { EventNode } from "./types";
 
 interface AnchorEventViewProps {
@@ -20,7 +19,7 @@ export const AnchorEventView: FC<AnchorEventViewProps> = ({
     <EventRow
       eventNodeId={eventNode.id}
       title="Anchor"
-      icon={TranscriptIcons.fork}
+      icon="fork"
       className={className}
     >
       <code className="text-style-secondary">{event.anchor_id}</code>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { testSystemMessage } from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 
 import {
@@ -181,7 +182,7 @@ describe("MessageRowScanner", () => {
   });
 
   it("treats empty-array system content as no system row", () => {
-    const contentlessSystem: ChatMessage = { role: "system", content: [] };
+    const contentlessSystem = testSystemMessage({ content: [] });
     const scanner = new MessageRowScanner(messageRowOptions());
     scanner.next(contentlessSystem, 0);
     expect(scanner.hasSystemRow).toBe(false);

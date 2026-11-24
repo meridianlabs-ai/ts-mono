@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { ApplicationIcons } from "../../appearance/icons";
+import { Icon } from "@tsmono/react/icons";
 
 import styles from "./TagChip.module.css";
 
@@ -67,7 +67,7 @@ export const TagChip: FC<TagChipProps> = ({
           aria-label={`Remove ${label}`}
           onClick={onRemove}
         >
-          <i className={ApplicationIcons.close} />
+          <Icon name="close" />
         </button>
       )}
     </span>

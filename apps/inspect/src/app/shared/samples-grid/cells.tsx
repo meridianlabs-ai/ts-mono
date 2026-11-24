@@ -3,8 +3,6 @@ import { FC, ReactNode } from "react";
 
 import { RenderedText } from "@tsmono/inspect-components/content";
 
-import { truncateMarkdown } from "../../../utils/markdown";
-
 import styles from "./gridCells.module.css";
 
 interface MarkdownCellDivProps {
@@ -23,7 +21,6 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
   trimRenderedText,
   truncateAt = 250,
 }) => {
-  const markdown = truncateMarkdown(text, truncateAt);
   return (
     <div
       className={clsx(
@@ -34,7 +31,8 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
       )}
     >
       <RenderedText
-        markdown={markdown}
+        markdown={text}
+        truncateAt={truncateAt}
         className={
           trimRenderedText
             ? clsx("no-last-para-padding", styles.noLeft)

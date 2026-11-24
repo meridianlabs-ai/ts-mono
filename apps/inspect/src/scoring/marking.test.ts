@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
 
+import {
+  testEvalMetric,
+  testEvalResults,
+  testEvalScore,
+} from "@tsmono/inspect-common/testing";
 import { EvalResults, EvalScore } from "@tsmono/inspect-common/types";
 
 import { displayScorersFromRunningMetrics } from "../app/log-view/title-view/ResultsPanel";
@@ -11,27 +16,26 @@ import { expandGroupedMetrics, toDisplayScorers } from "./metrics";
 const results = (
   scores: EvalScore[],
   headline?: EvalResults["headline"]
-): EvalResults => ({
-  total_samples: 1,
-  completed_samples: 1,
-  scores,
-  headline,
-});
+): EvalResults =>
+  testEvalResults({
+    total_samples: 1,
+    completed_samples: 1,
+    scores,
+    headline,
+  });
 
 describe("toDisplayScorers headline marking", () => {
   const scores: EvalScore[] = [
-    {
+    testEvalScore({
       name: "quality",
       scorer: "grader_a",
-      params: {},
-      metrics: { mean: { name: "mean", value: 0.1, params: {} } },
-    },
-    {
+      metrics: { mean: testEvalMetric({ name: "mean", value: 0.1 }) },
+    }),
+    testEvalScore({
       name: "quality",
       scorer: "grader_b",
-      params: {},
-      metrics: { mean: { name: "mean", value: 0.9, params: {} } },
-    },
+      metrics: { mean: testEvalMetric({ name: "mean", value: 0.9 }) },
+    }),
   ];
 
   test("marks the metric of the score the headline identifies", () => {
@@ -62,19 +66,18 @@ describe("toDisplayScorers headline marking", () => {
     // expandGroupedMetrics reorders and splits summaries, which is why the
     // headline is marked rather than re-matched afterwards
     const withGroups: EvalScore[] = [
-      {
+      testEvalScore({
         name: "s",
         scorer: "s",
-        params: {},
         metrics: {
-          stderr: { name: "stderr", value: 0.01, params: {} },
-          physics: {
+          stderr: testEvalMetric({ name: "stderr", value: 0.01 }),
+          physics: testEvalMetric({
             name: "physics",
             value: 0.7,
             params: { group_key: "category", metric: { name: "accuracy" } },
-          },
+          }),
         },
-      },
+      }),
     ];
     const grouped = toDisplayScorers(
       withGroups,

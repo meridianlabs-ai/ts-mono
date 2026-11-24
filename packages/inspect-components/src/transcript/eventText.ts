@@ -1,7 +1,20 @@
-import type { Content } from "@tsmono/inspect-common/types";
+import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
+import { contentTexts } from "../chat/contentText";
+import {
+  fullArgs,
+  isValidView,
+  kToolTodoContentType,
+  resolveToolInput,
+  substituteToolCallContent,
+  toToolTodos,
+} from "../chat/tools/tool";
+import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
+
 import { eventTitle } from "./event/utils";
+import { recentInputMessages } from "./recentInputMessages";
+import { formatModifiedCall, formatSuspicion } from "./transform/toolSentinels";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -65,10 +78,66 @@ const sanitizeStringify = (v: unknown): string => {
   });
 };
 
+/** A sample's tool events, by the ids a model call's panel checks them by. */
+export interface ToolEventIds {
+  /** The events' own ids, which tool results name. */
+  events: ReadonlySet<string>;
+  /** The ids the model's output names those calls by. */
+  proposals: ReadonlySet<string>;
+}
+
+// The panel renders a view's markdown, so the fences around its code never show.
+const withoutCodeFences = (markdown: string): string =>
+  markdown.replace(/^[ \t]*(```|~~~).*$/gm, "");
+
+// What a tool block draws for a call: its name, then its view if it has a
+// usable one, else its input, or its arguments when it has neither.
+const drawnCall = (call: {
+  function: string;
+  arguments: Record<string, unknown>;
+  view?: ToolCallContent | null;
+}): { name: string; fields: [string, string][] } => {
+  const { name, title, functionCall, input, description, contentType } =
+    resolveToolInput(call.function, call.arguments);
+  const view = call.view
+    ? substituteToolCallContent(call.view, call.arguments)
+    : undefined;
+  const displayName = view?.title || title || name;
+  const fields: [string, string][] = [["function", displayName]];
+  const hasInput = (input != null && input !== "") || !!view?.content;
+  if (!hasInput) {
+    const args = fullArgs(functionCall, displayName);
+    if (args) fields.push(["arguments", args]);
+  } else {
+    const drawn =
+      view && isValidView(view)
+        ? withoutCodeFences(view.content)
+        : contentType === kToolTodoContentType
+          ? toToolTodos(input)
+              .map((todo) => todo.content)
+              .join("\n")
+          : input;
+    const text =
+      typeof drawn === "string"
+        ? drawn
+        : typeof drawn === "object" && drawn !== null
+          ? sanitizeStringify(drawn)
+          : "";
+    if (text) fields.push(["arguments", text]);
+  }
+  if (description) fields.push(["description", description]);
+  return { name: displayName, fields };
+};
+
 /**
  * Extracts labeled fields from an event for search and text serialization.
+ * Given `find` (the sample's tool events, as Find passes), a model call and a
+ * tool call yield what their panels draw rather than all they record.
  */
-export const extractEventFields = (event: EventType): [string, string][] => {
+export const extractEventFields = (
+  event: EventType,
+  find?: ToolEventIds
+): [string, string][] => {
   const fields: [string, string][] = [];
 
   switch (event.event) {
@@ -80,16 +149,30 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       }
       // Extract text from model output
       for (const choice of modelEvent.output.choices) {
-        for (const text of extractContentText(choice.message.content)) {
+        for (const text of contentTexts(choice.message.content)) {
           fields.push(["output", text]);
         }
-      }
-      // Extract text from user/system input messages shown in the view
-      for (const msg of modelEvent.input) {
-        if (msg.role === "user" || msg.role === "system") {
-          for (const text of extractContentText(msg.content)) {
-            fields.push([msg.role, text]);
+        if (!find) continue;
+        // The panel draws a call only when no tool event shows it.
+        for (const call of choice.message.tool_calls ?? []) {
+          if (!find.proposals.has(call.id)) {
+            fields.push(...drawnCall(call).fields);
           }
+        }
+      }
+      const input = find
+        ? recentInputMessages(modelEvent.input, {
+            // The timeline sets this on its own copy of the event, never on these.
+            agentResultsFiltered: false,
+            hasToolEvents: undefined,
+            toolEventIds: find.events,
+          })
+        : modelEvent.input.filter(
+            (msg) => msg.role === "user" || msg.role === "system"
+          );
+      for (const msg of input) {
+        for (const text of contentTexts(msg.content)) {
+          fields.push([msg.role, text]);
         }
       }
       // API-call errors / tracebacks surfaced on the model event itself
@@ -105,25 +188,31 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "tool": {
       const toolEvent = event;
-      // Custom tool title (displayed instead of function name)
-      if (toolEvent.view?.title) {
-        const resolvedTitle = toolEvent.view.title.replace(
-          /\{\{(\w+)\}\}/g,
-          (match, key: string) => {
-            if (!Object.hasOwn(toolEvent.arguments, key)) return match;
-            const val =
-              toolEvent.arguments[key as keyof typeof toolEvent.arguments];
-            return typeof val === "string" ? val : JSON.stringify(val);
-          }
-        );
-        fields.push(["title", resolvedTitle]);
+      if (find) {
+        // The panel's own title repeats its block's.
+        const { name, fields: drawn } = drawnCall(toolEvent);
+        fields.push(["title", name], ...drawn);
+      } else {
+        // Custom tool title (displayed instead of function name)
+        if (toolEvent.view?.title) {
+          const resolvedTitle = toolEvent.view.title.replace(
+            /\{\{(\w+)\}\}/g,
+            (match, key: string) => {
+              if (!Object.hasOwn(toolEvent.arguments, key)) return match;
+              const val =
+                toolEvent.arguments[key as keyof typeof toolEvent.arguments];
+              return typeof val === "string" ? val : JSON.stringify(val);
+            }
+          );
+          fields.push(["title", resolvedTitle]);
+        }
+        // Tool function name
+        if (toolEvent.function) {
+          fields.push(["function", toolEvent.function]);
+        }
+        // Tool arguments
+        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
-      // Tool function name
-      if (toolEvent.function) {
-        fields.push(["function", toolEvent.function]);
-      }
-      // Tool arguments
-      fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
@@ -376,6 +465,53 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       break;
     }
 
+    case "communication":
+    case "swarm":
+      // Model and producer text, so one JSON block, as InfoEvent.data was;
+      // plain JSON, since `data` is opaque and never Content. Printed as the
+      // views' JSONPanel prints it, so find reveals what search counts.
+      fields.push(["payload", JSON.stringify(eventPayload(event), null, 2)]);
+      break;
+
+    case "sentinel": {
+      const sentinelEvent = event;
+      fields.push(["kind", sentinelEvent.kind]);
+      fields.push(["status", sentinelEvent.status]);
+      if (sentinelEvent.path) {
+        fields.push(["path", sentinelEvent.path]);
+      }
+      fields.push(["factory", sentinelEvent.factory]);
+      if (sentinelEvent.function) {
+        fields.push(["function", sentinelEvent.function]);
+      }
+      fields.push(["stage", sentinelEvent.stage]);
+      if (
+        sentinelEvent.suspicion !== undefined &&
+        sentinelEvent.suspicion !== null
+      ) {
+        fields.push(["suspicion", formatSuspicion(sentinelEvent.suspicion)]);
+      }
+      if (sentinelEvent.action) {
+        fields.push(["action", sentinelEvent.action]);
+      }
+      if (sentinelEvent.modified) {
+        fields.push(["modified", formatModifiedCall(sentinelEvent.modified)]);
+      }
+      if (sentinelEvent.audit) {
+        fields.push(["audit", "true"]);
+      }
+      if (sentinelEvent.message) {
+        fields.push(["message", sentinelEvent.message]);
+      }
+      if (sentinelEvent.explanation) {
+        fields.push(["explanation", sentinelEvent.explanation]);
+      }
+      if (sentinelEvent.error) {
+        fields.push(["error", sentinelEvent.error]);
+      }
+      break;
+    }
+
     case "sandbox": {
       const sandboxEvent = event;
       fields.push(["action", sandboxEvent.action]);
@@ -475,6 +611,23 @@ export const eventsToMarkdown = (events: readonly EventType[]): string => {
 const titleCase = (value: string): string =>
   toTitleCase(value.replace(/_/g, " "));
 
+// Fields every event carries; the rest is what the event itself records.
+const kBaseEventFields: ReadonlySet<string> = new Set([
+  "event",
+  "uuid",
+  "span_id",
+  "timestamp",
+  "working_start",
+  "metadata",
+  "pending",
+]);
+
+/** An event's own fields, without those every event carries. */
+export const eventPayload = (event: object): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(event).filter(([key]) => !kBaseEventFields.has(key))
+  );
+
 const kProseFields: ReadonlySet<string> = new Set([
   "answer",
   "explanation",
@@ -482,12 +635,6 @@ const kProseFields: ReadonlySet<string> = new Set([
   "output",
   "title",
 ]);
-
-const quoted = (value: string): string =>
-  value
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
 
 const kCodeLikeFields: ReadonlySet<string> = new Set([
   "arguments",
@@ -498,89 +645,8 @@ const kCodeLikeFields: ReadonlySet<string> = new Set([
   "path",
 ]);
 
-const longestBacktickRun = (value: string): number => {
-  let longest = 0;
-  for (const run of value.matchAll(/`+/g)) {
-    longest = Math.max(longest, run[0].length);
-  }
-  return longest;
-};
-
-// Delimiter longer than any backtick run inside; a space pads a value that
-// starts or ends with a backtick (CommonMark strips one space each side).
-const inlineCode = (value: string): string => {
-  const ticks = "`".repeat(longestBacktickRun(value) + 1);
-  const pad = value.startsWith("`") || value.endsWith("`") ? " " : "";
-  return `${ticks}${pad}${value}${pad}${ticks}`;
-};
-
 const looksLikeJson = (value: string): boolean =>
   /^\s*[[{]/.test(value) && /[\]}]\s*$/.test(value);
-
-// The fence must be longer than any backtick run inside the value.
-const fenced = (value: string): string => {
-  const fence = "`".repeat(Math.max(2, longestBacktickRun(value)) + 1);
-  return `${fence}\n${value}\n${fence}`;
-};
-
-/**
- * Extracts text strings from message content.
- */
-const extractContentText = (content: string | Array<Content>): string[] => {
-  if (typeof content === "string") {
-    return [content];
-  }
-
-  const texts: string[] = [];
-  for (const item of content) {
-    switch (item.type) {
-      case "text":
-        texts.push(item.text);
-        break;
-      case "reasoning": {
-        // The transcript uses MessageContent.tsx's reasoning renderer (via
-        // the chat view), which shows the summary when redacted (since the
-        // reasoning blob is encrypted) and the reasoning otherwise. Match
-        // that here so search hits what the user can see.
-        const text = item.redacted
-          ? item.summary
-          : item.reasoning || item.summary;
-        if (text) {
-          texts.push(text);
-        }
-        break;
-      }
-      case "tool_use": {
-        const toolUse = item;
-        if (toolUse.name) {
-          texts.push(toolUse.name);
-        }
-        if (toolUse.arguments) {
-          texts.push(sanitizeStringify(toolUse.arguments));
-        }
-        if (toolUse.result) {
-          texts.push(
-            typeof toolUse.result === "string"
-              ? toolUse.result
-              : sanitizeStringify(toolUse.result)
-          );
-        }
-        if (toolUse.error) {
-          texts.push(toolUse.error);
-        }
-        break;
-      }
-      case "image":
-      case "audio":
-      case "video":
-      case "data":
-      case "document":
-        texts.push(`<${item.type} />`);
-        break;
-    }
-  }
-  return texts;
-};
 
 const extractToolResultText = (value: unknown): string[] => {
   if (Array.isArray(value)) {

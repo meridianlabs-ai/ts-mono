@@ -6,12 +6,11 @@ import {
   MetaDataGrid,
   RenderedContent,
 } from "@tsmono/inspect-components/content";
-import { ExpandablePanel } from "@tsmono/react/components";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
 import { formatTiming } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import styles from "./SandboxEventView.module.css";
 import { EventNode } from "./types";
 
@@ -30,7 +29,7 @@ export const SandboxEventView: FC<SandboxEventViewProps> = ({
       eventNodeId={eventNode.id}
       className={className}
       title={`Sandbox: ${event.action}`}
-      icon={TranscriptIcons.sandbox}
+      icon="sandbox"
       subTitle={
         event.timestamp
           ? formatTiming(event.timestamp, event.working_start)
@@ -67,9 +66,11 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
     <div className={clsx(styles.exec)}>
       <EventSection title={`Command`}>
         <div className={clsx(styles.twoColumn)}>
-          <pre className={clsx(styles.wrapPre)}>{cmd}</pre>
           <pre className={clsx(styles.wrapPre)}>
-            {input !== null ? input?.trim() : undefined}
+            <ContentText text={cmd ?? ""} />
+          </pre>
+          <pre className={clsx(styles.wrapPre)}>
+            {input ? <ContentText text={input.trim()} /> : undefined}
           </pre>
 
           {options && Object.keys(options).length > 0 ? (
@@ -145,7 +146,9 @@ const FileView: FC<FileViewProps> = ({ id, file, contents }) => {
       {contents ? (
         <EventSection title="Contents">
           <ExpandablePanel id={`${id}-file`} collapse={false}>
-            <pre>{contents}</pre>
+            <pre>
+              <ContentText text={contents} />
+            </pre>
           </ExpandablePanel>
         </EventSection>
       ) : undefined}

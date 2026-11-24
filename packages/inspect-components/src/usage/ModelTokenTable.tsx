@@ -6,6 +6,11 @@ import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
+import {
+  compositionTotal,
+  usageTotal,
+  visibleOutputTokens,
+} from "./tokenTotals";
 
 interface ModelTokenTableProps {
   model_usage?: Record<string, ModelUsageData>;
@@ -54,17 +59,11 @@ const categoryValue = (usage: ModelUsageData, key: CategoryKey): number => {
     case "cacheWrite":
       return usage.input_tokens_cache_write ?? 0;
     case "output":
-      return usage.output_tokens ?? 0;
+      return visibleOutputTokens(usage);
     case "reasoning":
       return usage.reasoning_tokens ?? 0;
   }
 };
-
-const compositionTotal = (usage: ModelUsageData): number =>
-  CAT_ORDER.reduce((a, k) => a + categoryValue(usage, k), 0);
-
-const usageTotal = (usage: ModelUsageData): number =>
-  usage.total_tokens || compositionTotal(usage);
 
 export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   model_usage,
@@ -112,7 +111,12 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 : 0;
             const outputRate =
               usage && total > 0
-                ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
+                ? Math.round(
+                    ((visibleOutputTokens(usage) +
+                      (usage.reasoning_tokens ?? 0)) /
+                      total) *
+                      100
+                  )
                 : 0;
             return (
               <Fragment key={modelId}>

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { Pagination } from "@tsmono/inspect-common/query";
+import {
+  testAssistantMessage,
+  testSystemMessage,
+  testToolCall,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import { ChatMessage } from "@tsmono/inspect-common/types";
 import {
   countRowBlocks,
@@ -17,20 +24,19 @@ import {
 } from "./messageRows";
 
 const messages: ChatMessage[] = [
-  { id: "sys-1", role: "system", content: "be helpful" },
-  { id: "u-1", role: "user", content: "hi" },
-  {
+  testSystemMessage({ id: "sys-1", content: "be helpful" }),
+  testUserMessage({ id: "u-1", content: "hi" }),
+  testAssistantMessage({
     id: "a-1",
-    role: "assistant",
     content: "",
     tool_calls: [
-      { id: "c-1", function: "bash", arguments: {}, type: "function" },
-      { id: "c-2", function: "python", arguments: {}, type: "function" },
+      testToolCall({ id: "c-1", function: "bash" }),
+      testToolCall({ id: "c-2", function: "python" }),
     ],
-  },
-  { id: "t-1", role: "tool", content: "ok", tool_call_id: "c-1" },
-  { id: "t-2", role: "tool", content: "ok", tool_call_id: "c-2" },
-  { id: "a-2", role: "assistant", content: "done" },
+  }),
+  testToolMessage({ id: "t-1", content: "ok", tool_call_id: "c-1" }),
+  testToolMessage({ id: "t-2", content: "ok", tool_call_id: "c-2" }),
+  testAssistantMessage({ id: "a-2", content: "done" }),
 ];
 
 const forward = (offset: number | undefined, limit: number): Pagination => ({

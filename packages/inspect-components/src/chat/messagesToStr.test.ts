@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type {
   ChatMessageAssistant,
   ContentReasoning,
@@ -7,18 +8,18 @@ import type {
 
 import { messagesToStr } from "./messagesToStr";
 
-const reasoningMsg = (r: Partial<ContentReasoning>): ChatMessageAssistant => ({
-  role: "assistant",
-  source: "generate",
-  content: [
-    {
-      type: "reasoning",
-      reasoning: "",
-      redacted: false,
-      ...r,
-    },
-  ],
-});
+const reasoningMsg = (r: Partial<ContentReasoning>): ChatMessageAssistant =>
+  testAssistantMessage({
+    source: "generate",
+    content: [
+      {
+        type: "reasoning",
+        reasoning: "",
+        redacted: false,
+        ...r,
+      },
+    ],
+  });
 
 describe("messagesToStr — reasoning content", () => {
   it("uses summary when redacted (Anthropic ≥4, OpenAI encrypted)", () => {

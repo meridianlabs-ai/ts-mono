@@ -192,7 +192,7 @@ describe("useTopicInvalidation", () => {
 
     // The 5s reconnect timer may have been scheduled by onerror during close.
     // Advance past it to verify it doesn't cause errors (MSW handler was
-    // already consumed, so a reconnect would hit onUnhandledRequest: "error"
+    // already consumed, so a reconnect would hit onUnhandledFrame: "error"
     // if the timer leaked with real timers).
     await vi.advanceTimersByTimeAsync(6000);
 

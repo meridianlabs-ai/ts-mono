@@ -49,7 +49,7 @@
    inset that previously came from `.row { padding-inline: 0.75rem }`.
 
    No vertical padding on `.value`: the textarea's own internal padding
-   (0.4rem top/bottom from AutogrowText) already provides breathing
+   (0.4rem top/bottom from `.valueInput`) already provides breathing
    room within the edit box, and an outer pad makes the row feel
    over-stuffed. `.key` and `.remove` use a top inset that lines them
    up with the textarea's first text baseline. */
@@ -62,6 +62,27 @@
 .value {
   min-width: 0;
   padding: 0;
+}
+
+/* Grows with its content and never scrolls; `.tableScroll` handles
+   overflow. Borderless and transparent so it reads as a grid cell and
+   `.rowNew` shows through. */
+.valueInput {
+  field-sizing: content;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.4rem 0.625rem;
+  resize: none;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.valueInput:focus {
+  outline: none;
+  box-shadow: none;
+  background: var(--bs-tertiary-bg);
 }
 
 .remove {

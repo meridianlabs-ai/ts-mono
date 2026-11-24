@@ -2,7 +2,6 @@
   display: inline-flex;
   flex-direction: row;
   margin: 0rem 0;
-  padding: 2px 6px;
   border: solid 1px var(--bs-border-color);
   border-radius: var(--bs-border-radius);
   align-items: baseline;
@@ -19,15 +18,41 @@
   font-size: 0.9em;
 }
 
+/* The chip's padding lives here, so a clickable body fills the chip: the
+   whole chip takes the click, and a popover anchored to it lines up with the
+   chip's edges. */
+.content {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 2px 6px;
+}
+
+.chip:has(> .closeIcon) > .content {
+  padding-right: 0.3rem;
+}
+
+.button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Ring the whole chip, close button included, when its body has focus. */
+.button:focus-visible {
+  outline: none;
+}
+
+.chip:has(> .button:focus-visible) {
+  outline: 2px solid var(--bs-primary);
+}
+
 .closeIcon {
-  margin-left: 0.3rem;
-  padding: 0;
+  padding: 2px 6px 2px 0;
   border: none;
   background: none;
   color: inherit;
   font-size: 0.9em;
-}
-
-.clickable {
   cursor: pointer;
 }

@@ -581,6 +581,8 @@ export interface components {
             inspect_version: string;
             /** Scout Version */
             scout_version?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * ApprovalEvent
@@ -600,6 +602,8 @@ export interface components {
              * @enum {string}
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -635,8 +639,12 @@ export interface components {
          *     ```yaml
          *     approvers:
          *       - name: human
-         *         tools: web_browser*, bash, pyhton
+         *         tools: bash*, python, text_editor
          *         choices: [approve, reject]
+         *
+         *       - name: human
+         *         tools: computer
+         *         arguments: {action: key}
          *
          *       - name: auto
          *         tools: *
@@ -644,6 +652,10 @@ export interface components {
          *     ```
          */
         ApproverPolicyConfig: {
+            /** Arguments */
+            arguments?: {
+                [key: string]: string;
+            } | null;
             /** Name */
             name: string;
             /** Params */
@@ -1005,6 +1017,124 @@ export interface components {
         /** Citation */
         Citation: components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"];
         /**
+         * CommunicationDelivery
+         * @description For `delivered`, whom a record reached and in what order.
+         */
+        CommunicationDelivery: {
+            /** Recipients */
+            recipients: string[];
+            /** Seq */
+            seq?: number | null;
+        };
+        /**
+         * CommunicationEvent
+         * @description Communication between agents: a record sent or delivered, a read of what others communicated, or a wait for others.
+         *
+         *     Experimental: not yet a stable API.
+         */
+        CommunicationEvent: {
+            /** Agent */
+            agent: string;
+            /** Agent Span Id */
+            agent_span_id?: string | null;
+            /** Channel */
+            channel?: string | null;
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            delivery?: components["schemas"]["CommunicationDelivery"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "communication";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "sent" | "delivered" | "read" | "waited";
+            /** Loop Span Id */
+            loop_span_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Nested
+             * @default false
+             */
+            nested: boolean;
+            /** Pending */
+            pending?: boolean | null;
+            /** Record Ids */
+            record_ids: string[];
+            send?: components["schemas"]["CommunicationSend"] | null;
+            /** Source */
+            source: string;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            wait?: components["schemas"]["CommunicationWait"] | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
+         * CommunicationRecord
+         * @description For `sent`, what one agent communicated: a message, or a change to state other agents read.
+         */
+        CommunicationRecord: {
+            /** Content */
+            content?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Kind */
+            kind: string;
+            /** Recipients */
+            recipients: string[];
+            /** Reply To */
+            reply_to?: string | null;
+            /** Sender */
+            sender: string;
+            /** To */
+            to: string[];
+        };
+        /**
+         * CommunicationRejection
+         * @description For `sent`, why a record that was sent was not delivered.
+         */
+        CommunicationRejection: {
+            /** Control */
+            control: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * CommunicationSend
+         * @description For `sent`, the record an agent sent, and why it was refused if it was.
+         */
+        CommunicationSend: {
+            record: components["schemas"]["CommunicationRecord"];
+            rejected?: components["schemas"]["CommunicationRejection"] | null;
+        };
+        /**
+         * CommunicationWait
+         * @description For `waited`, an agent waiting for other agents.
+         */
+        CommunicationWait: {
+            /** Channels */
+            channels: string[];
+            /** Duration */
+            duration: number;
+            /** Id */
+            id?: string | null;
+            /** Outcome */
+            outcome: string;
+        };
+        /**
          * CompactionEvent
          * @description Compaction of conversation history.
          */
@@ -1200,7 +1330,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1227,6 +1357,8 @@ export interface components {
          * @description Text content.
          */
         ContentText: {
+            /** Cache Breakpoint */
+            cache_breakpoint?: boolean | null;
             /** Citations */
             citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1459,6 +1591,7 @@ export interface components {
             score_display?: boolean | null;
             /** Score On Error */
             score_on_error?: boolean | null;
+            sentinel?: components["schemas"]["SentinelConfig"] | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -1533,6 +1666,8 @@ export interface components {
             status: "started" | "success" | "cancelled" | "error";
             /** Tags */
             tags: string[];
+            /** Total Samples */
+            total_samples?: number | null;
             /**
              * Version
              * @default 2
@@ -1638,7 +1773,7 @@ export interface components {
          */
         EvalRetryError: {
             /** Events */
-            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
             /** Message */
             message: string;
             /** Traceback */
@@ -1676,13 +1811,15 @@ export interface components {
             choices?: string[] | null;
             /** Completed At */
             completed_at?: string | null;
+            /** Description */
+            description?: string | null;
             /** Epoch */
             epoch: number;
             error?: components["schemas"]["EvalError"] | null;
             /** Error Retries */
             error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Files */
             files?: string[] | null;
@@ -1788,7 +1925,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -1810,6 +1947,8 @@ export interface components {
             completed: boolean;
             /** Completed At */
             completed_at?: string | null;
+            /** Description */
+            description?: string | null;
             /** Epoch */
             epoch: number;
             /** Error */
@@ -1947,6 +2086,63 @@ export interface components {
             task_id: string;
         };
         /**
+         * EvalShardEntry
+         * @description Ledger entry for one shard, as of the merge that last read it.
+         */
+        EvalShardEntry: {
+            /** Completed At */
+            completed_at: string | "";
+            error?: components["schemas"]["EvalError"] | null;
+            /** Etag */
+            etag?: string | null;
+            /** Eval Set Id */
+            eval_set_id?: string | null;
+            /** Log */
+            log: string;
+            /** Model Usage */
+            model_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Mtime */
+            mtime?: number | null;
+            /** Role Usage */
+            role_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Samples */
+            samples: number;
+            /** Selected */
+            selected: number;
+            /** Selection Digest */
+            selection_digest: string;
+            /** Shard */
+            shard: string;
+            /** Size */
+            size: number;
+            /** Started At */
+            started_at: string | "";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "started" | "success" | "cancelled" | "error";
+        };
+        /**
+         * EvalShards
+         * @description Provenance of a merged log: its shards and the ledger of the last merge.
+         */
+        EvalShards: {
+            /** Ledger */
+            ledger: components["schemas"]["EvalShardEntry"][];
+            /** Sample Count */
+            sample_count?: number | null;
+            /**
+             * Selection
+             * @enum {string}
+             */
+            selection: "ids" | "count" | "none";
+        };
+        /**
          * EvalSpec
          * @description Eval target and configuration.
          */
@@ -1993,6 +2189,7 @@ export interface components {
             sandbox?: components["schemas"]["SandboxEnvironmentSpec"] | null;
             /** Scorers */
             scorers?: components["schemas"]["EvalScorer"][] | null;
+            shards?: components["schemas"]["EvalShards"] | null;
             /** Solver */
             solver?: string | null;
             /** Solver Args */
@@ -2019,6 +2216,8 @@ export interface components {
             task_attribs: {
                 [key: string]: unknown;
             };
+            /** Task Description */
+            task_description?: string | null;
             /** Task Display Name */
             task_display_name?: string | null;
             /** Task File */
@@ -2055,7 +2254,7 @@ export interface components {
             started_at: string | "";
         };
         /** Event */
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /** EventData */
         EventData: {
             /** Epoch */
@@ -2201,7 +2400,7 @@ export interface components {
          */
         GrepSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /**
              * Ignore Case
              * @default true
@@ -2492,7 +2691,7 @@ export interface components {
          */
         LlmSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /** Messages */
             messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
             /** Model */
@@ -2742,6 +2941,8 @@ export interface components {
          * @description Call to a language model.
          */
         ModelEvent: {
+            /** Agent Tool Call Ids */
+            agent_tool_call_ids?: string[] | null;
             /** Cache */
             cache?: ("read" | "write") | null;
             call?: components["schemas"]["ModelCall"] | null;
@@ -2768,9 +2969,15 @@ export interface components {
             } | null;
             /** Model */
             model: string;
+            /** Origin */
+            origin?: string | null;
             output: components["schemas"]["ModelOutput"];
             /** Pending */
             pending?: boolean | null;
+            /** Request Ids */
+            request_ids?: components["schemas"]["ModelRequestId"][] | null;
+            /** Requested Model */
+            requested_model?: string | null;
             /** Retries */
             retries?: number | null;
             /** Role */
@@ -2831,15 +3038,31 @@ export interface components {
             /** Error */
             error?: string | null;
             fallback?: components["schemas"]["ModelFallback"] | null;
+            /** Input Context Tokens */
+            input_context_tokens?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
             /** Model */
             model: string;
+            /** Response Id */
+            response_id?: string | null;
             /** Time */
             time?: number | null;
             usage?: components["schemas"]["ModelUsage"] | null;
+        };
+        /**
+         * ModelRequestId
+         * @description Provider request id from an HTTP response.
+         */
+        ModelRequestId: {
+            /** Header */
+            header: string;
+            /** Id */
+            id: string;
+            /** Status */
+            status: number;
         };
         /**
          * ModelUsage
@@ -2921,7 +3144,12 @@ export interface components {
         };
         /**
          * Reference
-         * @description Reference to scanned content.
+         * @description Reference from a score to content in the scored transcript.
+         *
+         *     References are stored as a list of dicts under a score's
+         *     `metadata["scanner_references"]` key. Inspect View identifies scanner
+         *     scores by the presence of that key and renders cites in the score's
+         *     explanation (e.g. `[M22]`) as links to the referenced content.
          */
         Reference: {
             /** Cite */
@@ -3038,11 +3266,19 @@ export interface components {
          *       - name: mypackage/output_monitor
          *         tools: bash, python
          *
+         *       - name: mypackage/click_monitor
+         *         tools: computer
+         *         arguments: {action: "*_click"}
+         *
          *       - name: human
          *         tools: "*"
          *     ```
          */
         ReviewerPolicyConfig: {
+            /** Arguments */
+            arguments?: {
+                [key: string]: string;
+            } | null;
             /** Name */
             name: string;
             /** Params */
@@ -3062,6 +3298,8 @@ export interface components {
             checkpoint?: components["schemas"]["CheckpointSampleConfig"] | null;
             /** Choices */
             choices?: string[] | null;
+            /** Description */
+            description?: string | null;
             /** Files */
             files?: {
                 [key: string]: string;
@@ -3314,7 +3552,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3371,7 +3609,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3484,6 +3722,117 @@ export interface components {
             id: number;
             /** Member Name */
             member_name: string;
+        };
+        /**
+         * SentinelConfig
+         * @description A sentinel configuration: one entry, a list of entries, or a mapping of instance names to entries.
+         *
+         *     The value of the `sentinel:` key in a configuration file, and what the eval log records. A mapping is one entry when its `name` is a string, and a mapping of instance names when every value is an entry, so an instance named `name` still configures a mapping.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelConfig: components["schemas"]["SentinelEntry"] | components["schemas"]["SentinelEntry"][] | {
+            [key: string]: components["schemas"]["SentinelEntry"];
+        };
+        /**
+         * SentinelEntry
+         * @description One configured monitor or protocol.
+         *
+         *     Any key besides `name`, `params`, `version` and `meta` names a parameter of the factory whose value is nested monitors or protocols, such as `monitors` for `threshold` or `children` for `concurrent`; it holds an entry, a list of entries, or a mapping of instance names to entries, and `nested` returns them.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelEntry: {
+            /** Meta */
+            meta?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** Name */
+            name: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version?: number | null;
+        } & {
+            [key: string]: components["schemas"]["SentinelConfig"];
+        };
+        /**
+         * SentinelEvent
+         * @description Report from a sentinel monitor or protocol about one step.
+         *
+         *     A report's metadata is recorded in the event's `metadata` field.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelEvent: {
+            /** Action */
+            action?: ("proceed" | "modify" | "reject" | "terminate" | "escalate") | null;
+            /**
+             * Audit
+             * @default false
+             */
+            audit: boolean;
+            /** Conversation */
+            conversation: string;
+            /** Error */
+            error?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Factory */
+            factory: string;
+            /** Function */
+            function?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "observation" | "decision";
+            /** Message */
+            message?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            modified?: components["schemas"]["ToolCall"] | null;
+            /** Path */
+            path: string;
+            /** Pending */
+            pending?: boolean | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Span Id */
+            span_id?: string | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "model_input" | "model_output" | "tool_call" | "tool_result";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            /** Step Id */
+            step_id: string;
+            /** Suspicion */
+            suspicion?: number | {
+                [key: string]: number;
+            } | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
         };
         /**
          * SnapshotDetails
@@ -3724,6 +4073,41 @@ export interface components {
             working_start: number;
             /** Working Time */
             working_time?: number | null;
+        };
+        /**
+         * SwarmEvent
+         * @description Evidence from an agent swarm (inspect_swarm) other than communication: a member's result, the final answer's selection, the swarm's ledger or its metrics.
+         *
+         *     The swarm defines `kind` and the format of `data`. Experimental: not yet a stable API.
+         */
+        SwarmEvent: {
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "swarm";
+            /** Kind */
+            kind: string;
+            /** Member */
+            member?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
         };
         /**
          * TagsEdit
@@ -3983,6 +4367,16 @@ export interface components {
         /**
          * ToolEvent
          * @description Call to a tool.
+         *
+         *     A host tool that `sandbox_agent_bridge(bridged_tools=...)` runs for a
+         *     sandboxed agent is recorded with `metadata["bridge"]`: `server` and `tool`
+         *     (the bridged server and the tool name within it, also the event's
+         *     `function`), `function` (the name the model called it by, or `None`),
+         *     `proposal_id` (the id of the model's proposing tool call, or `None`) and
+         *     `grant` (`"consumed"` when a proposal matched, `"denied"` when the call
+         *     was refused for lack of one, `"exempt"` when a server registered with
+         *     `require_proposal=False` ran it without one, or `None` when the request
+         *     was rejected before that check).
          */
         ToolEvent: {
             /** Agent */
@@ -3993,6 +4387,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
@@ -4003,6 +4399,8 @@ export interface components {
             event: "tool";
             /** Events */
             events: unknown[];
+            /** Execution Id */
+            execution_id?: string | null;
             /** Failed */
             failed?: boolean | null;
             /** Function */
@@ -4187,7 +4585,8 @@ export interface components {
          * @description Top-level viewer configuration.
          *
          *     This allows per task customization of the
-         *     Task's sample list and each sample's score and scanner result display.
+         *     Task's sample list, each sample's score and scanner result display,
+         *     and whether log content is trusted enough to render richly.
          */
         ViewerConfig: {
             sample_score_view?: components["schemas"]["SampleScoreView"] | null;
@@ -4197,6 +4596,8 @@ export interface components {
             };
             /** Task Samples View */
             task_samples_view?: components["schemas"]["TaskSamplesView"] | components["schemas"]["TaskSamplesView"][] | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
     };
     responses: never;

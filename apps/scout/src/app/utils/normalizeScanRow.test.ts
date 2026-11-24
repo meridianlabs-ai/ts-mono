@@ -5,6 +5,7 @@ import {
   normalizeJsonRecord,
   normalizeScanEvents,
   normalizeScanModelUsage,
+  normalizeScanValue,
   normalizeValidationResult,
   normalizeValidationTarget,
   resolveTranscriptIdentityFromMetadata,
@@ -79,6 +80,15 @@ describe("normalizeValidationTarget", () => {
 
   it("returns undefined for an absent value", async () => {
     expect(await normalizeValidationTarget(undefined)).toBeUndefined();
+  });
+
+  it("bounds nesting depth like the other JSON columns", async () => {
+    const depth = 20_000;
+    const target = await normalizeValidationTarget(
+      "[".repeat(depth) + "]".repeat(depth)
+    );
+    expect(Array.isArray(target)).toBe(true);
+    expect(() => JSON.stringify(target)).not.toThrow();
   });
 });
 
@@ -194,5 +204,103 @@ describe("resolveTranscriptIdentityFromMetadata", () => {
     resolveTranscriptIdentityFromMetadata(data);
     expect(data).not.toHaveProperty("transcriptModel");
     expect(data).not.toHaveProperty("transcriptTaskRepeat");
+  });
+});
+
+describe("normalizeScanValue", () => {
+  it("keeps scalar cells under their scalar tags", async () => {
+    expect(await normalizeScanValue("yes", "string")).toEqual({
+      value: "yes",
+      valueType: "string",
+    });
+    expect(await normalizeScanValue(0.5, "number")).toEqual({
+      value: 0.5,
+      valueType: "number",
+    });
+    expect(await normalizeScanValue(false, "boolean")).toEqual({
+      value: false,
+      valueType: "boolean",
+    });
+    expect(await normalizeScanValue(null, "null")).toEqual({
+      value: null,
+      valueType: "null",
+    });
+  });
+
+  // Text under a number/boolean tag is decoded upstream (castScanValue), so
+  // any scalar reaching the normalizer keeps its value under its own type.
+  it.each([
+    { raw: "0.9", tag: "number", valueType: "string" },
+    { raw: "yes", tag: "boolean", valueType: "string" },
+    { raw: 3, tag: "string", valueType: "number" },
+    { raw: true, tag: "string", valueType: "boolean" },
+    { raw: 1, tag: "boolean", valueType: "number" },
+    { raw: "text", tag: "null", valueType: "string" },
+  ] as const)(
+    "keeps $raw under a $tag tag, re-tagged to its own type",
+    async ({ raw, tag, valueType }) => {
+      expect(await normalizeScanValue(raw, tag)).toEqual({
+        value: raw,
+        valueType,
+      });
+    }
+  );
+
+  it("re-tags an absent cell under a scalar tag as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue(null, "string")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "number")).toEqual(expected);
+    expect(await normalizeScanValue(null, "boolean")).toEqual(expected);
+  });
+
+  it("parses array and object cells whose tag matches their shape", async () => {
+    expect(await normalizeScanValue("[1,2,3]", "array")).toEqual({
+      value: [1, 2, 3],
+      valueType: "array",
+    });
+    const nested = '{"a":{"b":{"c":{"d":{"e":1}}}}}';
+    expect(await normalizeScanValue(nested, "object")).toEqual({
+      value: { a: { b: { c: { d: { e: 1 } } } } },
+      valueType: "object",
+    });
+  });
+
+  // The value_type column is scan-authored independently of the value cell;
+  // consumers narrow on the tag alone, so a disagreeing pair must not survive
+  // normalization.
+  it("re-tags an array-tagged cell that is not an array as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue("{}", "array")).toEqual(expected);
+    expect(await normalizeScanValue('{"a":1}', "array")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "array")).toEqual(expected);
+    expect(await normalizeScanValue(null, "array")).toEqual(expected);
+    expect(await normalizeScanValue("not json {", "array")).toEqual(expected);
+    expect(await normalizeScanValue("42", "array")).toEqual(expected);
+  });
+
+  it("re-tags an object-tagged cell that is not a record as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue("[1,2]", "object")).toEqual(expected);
+    expect(await normalizeScanValue("null", "object")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "object")).toEqual(expected);
+    expect(await normalizeScanValue("not json {", "object")).toEqual(expected);
+  });
+
+  it("bounds nesting depth so render-time stringify cannot overflow", async () => {
+    const depth = 20_000;
+    const cell = "[".repeat(depth) + "]".repeat(depth);
+    const { value, valueType } = await normalizeScanValue(cell, "array");
+    expect(valueType).toBe("array");
+    expect(Array.isArray(value)).toBe(true);
+    expect(() => JSON.stringify(value)).not.toThrow();
+
+    // 8,000 levels: still overflows a recursive stringify, and the cell stays
+    // under asyncJsonParse's 50KB worker threshold so it parses in-process.
+    const objectDepth = 8_000;
+    const objectCell =
+      '{"k":'.repeat(objectDepth) + "1" + "}".repeat(objectDepth);
+    const nested = await normalizeScanValue(objectCell, "object");
+    expect(nested.valueType).toBe("object");
+    expect(() => JSON.stringify(nested.value)).not.toThrow();
   });
 });

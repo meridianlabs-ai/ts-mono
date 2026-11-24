@@ -1,19 +1,16 @@
 import clsx from "clsx";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useCallback, useMemo, useRef, useState } from "react";
 
+import { isVscode } from "@tsmono/util";
+
+import { useEventListener } from "../hooks/useEventListener";
 import { useProperty } from "../hooks/useProperty";
 
 import { useComponentNavigation } from "./ComponentNavigationContext";
+import { isNewTabClick } from "./inAppLink";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
-import { escapeHtmlCharacters } from "./markdownRendering";
+import { escapeHtmlCharacters } from "./markdownText";
 import { NoContentsPanel } from "./NoContentsPanel";
 import { PopOver } from "./PopOver";
 
@@ -33,12 +30,15 @@ interface MarkdownDivWithReferencesProps {
   className?: string | string[];
   style?: React.CSSProperties;
   renderer?: MarkdownRenderer;
+  /** See `MarkdownDiv`'s `truncateAt`. */
+  truncateAt?: number;
 }
 
 export const MarkdownDivWithReferences = forwardRef<
   HTMLDivElement,
   MarkdownDivWithReferencesProps
->(({ markdown, references, options, className, style, renderer }, ref) => {
+>((props, ref) => {
+  const { markdown, references, options, className, style, renderer } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
   const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
@@ -66,9 +66,10 @@ export const MarkdownDivWithReferences = forwardRef<
         // so it can see this navigate. Cite links are in-view navigation
         // (jumping to a referenced event/message in the same transcript),
         // so use replace to avoid filling history with each click.
-        if (href?.startsWith("#/")) {
+        // New-tab gestures open the real href natively (except in the VS
+        // Code webview, which has no browser tabs).
+        if (href?.startsWith("#/") && (isVscode() || !isNewTabClick(e))) {
           e.preventDefault();
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate(href.slice(1), { replace: true });
         }
       }
@@ -93,6 +94,7 @@ export const MarkdownDivWithReferences = forwardRef<
         postProcess={hasReferences ? postProcess : undefined}
         style={style}
         renderer={renderer}
+        truncateAt={props.truncateAt}
         onClick={handleLinkClick}
       />
     ),
@@ -103,6 +105,7 @@ export const MarkdownDivWithReferences = forwardRef<
       postProcess,
       style,
       renderer,
+      props.truncateAt,
       handleLinkClick,
     ]
   );
@@ -117,83 +120,57 @@ export const MarkdownDivWithReferences = forwardRef<
   // dismissed it. Suppress shows for that ref-id until the mouse actually
   // leaves the link (mouseout transition off the link element).
   const suppressedIdRef = useRef<string | null>(null);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
+  // Don't enable popover / preview on hover
+  const delegationTarget =
+    options?.previewRefsOnHover === false ? null : containerRef;
 
-    // Don't enable popover / preview on hover
-    if (options?.previewRefsOnHover === false) {
-      return;
-    }
+  // mouseover bubbles (mouseenter doesn't) — we filter to transitions
+  // into the cite link by checking relatedTarget.
+  useEventListener(delegationTarget, "mouseover", (e) => {
+    const el = findCiteLink(e.target);
+    if (!el) return;
+    const related = e.relatedTarget;
+    if (related instanceof Node && el.contains(related)) return;
 
-    const citeSelector = `.${styles.cite}`;
+    const id = el.getAttribute("data-ref-id");
+    if (!id) return;
+    if (suppressedIdRef.current === id) return;
+    const r = refMap.get(id);
+    if (!r || !r.citePreview) return;
 
-    const findCiteLink = (target: EventTarget | null): HTMLElement | null => {
-      if (!(target instanceof Element)) return null;
-      return target.closest<HTMLElement>(citeSelector);
-    };
+    // PopOver handles show/hide logic including hover delays.
+    setPositionEl(el);
+    setCurrentRef(r);
+    setVisibleKey(popoverKey(r));
+  });
 
-    // mouseover bubbles (mouseenter doesn't) — we filter to transitions
-    // into the cite link by checking relatedTarget.
-    const handleMouseOver = (e: MouseEvent): void => {
-      const el = findCiteLink(e.target);
-      if (!el) return;
-      const related = e.relatedTarget;
-      if (related instanceof Node && el.contains(related)) return;
+  // mouseout bubbles too. Clear suppression once the mouse leaves the
+  // suppressed cite link entirely (i.e. relatedTarget isn't a descendant).
+  useEventListener(delegationTarget, "mouseout", (e) => {
+    const el = findCiteLink(e.target);
+    if (!el) return;
+    const id = el.getAttribute("data-ref-id");
+    if (!id || suppressedIdRef.current !== id) return;
+    const related = e.relatedTarget;
+    if (related instanceof Node && el.contains(related)) return;
+    suppressedIdRef.current = null;
+  });
 
-      const id = el.getAttribute("data-ref-id");
-      if (!id) return;
-      if (suppressedIdRef.current === id) return;
-      const r = refMap.get(id);
-      if (!r || !r.citePreview) return;
+  useEventListener(delegationTarget, "click", (e) => {
+    const el = findCiteLink(e.target);
+    if (!el) return;
 
-      // PopOver handles show/hide logic including hover delays.
-      setPositionEl(el);
-      setCurrentRef(r);
-      setVisibleKey(popoverKey(r));
-    };
+    // Cancel the popover if one is pending or showing, and suppress it
+    // for this ref-id until the mouse leaves the link — re-render after
+    // click would otherwise fire a fresh mouseover and re-open it.
+    clearVisibleKey();
+    setCurrentRef(null);
+    setPositionEl(null);
+    suppressedIdRef.current = el.getAttribute("data-ref-id");
 
-    // mouseout bubbles too. Clear suppression once the mouse leaves the
-    // suppressed cite link entirely (i.e. relatedTarget isn't a descendant).
-    const handleMouseOut = (e: MouseEvent): void => {
-      const el = findCiteLink(e.target);
-      if (!el) return;
-      const id = el.getAttribute("data-ref-id");
-      if (!id || suppressedIdRef.current !== id) return;
-      const related = e.relatedTarget;
-      if (related instanceof Node && el.contains(related)) return;
-      suppressedIdRef.current = null;
-    };
-
-    const handleClick = (e: MouseEvent): void => {
-      const el = findCiteLink(e.target);
-      if (!el) return;
-
-      // Cancel the popover if one is pending or showing, and suppress it
-      // for this ref-id until the mouse leaves the link — re-render after
-      // click would otherwise fire a fresh mouseover and re-open it.
-      clearVisibleKey();
-      setCurrentRef(null);
-      setPositionEl(null);
-      suppressedIdRef.current = el.getAttribute("data-ref-id");
-
-      // Stop propagation to prevent parent Link components from handling.
-      e.stopPropagation();
-    };
-
-    container.addEventListener("mouseover", handleMouseOver);
-    container.addEventListener("mouseout", handleMouseOut);
-    container.addEventListener("click", handleClick);
-
-    return () => {
-      container.removeEventListener("mouseover", handleMouseOver);
-      container.removeEventListener("mouseout", handleMouseOut);
-      container.removeEventListener("click", handleClick);
-    };
-  }, [refMap, options?.previewRefsOnHover, setVisibleKey, clearVisibleKey]);
+    // Stop propagation to prevent parent Link components from handling.
+    e.stopPropagation();
+  });
 
   const key = currentRef
     ? popoverKey(currentRef)
@@ -232,6 +209,13 @@ MarkdownDivWithReferences.displayName = "MarkdownDivWithReferences";
 
 const popoverKey = (ref: MarkdownReference) => `markdown-ref-popover-${ref.id}`;
 
+const citeSelector = `.${styles.cite}`;
+
+const findCiteLink = (target: EventTarget | null): HTMLElement | null => {
+  if (!(target instanceof Element)) return null;
+  return target.closest<HTMLElement>(citeSelector);
+};
+
 /**
  * Replace bracketed M/E ordinals in HTML with anchor links for known references.
  *
@@ -260,11 +244,13 @@ export function injectReferenceLinks(
       if (!ref) return ordinal;
       // The id and URL come from log content; escaping keeps them inside the
       // attribute rather than leaving DOMPurify to repair a quote breakout.
-      const href = ref.citeUrl
-        ? ` href="${escapeHtmlCharacters(ref.citeUrl)}"`
-        : "";
       const id = escapeHtmlCharacters(ref.id);
-      return `<a${href} class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
+      const cls = escapeHtmlCharacters(citeClass);
+      // No URL means nowhere to navigate: a span, not a link that can't be
+      // followed or opened in a new tab (the popover still works by class).
+      return ref.citeUrl
+        ? `<a href="${escapeHtmlCharacters(ref.citeUrl)}" class="${cls}" data-ref-id="${id}">${ordinal}</a>`
+        : `<span class="${cls}" data-ref-id="${id}">${ordinal}</span>`;
     });
 
   // Link the ordinals inside every bracket expression that holds at least one.

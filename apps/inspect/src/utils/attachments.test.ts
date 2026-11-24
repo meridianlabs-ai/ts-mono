@@ -1,94 +1,83 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveAttachments } from "./attachments";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testCommunicationEvent,
+  testInfoEvent,
+  testModelCall,
+  testModelEvent,
+  testModelOutput,
+  testSampleInitEvent,
+  testScore,
+  testScoreEvent,
+  testStateEvent,
+  testStoreEvent,
+  testSubtaskEvent,
+  testSwarmEvent,
+  testToolCall,
+  testToolEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
+import type {
+  ContentImage,
+  ContentText,
+  Event,
+} from "@tsmono/inspect-common/types";
+
+import {
+  resolveEventAttachments,
+  resolveInputAttachments,
+  resolveMessageAttachments,
+} from "./attachments";
 
 const attachments = { abc123: "resolved content" };
 
-describe("resolveAttachments", () => {
-  it("resolves attachment:// strings", () => {
-    expect(resolveAttachments("attachment://abc123", attachments)).toBe(
-      "resolved content"
-    );
+// A position inspect_ai resolves, to exercise the ref parsing itself
+const resolveText = (
+  content: string,
+  map: Readonly<Record<string, unknown>> = attachments,
+  onFailedResolve?: (attachmentId: string) => void
+) =>
+  resolveMessageAttachments(testUserMessage({ content }), map, onFailedResolve)
+    .content;
+
+describe("attachment refs", () => {
+  it("resolves attachment:// and legacy tc:// refs", () => {
+    expect(resolveText("attachment://abc123")).toBe("resolved content");
+    expect(resolveText("tc://abc123")).toBe("resolved content");
   });
 
-  it("rewrites legacy tc:// refs and resolves them", () => {
-    expect(resolveAttachments("tc://abc123", attachments)).toBe(
-      "resolved content"
-    );
-  });
+  it.each(["attachment://nope", "tc://nope"])(
+    "keeps %s as written on a miss and reports it",
+    (ref) => {
+      const onFailedResolve = vi.fn();
+      expect(resolveText(ref, attachments, onFailedResolve)).toBe(ref);
+      expect(onFailedResolve).toHaveBeenCalledWith("nope");
+    }
+  );
 
-  it("returns the original string on a miss and fires onFailedResolve", () => {
-    const onFailedResolve = vi.fn();
-    expect(
-      resolveAttachments("attachment://nope", attachments, onFailedResolve)
-    ).toBe("attachment://nope");
-    expect(onFailedResolve).toHaveBeenCalledWith("nope");
-  });
-
-  it("returns the original (un-rewritten) tc:// string on a miss", () => {
-    const onFailedResolve = vi.fn();
-    expect(resolveAttachments("tc://nope", attachments, onFailedResolve)).toBe(
-      "tc://nope"
-    );
-    expect(onFailedResolve).toHaveBeenCalledWith("nope");
-  });
-
-  it("fires onFailedResolve for misses nested in arrays and objects", () => {
-    const onFailedResolve = vi.fn();
-    resolveAttachments(
-      {
-        list: ["attachment://gone"],
-        nested: { ref: "attachment://also-gone" },
-      },
-      attachments,
-      onFailedResolve
-    );
-    expect(onFailedResolve).toHaveBeenCalledWith("gone");
-    expect(onFailedResolve).toHaveBeenCalledWith("also-gone");
-  });
-
-  it("resolves refs nested in arrays and objects, leaving other values alone", () => {
-    const input = {
-      list: ["attachment://abc123", "plain", 42],
-      nested: { ref: "attachment://abc123", keep: null },
-    };
-    expect(resolveAttachments(input, attachments)).toEqual({
-      list: ["resolved content", "plain", 42],
-      nested: { ref: "resolved content", keep: null },
-    });
-  });
-
-  it("preserves identity when nothing resolves", () => {
-    const input = { list: ["plain"], nested: { keep: true } };
-    expect(resolveAttachments(input, attachments)).toBe(input);
-  });
-
-  it("preserves identity of unchanged subtrees inside a changed parent", () => {
-    const unchangedChild = { keep: "plain" };
-    const input = { unchangedChild, ref: "attachment://abc123" };
-    const result = resolveAttachments(input, attachments);
-    expect(result).not.toBe(input);
-    expect(result.ref).toBe("resolved content");
-    expect(result.unchangedChild).toBe(unchangedChild);
-  });
-
-  it("passes Date and RegExp instances through untouched", () => {
-    const date = new Date(0);
-    const regex = /x/;
-    const result = resolveAttachments({ date, regex }, attachments);
-    expect(result.date).toBe(date);
-    expect(result.regex).toBe(regex);
+  it("preserves identity when nothing resolves, and of unchanged subtrees", () => {
+    const plain = testUserMessage({ content: "plain" });
+    expect(resolveMessageAttachments(plain, attachments)).toBe(plain);
+    const messages = [
+      plain,
+      testUserMessage({ content: "attachment://abc123" }),
+    ];
+    const resolved = resolveMessageAttachments(messages, attachments);
+    expect(resolved).not.toBe(messages);
+    expect(resolved[0]).toBe(plain);
   });
 
   it("passes null and undefined through", () => {
-    expect(resolveAttachments(null, attachments)).toBeNull();
-    expect(resolveAttachments(undefined, attachments)).toBeUndefined();
+    expect(resolveEventAttachments(null, attachments)).toBeNull();
+    expect(resolveInputAttachments(undefined, attachments)).toBeUndefined();
   });
 });
 
 // Attachment ids are the suffix of a log-authored string; one that names an
 // Object.prototype member is a miss, never the inherited builtin.
-describe("resolveAttachments prototype-named ids", () => {
+describe("attachment refs with prototype-named ids", () => {
   it.each([
     "constructor",
     "__proto__",
@@ -98,18 +87,13 @@ describe("resolveAttachments prototype-named ids", () => {
   ])("treats attachment://%s as a miss", (id) => {
     const onFailedResolve = vi.fn();
     const ref = `attachment://${id}`;
-    expect(resolveAttachments(ref, attachments, onFailedResolve)).toBe(ref);
+    expect(resolveText(ref, attachments, onFailedResolve)).toBe(ref);
     expect(onFailedResolve).toHaveBeenCalledWith(id);
-    expect(
-      resolveAttachments({ content: [ref] }, attachments, onFailedResolve)
-    ).toEqual({ content: [ref] });
   });
 
   it("resolves an own attachment stored under such an id", () => {
     expect(
-      resolveAttachments("attachment://constructor", {
-        constructor: "own content",
-      })
+      resolveText("attachment://constructor", { constructor: "own content" })
     ).toBe("own content");
   });
 
@@ -120,9 +104,9 @@ describe("resolveAttachments prototype-named ids", () => {
       writable: true,
     });
     try {
-      expect(
-        resolveAttachments("attachment://planted_attachment", attachments)
-      ).toBe("attachment://planted_attachment");
+      expect(resolveText("attachment://planted_attachment")).toBe(
+        "attachment://planted_attachment"
+      );
     } finally {
       Reflect.deleteProperty(Object.prototype, "planted_attachment");
     }
@@ -130,7 +114,7 @@ describe("resolveAttachments prototype-named ids", () => {
 });
 
 describe.each(["attachment://", "tc://"])(
-  "resolveAttachments %s value validation",
+  "%s attachment value validation",
   (protocol) => {
     it.each([
       { name: "object", value: { invalid: true } },
@@ -141,11 +125,15 @@ describe.each(["attachment://", "tc://"])(
       { name: "undefined", value: undefined },
     ])("treats an own $name value as a miss", ({ value }) => {
       const onFailedResolve = vi.fn();
-      const input = { content: [`${protocol}constructor`] };
+      const message = testUserMessage({ content: `${protocol}constructor` });
 
       expect(
-        resolveAttachments(input, { constructor: value }, onFailedResolve)
-      ).toBe(input);
+        resolveMessageAttachments(
+          message,
+          { constructor: value },
+          onFailedResolve
+        )
+      ).toBe(message);
       expect(onFailedResolve).toHaveBeenCalledExactlyOnceWith("constructor");
     });
 
@@ -154,10 +142,236 @@ describe.each(["attachment://", "tc://"])(
       (id) => {
         const onFailedResolve = vi.fn();
         expect(
-          resolveAttachments(`${protocol}${id}`, { [id]: "" }, onFailedResolve)
+          resolveText(`${protocol}${id}`, { [id]: "" }, onFailedResolve)
         ).toBe("");
         expect(onFailedResolve).not.toHaveBeenCalled();
       }
     );
   }
 );
+
+// The resolver follows inspect_ai's typed walkers (log/_condense.py): only
+// the positions its writer condenses resolve, and every other field is plain
+// text shown as stored.
+describe.each(["attachment://", "tc://"])("%s positions", (protocol) => {
+  const ref = `${protocol}abc123`;
+  const text = (value: string) =>
+    ({ type: "text", text: value }) satisfies ContentText;
+  const image = (value: string) =>
+    ({ type: "image", image: value, detail: "auto" }) satisfies ContentImage;
+  const assistantWithToolCall = (value: string) =>
+    testAssistantMessage({
+      content: [text(value)],
+      tool_calls: [
+        testToolCall({
+          arguments: { cmd: value },
+          view: { content: value, format: "text" },
+        }),
+      ],
+    });
+
+  it("leaves a string sample input as written", () => {
+    expect(resolveInputAttachments(ref, attachments)).toBe(ref);
+  });
+
+  it.each<{ name: string; event: Event }>([
+    {
+      name: "a score explanation",
+      event: testScoreEvent({ score: testScore({ explanation: ref }) }),
+    },
+    {
+      name: "a model event's metadata",
+      event: testModelEvent({ metadata: { note: ref } }),
+    },
+    {
+      name: "an info event's metadata",
+      event: testInfoEvent({ metadata: { note: ref } }),
+    },
+    {
+      name: "a stored completion that differs from the first choice",
+      event: testModelEvent({
+        output: testModelOutput({
+          completion: ref,
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ content: "model text" }),
+            }),
+          ],
+        }),
+      }),
+    },
+  ])("leaves $name as written", ({ event }) => {
+    expect(resolveEventAttachments(event, attachments)).toBe(event);
+  });
+
+  it("resolves message-list input and an assistant's tool calls", () => {
+    expect(
+      resolveInputAttachments(
+        [testUserMessage({ content: ref }), assistantWithToolCall(ref)],
+        attachments
+      )
+    ).toEqual([
+      testUserMessage({ content: "resolved content" }),
+      assistantWithToolCall("resolved content"),
+    ]);
+  });
+
+  it("resolves a model event's input, choices, derived completion and call", () => {
+    const modelEvent = (value: string, completion: string) =>
+      testModelEvent({
+        tools: [
+          {
+            name: "t",
+            description: value,
+            parameters: { type: "object", properties: {}, required: [] },
+          },
+        ],
+        input: [testUserMessage({ content: value })],
+        output: testModelOutput({
+          completion,
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ content: value }),
+            }),
+          ],
+        }),
+        call: testModelCall({ request: { p: value }, response: { r: value } }),
+      });
+    expect(resolveEventAttachments(modelEvent(ref, ref), attachments)).toEqual(
+      modelEvent("resolved content", "resolved content")
+    );
+  });
+
+  // inspect_ai stores text that begins with a ref prefix as an attachment of
+  // its own; one pass reads it back as written, not as the attachment it names
+  it("resolves an escaped literal ref once", () => {
+    const escaped = { ...attachments, lit: ref };
+    const modelEvent = (value: string) =>
+      testModelEvent({
+        input: [testAssistantMessage({ content: value })],
+        output: testModelOutput({
+          choices: [
+            testChatCompletionChoice({
+              message: testAssistantMessage({ content: value }),
+            }),
+          ],
+        }),
+        call: testModelCall({
+          request: { messages: [{ content: value }] },
+          response: { r: value },
+        }),
+      });
+    expect(
+      resolveEventAttachments(modelEvent("attachment://lit"), escaped)
+    ).toEqual(modelEvent(ref));
+  });
+
+  it.each<{ name: string; event: (value: string) => Event }>([
+    {
+      name: "tool arguments and result media",
+      event: (value) =>
+        testToolEvent({
+          arguments: { cmd: value },
+          result: [text(ref), image(value)],
+        }),
+    },
+    {
+      name: "state and store changes",
+      event: (value) =>
+        testSubtaskEvent({
+          events: [
+            testStateEvent({
+              changes: [
+                { op: "add", path: "/a", value: { v: value }, replaced: null },
+              ],
+            }),
+            testStoreEvent({
+              changes: [{ op: "add", path: "/a", value, replaced: null }],
+            }),
+          ],
+        }),
+    },
+    {
+      name: "sample init input and state",
+      event: (value) =>
+        testSampleInitEvent({
+          sample: { input: value, target: ref },
+          state: { s: value },
+        }),
+    },
+    {
+      name: "info data",
+      event: (value) => testInfoEvent({ data: { d: [value] } }),
+    },
+    {
+      name: "communication record, rejection and data",
+      event: (value) =>
+        testCommunicationEvent({
+          send: {
+            record: {
+              content: value,
+              kind: "message",
+              recipients: [],
+              sender: "a",
+              to: [],
+            },
+            rejected: { control: "c", reason: value },
+          },
+          data: { d: value },
+        }),
+    },
+    {
+      name: "swarm data",
+      event: (value) => testSwarmEvent({ data: { d: value } }),
+    },
+  ])("resolves $name", ({ event }) => {
+    expect(resolveEventAttachments(event(ref), attachments)).toEqual(
+      event("resolved content")
+    );
+  });
+
+  it.each([
+    { name: "a string", result: ref },
+    { name: "a single ContentText", result: text(ref) },
+    { name: "a list", result: [text(ref), text("plain")] },
+  ])("leaves tool result text in $name as written", ({ result }) => {
+    const event = testToolEvent({ result });
+    expect(resolveEventAttachments(event, attachments).result).toEqual(result);
+  });
+
+  it("resolves a single tool result image", () => {
+    expect(
+      resolveEventAttachments(
+        testToolEvent({ result: image(ref) }),
+        attachments
+      ).result
+    ).toEqual(image("resolved content"));
+  });
+
+  it.each([
+    {
+      name: "subtask",
+      parent: (events: unknown[]) => testSubtaskEvent({ events }),
+    },
+    {
+      name: "tool",
+      parent: (events: unknown[]) => testToolEvent({ id: "parent", events }),
+    },
+  ])(
+    "applies to lists of events and to events nested in a $name",
+    ({ parent }) => {
+      // Nested tool results were never condensed, media included
+      const tool = testToolEvent({
+        result: [image(ref)],
+        arguments: { cmd: ref },
+      });
+      const outer = parent([tool]);
+      expect(resolveEventAttachments([outer], attachments)).toEqual([
+        {
+          ...outer,
+          events: [{ ...tool, arguments: { cmd: "resolved content" } }],
+        },
+      ]);
+    }
+  );
+});

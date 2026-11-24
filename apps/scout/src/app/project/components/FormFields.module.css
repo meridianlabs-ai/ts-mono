@@ -5,17 +5,17 @@
 
 /* Make text fields wider */
 .field :global(vscode-textfield) {
-  width: 400px !important;
+  width: 400px;
 }
 
 .field :global(vscode-textfield[type="number"]) {
-  width: 250px !important;
+  width: 250px;
 }
 
 .field :global(vscode-textarea) {
-  width: 400px !important;
+  width: 400px;
 }
 
 .field :global(vscode-single-select) {
-  width: 250px !important;
+  width: 250px;
 }

@@ -50,7 +50,7 @@ safe treatment of remote media.
 - Markdown/sanitization/lightbox: `packages/react/src/components/markdownRendering.ts`,
   `renderedHtmlSanitizer.ts`, `MarkdownDiv.tsx`, and `LightboxCarousel.tsx`.
 - Regression coverage: `apps/inspect/e2e/chat-components.spec.ts`,
-  `info-image-repro.spec.ts`, `viewer-xss.spec.ts`, and component security/media
+  `info-event-images.spec.ts`, `viewer-xss.spec.ts`, and component security/media
   tests in `packages/inspect-components` and `packages/react`.
 
 ## Gotchas

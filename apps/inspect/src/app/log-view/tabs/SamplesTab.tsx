@@ -4,7 +4,6 @@ import {
   Fragment,
   RefObject,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -16,6 +15,11 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnSelectorPopover,
+  ExtendedColumnDef,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import {
   ErrorPanel,
   NoContentsPanel,
@@ -32,9 +36,11 @@ import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
-import { totalSampleTokens } from "../../../client/utils/derive.ts";
+import {
+  totalSampleCost,
+  totalSampleTokens,
+} from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
-import { selectSample } from "../../../state/actions.ts";
 import {
   useEffectiveEvalConfig,
   useFilteredSamples,
@@ -46,8 +52,8 @@ import {
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
-import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   sortingToViewSort,
   viewSortToSorting,
@@ -60,9 +66,7 @@ import {
   useSamplesViewScoreColorScales,
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
-import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
-import { type PickerColumn } from "../../shared/gridUtils.ts";
+import { toPickerColumns } from "../../shared/gridUtils.ts";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
@@ -90,16 +94,6 @@ const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
 
 // Stable empty fallback for logs with no persisted column widths.
 const kNoColumnSizing: Record<string, number> = Object.freeze({});
-
-// Picker-column shim of the column list for `useSamplesView` /
-// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
-const toPickerColumns = (
-  columns: ExtendedColumnDef<SampleRow>[]
-): PickerColumn[] =>
-  columns.map((col) => ({
-    colId: col.id,
-    headerName: typeof col.header === "string" ? col.header : "",
-  }));
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
@@ -133,14 +127,15 @@ export const useSamplesTabConfig = (
       scrollable: false,
       scrollRef,
       label: totalSampleCount > 1 ? "Samples" : "Sample",
-      component: SamplesTab,
-      componentProps: {
-        running: evalStatus === "started",
-        scrollRef,
-        showColumnSelector,
-        setShowColumnSelector,
-        columnButtonEl,
-      },
+      content: (
+        <SamplesTab
+          running={evalStatus === "started"}
+          scrollRef={scrollRef}
+          showColumnSelector={showColumnSelector}
+          setShowColumnSelector={setShowColumnSelector}
+          columnButtonEl={columnButtonEl}
+        />
+      ),
       tools: () =>
         !samplesDescriptor
           ? undefined
@@ -152,7 +147,7 @@ export const useSamplesTabConfig = (
                   <ToolButton
                     key="refresh"
                     label="Refresh"
-                    icon={ApplicationIcons.refresh}
+                    icon="refresh"
                     subtle
                     onClick={refreshLog}
                   />
@@ -162,7 +157,7 @@ export const useSamplesTabConfig = (
                     key="choose-columns"
                     ref={setColumnButtonEl}
                     label="Columns"
-                    icon={ApplicationIcons.columns}
+                    icon="columns"
                     dropdown
                     subtle
                     onClick={handleToggleColumnSelector}
@@ -202,7 +197,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // compute over the settled rows this AsyncData carries.
   const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
 
   // Effective (folded) config — limit/epochs are launch-shaped, but routing
   // every config read through the fold makes that assumption enforced.
@@ -319,13 +314,14 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const shape = samplesDescriptor?.messageShape;
   const defaultsForUnseededColumns = useCallback(
     (col: PickerColumn) => {
-      const id = col.colId;
+      const id = col.id;
       if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
       if (id === "fallbacks") return !!shape?.fallbacksSize;
       if (id === "error") return !!shape?.errorSize;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [shape, epochs]
@@ -457,19 +453,11 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,
+        cost: totalSampleCost(sample.model_usage),
         duration: sample.total_time ?? undefined,
       };
     });
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const sample =
-      sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;
-    if (sample && selectedLogFile) {
-      selectSample(sample.id, sample.epoch, selectedLogFile);
-    }
-  }, [sampleSummaries, selectedLogFile]);
 
   if (summariesState.error) {
     return (
@@ -518,6 +506,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       ) : null}
       {listDisplay ? (
         <ColumnSelectorPopover
+          id="column-selector-popover"
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
           columns={pickerColumns}

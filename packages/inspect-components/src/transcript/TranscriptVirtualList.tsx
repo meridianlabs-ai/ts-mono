@@ -11,6 +11,7 @@ import {
   forkNavToBranchPointProps,
 } from "./BranchPoint";
 import { CheckpointEventView } from "./CheckpointEventView";
+import { CommunicationEventView } from "./CommunicationEventView";
 import { CompactionEventView } from "./CompactionEventView";
 import { EmptyBranchView } from "./EmptyBranchView";
 import { ErrorEventView } from "./ErrorEventView";
@@ -25,9 +26,11 @@ import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";
 import { ScoreEditEventView } from "./ScoreEditEventView";
 import { ScoreEventView } from "./ScoreEventView";
+import { SentinelEventView, SentinelStepRow } from "./SentinelEventView";
 import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
+import { SwarmEventView } from "./SwarmEventView";
 import { isForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { ToolEventView } from "./ToolEventView";
@@ -175,6 +178,17 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           />
         );
       }
+      const sentinelStep = context?.standaloneSentinels?.get(node.id);
+      if (sentinelStep) {
+        return (
+          <SentinelStepRow
+            step={sentinelStep}
+            eventNodeId={node.id}
+            context={context}
+            className={className}
+          />
+        );
+      }
       if (node.event.type === "empty_branch") {
         return (
           <EmptyBranchView
@@ -277,6 +291,32 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <ReviewEventView
           eventNode={eventNodeOf(node, "review")}
+          className={className}
+        />
+      );
+
+    case "sentinel":
+      return (
+        <SentinelEventView
+          eventNode={eventNodeOf(node, "sentinel")}
+          step={context?.standaloneSentinels?.get(node.id)}
+          context={context}
+          className={className}
+        />
+      );
+
+    case "communication":
+      return (
+        <CommunicationEventView
+          eventNode={eventNodeOf(node, "communication")}
+          className={className}
+        />
+      );
+
+    case "swarm":
+      return (
+        <SwarmEventView
+          eventNode={eventNodeOf(node, "swarm")}
           className={className}
         />
       );

@@ -7,6 +7,10 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnSelectorPopover,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
 import { ErrorPanel, LoadingBar, ProgressBar } from "@tsmono/react/components";
 import { join } from "@tsmono/util";
 
@@ -19,10 +23,9 @@ import {
   useSamplesListing,
   type SamplesListingRow,
 } from "../../log_data";
-import { selectSample } from "../../state/actions";
+import { highlightSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
 import { useFlowQuery } from "../flow/hooks";
 import { LogListFooter } from "../log-list/LogListFooter";
@@ -30,11 +33,9 @@ import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
-import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { samplesUrl, toFullUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
-import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
-import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
-import { type PickerColumn } from "../shared/gridUtils";
+import { toPickerColumns } from "../shared/gridUtils";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -60,16 +61,6 @@ const sampleRowId = (
   sampleId: string | number,
   epoch: number
 ) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
-
-// Picker-column shim of the column list for `useSampleGridState` /
-// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
-const toPickerColumns = (
-  columns: ExtendedColumnDef<SampleRow>[]
-): PickerColumn[] =>
-  columns.map((col) => ({
-    colId: col.id,
-    headerName: typeof col.header === "string" ? col.header : "",
-  }));
 
 const completedAtTime = (row: SampleRow): number => {
   const v = row.data?.completed_at;
@@ -109,9 +100,7 @@ export const SamplesPanel: FC = () => {
     (state) => state.logsActions.setPreviousSamplesPath
   );
 
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const highlightedSample = useStore((state) => state.log.highlightedSample);
 
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
@@ -203,7 +192,7 @@ export const SamplesPanel: FC = () => {
 
   const defaultsForUnseededColumns = useCallback(
     (col: PickerColumn) => {
-      const id = col.colId;
+      const id = col.id;
       if (id === "error") return optionalHasData.error;
       if (id === "limit") return optionalHasData.limit;
       if (id === "retries") return optionalHasData.retries;
@@ -211,6 +200,7 @@ export const SamplesPanel: FC = () => {
       // `created` defaults off — many users won't care.
       if (id === "created") return false;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [optionalHasData]
@@ -344,6 +334,7 @@ export const SamplesPanel: FC = () => {
           fallbacks: derived.fallbacks,
           completed: sample.completed,
           tokens: derived.tokens,
+          cost: derived.cost,
           duration: sample.total_time ?? undefined,
         };
         if (derived.scores) {
@@ -370,13 +361,16 @@ export const SamplesPanel: FC = () => {
     return [_sampleRows, _hasRetriedLogs];
   }, [scopedSamples, currentDirLogFiles]);
 
-  const { navigateToSampleDetail } = useSamplesGridNavigationAction();
+  const { getSampleDetailUrl, navigateToSampleDetail } =
+    useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);
     },
     [navigateToSampleDetail]
   );
+  const getRowHref = (row: SampleRow) =>
+    toFullUrl(getSampleDetailUrl(row.logFile, row.sampleId, row.epoch));
 
   // Reflect the grid's post-filter/post-sort rows into store-backed
   // displayed-samples state (drives the footer count + cross-tab prev/next
@@ -405,18 +399,18 @@ export const SamplesPanel: FC = () => {
   // logFile and rows are scope-filtered, so a handle from another scope
   // matches nothing (inert), while returning from the detail view keeps the
   // selection highlighted.
-  const selectedRowId = selectedSampleHandle
+  const selectedRowId = highlightedSample
     ? sampleRowId(
-        selectedSampleHandle.logFile,
-        selectedSampleHandle.id,
-        selectedSampleHandle.epoch
+        highlightedSample.logFile,
+        highlightedSample.id,
+        highlightedSample.epoch
       )
     : undefined;
 
   // Keyboard/click selection moves flow to the selection's owner (zustand),
   // which feeds back through selectedRowId — the grid never shadows it.
   const handleRowSelect = useCallback(
-    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    (row: SampleRow) => highlightSample(row.sampleId, row.epoch, row.logFile),
     []
   );
 
@@ -425,12 +419,16 @@ export const SamplesPanel: FC = () => {
 
   return (
     <div className={clsx(styles.panel)}>
-      <ApplicationNavbar currentPath={samplesPath} fnNavigationUrl={samplesUrl}>
+      <ApplicationNavbar
+        currentPath={samplesPath}
+        fnNavigationUrl={samplesUrl}
+        viewerOptionsError={listing.refreshError}
+      >
         {hasFilter && (
           <NavbarButton
             key="reset-filters"
             label="Reset Filters"
-            icon={ApplicationIcons.filter}
+            icon="filter"
             onClick={handleResetFilters}
           />
         )}
@@ -439,11 +437,7 @@ export const SamplesPanel: FC = () => {
           <NavbarButton
             key="show-retried"
             label="Show Retried Logs"
-            icon={
-              showRetriedLogs
-                ? ApplicationIcons.toggle.on
-                : ApplicationIcons.toggle.off
-            }
+            icon={showRetriedLogs ? "toggleOn" : "toggleOff"}
             latched={showRetriedLogs}
             subtle
             onClick={() => {
@@ -455,7 +449,7 @@ export const SamplesPanel: FC = () => {
           key="choose-columns"
           ref={setColumnButtonEl}
           label="Columns"
-          icon={ApplicationIcons.columns}
+          icon="columns"
           dropdown
           subtle
           onClick={(e) => {
@@ -469,6 +463,7 @@ export const SamplesPanel: FC = () => {
       </ApplicationNavbar>
 
       <ColumnSelectorPopover
+        id="column-selector-popover"
         showing={showColumnSelector}
         setShowing={setShowColumnSelector}
         columns={pickerColumns}
@@ -503,6 +498,7 @@ export const SamplesPanel: FC = () => {
             selectedRowId={selectedRowId}
             onRowSelect={handleRowSelect}
             onRowOpen={handleRowOpen}
+            getRowHref={getRowHref}
             loading={isEmptyAndLoading}
           />
         )}

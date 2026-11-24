@@ -1,11 +1,10 @@
-import clsx from "clsx";
-
+import type { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import { Icon, IconName } from "@tsmono/react/icons";
 import { formatNumber, isRecord, printObject } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
+import { cellTitle } from "../components/cellTitle";
 import type { AvailableColumn } from "../components/columnFilter";
-import { BaseColumnMeta, ExtendedColumnDef } from "../components/columnTypes";
 
 import styles from "./columns.module.css";
 
@@ -45,7 +44,7 @@ export type ScanColumnKey =
   | "total_tokens";
 
 // Column type for scan grid
-export type ScanColumn = ExtendedColumnDef<ScanRow, BaseColumnMeta>;
+export type ScanColumn = ExtendedColumnDef<ScanRow>;
 
 // Column headers for display (used in column picker and add filter dropdown)
 export const COLUMN_LABELS: Record<ScanColumnKey, string> = {
@@ -105,18 +104,18 @@ export const COLUMN_HEADER_TITLES: Record<ScanColumnKey, string> = {
 
 // Helper to get status display (icon and color) for a scan
 function getStatusDisplay(scan: ScanRow): {
-  icon: string;
+  icon: IconName;
   colorClass: string | undefined;
 } {
   switch (scan.status) {
     case "complete":
-      return { icon: ApplicationIcons.success, colorClass: styles.green };
+      return { icon: "success", colorClass: styles.green };
     case "error":
-      return { icon: ApplicationIcons.error, colorClass: styles.red };
+      return { icon: "error", colorClass: styles.red };
     case "active":
     case "incomplete":
     default:
-      return { icon: ApplicationIcons.pendingTask, colorClass: styles.yellow };
+      return { icon: "pendingTask", colorClass: styles.yellow };
   }
 }
 
@@ -142,6 +141,12 @@ function getObjectTitleValue(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+/** Tooltip showing a field's full value. */
+const titleOf =
+  <K extends keyof ScanRow>(key: K) =>
+  (row: ScanRow): string =>
+    cellTitle(row[key]);
+
 const numberText = (value: unknown): string =>
   typeof value === "number" ? formatNumber(value) : "-";
 
@@ -163,6 +168,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   status: {
     id: "status",
     accessorKey: "status",
+    titleValue: titleOf("status"),
     header: "✓",
     headerTitle: COLUMN_HEADER_TITLES.status,
     size: 70,
@@ -179,20 +185,19 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       if (scan.active_completion_pct != null) {
         return (
           <span className={styles.blue}>
-            <i className={ApplicationIcons["play-circle"]}></i>{" "}
-            {scan.active_completion_pct}%
+            <Icon name="playCircle" /> {scan.active_completion_pct}%
           </span>
         );
       }
 
       const { icon, colorClass } = getStatusDisplay(scan);
-      return <i className={clsx(icon, colorClass)}></i>;
+      return <Icon name={icon} className={colorClass} />;
     },
-    textValue: () => null,
   },
   scan_name: {
     id: "scan_name",
     accessorKey: "scan_name",
+    titleValue: titleOf("scan_name"),
     header: "Name",
     headerTitle: COLUMN_HEADER_TITLES.scan_name,
     size: 120,
@@ -206,6 +211,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   transcript_count: {
     id: "transcript_count",
     accessorKey: "transcript_count",
+    titleValue: titleOf("transcript_count"),
     header: "Transcripts",
     headerTitle: COLUMN_HEADER_TITLES.transcript_count,
     size: 100,
@@ -216,11 +222,11 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "number",
     },
     cell: (info) => numberText(info.getValue()),
-    textValue: numberText,
   },
   scanners: {
     id: "scanners",
     accessorKey: "scanners",
+    titleValue: titleOf("scanners"),
     header: "Scanners",
     headerTitle: COLUMN_HEADER_TITLES.scanners,
     size: 120,
@@ -234,6 +240,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   scan_id: {
     id: "scan_id",
     accessorKey: "scan_id",
+    titleValue: titleOf("scan_id"),
     header: "Scan ID",
     headerTitle: COLUMN_HEADER_TITLES.scan_id,
     size: 150,
@@ -247,6 +254,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   model: {
     id: "model",
     accessorKey: "model",
+    titleValue: titleOf("model"),
     header: "Model",
     headerTitle: COLUMN_HEADER_TITLES.model,
     size: 150,
@@ -260,6 +268,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   location: {
     id: "location",
     accessorKey: "relativeLocation",
+    titleValue: titleOf("relativeLocation"),
     header: "Path",
     headerTitle: COLUMN_HEADER_TITLES.location,
     size: 200,
@@ -273,6 +282,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   timestamp: {
     id: "timestamp",
     accessorKey: "timestamp",
+    titleValue: titleOf("timestamp"),
     header: "Time",
     headerTitle: COLUMN_HEADER_TITLES.timestamp,
     size: 180,
@@ -283,7 +293,6 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "datetime",
     },
     cell: (info) => timestampText(info.getValue()),
-    textValue: timestampText,
   },
 
   // ============================================
@@ -292,6 +301,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   scan_file: {
     id: "scan_file",
     accessorKey: "scan_file",
+    titleValue: titleOf("scan_file"),
     header: "Scan File",
     headerTitle: COLUMN_HEADER_TITLES.scan_file,
     size: 200,
@@ -306,6 +316,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   tags: {
     id: "tags",
     accessorKey: "tags",
+    titleValue: titleOf("tags"),
     header: "Tags",
     headerTitle: COLUMN_HEADER_TITLES.tags,
     size: 150,
@@ -320,6 +331,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   revision_version: {
     id: "revision_version",
     accessorKey: "revision_version",
+    titleValue: titleOf("revision_version"),
     header: "Version",
     headerTitle: COLUMN_HEADER_TITLES.revision_version,
     size: 150,
@@ -334,6 +346,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   revision_commit: {
     id: "revision_commit",
     accessorKey: "revision_commit",
+    titleValue: titleOf("revision_commit"),
     header: "Commit",
     headerTitle: COLUMN_HEADER_TITLES.revision_commit,
     size: 120,
@@ -344,11 +357,11 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "string",
     },
     cell: (info) => shortCommitText(info.getValue()),
-    textValue: shortCommitText,
   },
   revision_origin: {
     id: "revision_origin",
     accessorKey: "revision_origin",
+    titleValue: titleOf("revision_origin"),
     header: "Origin",
     headerTitle: COLUMN_HEADER_TITLES.revision_origin,
     size: 200,
@@ -373,8 +386,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "string",
     },
     cell: (info) => formatObjectValue(info.getValue()),
-    textValue: formatObjectValue,
-    titleValue: getObjectTitleValue,
+    titleValue: (row) => getObjectTitleValue(row.packages),
   },
   metadata: {
     id: "metadata",
@@ -389,8 +401,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "string",
     },
     cell: (info) => formatObjectValue(info.getValue()),
-    textValue: formatObjectValue,
-    titleValue: getObjectTitleValue,
+    titleValue: (row) => getObjectTitleValue(row.metadata),
   },
   scan_args: {
     id: "scan_args",
@@ -405,8 +416,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "string",
     },
     cell: (info) => formatObjectValue(info.getValue()),
-    textValue: formatObjectValue,
-    titleValue: getObjectTitleValue,
+    titleValue: (row) => getObjectTitleValue(row.scan_args),
   },
 
   // ============================================
@@ -415,6 +425,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
   total_results: {
     id: "total_results",
     accessorKey: "total_results",
+    titleValue: titleOf("total_results"),
     header: "Results",
     headerTitle: COLUMN_HEADER_TITLES.total_results,
     size: 100,
@@ -425,11 +436,11 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "number",
     },
     cell: (info) => numberText(info.getValue()),
-    textValue: numberText,
   },
   total_errors: {
     id: "total_errors",
     accessorKey: "total_errors",
+    titleValue: titleOf("total_errors"),
     header: "Scanner Errors",
     headerTitle: COLUMN_HEADER_TITLES.total_errors,
     size: 100,
@@ -440,11 +451,11 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "number",
     },
     cell: (info) => numberText(info.getValue()),
-    textValue: numberText,
   },
   total_tokens: {
     id: "total_tokens",
     accessorKey: "total_tokens",
+    titleValue: titleOf("total_tokens"),
     header: "Tokens",
     headerTitle: COLUMN_HEADER_TITLES.total_tokens,
     size: 120,
@@ -455,7 +466,6 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterType: "number",
     },
     cell: (info) => numberText(info.getValue()),
-    textValue: numberText,
   },
 };
 
@@ -499,19 +509,12 @@ export const DEFAULT_VISIBLE_COLUMNS: ScanColumnKey[] = [
 ];
 
 /**
- * Get columns for the ScansGrid.
- * @param visibleColumnKeys - Optional list of column keys to display. If not provided, returns default visible columns.
- * @returns Array of column definitions in the order specified or default visible columns.
+ * Every column in default order. The grid hides the ones the user hasn't
+ * chosen, so a saved column order keeps their places.
  */
-export function getScanColumns(
-  visibleColumnKeys?: ScanColumnKey[]
-): ScanColumn[] {
-  if (!visibleColumnKeys) {
-    return DEFAULT_VISIBLE_COLUMNS.map((key) => ALL_COLUMNS[key]);
-  }
-
-  return visibleColumnKeys.map((key) => ALL_COLUMNS[key]);
-}
+export const SCAN_COLUMNS: ScanColumn[] = DEFAULT_COLUMN_ORDER.map(
+  (key) => ALL_COLUMNS[key]
+);
 
 // Columns available for filtering (used by Add Filter popover)
 export const FILTER_COLUMNS: AvailableColumn[] = DEFAULT_COLUMN_ORDER.map(

@@ -1,6 +1,6 @@
 import { ColumnTable } from "arquero";
 
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { asyncJsonParse } from "@tsmono/util";
 
 import { ScanResultData, ScanResultSummary } from "../types";
 
@@ -31,7 +31,7 @@ import {
 export const parseScanResultData = async (
   filtered: ColumnTable
 ): Promise<ScanResultData> => {
-  const valueType = normalizeValueType(rawCell(filtered, "value_type", 0));
+  const valueTag = normalizeValueType(rawCell(filtered, "value_type", 0));
 
   const [
     eventReferences,
@@ -46,7 +46,7 @@ export const parseScanResultData = async (
     transcriptMetadata,
     validationResult,
     validationTarget,
-    value,
+    scanValue,
     transcriptAgentArgs,
     transcriptScore,
   ] = await Promise.all([
@@ -62,7 +62,7 @@ export const parseScanResultData = async (
     normalizeJsonRecord(rawCell(filtered, "transcript_metadata", 0)),
     normalizeValidationResult(rawCell(filtered, "validation_result", 0)),
     normalizeValidationTarget(rawCell(filtered, "validation_target", 0)),
-    normalizeScanValue(rawCell(filtered, "value", 0), valueType),
+    normalizeScanValue(rawCell(filtered, "value", 0), valueTag),
     normalizeAgentArgs(rawCell(filtered, "transcript_agent_args", 0)),
     normalizeTranscriptScore(rawCell(filtered, "transcript_score", 0)),
   ]);
@@ -120,10 +120,12 @@ export const parseScanResultData = async (
     ),
     transcriptError: optionalStringCell(filtered, "transcript_error"),
     transcriptLimit: optionalStringCell(filtered, "transcript_limit"),
+    transcriptTrustContent: trustContentOf(
+      rawCell(filtered, "transcript_trust_content", 0)
+    ),
     validationResult,
     validationTarget,
-    value,
-    valueType,
+    ...scanValue,
   };
 
   resolveTranscriptIdentityFromMetadata(baseData);
@@ -135,15 +137,26 @@ export const parseScanResultData = async (
 };
 
 export const parseScanResultSummaries = async (
-  rowData: object[]
-): Promise<ScanResultSummary[]> =>
-  Promise.all(rowData.map((row) => parseScanResultSummary(row)));
+  table: ColumnTable
+): Promise<ScanResultSummary[]> => {
+  // Read straight from the columns: a record per row costs far more than
+  // the lookups on a large scan.
+  const columns = new Map(
+    table
+      .columnNames()
+      .map((name): [string, ArrayLike<unknown>] => [name, table.array(name)])
+  );
+  return Promise.all(
+    Array.from({ length: table.numRows() }, (_, row) =>
+      parseScanResultSummary((column) => columns.get(column)?.[row])
+    )
+  );
+};
 
 const parseScanResultSummary = async (
-  row: object
+  cell: (column: string) => unknown
 ): Promise<ScanResultSummary> => {
-  const cell = rowCell(row);
-  const valueType = normalizeValueType(cell("value_type"));
+  const valueTag = normalizeValueType(cell("value_type"));
 
   const [
     validationResult,
@@ -151,20 +164,19 @@ const parseScanResultSummary = async (
     transcriptMetadata,
     eventReferences,
     messageReferences,
-    value,
+    scanValue,
   ] = await Promise.all([
     normalizeValidationResult(cell("validation_result")),
     normalizeValidationTarget(cell("validation_target")),
     normalizeJsonRecord(cell("transcript_metadata")),
     normalizeReferences(cell("event_references")),
     normalizeReferences(cell("message_references")),
-    normalizeScanValue(cell("value"), valueType),
+    normalizeScanValue(cell("value"), valueTag),
   ]);
 
   const baseSummary = {
     identifier: stringOf(cell("identifier")) ?? "",
-    // Null cells fold into undefined (synthetic rows and arquero .objects()
-    // both yield null) so optional fields stay honest.
+    // Null cells fold into undefined so optional fields stay honest.
     uuid: stringOf(cell("uuid")),
     label: stringOf(cell("label")),
     explanation: stringOf(cell("explanation")),
@@ -172,14 +184,14 @@ const parseScanResultSummary = async (
     messageReferences,
     validationResult,
     validationTarget,
-    value,
-    valueType,
+    ...scanValue,
     transcriptTaskSet: stringOf(cell("transcript_task_set")),
     transcriptTaskId: idOf(cell("transcript_task_id")),
     transcriptTaskRepeat: numberOf(cell("transcript_task_repeat")),
     transcriptModel: stringOf(cell("transcript_model")),
     transcriptMetadata,
     transcriptSourceId: stringOf(cell("transcript_source_id")) ?? "",
+    transcriptTrustContent: trustContentOf(cell("transcript_trust_content")),
     scanError: stringOf(cell("scan_error")),
     // ?? false matches the parseScanResultData path's default.
     scanErrorRefusal: booleanOf(cell("scan_error_refusal")) ?? false,
@@ -191,17 +203,6 @@ const parseScanResultSummary = async (
   return { ...baseSummary, inputType: normalizeInputType(cell("input_type")) };
 };
 
-/**
- * Summary rows arrive as arquero `.objects()` output, typed `object` with no
- * index signature. Reading a column off one is the same untyped-cell boundary
- * the ColumnTable readers cross, so it gets the same treatment: `unknown` out,
- * narrowed by the `*Of` helpers below.
- */
-const rowCell =
-  (row: object) =>
-  (column: string): unknown =>
-    isRecord(row) ? row[column] : undefined;
-
 const stringOf = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
@@ -210,6 +211,11 @@ const numberOf = (value: unknown): number | undefined =>
 
 const booleanOf = (value: unknown): boolean | undefined =>
   typeof value === "boolean" ? value : undefined;
+
+// Absent (scans recorded before the column existed) stays absent, which reads
+// as trusted; anything present but not `true` is untrusted, failing closed.
+const trustContentOf = (value: unknown): boolean | undefined =>
+  value === null || value === undefined ? undefined : value === true;
 
 const idOf = (value: unknown): string | number | undefined =>
   stringOf(value) ?? numberOf(value);

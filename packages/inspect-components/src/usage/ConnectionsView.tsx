@@ -1,7 +1,9 @@
 import clsx from "clsx";
-import { FC, Fragment, MouseEvent, useCallback, useState } from "react";
+import { FC, Fragment, useCallback, useState } from "react";
 
+import { InAppLink } from "@tsmono/react/components";
 import { useResizeObserver } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import {
   buildStepPath,
@@ -21,10 +23,9 @@ interface ConnectionsViewProps {
   role_aliases?: Record<string, string>;
   retunes_by_model?: Record<string, PoolRetune[]>;
   onShowLog?: (model: string) => void;
-  onViewTimeline?: (
-    model: string,
-    event: MouseEvent<HTMLButtonElement>
-  ) => void;
+  onViewTimeline?: (model: string) => void;
+  /** The Timeline tab's URL, so the per-model timeline action is a link. */
+  timelineHref?: string;
 }
 
 /** The legend for the Connections view header row (◆ / rate limit / max). */
@@ -56,6 +57,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
   retunes_by_model,
   onShowLog,
   onViewTimeline,
+  timelineHref,
 }) => {
   const models = Object.keys(lanes).sort();
   if (models.length === 0) return null;
@@ -117,20 +119,15 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
                   title="Connection log"
                   onClick={() => onShowLog(model)}
                 >
-                  <i className="bi bi-clock-history" aria-hidden="true" />
+                  <Icon name="history" />
                   Log
                 </button>
               )}
               {onViewTimeline && (
-                <button
-                  type="button"
-                  className={styles.actionLink}
-                  title="View on timeline"
-                  onClick={(event) => onViewTimeline(model, event)}
-                >
-                  <i className="bi bi-graph-up" aria-hidden="true" />
-                  Timeline
-                </button>
+                <TimelineAction
+                  href={timelineHref}
+                  onClick={() => onViewTimeline(model)}
+                />
               )}
             </div>
           </Fragment>
@@ -321,3 +318,19 @@ const PoolLane: FC<PoolLaneProps> = ({
     </div>
   );
 };
+
+/** A lane's "Timeline" action: a link when the timeline has a URL. */
+const TimelineAction: FC<{ href?: string; onClick: () => void }> = ({
+  href,
+  onClick,
+}) => (
+  <InAppLink
+    href={href}
+    onNavigate={onClick}
+    className={styles.actionLink}
+    title="View on activity"
+  >
+    <Icon name="graph" />
+    Timeline
+  </InAppLink>
+);

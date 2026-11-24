@@ -15,14 +15,15 @@ const makeDetails = (name: string): LogDetails =>
 const createSink = () => {
   const detailWrites: string[] = [];
   const sink: LogsContentSink = {
-    seedRows: () => {},
+    replaceRows: () => {},
+    mergeRows: () => {},
     setListing: () => {},
     mergePreviews: () => {},
     writeListing: () => Promise.resolve([]),
     writePreviews: () => Promise.resolve(),
     writeDetails: (details) => {
       detailWrites.push(...Object.keys(details));
-      return Promise.resolve();
+      return Promise.resolve({});
     },
     mergeFetchStates: () => {},
     writeFetchStates: () => Promise.resolve(),

@@ -14,6 +14,7 @@ import { resolveHeadlineMetric } from "../../../scoring/headline";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useEffectiveEvalConfig } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 
 import { ModelRolesView } from "./ModelRolesView";
 import styles from "./PrimaryBar.module.css";
@@ -45,7 +46,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   const effectiveConfig = useEffectiveEvalConfig();
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
   const absLogDir = useAbsLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const logDir = useLogDir();
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");

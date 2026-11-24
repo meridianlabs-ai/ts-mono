@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 
+import { hasOpenPopover } from "@tsmono/react/components";
 import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import type { TimelineSpan } from "../core";
 import { type TimelineState } from "../hooks/useTimeline";
@@ -11,6 +13,7 @@ import type {
   TimelineMinimapData,
   TimelineViewStack,
 } from "../hooks/useTranscriptTimeline";
+import type { MarkerKind } from "../markers";
 import {
   formatTokenCount,
   type PositionedMarker,
@@ -19,7 +22,6 @@ import {
 } from "../swimlaneLayout";
 import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
 
-import { useTimelineIcons } from "./TimelineIconsContext";
 import { TimelineMinimap } from "./TimelineMinimap";
 import { TimelineOptionsPopover } from "./TimelineOptionsPopover";
 import { TimelineSelector } from "./TimelineSelector";
@@ -140,6 +142,8 @@ export interface TimelineSwimLanesProps {
   highlightedKeys?: ReadonlyMap<string, number>;
   /** Drill into a branch row as a standalone spliced timeline. */
   onPunchDown?: (rowKey: string, label: string) => void;
+  /** Rows offering `onPunchDown`. */
+  canPunchDown?: (rowKey: string) => boolean;
 }
 
 // =============================================================================
@@ -158,8 +162,8 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
   defaultCollapsed: defaultCollapsedProp,
   highlightedKeys,
   onPunchDown,
+  canPunchDown,
 }) => {
-  const icons = useTimelineIcons();
   const { selected, select: onSelect, clearSelection } = timeline;
 
   // Collapse state — persisted across sessions.
@@ -349,6 +353,9 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
           break;
         }
         case "Escape": {
+          // An open popover in the swimlane (options, timeline picker) owns
+          // this Escape; preventDefault would stop the browser closing it.
+          if (hasOpenPopover(e.currentTarget)) break;
           e.preventDefault();
           clearSelection();
           break;
@@ -402,7 +409,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onMarkerNavigate={onMarkerNavigate}
         connector={branchConnectors.get(layout.key)}
         onPunchDown={
-          layout.branch && onPunchDown
+          onPunchDown && canPunchDown?.(layout.key)
             ? () => onPunchDown(layout.key, layout.name)
             : undefined
         }
@@ -457,7 +464,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         onClick={toggleCollapsed}
         title={isCollapsed ? "Expand swimlanes" : "Collapse swimlanes"}
       >
-        <i className={isCollapsed ? icons.expand.down : icons.collapse.up} />
+        <Icon name={isCollapsed ? "chevronDown" : "chevronUp"} />
       </button>
     </div>
   );
@@ -583,7 +590,6 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
   connector,
   onPunchDown,
 }) => {
-  const icons = useTimelineIcons();
   const hasMultipleSpans = layout.spans.length > 1;
   const hasChildren = isExpanded !== undefined;
 
@@ -617,10 +623,8 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 
   return (
     <div className={styles.row} role="row">
-      {/* Label cell — depth-based indentation; clicking selects the whole row.
-          Keyboard selection is the grid's own Arrow/Escape handling, and the
-          cell takes tabIndex -1 so the grid keeps a single tab stop. */}
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
+      {/* Label cell — depth-based indentation; clicking selects the whole row. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events -- keyboard selection is the grid's own Arrow/Escape handler; the cell takes tabIndex -1 so the grid keeps a single tab stop */}
       <div
         className={clsx(
           styles.label,
@@ -648,10 +652,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
             aria-expanded={isExpanded}
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
-            <i
-              className={isExpanded ? icons.chevron.down : icons.chevron.right}
-              aria-hidden="true"
-            />
+            <Icon name={isExpanded ? "chevronDown" : "chevronRight"} />
           </button>
         ) : (
           <span className={styles.chevronSpacer} />
@@ -659,7 +660,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
         {displayName ??
           (layout.branch ? (
             <>
-              <i className={icons.solvers.default} /> {layout.name}
+              <Icon name="solverDefault" /> {layout.name}
             </>
           ) : (
             layout.name
@@ -674,7 +675,7 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
               onPunchDown();
             }}
           >
-            <i className={icons.punchDown} />
+            <Icon name="focusEnter" />
           </button>
         )}
       </div>
@@ -801,12 +802,12 @@ const HeaderRow: FC<HeaderRowProps> = ({
   onToggleBranches,
   views,
 }) => {
-  const icons = useTimelineIcons();
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
   const rootDisplay = node.name === "solvers" ? "main" : node.name;
 
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const optionsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [optionsButtonEl, setOptionsButtonEl] =
+    useState<HTMLButtonElement | null>(null);
 
   return (
     <div className={styles.breadcrumbRow}>
@@ -828,7 +829,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
             onClick={views.pop}
             title="Back to branch overview"
           >
-            <i className={icons.chevron.left} />
+            <Icon name="chevronLeft" />
             {views.stack.at(-1)!.label}
           </button>
           <span className={styles.breadcrumbDivider}>/</span>
@@ -869,14 +870,14 @@ const HeaderRow: FC<HeaderRowProps> = ({
       )}
       {timelineConfig && (
         <button
-          ref={optionsButtonRef}
+          ref={setOptionsButtonEl}
           type="button"
           className={styles.optionsButton}
           onClick={() => setOptionsOpen((prev) => !prev)}
           title="Timeline options"
           aria-label="Timeline options"
         >
-          <i className={icons.threeDots} />
+          <Icon name="threeDots" />
         </button>
       )}
       {timelineConfig &&
@@ -905,8 +906,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
         <TimelineOptionsPopover
           isOpen={optionsOpen}
           setIsOpen={setOptionsOpen}
-          // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver handles this in effects
-          positionEl={optionsButtonRef.current}
+          positionEl={optionsButtonEl}
           config={timelineConfig}
           onToggleBranches={onToggleBranches}
         />
@@ -1274,18 +1274,17 @@ interface MarkerGlyphProps {
   onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
 }
 
+const kMarkerIcons: Record<MarkerKind, IconName> = {
+  error: "error",
+  compaction: "compaction",
+  branch: "fork",
+};
+
 const MarkerGlyph: FC<MarkerGlyphProps> = ({
   marker,
   onBranchToggle,
   onMarkerNavigate,
 }) => {
-  const icons = useTimelineIcons();
-  const markerIcons: Record<string, string> = {
-    error: icons.error,
-    compaction: icons.compaction,
-    branch: icons.fork,
-  };
-  const icon = markerIcons[marker.kind] ?? "bi bi-question-circle";
   const kindClass =
     marker.kind === "error"
       ? styles.markerError
@@ -1307,7 +1306,7 @@ const MarkerGlyph: FC<MarkerGlyphProps> = ({
 
   const className = clsx(styles.marker, kindClass);
   const glyph = marker.kind !== "error" && (
-    <i className={icon} aria-hidden="true" />
+    <Icon name={kMarkerIcons[marker.kind]} />
   );
 
   if (marker.kind === "branch") {

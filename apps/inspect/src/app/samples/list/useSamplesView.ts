@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo } from "react";
 
 import { type TaskSamplesView } from "@tsmono/inspect-common/types";
+import type { PickerColumn } from "@tsmono/inspect-components/dataGrid";
 
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { getFieldKey, type PickerColumn } from "../../shared/gridUtils";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
+import { SCORE_FIELD_RAW_PREFIX } from "../../shared/samples-grid/columns";
 
 import { type SamplesViewState } from "./samplesView";
 import {
@@ -28,7 +30,7 @@ function useEvalDefaultSamplesView(): TaskSamplesView | undefined {
  *  currently-selected log file so customizations don't bleed across logs
  *  with different scorers / eval config. */
 function useResolvedSamplesView(): SamplesViewState {
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const stored = useStore((state) =>
     logFile ? state.logs.samplesListState.byLog[logFile] : undefined
   );
@@ -122,7 +124,7 @@ export function useSamplesView(
 
   const evalDefault = useEvalDefaultSamplesView();
   const view = useResolvedSamplesView();
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const setSampleListViewAction = useStore(
     (state) => state.logsActions.setSampleListView
   );
@@ -153,7 +155,7 @@ export function useSamplesView(
     const known = new Set(view.columns.map((c) => c.id));
     const additions: SamplesViewState["columns"] = [];
     for (const col of allColumns) {
-      const id = getFieldKey(col);
+      const id = col.id;
       if (!known.has(id)) {
         additions.push({ id, visible: seedDefaultVisibility(col) });
       }
@@ -200,13 +202,23 @@ export function useSamplesView(
     [patchView, view.userOverrides]
   );
 
+  // Score columns are sized per mode (narrow and rotated vs. wide), so a
+  // width set in one mode would be wrong in the other: the toggle drops
+  // score-column widths and keeps every other column's.
   const setCompactScores = useCallback(
     (compactScores: boolean) =>
       patchView({
         compactScores,
         userOverrides: { ...view.userOverrides, compactScores },
+        columnWidths:
+          view.columnWidths &&
+          Object.fromEntries(
+            Object.entries(view.columnWidths).filter(
+              ([id]) => !id.startsWith(SCORE_FIELD_RAW_PREFIX)
+            )
+          ),
       }),
-    [patchView, view.userOverrides]
+    [patchView, view.userOverrides, view.columnWidths]
   );
 
   const setColorScalesEnabled = useCallback(
@@ -233,7 +245,7 @@ export function useSamplesView(
     const evalCols = liftEvalView(evalDefault).columns;
     const evalMap = new Map(evalCols.map((c) => [c.id, c.visible]));
     const nextColumns: SamplesViewState["columns"] = allColumns.map((col) => {
-      const id = getFieldKey(col);
+      const id = col.id;
       if (evalMap.has(id)) return { id, visible: evalMap.get(id)! };
       return {
         id,

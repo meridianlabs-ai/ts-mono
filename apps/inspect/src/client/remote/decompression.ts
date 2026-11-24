@@ -1,6 +1,4 @@
-import { decompress } from "fflate";
-
-import { decompressZstd } from "./zstd-worker";
+import { decompressDeflate, decompressZstd } from "./decompression-worker";
 
 /** Supported ZIP compression methods */
 export const CompressionMethod = {
@@ -35,7 +33,7 @@ export class UnsupportedCompressionError extends Error {
  *
  * @param data - The compressed data
  * @param compressionMethod - ZIP compression method code
- * @param uncompressedSize - Expected uncompressed size (used by deflate)
+ * @param uncompressedSize - Expected uncompressed size, also the streaming output limit
  * @param filename - Filename for error messages
  * @returns Decompressed data
  */
@@ -53,27 +51,9 @@ export async function decompressData(
       return decompressDeflate(data, uncompressedSize);
 
     case CompressionMethod.ZSTANDARD:
-      return decompressZstd(data);
+      return decompressZstd(data, uncompressedSize);
 
     default:
       throw new UnsupportedCompressionError(compressionMethod, filename);
   }
-}
-
-/**
- * Deflate decompression using fflate's async worker-based API.
- */
-async function decompressDeflate(
-  data: Uint8Array,
-  size: number
-): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    decompress(data, { size }, (err, result) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(result);
-      }
-    });
-  });
 }

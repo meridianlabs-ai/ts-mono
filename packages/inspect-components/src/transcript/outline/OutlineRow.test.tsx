@@ -142,3 +142,55 @@ describe("OutlineRow keyboard activation", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 });
+
+describe("OutlineRow event link", () => {
+  afterEach(() => cleanup());
+
+  const renderLinked = () => {
+    const onSelect = vi.fn<(id: string) => void>();
+    const onNavigateToEvent = vi.fn<(id: string) => void>();
+    const node = eventNode(testModelEvent());
+    render(
+      <OutlineRow
+        node={node}
+        onSelect={onSelect}
+        onNavigateToEvent={onNavigateToEvent}
+        getCollapsed={() => false}
+        getEventUrl={(id) => `#/logs/a.eval?event=${id}`}
+      />
+    );
+    return {
+      link: screen.getByRole("link"),
+      node,
+      onSelect,
+      onNavigateToEvent,
+    };
+  };
+
+  it("jumps to the event on a plain click of the label", () => {
+    const { link, node, onSelect } = renderLinked();
+    fireEvent.click(link);
+    expect(onSelect).toHaveBeenCalledWith(node.id);
+  });
+
+  it.each(["metaKey", "ctrlKey", "shiftKey"] as const)(
+    "leaves a %s-click on the label to the link without jumping this transcript",
+    (modifier) => {
+      const { link, onSelect, onNavigateToEvent } = renderLinked();
+      fireEvent.click(link, { [modifier]: true });
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(onNavigateToEvent).not.toHaveBeenCalled();
+    }
+  );
+
+  it("still jumps inside the VS Code webview, which has no browser tabs", () => {
+    document.body.setAttribute("data-vscode-theme-kind", "vscode-dark");
+    try {
+      const { link, node, onSelect } = renderLinked();
+      fireEvent.click(link, { metaKey: true });
+      expect(onSelect).toHaveBeenCalledWith(node.id);
+    } finally {
+      document.body.removeAttribute("data-vscode-theme-kind");
+    }
+  });
+});

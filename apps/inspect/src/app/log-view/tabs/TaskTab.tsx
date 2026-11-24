@@ -32,14 +32,15 @@ export const useTaskTabConfig = (
       id: kLogViewTaskTabId,
       label: "Task",
       scrollable: true,
-      component: TaskTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        earlyStopping,
-        tags,
-        configUpdates,
-      },
+      content: (
+        <TaskTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          earlyStopping={earlyStopping}
+          tags={tags}
+          configUpdates={configUpdates}
+        />
+      ),
     };
   }, [evalSpec, evalStats, earlyStopping, tags, configUpdates]);
 };
@@ -75,8 +76,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
+    const revisionKey = `${toTitleCase(revision.type)} Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
       ? { _html: <a href={commitUrl}>{revision.commit}</a> }

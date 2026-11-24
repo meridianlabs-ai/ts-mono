@@ -11,6 +11,7 @@ import {
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
+import type { RowSelection } from "@tsmono/inspect-components/selection";
 import {
   clearDeepLinkParams,
   dynamicDefaultExcludeEvents,
@@ -21,12 +22,11 @@ import {
   type SelectOptions,
   type TranscriptCollapseState,
   type TranscriptLayoutRightRailProps,
-  type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import {
-  navigateAndForget,
   useChromeNavOwnership,
+  useLatestRef,
   useOpenEventFocus,
   useReflectEventNavigationInUrl,
   type ChromeTarget,
@@ -36,7 +36,7 @@ import { isHostedEnvironment } from "@tsmono/util";
 import { Events } from "../../../@types/extraInspect";
 import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
-import { ApplicationIcons } from "../../appearance/icons";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   makeLogsPath,
   routeFromFullUrl,
@@ -88,8 +88,9 @@ interface TranscriptPanelProps {
 
   /** Always-visible right rail + optional panel (Search / Scans). */
   rightRail?: TranscriptLayoutRightRailProps;
-  /** Owner key of the evidence selection (the host's current sample-tab visit). */
-  selectionKey: string;
+  /** Evidence selection (the toolbar in SampleDisplay drives it); present
+   *  only while selection mode is on. */
+  selection?: RowSelection;
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
@@ -120,7 +121,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     eventNodeContext,
     rightRail,
     defaultExcludeEvents: defaultExcludeEventsProp,
-    selectionKey,
+    selection,
   } = props;
 
   // ---------------------------------------------------------------------------
@@ -238,32 +239,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     onSetOutlineCollapsed,
   ]);
 
-  // ---------------------------------------------------------------------------
-  // Evidence selection (from store; the toolbar in SampleDisplay drives it)
-  // ---------------------------------------------------------------------------
-
-  const eventSelection = useStore((state) => state.sample.eventSelection);
-  const setEventSelection = useStore(
-    (state) => state.sampleActions.setEventSelection
-  );
-  // Bails out of React Compiler (checked with SWC); identity feeds row context.
-  const selection = useMemo<TranscriptSelection | undefined>(
-    () =>
-      eventSelection.active && eventSelection.key === selectionKey
-        ? {
-            selectedIds: new Set(eventSelection.selectedIds),
-            lastToggledId: eventSelection.lastToggledId,
-            onChange: (next) =>
-              setEventSelection(
-                selectionKey,
-                [...next.selectedIds],
-                next.lastToggledId
-              ),
-          }
-        : undefined,
-    [eventSelection, selectionKey, setEventSelection]
-  );
-
   // Bulk collapse mode: "collapsed" | "expanded" | null
   // Map to the layout's bulkCollapse?: "collapse" | "expand" prop
   const collapsedMode = useStore((state) => state.sample.collapsedMode);
@@ -288,8 +263,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // changes and flicker the swimlanes open/closed. Freeze headroom detection
   // while find is active (a ref so the scroll handler sees the live value).
   const showFind = useStore((state) => state.app.showFind);
-  const findActiveRef = useRef(showFind);
-  findActiveRef.current = showFind;
+  const findActiveRef = useLatestRef(showFind);
 
   // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
   // natural scroll detection while it owns it; a physical gesture hands
@@ -370,7 +344,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     id: urlSampleId,
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
-  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logFile = useCurrentLogFile();
   const logDir = useLogDir();
 
   const getEventUrl = useCallback(
@@ -430,7 +404,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      navigateAndForget(navigate, url, { replace: true });
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );
@@ -494,7 +468,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
         toggleTitle: outlineCollapsed
           ? "Show transcript outline"
           : "Hide transcript outline",

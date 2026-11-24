@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { InfoEvent, ToolEvent } from "@tsmono/inspect-common/types";
+import { testInfoEvent, testToolEvent } from "@tsmono/inspect-common/testing";
+import type { ToolEvent } from "@tsmono/inspect-common/types";
 
 import {
   computeVisualActionContext,
@@ -35,29 +36,21 @@ function toolNode(
   result: ToolEvent["result"],
   depth = 0
 ): EventNode {
-  const event: ToolEvent = {
-    event: "tool",
+  const event = testToolEvent({
     id,
     function: fn,
     arguments: args,
     result,
-    error: null,
-    events: [],
-    pending: false,
     timestamp: new Date(0).toISOString(),
-    type: "function",
-    working_start: 0,
-  };
+  });
   return new EventNode(id, event, depth);
 }
 
 function infoNode(id: string): EventNode {
-  const event: InfoEvent = {
-    event: "info",
+  const event = testInfoEvent({
     data: null,
     timestamp: new Date(0).toISOString(),
-    working_start: 0,
-  };
+  });
   return new EventNode(id, event, 0);
 }
 

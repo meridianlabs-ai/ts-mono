@@ -4,11 +4,10 @@ import {
   VscodeRadioGroup,
 } from "@vscode-elements/react-elements";
 import clsx from "clsx";
-import { FC, useCallback, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
 
 import { AutocompleteInput, PopOver } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../icons";
 import { Chip } from "../../components/Chip";
 import { eventValue } from "../../utils/formEvents";
 
@@ -34,7 +33,7 @@ export const ValidationCaseLabelsEditor: FC<
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelValue, setNewLabelValue] = useState("true");
-  const addChipRef = useRef<HTMLDivElement>(null);
+  const [addChipEl, setAddChipEl] = useState<HTMLButtonElement | null>(null);
 
   const labelEntries = labels ? Object.entries(labels) : [];
 
@@ -96,8 +95,8 @@ export const ValidationCaseLabelsEditor: FC<
           />
         ))}
         <Chip
-          ref={addChipRef}
-          icon={ApplicationIcons.add}
+          ref={setAddChipEl}
+          icon="add"
           value="Add"
           title="Add a new label"
           className={clsx(styles.labelChip, "text-size-smallest")}
@@ -109,8 +108,7 @@ export const ValidationCaseLabelsEditor: FC<
         id="validation-labels-add"
         isOpen={isPopoverOpen}
         setIsOpen={setIsPopoverOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects
-        positionEl={addChipRef.current}
+        positionEl={addChipEl}
         placement="bottom-start"
         showArrow={true}
         hoverDelay={-1}

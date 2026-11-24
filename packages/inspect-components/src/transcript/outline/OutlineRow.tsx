@@ -2,10 +2,15 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
-import { PulsingDots } from "@tsmono/react/components";
-import { formatDateTime, formatTime, parsePackageName } from "@tsmono/util";
+import { isNewTabClick, PulsingDots } from "@tsmono/react/components";
+import { Icon, IconName } from "@tsmono/react/icons";
+import {
+  formatDateTime,
+  formatTime,
+  isVscode,
+  parsePackageName,
+} from "@tsmono/util";
 
-import { TranscriptIcons } from "../icons";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";
 
@@ -63,7 +68,15 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         data-unsearchable={true}
         role="button"
         tabIndex={0}
-        onClick={activate}
+        onClick={(e) => {
+          // A new-tab gesture on the label link opens the event in another
+          // tab; don't also jump this transcript to it. (The VS Code webview
+          // has no browser tabs, so there the row still jumps.)
+          const link =
+            e.target instanceof Element ? e.target.closest("a[href]") : null;
+          if (link && isNewTabClick(e) && !isVscode()) return;
+          activate();
+        }}
         onKeyDown={(e) => {
           // Only the row itself: Enter/Space bubbling up from a nested
           // control must keep its own default action.
@@ -84,9 +97,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
               setCollapsed?.(node.id, !collapsed);
             }}
           >
-            {toggle ? (
-              <i className={clsx(toggle)} aria-hidden="true" />
-            ) : undefined}
+            {toggle ? <Icon name={toggle} /> : undefined}
           </button>
         ) : (
           <div className={styles.toggle} />
@@ -98,7 +109,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         >
           {icon && (
             <span className={styles.iconSlot}>
-              <i className={clsx(icon)} />
+              <Icon name={icon} />
             </span>
           )}
           {eventUrl ? (
@@ -147,35 +158,39 @@ export const OutlineLoadingRow: FC = () => (
 const toggleIcon = (
   node: EventNode,
   collapsed: boolean
-): string | undefined => {
+): IconName | undefined => {
   if (node.children.length > 0) {
-    return collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down";
+    return collapsed ? "chevronRight" : "chevronDown";
   }
+  return undefined;
 };
 
-export const iconForNode = (node: EventNode): string | undefined => {
+export const iconForNode = (node: EventNode): IconName | undefined => {
   if (node.sourceSpan?.spanType === "agent") {
-    return TranscriptIcons.agent;
+    return "agent";
   }
   if (node.sourceSpan?.spanType === "branch") {
-    return TranscriptIcons.fork;
+    return "fork";
   }
   if (node.event.event === "span_begin" && node.event.type === "fork_nav") {
-    return TranscriptIcons.fork;
+    return "fork";
   }
 
   switch (node.event.event) {
     case "sample_limit":
-      return TranscriptIcons.limits.custom;
+      return "limitCustom";
 
     case "score":
-      return TranscriptIcons.scorer;
+      return "scorer";
 
     case "error":
-      return TranscriptIcons.error;
+      return "error";
 
     case "compaction":
-      return TranscriptIcons.compaction;
+      return "compaction";
+
+    default:
+      return undefined;
   }
 };
 
@@ -184,6 +199,7 @@ const tooltipForNode = (node: EventNode): string | undefined => {
   if (node.sourceSpan?.spanType === "agent" && node.sourceSpan.description) {
     return node.sourceSpan.description;
   }
+  return undefined;
 };
 
 const labelForNode = (node: EventNode): string => {
@@ -227,6 +243,8 @@ const labelForNode = (node: EventNode): string => {
           escalate: "escalated",
           terminate: "terminated",
         }[node.event.decision];
+      case "sentinel":
+        return `sentinel ${node.event.status === "reported" ? (node.event.action ?? node.event.kind) : node.event.status}`;
       case "model":
         return `model${node.event.role ? ` (${node.event.role})` : ""}`;
       case "score":

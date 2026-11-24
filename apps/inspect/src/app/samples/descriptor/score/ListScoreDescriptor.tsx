@@ -1,6 +1,5 @@
 import { formatPrettyDecimal, isNumeric } from "@tsmono/util";
 
-import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeList } from "../../../../constants";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
@@ -19,7 +18,7 @@ const formatListEntry = (value: unknown): string => {
 const listLength = (value: unknown): number =>
   Array.isArray(value) ? value.length : 0;
 
-export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
+export const listScoreDescriptor = (): ScoreDescriptor => {
   return {
     scoreType: kScoreTypeList,
     filterable: false,
@@ -27,11 +26,6 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
       return listLength(a.value) - listLength(b.value);
     },
     render: (score) => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (score === null || score === undefined) {
-        return "[null]";
-      }
-
       if (!Array.isArray(score)) {
         throw new Error(
           "Unexpected use of list score descriptor for non-list object"

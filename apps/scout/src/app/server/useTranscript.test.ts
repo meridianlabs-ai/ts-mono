@@ -5,6 +5,11 @@ import { http, HttpResponse, passthrough } from "msw";
 import { beforeAll, expect, it } from "vitest";
 import { ZstdCodec } from "zstd-codec";
 
+import {
+  testAssistantMessage,
+  testInfoEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import { ApiError, encodeBase64Url } from "@tsmono/util";
 
 import { server } from "../../test/setup-msw";
@@ -49,36 +54,14 @@ const mockTranscriptInfo: TranscriptInfo = {
 
 const mockMessagesEvents: MessagesEventsResponse = {
   messages: [
-    {
-      role: "user",
-      content: "Hello",
-      id: null,
-      metadata: null,
-      source: null,
-      tool_call_id: null,
-    },
-    {
-      role: "assistant",
-      content: "Hi there!",
-      id: null,
-      metadata: null,
-      model: null,
-      source: null,
-      tool_calls: null,
-    },
+    testUserMessage({ content: "Hello" }),
+    testAssistantMessage({ content: "Hi there!" }),
   ],
   events: [
-    {
-      event: "info",
+    testInfoEvent({
       timestamp: "2025-01-15T10:00:00Z",
       data: { sample: true },
-      metadata: null,
-      pending: null,
-      source: null,
-      span_id: null,
-      uuid: null,
-      working_start: 0,
-    },
+    }),
   ],
   timelines: [],
 };
@@ -299,16 +282,7 @@ it("returns error for unsupported X-Content-Encoding", async () => {
 
 it("handles attachments in messages-events response", async () => {
   const messagesWithAttachmentRefs: MessagesEventsResponse = {
-    messages: [
-      {
-        role: "user",
-        content: "See attachment: {{att:image1}}",
-        id: null,
-        metadata: null,
-        source: null,
-        tool_call_id: null,
-      },
-    ],
+    messages: [testUserMessage({ content: "See attachment: {{att:image1}}" })],
     events: [],
     timelines: [],
     attachments: {

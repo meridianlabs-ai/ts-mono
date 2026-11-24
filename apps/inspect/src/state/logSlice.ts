@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 import { sampleHandlesEqual } from "../app/shared/sample";
 import { FilterError, LogState, ScoreLabel } from "../app/types";
 
@@ -6,7 +8,7 @@ import { StoreState } from "./store";
 export interface LogSlice {
   log: LogState;
   logActions: {
-    selectSample: (
+    highlightSample: (
       sampleId: string | number,
       epoch: number,
       logFile: string
@@ -33,13 +35,6 @@ export interface LogSlice {
     // Reset filter state to defaults
     resetFiltering: () => void;
 
-    // Record the log whose details have been loaded. UI state only; loading
-    // is the selected-log details query over the fetch engine.
-    setLoadedLog: (logFileName: string) => void;
-
-    // Clear the currently loaded log
-    clearLog: () => void;
-
     setFilteredSampleCount: (count: number) => void;
     clearFilteredSampleCount: () => void;
   };
@@ -48,9 +43,6 @@ export interface LogSlice {
 // Initial state
 const initialState = {
   // Log state
-  selectedSampleId: undefined,
-  selectedSampleEpoch: undefined,
-  loadedLog: undefined,
 
   // Filter state
   filter: "",
@@ -63,8 +55,7 @@ const initialState = {
 // Create the app slice using StoreState directly
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
-  _store: unknown
+  get: () => StoreState
 ): LogSlice => {
   const slice = {
     // State
@@ -72,13 +63,13 @@ export const createLogSlice = (
 
     // Actions
     logActions: {
-      selectSample: (
+      highlightSample: (
         sampleId: string | number,
         epoch: number,
         logFile: string
       ) => {
         // Ignore if already selected
-        const currentSample = get().log.selectedSampleHandle;
+        const currentSample = get().log.highlightedSample;
         if (
           sampleHandlesEqual(currentSample, {
             id: sampleId,
@@ -90,7 +81,7 @@ export const createLogSlice = (
         }
 
         set((state) => {
-          state.log.selectedSampleHandle = { id: sampleId, epoch, logFile };
+          state.log.highlightedSample = { id: sampleId, epoch, logFile };
         });
       },
       clearSelectedScores: () => {
@@ -126,18 +117,6 @@ export const createLogSlice = (
           state.log.selectedScores = state.log.scores?.slice(0, 1);
         }),
 
-      setLoadedLog: (logFileName: string) => {
-        set((state) => {
-          state.log.loadedLog = logFileName;
-        });
-      },
-
-      clearLog: () => {
-        set((state) => {
-          state.log.loadedLog = undefined;
-        });
-      },
-
       setFilteredSampleCount: (count: number) => {
         set((state) => {
           state.log.filteredSampleCount = count;
@@ -159,9 +138,22 @@ export const initalializeLogSlice = (
   set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.log) {
-      state.log = initialState;
+    if ("selectedSampleHandle" in state.log) {
+      const legacy: unknown = state.log.selectedSampleHandle;
+      if (
+        isRecord(legacy) &&
+        (typeof legacy.id === "string" || typeof legacy.id === "number") &&
+        typeof legacy.epoch === "number" &&
+        typeof legacy.logFile === "string"
+      ) {
+        state.log.highlightedSample ??= {
+          id: legacy.id,
+          epoch: legacy.epoch,
+          logFile: legacy.logFile,
+        };
+      }
+      delete state.log.selectedSampleHandle;
     }
+    if ("loadedLog" in state.log) delete state.log.loadedLog;
   });
 };

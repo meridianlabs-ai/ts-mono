@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAnsiOutput } from "./ansi";
+import { isAnsiOutput, stripAnsi } from "./ansi";
 
 describe("isAnsiOutput", () => {
   it.each<[string, string, boolean]>([
@@ -35,5 +35,21 @@ describe("isAnsiOutput", () => {
     const elapsed = performance.now() - start;
     expect(result).toBe(false);
     expect(elapsed).toBeLessThan(1_000);
+  });
+});
+
+describe("stripAnsi", () => {
+  it.each([
+    ["\u001b[32mPASS\u001b[0m all", "PASS all"],
+    ["\u001b]8;;https://example.com\u0007link\u001b]8;;\u0007", "link"],
+    ["plain text", "plain text"],
+  ])("strips %j", (input, expected) => {
+    expect(stripAnsi(input)).toBe(expected);
+  });
+
+  it("strips every sequence on repeated calls", () => {
+    const input = "\u001b[31ma\u001b[0m b \u001b[32mc\u001b[0m";
+    expect(stripAnsi(input)).toBe("a b c");
+    expect(stripAnsi(input)).toBe("a b c");
   });
 });

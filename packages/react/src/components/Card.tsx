@@ -1,11 +1,13 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { Icon, IconName } from "../icons";
+
 import styles from "./Card.module.css";
 
 interface CardHeaderProps {
   id?: string;
-  icon?: string;
+  icon?: IconName;
   label?: string;
   type?: "default" | "modern";
   className?: string;
@@ -16,7 +18,6 @@ interface CardBodyProps {
   id?: string;
   children?: ReactNode;
   className?: string | string[];
-  padded?: boolean;
 }
 
 interface CardProps {
@@ -44,7 +45,7 @@ export const CardHeader: FC<CardHeaderProps> = ({
       id={id || ""}
     >
       {icon ? (
-        <i className={clsx(styles.headerIcon, icon)}></i>
+        <Icon name={icon} className={styles.headerIcon} />
       ) : (
         <span
           className={clsx(styles.headerIcon, styles.headerIconEmpty)}
@@ -55,21 +56,9 @@ export const CardHeader: FC<CardHeaderProps> = ({
   );
 };
 
-export const CardBody: FC<CardBodyProps> = ({
-  id,
-  children,
-  className,
-  padded = true,
-}) => {
+export const CardBody: FC<CardBodyProps> = ({ id, children, className }) => {
   return (
-    <div
-      className={clsx(
-        styles.body,
-        className,
-        !padded ? styles.noPadding : undefined
-      )}
-      id={id || ""}
-    >
+    <div className={clsx(styles.body, className)} id={id || ""}>
       {children}
     </div>
   );

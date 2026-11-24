@@ -105,11 +105,12 @@
   width: 4.5em;
 }
 
-/* Subtle split selector */
-.splitSelect {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
+/* Subtle split selector. Scoped under .card to outrank SelectDropdown's
+   .trigger width. */
+.card .splitSelect {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
   --vscode-dropdown-border: transparent;
   --vscode-dropdown-background: transparent;
 }

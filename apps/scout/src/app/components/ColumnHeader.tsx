@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { ButtonHTMLAttributes, FC, forwardRef, ReactNode } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import styles from "./ColumnHeader.module.css";
 
 interface ColumnHeaderProps {
@@ -26,7 +28,7 @@ export const ColumnHeader: FC<ColumnHeaderProps> = ({ label, actions }) => {
 };
 
 interface ColumnHeaderButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: string;
+  icon: IconName;
 }
 
 export const ColumnHeaderButton = forwardRef<
@@ -40,7 +42,7 @@ export const ColumnHeaderButton = forwardRef<
       className={clsx(styles.iconButton, className)}
       {...rest}
     >
-      <i className={icon} />
+      <Icon name={icon} />
     </button>
   );
 });

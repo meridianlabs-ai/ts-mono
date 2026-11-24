@@ -2,6 +2,8 @@ import { isRecord } from "@tsmono/util";
 
 import type { Event, ModelOutput, ModelUsage } from "../types";
 
+import { normalizeMessageContent, normalizeMessagesContent } from "./content";
+
 /**
  * Fill pydantic token defaults on one raw ModelUsage record
  * (`input_tokens`/`output_tokens`/`total_tokens` default to 0 upstream).
@@ -37,12 +39,14 @@ const normalizeChoices = (raw: unknown): unknown[] => {
       changed = true;
       continue;
     }
+    let fixed: Record<string, unknown> = choice;
     if (typeof choice["stop_reason"] !== "string") {
-      changed = true;
-      choices.push({ ...choice, stop_reason: "unknown" });
-    } else {
-      choices.push(choice);
+      fixed = { ...fixed, stop_reason: "unknown" };
     }
+    const message = normalizeMessageContent(choice["message"]);
+    if (message !== choice["message"]) fixed = { ...fixed, message };
+    if (fixed !== choice) changed = true;
+    choices.push(fixed);
   }
   return changed ? choices : raw;
 };
@@ -137,6 +141,98 @@ const normalizeJsonChanges = (raw: unknown): unknown[] => {
   return changed ? changes : raw;
 };
 
+const isStringList = (raw: unknown): boolean =>
+  Array.isArray(raw) && raw.every((item) => typeof item === "string");
+
+// `default_factory=list` upstream: a missing list is empty, and entries that
+// are not strings (which pydantic would refuse) are dropped.
+const stringList = (raw: unknown): unknown =>
+  isStringList(raw)
+    ? raw
+    : Array.isArray(raw)
+      ? raw.filter((item) => typeof item === "string")
+      : [];
+
+const isOptionalString = (raw: unknown): boolean =>
+  raw === undefined || raw === null || typeof raw === "string";
+
+const isOptionalNumber = (raw: unknown): boolean =>
+  raw === undefined || raw === null || typeof raw === "number";
+
+const withFixes = (
+  raw: Record<string, unknown>,
+  fixes: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
+
+const fixFields = (
+  raw: Record<string, unknown>,
+  lists: readonly string[],
+  optionalStrings: readonly string[]
+): Record<string, unknown> => {
+  const fixes: Record<string, unknown> = {};
+  for (const field of lists) {
+    const list = stringList(raw[field]);
+    if (list !== raw[field]) fixes[field] = list;
+  }
+  for (const field of optionalStrings) {
+    if (!isOptionalString(raw[field])) fixes[field] = null;
+  }
+  return withFixes(raw, fixes);
+};
+
+/**
+ * A communication event's `send`, `delivery` or `wait`. A structure pydantic
+ * would refuse (not an object, or missing a required field) becomes null,
+ * so the event reads as one without it; list and optional fields are filled
+ * as pydantic fills them. Identity-preserving when well-formed.
+ */
+const normalizeCommunicationSend = (raw: unknown): unknown => {
+  if (raw === undefined || raw === null) return raw;
+  if (!isRecord(raw)) return null;
+  const record = raw["record"];
+  const rejected = raw["rejected"];
+  if (
+    !isRecord(record) ||
+    typeof record["kind"] !== "string" ||
+    typeof record["sender"] !== "string" ||
+    !(
+      rejected === undefined ||
+      rejected === null ||
+      (isRecord(rejected) &&
+        typeof rejected["control"] === "string" &&
+        typeof rejected["reason"] === "string")
+    )
+  ) {
+    return null;
+  }
+  const fixed = fixFields(
+    record,
+    ["to", "recipients"],
+    ["id", "content", "reply_to"]
+  );
+  return fixed === record ? raw : { ...raw, record: fixed };
+};
+
+const normalizeCommunicationDelivery = (raw: unknown): unknown => {
+  if (raw === undefined || raw === null) return raw;
+  if (!isRecord(raw)) return null;
+  const fixed = fixFields(raw, ["recipients"], []);
+  return isOptionalNumber(raw["seq"]) ? fixed : { ...fixed, seq: null };
+};
+
+const normalizeCommunicationWait = (raw: unknown): unknown => {
+  if (raw === undefined || raw === null) return raw;
+  if (
+    !isRecord(raw) ||
+    typeof raw["outcome"] !== "string" ||
+    typeof raw["duration"] !== "number"
+  ) {
+    return null;
+  }
+  return fixFields(raw, ["channels"], ["id"]);
+};
+
 /**
  * Per-event-type defaults for required fields pydantic defaults at read
  * time. Returns undefined when nothing needs filling (the hot path for
@@ -161,7 +257,12 @@ const eventFixes = (
       if (typeof raw["model"] !== "string") fix("model", "");
       if (!isRecord(raw["config"])) fix("config", {});
       if (!Array.isArray(raw["tools"])) fix("tools", []);
-      if (!Array.isArray(raw["input"])) fix("input", []);
+      if (Array.isArray(raw["input"])) {
+        const input = normalizeMessagesContent(raw["input"]);
+        if (input !== raw["input"]) fix("input", input);
+      } else {
+        fix("input", []);
+      }
       // == null: these fields' types don't admit null, so an explicit wire
       // null must fill like an absence (same below for tool/compaction).
       if (raw["tool_choice"] == null) fix("tool_choice", "none");
@@ -250,6 +351,32 @@ const eventFixes = (
       break;
     case "span_end":
       if (typeof raw["id"] !== "string") fix("id", "");
+      break;
+    case "communication":
+      // Required upstream with no default; a crafted record can omit them.
+      if (typeof raw["agent"] !== "string") fix("agent", "");
+      if (typeof raw["source"] !== "string") fix("source", "");
+      if (!isOptionalString(raw["channel"])) fix("channel", null);
+      if (typeof raw["nested"] !== "boolean") fix("nested", false);
+      if (!isRecord(raw["data"])) fix("data", {});
+      {
+        const recordIds = stringList(raw["record_ids"]);
+        if (recordIds !== raw["record_ids"]) fix("record_ids", recordIds);
+        const send = normalizeCommunicationSend(raw["send"]);
+        if (send !== raw["send"]) fix("send", send);
+        const delivery = normalizeCommunicationDelivery(raw["delivery"]);
+        if (delivery !== raw["delivery"]) fix("delivery", delivery);
+        const wait = normalizeCommunicationWait(raw["wait"]);
+        if (wait !== raw["wait"]) fix("wait", wait);
+      }
+      break;
+    case "sentinel":
+      // Logs written before the "continue" action was renamed "proceed".
+      if (raw["action"] === "continue") fix("action", "proceed");
+      // Required upstream with no default; a crafted record can omit them.
+      for (const field of ["factory", "path", "step_id", "conversation"]) {
+        if (typeof raw[field] !== "string") fix(field, "");
+      }
       break;
     default:
       // Unknown/future event kinds pass through untouched beyond the base

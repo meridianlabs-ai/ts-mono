@@ -2,6 +2,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 import { barrelOnly } from "@tsmono/eslint-config/barrel-only";
+import playwrightConfig from "@tsmono/eslint-config/playwright";
 import reactConfig from "@tsmono/eslint-config/react";
 
 export default tseslint.config(
@@ -19,6 +20,7 @@ export default tseslint.config(
     ],
   },
   ...reactConfig,
+  ...playwrightConfig,
   ...barrelOnly(["app_config", "log_data"]),
   {
     files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
@@ -36,23 +38,6 @@ export default tseslint.config(
         },
         tsconfigRootDir: import.meta.dirname,
       },
-    },
-  },
-  {
-    files: ["**/*.{ts,tsx}"],
-    rules: {
-      // The base rule is replaced by @typescript-eslint/no-unused-vars below
-      // (the canonical typescript-eslint pairing).
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          destructuredArrayIgnorePattern: "^_",
-        },
-      ],
     },
   }
 );

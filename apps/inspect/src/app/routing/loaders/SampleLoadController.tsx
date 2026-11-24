@@ -4,6 +4,7 @@ import { kMetadataGridKeyPrefix } from "@tsmono/inspect-components/content";
 import { kTranscriptOutlineListKey } from "@tsmono/inspect-components/transcript";
 
 import { useStore } from "../../../state/store";
+import { useCurrentSampleHandle } from "../currentSelection";
 
 // Whole property bags of per-sample scroll/list snapshots, cleared by prefix.
 // VirtualList persists per persistenceKey (the outline's list key, the record
@@ -22,7 +23,7 @@ const kSampleBagKeys = [
  * so re-selecting (or a running sample finalizing in place) doesn't reset.
  */
 export const SampleLoadController: FC = () => {
-  const handle = useStore((state) => state.log.selectedSampleHandle);
+  const handle = useCurrentSampleHandle();
   const identity = handle
     ? `${handle.logFile}:${handle.id}:${handle.epoch}`
     : undefined;
@@ -33,8 +34,8 @@ export const SampleLoadController: FC = () => {
   const clearCollapsedEvents = useStore(
     (state) => state.sampleActions.clearCollapsedEvents
   );
-  const resetEventSelection = useStore(
-    (state) => state.sampleActions.resetEventSelection
+  const resetEvidenceSelection = useStore(
+    (state) => state.sampleActions.resetEvidenceSelection
   );
   const setTimelineSelected = useStore(
     (state) => state.sampleActions.setTimelineSelected
@@ -52,14 +53,14 @@ export const SampleLoadController: FC = () => {
       removeBagsByPrefix(bag);
     }
     clearCollapsedEvents();
-    resetEventSelection();
+    resetEvidenceSelection();
     setTimelineSelected(null);
     setActiveTimelineIndex(0);
   }, [
     identity,
     removeBagsByPrefix,
     clearCollapsedEvents,
-    resetEventSelection,
+    resetEvidenceSelection,
     setTimelineSelected,
     setActiveTimelineIndex,
   ]);

@@ -8,6 +8,7 @@ export {
   kTranscriptOutlineCollapseScope,
 } from "./types";
 export { dynamicDefaultExcludeEvents } from "./eventFilter";
+export { citeReferences, type MakeCiteUrl } from "./citeReferences";
 export type {
   EventNodeContext,
   EventNodeSpan,
@@ -49,6 +50,11 @@ export {
 
 // Event utilities
 export { eventTitle, formatTiming, formatTitle } from "./event/utils";
+export {
+  communicationAgent,
+  communicationLine,
+  type CommunicationLinePart,
+} from "./CommunicationEventView";
 
 // Search text and event serialization
 export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";
@@ -57,16 +63,8 @@ export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";
 export {
   buildSelectableEventIndex,
   isSelectableEvent,
-  kEmptyTranscriptSelection,
-  resolveSelectedEvents,
-  resolveSelectedIds,
   selectedEventNodes,
-  selectionMenuChrome,
-  toggleTranscriptSelection,
-  type TranscriptSelection,
-  type TranscriptSelectionState,
 } from "./selection/transcriptSelection";
-export { TranscriptSelectTool } from "./selection/TranscriptSelectTool";
 export { useTranscriptSelection } from "./selection/useTranscriptSelection";
 
 // Message ID resolution
@@ -138,9 +136,6 @@ export {
   type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
 
-// Icons
-export { TranscriptIcons } from "./icons";
-
 // Context
 export {
   TimelineSelectContext,
@@ -150,8 +145,13 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 
 // Event view components
 export { AnchorEventView } from "./AnchorEventView";
-export { ApprovalEventView } from "./ApprovalEventView";
+export { ApprovalEventView, ApprovalInset } from "./ApprovalEventView";
 export { ReviewEventView } from "./ReviewEventView";
+export {
+  SentinelEventView,
+  SentinelInset,
+  SentinelStepRow,
+} from "./SentinelEventView";
 export { BranchEventView } from "./BranchEventView";
 export {
   BranchPoint,

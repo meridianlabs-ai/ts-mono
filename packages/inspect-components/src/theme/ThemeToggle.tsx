@@ -1,7 +1,9 @@
 import clsx from "clsx";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import type { ThemePreference } from "@tsmono/theme/bootstrap";
 
 import styles from "./ThemeToggle.module.css";
@@ -53,18 +55,16 @@ export const ThemeToggle = ({
     onChange(nextEventColors ? `readable-${nextBase}` : nextBase);
   };
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
+  useEventListener(
+    open && typeof document !== "undefined" ? document : null,
+    "keydown",
+    (e) => {
       if (e.key === "Escape") {
         setOpen(false);
         buttonEl?.focus();
       }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [buttonEl, open]);
+    }
+  );
 
   return (
     // data-testid: stable hook for automated tests and for downstream
@@ -82,13 +82,9 @@ export const ThemeToggle = ({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <i
-          className={clsx(
-            "bi",
-            isDark ? "bi-moon-stars-fill" : "bi-sun-fill",
-            styles.icon
-          )}
-          aria-hidden="true"
+        <Icon
+          name={isDark ? "themeDark" : "themeLight"}
+          className={styles.icon}
         />
       </button>
       <PopOver
@@ -100,7 +96,7 @@ export const ThemeToggle = ({
         showArrow={false}
         hoverDelay={-1}
         closeOnMouseLeave={false}
-        offset={[0, 1]}
+        offset={1}
         className={styles.menu}
       >
         <div className={styles.headerRow}>

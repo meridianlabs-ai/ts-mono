@@ -1,5 +1,3 @@
-import { CSSProperties } from "react";
-
 import { FontSize, TextStyle } from "./fonts";
 
 export const ApplicationStyles = {
@@ -14,14 +12,6 @@ export const ApplicationStyles = {
     WebkitLineClamp: "3",
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
-  },
-  lineClamp: (len: number): CSSProperties => {
-    return {
-      display: "-webkit-box",
-      WebkitLineClamp: `${len}`,
-      WebkitBoxOrient: "vertical",
-      overflow: "hidden",
-    };
   },
   wrapText: () => {
     return {

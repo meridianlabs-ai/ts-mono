@@ -9,8 +9,10 @@ import {
 import {
   ANSIDisplay,
   ExpandablePanel,
+  Segment,
   SegmentedControl,
 } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 import { formatDateTime } from "@tsmono/util";
 
 import { attemptStartTime, deriveErrorType } from "./retryAttempt";
@@ -21,9 +23,9 @@ export type RetryView = "error" | "events";
 const isRetryView = (value: string): value is RetryView =>
   value === "error" || value === "events";
 
-const kViewSegments = [
-  { id: "error", label: "Error", icon: "bi bi-exclamation-triangle" },
-  { id: "events", label: "Events", icon: "bi bi-list-ul" },
+const kViewSegments: Segment[] = [
+  { id: "error", label: "Error", icon: "warning" },
+  { id: "events", label: "Events", icon: "listView" },
 ];
 
 export interface RetryAttemptCardProps {
@@ -78,13 +80,9 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
         {startTime && (
           <span className={styles.timestamp}>{formatDateTime(startTime)}</span>
         )}
-        <i
-          className={clsx(
-            "bi",
-            isOpen ? "bi-chevron-down" : "bi-chevron-right",
-            styles.chevron
-          )}
-          aria-hidden="true"
+        <Icon
+          name={isOpen ? "chevronDown" : "chevronRight"}
+          className={styles.chevron}
         />
       </div>
 

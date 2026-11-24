@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -8,18 +8,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import {
-  ClientAPI,
   LogDetails,
   PendingSampleResponse,
   SampleSummary,
 } from "../client/api/types";
-import {
-  createDatabaseService,
-  DatabaseService,
-  DB_NAME,
-} from "../client/database";
+import { DB_NAME } from "../client/database";
 import { queryClient } from "../state/queryClient";
+import { startTestApp } from "../test/testApp";
 
+import { acquireDatabase, releaseDatabase } from "./databaseInstance";
 import { fetchEngine } from "./fetchEngine";
 import { pendingSamplesKey } from "./pendingSamples";
 import {
@@ -32,24 +29,6 @@ import {
   testLogDetails,
   testSampleSummary,
 } from "./testFixtures";
-
-const holder = vi.hoisted(() => ({
-  service: null as DatabaseService | null,
-  api: null as ClientAPI | null,
-}));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => {
-    if (!holder.service) throw new Error("test service not initialized");
-    return holder.service;
-  },
-}));
-vi.mock("../app_config", () => ({
-  getApi: () => {
-    if (!holder.api) throw new Error("test api not initialized");
-    return holder.api;
-  },
-  getAppConfig: () => ({ singleFileMode: false }),
-}));
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
@@ -160,34 +139,50 @@ describe("useSampleSummaries during a running eval", () => {
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
-  let db: DatabaseService;
-
   beforeEach(async () => {
-    db = createDatabaseService();
-    holder.service = db;
-    holder.api = api;
-    await db.openDatabase();
-    // What <FetchEngineController> does below the gate: start the engine
-    // from a config snapshot (acquisition paths only await readiness).
-    activateFetchEngine({
-      api,
-      singleFileMode: false,
-      loader: "replicator",
-      inspect_version: "test",
-      scout_version: null,
-      logDir: LOG_DIR,
-    });
+    await acquireDatabase();
+    // What <AppConfigGate> and <FetchEngineController> do: resolve the
+    // config, then start the engine from it (acquisition paths only await
+    // readiness).
+    activateFetchEngine(
+      startTestApp({ api, logDir: LOG_DIR, singleFileMode: false })
+    );
   });
 
   afterEach(async () => {
+    cleanup();
     deactivateFetchEngine();
     fetchEngine.stop();
-    await db.closeDatabase();
+    await releaseDatabase();
     await Dexie.delete(DB_NAME);
-    holder.service = null;
-    holder.api = null;
     queryClient.clear();
     vi.clearAllMocks();
+  });
+
+  test("a log switch never hands back the previous log's summaries", async () => {
+    serverDetails = details([createSampleSummary({ id: "s1" })]);
+    serverBuffer = { etag: "e1", samples: [] };
+    serverInfo = { size: 100 };
+    // The next log's details never arrive, so the listing keeps the previous
+    // log's rows as placeholder data.
+    vi.mocked(api.get_log_details).mockImplementation((file: string) =>
+      file === "other.eval"
+        ? new Promise<LogDetails>(() => {})
+        : Promise.resolve(serverDetails)
+    );
+
+    const { result, rerender } = renderHook(
+      ({ file }: { file: string }) => useSampleSummaries(LOG_DIR, file),
+      { wrapper, initialProps: { file: FILE } }
+    );
+    await waitFor(
+      () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
+      { timeout: 3000 }
+    );
+
+    rerender({ file: "other.eval" });
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
   });
 
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {

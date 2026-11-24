@@ -1,5 +1,9 @@
-import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import {
+  costSummary,
+  inputString,
+  totalModelFallbacks,
+} from "@tsmono/inspect-common/utils";
+import { arrayToString, nullProtoRecord } from "@tsmono/util";
 
 import {
   LogDerived,
@@ -38,7 +42,7 @@ type DeriveVersion = LessThan<100>;
  * only recomputed via the recreate-on-mismatch wipe. Must stay below 100
  * (enforced by `DeriveVersion`; schema.ts asserts it again at runtime).
  */
-export const DERIVE_VERSION: number = 1 satisfies DeriveVersion;
+export const DERIVE_VERSION: number = 3 satisfies DeriveVersion;
 
 export const deriveLogFields = (header: LogHeader): LogDerived => {
   let total_tokens: number | undefined;
@@ -81,15 +85,28 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   // each get their own entry. Reducer is omitted: `reducer=null` (default,
   // silently mean) and `reducer="mean"` (explicit) land in the same slot
   // since the underlying computation is identical.
-  let scores: Record<string, Record<string, number>> | undefined;
-  if (header.results?.scores) {
-    for (const evalScore of header.results.scores) {
-      for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-        scores ??= {};
-        (scores[evalScore.name] ??= {})[metricName] = metric.value;
+  const byScorer = new Map<string, Map<string, number>>();
+  for (const evalScore of header.results?.scores ?? []) {
+    for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+      let metrics = byScorer.get(evalScore.name);
+      if (!metrics) {
+        metrics = new Map();
+        byScorer.set(evalScore.name, metrics);
       }
+      metrics.set(metricName, metric.value);
     }
   }
+  const scores =
+    byScorer.size > 0
+      ? nullProtoRecord(
+          new Map(
+            Array.from(byScorer, ([name, metrics]) => [
+              name,
+              nullProtoRecord(metrics),
+            ])
+          )
+        )
+      : undefined;
 
   return {
     total_tokens,
@@ -132,17 +149,30 @@ export const totalSampleTokens = (
     : undefined;
 };
 
+/** A sample's total cost across models — undefined unless every model that
+ *  used tokens was priced, so a partial sum never reads as the full cost. */
+export const totalSampleCost = (
+  modelUsage: SampleSummary["model_usage"]
+): number | undefined => {
+  const cost = costSummary(modelUsage);
+  return cost && !cost.partial ? cost.total : undefined;
+};
+
 export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
-  let scores: Record<string, unknown> | undefined;
-  if (summary.scores) {
-    scores = {};
-    for (const [scoreName, score] of Object.entries(summary.scores)) {
-      scores[scoreName] = score.value;
-    }
-  }
+  const scores = summary.scores
+    ? nullProtoRecord(
+        new Map(
+          Object.entries(summary.scores).map(([name, score]) => [
+            name,
+            score.value,
+          ])
+        )
+      )
+    : undefined;
 
   return {
     tokens: totalSampleTokens(summary.model_usage),
+    cost: totalSampleCost(summary.model_usage),
     input: inputString(summary.input).join("\n"),
     target: arrayToString(summary.target),
     // 0 fallbacks stores as undefined so the column renders empty

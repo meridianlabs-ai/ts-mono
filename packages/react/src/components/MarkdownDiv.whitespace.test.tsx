@@ -3,10 +3,17 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-import { render } from "@testing-library/react";
+import { render as renderUi } from "@testing-library/react";
+import { ReactElement } from "react";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { TrustedContentWrapper } from "../test/content-trust";
+
 import { MarkdownDiv } from "./MarkdownDiv";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: ReactElement) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 // Load the shipped stylesheet text so getComputedStyle resolves the real
 // `.markdown-content` rule. The test runner stubs CSS imports to empty, so we

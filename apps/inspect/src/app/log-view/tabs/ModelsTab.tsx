@@ -19,8 +19,8 @@ import {
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
-import { useStore } from "../../../state/store";
-import { useShowTimelineForModel } from "../useShowTimeline";
+import { useCurrentLogFile } from "../../routing/currentSelection";
+import { useTimelineNavigationForModel } from "../useTimelineNavigation";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -34,13 +34,14 @@ export const useModelsTab = (
       id: kLogViewModelsTabId,
       label: "Models",
       scrollable: true,
-      component: ModelTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        evalStatus,
-        configUpdates,
-      },
+      content: (
+        <ModelTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          evalStatus={evalStatus}
+          configUpdates={configUpdates}
+        />
+      ),
     };
   }, [evalSpec, evalStats, evalStatus, configUpdates]);
 };
@@ -58,8 +59,9 @@ export const ModelTab: FC<ModelTabProps> = ({
   evalStatus,
   configUpdates,
 }) => {
-  const showTimelineForModel = useShowTimelineForModel();
-  const loadedLog = useStore((state) => state.log.loadedLog);
+  const { href: timelineHref, show: showTimelineForModel } =
+    useTimelineNavigationForModel();
+  const logFile = useCurrentLogFile();
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),
     [evalSpec]
@@ -138,8 +140,9 @@ export const ModelTab: FC<ModelTabProps> = ({
           completed_at={evalStats?.completed_at}
           config_updates={configUpdates}
           main_model={evalSpec?.model}
-          state_key={loadedLog ?? undefined}
+          state_key={logFile ?? undefined}
           onViewTimeline={showTimelineForModel}
+          timelineHref={timelineHref}
         />
       </div>
     </div>

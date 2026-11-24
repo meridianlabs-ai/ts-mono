@@ -68,6 +68,7 @@ Workspace scripts are single-concern leaf commands; all composition lives in
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | [`apps/inspect`](apps/inspect/README.md)               | Inspect log viewer — runs standalone, statically hosted, in VS Code, or embedded via `@meridianlabs/log-viewer` |
 | [`apps/scout`](apps/scout/README.md)                   | Inspect Scout viewer — browse scans, scanner results, and transcripts                                          |
+| [`packages/filter-expression`](packages/filter-expression) | The sample filter's expression language: a filtrex-compatible parser and evaluator that never generates code |
 | [`packages/inspect-common`](packages/inspect-common)   | Shared non-UI code for eval logs: generated API types, boundary normalization, query builder, test fixtures    |
 | [`packages/inspect-components`](packages/inspect-components) | Shared React components for rendering eval logs (chat, transcript, content, usage, …)                    |
 | [`packages/scout-components`](packages/scout-components) | React components shared across Scout surfaces                                                                |

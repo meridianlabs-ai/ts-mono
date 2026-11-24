@@ -5,7 +5,7 @@ import {
   VscodeSingleSelect,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, useCallback, useEffect, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 
 import {
   Modal,
@@ -13,9 +13,9 @@ import {
   TextInput,
   type TextInputChange,
 } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../icons";
 import { useStore } from "../../state/store";
 import { useAppConfig } from "../server/useAppConfig";
 import {
@@ -69,12 +69,10 @@ export const ValidationPanel: FC = () => {
   } = useValidationCases(selectedUri ?? skipToken);
 
   // Auto-select first validation set when loaded
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!selectedUri && validationSets && validationSets.length > 0) {
-      setSelectedUri(validationSets[0]);
-    }
-  }, [selectedUri, validationSets, setSelectedUri]);
+  useMirrorToStore(
+    selectedUri ? undefined : validationSets?.[0],
+    setSelectedUri
+  );
 
   // Mutations
   const updateMutation = useUpdateValidationCase(selectedUri ?? "");
@@ -119,8 +117,9 @@ export const ValidationPanel: FC = () => {
           );
         }
       };
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      updateCases();
+      updateCases().catch((error: unknown) => {
+        console.error("Bulk split update failed:", error);
+      });
     },
     [selectedUri, cases, updateMutation]
   );
@@ -221,7 +220,7 @@ export const ValidationPanel: FC = () => {
     return (
       <div className={styles.container}>
         <NonIdealState
-          icon={ApplicationIcons.validation}
+          icon="validation"
           title="No Validation Sets in Project"
           description="Validation sets enable you to check scanner results against labeled cases."
           action={
@@ -278,7 +277,7 @@ export const ValidationPanel: FC = () => {
               title="Rename validation set"
               disabled={renameSetMutation.isPending}
             >
-              <i className={ApplicationIcons.rename} />
+              <Icon name="edit" />
             </button>
             <button
               type="button"
@@ -287,7 +286,7 @@ export const ValidationPanel: FC = () => {
               title="Delete validation set"
               disabled={deleteSetMutation.isPending}
             >
-              <i className={ApplicationIcons.trash} />
+              <Icon name="trash" />
             </button>
           </div>
         )}
@@ -306,7 +305,7 @@ export const ValidationPanel: FC = () => {
         {selectedUri && cases && (
           <div className={styles.filterControls}>
             <TextInput
-              icon={ApplicationIcons.search}
+              icon="search"
               value={searchText ?? ""}
               onChange={handleSearchChange}
               placeholder="Search..."

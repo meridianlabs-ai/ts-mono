@@ -1,3 +1,6 @@
+import type { ToolEvent } from "@tsmono/inspect-common/types";
+
+import { proposalIdOf } from "./transform/toolSentinels";
 import { EventNode } from "./types";
 
 /**
@@ -65,4 +68,76 @@ export function computeHasToolEventsAtDepth(
   }
 
   return result;
+}
+
+const noToolEvents: ReadonlySet<string> = new Set();
+
+/**
+ * For each event node, the ids of the tool events at its level: its siblings
+ * under the same parent. Native tool calls all have a tool event beside the
+ * model event that proposed them, but a bridged agent's own tool calls have
+ * none (only the host tools the bridge runs for it do), so whether a call or
+ * its result message is shown by a tool event is decided per call id.
+ *
+ * A node's parent is the nearest preceding node strictly shallower than it,
+ * found with the same monotonic stack as `computeHasToolEventsAtDepth`.
+ */
+export function computeToolEventIdsAtLevel(
+  eventNodes: EventNode[]
+): ReadonlySet<string>[] {
+  return toolIdsAtLevel(eventNodes, (event) => event.id);
+}
+
+/**
+ * For each event node, the model's ids (`proposalIdOf`) for the calls the
+ * tool events at its level ran, which the model's output names them by. A
+ * bridge may hand a call to its scaffold under a new id, which the tool event
+ * and the scaffold's messages carry (`computeToolEventIdsAtLevel`).
+ */
+export function computeToolProposalIdsAtLevel(
+  eventNodes: EventNode[]
+): ReadonlySet<string>[] {
+  return toolIdsAtLevel(eventNodes, proposalIdOf);
+}
+
+function toolIdsAtLevel(
+  eventNodes: EventNode[],
+  idOf: (event: ToolEvent) => string
+): ReadonlySet<string>[] {
+  const levelKeys = new Array<string>(eventNodes.length);
+  const idsByLevel = new Map<string, Set<string>>();
+  const shallowerStack: { index: number; depth: number }[] = [];
+
+  for (let i = 0; i < eventNodes.length; i++) {
+    const node = eventNodes[i];
+    if (!node) continue;
+    const depth = node.depth;
+    while (
+      shallowerStack.length > 0 &&
+      shallowerStack[shallowerStack.length - 1]!.depth >= depth
+    ) {
+      shallowerStack.pop();
+    }
+    const parent =
+      shallowerStack.length > 0
+        ? shallowerStack[shallowerStack.length - 1]!.index
+        : -1;
+    shallowerStack.push({ index: i, depth });
+
+    const levelKey = `${parent}:${depth}`;
+    levelKeys[i] = levelKey;
+    if (node.event.event === "tool") {
+      let ids = idsByLevel.get(levelKey);
+      if (!ids) {
+        ids = new Set();
+        idsByLevel.set(levelKey, ids);
+      }
+      ids.add(idOf(node.event));
+    }
+  }
+
+  return eventNodes.map((_node, i) => {
+    const levelKey = levelKeys[i];
+    return (levelKey && idsByLevel.get(levelKey)) || noToolEvents;
+  });
 }

@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { isRecord } from "@tsmono/util";
+import { createWebviewStorage, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../api/api-scout-server";
-import { createVSCodeStore } from "../api/vscode-storage";
 
 import {
   emptyDataframeState,
@@ -160,6 +159,22 @@ describe("store properties prototype safety", () => {
   });
 });
 
+describe("validation case selection", () => {
+  it("toggles a case whose id is constructor on and off", () => {
+    const store = createStore(apiScoutServer());
+
+    store.getState().toggleValidationCaseSelection("constructor");
+    expect(store.getState().validationCaseSelection).toEqual({
+      constructor: true,
+    });
+
+    store.getState().toggleValidationCaseSelection("constructor");
+    expect(store.getState().validationCaseSelection).toEqual({
+      constructor: false,
+    });
+  });
+});
+
 describe("dataframe state lifetime", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -189,7 +204,7 @@ describe("dataframe state lifetime", () => {
       },
       postMessage: () => {},
     };
-    const api = { ...apiScoutServer(), storage: createVSCodeStore(vscode) };
+    const api = { ...apiScoutServer(), storage: createWebviewStorage(vscode) };
     const original = createStore(api);
     original.getState().setGridState(GRID_STATE_NAME, dataframe);
     original.getState().setSelectedResultRow(5);
@@ -248,7 +263,6 @@ describe("persisted state", () => {
     const state = store.getState();
 
     state.setShowFind(true);
-    state.setHasInitializedRouting(true);
     state.setSelectedScanLocation("scans/one");
     state.setVisibleScanJobCount(3);
     state.setSelectedScanner("scanner-a");
@@ -274,5 +288,30 @@ describe("persisted state", () => {
     );
     expect(persisted.selectedScanner).toBe("scanner-a");
     expect(persisted.properties).toEqual({ panel: { open: true } });
+  });
+
+  it("fills table state keys an older build's blob lacks or nulled", () => {
+    const { blobs, storage } = createMemoryStorage();
+    blobs.set(
+      kStorageKey,
+      JSON.stringify({
+        version: 1,
+        state: {
+          scansTableState: {
+            sorting: [{ id: "timestamp", desc: true }],
+            columnSizing: {},
+          },
+          transcriptsTableState: { columnOrder: null },
+        },
+      })
+    );
+    const store = createStore({ ...apiScoutServer(), storage });
+
+    const { scansTableState, transcriptsTableState } = store.getState();
+    expect(scansTableState.sorting).toEqual([{ id: "timestamp", desc: true }]);
+    expect(scansTableState.columnOrder).toEqual([]);
+    expect(scansTableState.columnFilters).toEqual({});
+    expect(transcriptsTableState.columnOrder).toEqual([]);
+    expect(transcriptsTableState.columnFilters).toEqual({});
   });
 });

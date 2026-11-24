@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from "react";
 
+import type { PickerColumn } from "@tsmono/inspect-components/dataGrid";
+
 import { useStore } from "../../../state/store";
 import type { SamplesPanelGridState } from "../../types";
-import { getFieldKey, type PickerColumn } from "../gridUtils";
 
 interface UseSampleGridStateResult extends SamplesPanelGridState {
   columnVisibility: Record<string, boolean>;
@@ -54,10 +55,7 @@ export function useSampleGridState(
   const columnVisibility = useMemo(() => {
     const defaults = defaultsForUnseededColumns
       ? Object.fromEntries(
-          allColumns.map((col) => [
-            getFieldKey(col),
-            defaultsForUnseededColumns(col),
-          ])
+          allColumns.map((col) => [col.id, defaultsForUnseededColumns(col)])
         )
       : {};
     return { ...defaults, ...persistedVisibility };

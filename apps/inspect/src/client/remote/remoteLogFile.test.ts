@@ -13,7 +13,8 @@
  * after deserialization.
  */
 
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { strToU8, zipSync } from "fflate";
+import { beforeEach, describe, expect, test } from "vitest";
 
 import { testEvalPlan, testEvalSpec } from "@tsmono/inspect-common/testing";
 import type { EvalSpec } from "@tsmono/inspect-common/types";
@@ -29,31 +30,22 @@ import {
   readJournalConfigUpdatesFrom,
 } from "./remoteLogFile";
 
-// In-memory zip served to openRemoteLogFile: entry name → JSON content.
-// Populated per-test; the openRemoteZipFile mock snapshots it at open time.
-const zipEntries = vi.hoisted(() => new Map<string, unknown>());
+// Entries of the in-memory .eval served to openRemoteLogFile: entry name →
+// JSON content, or raw bytes for a malformed entry. Zipped when the api is
+// created.
+const zipEntries = new Map<string, unknown>();
 
-vi.mock("./remoteZipFile", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./remoteZipFile")>()),
-  openRemoteZipFile: vi.fn(() =>
-    Promise.resolve({
-      centralDirectory: new Map(
-        Array.from(zipEntries.keys(), (name) => [name, { entry: name }])
-      ),
-      readFile: (name: string) =>
-        Promise.resolve(
-          new TextEncoder().encode(JSON.stringify(zipEntries.get(name)))
-        ),
-    })
-  ),
-}));
-
-// jsdom has no Worker, so replace the worker-backed parse with a direct one
-vi.mock("@tsmono/util", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tsmono/util")>()),
-  asyncJsonParseBytes: (bytes: Uint8Array) =>
-    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes))),
-}));
+const zipBytes = (entries: Map<string, unknown>): Uint8Array =>
+  zipSync(
+    Object.fromEntries(
+      Array.from(entries, ([name, content]) => [
+        name,
+        content instanceof Uint8Array
+          ? content
+          : strToU8(JSON.stringify(content)),
+      ])
+    )
+  );
 
 const baseEval = testEvalSpec({
   task: "test_task",
@@ -180,25 +172,31 @@ function makeSummary(
   return testSampleSummary({ id, epoch, error });
 }
 
-// Wiring tests for boundary normalization (#555): these fail if the
-// normalizeSampleSummaries call is removed from readSampleSummaries /
-// readFallbackSummaries, not just if the normalizer itself regresses.
-describe("readLogSummary summary normalization", () => {
-  const fakeApi = (): LogViewAPI => ({
+// Serves a real zip of `zipEntries` through the byte-range api, the way a
+// view server serves a .eval.
+const fakeApi = (entries = zipEntries): LogViewAPI => {
+  const bytes = zipBytes(entries);
+  return {
     client_events: notImplemented("client_events"),
     get_eval_set: notImplemented("get_eval_set"),
     get_flow: notImplemented("get_flow"),
     get_logs: notImplemented("get_logs"),
     get_log_contents: notImplemented("get_log_contents"),
-    get_log_info: () => Promise.resolve({ size: 1024 }),
-    get_log_bytes: notImplemented("get_log_bytes"),
+    get_log_info: () => Promise.resolve({ size: bytes.length }),
+    get_log_bytes: (_file, start, end) =>
+      Promise.resolve(bytes.slice(start, end + 1)),
     get_log_summaries: notImplemented("get_log_summaries"),
     log_message: notImplemented("log_message"),
     download_file: notImplemented("download_file"),
     open_log_file: notImplemented("open_log_file"),
     get_app_config: notImplemented("get_app_config"),
-  });
+  };
+};
 
+// Wiring tests for boundary normalization (#555): these fail if the
+// normalizeSampleSummaries call is removed from readSampleSummaries /
+// readFallbackSummaries, not just if the normalizer itself regresses.
+describe("readLogSummary summary normalization", () => {
   // A finalized 2024-era header; normalizeEvalHeader fills the rest.
   const vintageHeader = {
     version: 2,
@@ -236,6 +234,21 @@ describe("readLogSummary summary normalization", () => {
     zipEntries.set("header.json", vintageHeader);
   });
 
+  test("keeps malformed history errors on stats when loading a .eval header", async () => {
+    zipEntries.set("header.json", {
+      ...vintageHeader,
+      stats: { connection_limit_history: [null] },
+    });
+    zipEntries.set("summaries.json", []);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.stats?.connection_limit_history).toEqual([]);
+    expect(details.stats?.connectionHistoryError).toMatch(
+      "Invalid connection history"
+    );
+    expect(details.eval.task).toBe("demo");
+  });
+
   test("fills read-time defaults on vintage summaries.json rows", async () => {
     zipEntries.set("summaries.json", [vintageRow]);
     const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
@@ -250,6 +263,16 @@ describe("readLogSummary summary normalization", () => {
     const details = await remoteLog.readLogSummary();
     expect(details.sampleSummaries).toHaveLength(1);
     expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+});
+
+describe("readEvalBasicInfo", () => {
+  test("names the file when its JSON fails to parse", async () => {
+    const entries = new Map([["header.json", strToU8("{not json")]]);
+    const remoteLog = await openRemoteLogFile(fakeApi(entries), "log.eval", 1);
+    await expect(remoteLog.readEvalBasicInfo()).rejects.toThrow(
+      "Failed to read or parse file header.json"
+    );
   });
 });
 

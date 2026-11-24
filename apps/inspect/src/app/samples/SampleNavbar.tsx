@@ -12,6 +12,9 @@ export interface SampleNavigationConfig {
   onNext: () => void;
   hasPrevious: boolean;
   hasNext: boolean;
+  /** Where prev/next go, so the chevrons can be real links. */
+  previousHref?: string;
+  nextHref?: string;
 }
 
 export interface NavbarConfig {
@@ -47,7 +50,8 @@ export const SampleNavbar: FC<SampleNavbarProps> = ({
   navbarConfig,
   loading,
 }) => {
-  const { onPrevious, onNext, hasPrevious, hasNext } = navigation;
+  const { onPrevious, onNext, hasPrevious, hasNext, previousHref, nextHref } =
+    navigation;
   const {
     currentPath,
     fnNavigationUrl,
@@ -75,6 +79,8 @@ export const SampleNavbar: FC<SampleNavbarProps> = ({
         onNext={onNext}
         hasPrevious={hasPrevious}
         hasNext={hasNext}
+        previousHref={previousHref}
+        nextHref={nextHref}
         previousTitle="Previous sample"
         nextTitle="Next sample"
       >

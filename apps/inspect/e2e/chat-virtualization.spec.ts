@@ -143,22 +143,6 @@ test.describe("chat virtualization", () => {
     expect(renderedItems).toBeLessThan(100);
     expect(renderedItems).toBeGreaterThan(0);
   });
-
-  test("first and early messages are visible on load", async ({
-    page,
-    network,
-  }) => {
-    const messages = generateMessages(200);
-    await openSample(page, network, messages);
-
-    const messagesArea = page.locator("#messages-contents");
-    await expect(
-      messagesArea.getByText("message-0", { exact: true })
-    ).toBeVisible();
-    await expect(
-      messagesArea.getByText("message-1", { exact: true })
-    ).toBeVisible();
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -166,22 +150,7 @@ test.describe("chat virtualization", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("keyboard navigation", () => {
-  test("Cmd+ArrowDown jumps to the last message", async ({ page, network }) => {
-    const messages = generateMessages(200);
-    await openSample(page, network, messages);
-
-    const messagesArea = page.locator("#messages-contents");
-    await expect(
-      messagesArea.getByText("message-0", { exact: true })
-    ).toBeVisible();
-
-    await page.keyboard.press("Meta+ArrowDown");
-    await expect(
-      messagesArea.getByText("message-199", { exact: true })
-    ).toBeVisible({ timeout: 5000 });
-  });
-
-  test("Cmd+ArrowUp jumps back to the first message", async ({
+  test("Cmd+ArrowDown jumps to the last message and Cmd+ArrowUp back to the first", async ({
     page,
     network,
   }) => {

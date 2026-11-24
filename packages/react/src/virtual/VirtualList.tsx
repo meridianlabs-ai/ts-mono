@@ -12,13 +12,20 @@ import {
 } from "react";
 
 import {
+  cacheLastCall,
   useExtendedFindOptional,
-  type ExtendedCountFn,
-  type ExtendedFindFn,
+  type FindSource,
+  type ItemMatchCount,
 } from "../components/ExtendedFindContext";
-import { prepareSearchTerm } from "../components/prepareSearchTerm";
+import {
+  findVariantHits,
+  normalizeFindText,
+  searchVariants,
+} from "../components/findText";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
+import { useEventListener } from "../hooks/useEventListener";
+import { useLatestRef } from "../hooks/useLatestRef";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
 import { useRafThrottle } from "../hooks/useRafThrottle";
@@ -55,28 +62,49 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
 }
 
 // Lifted out of the component so the hot find-counter path is unit-testable
-// and lowercasing happens once, not per keystroke; `lowerTerm` pre-lowercased.
-export const countMatchesInTexts = (
-  lowerTextsByItem: string[][],
-  lowerTerm: string
-): number => {
-  // An empty term makes indexOf return its start position forever (pos += 0),
-  // so guard before the scan loop — this helper is exported and unit-tested
-  // directly, where the FindBand caller's own empty-term guard would not apply.
-  if (lowerTerm.length === 0) {
-    return 0;
-  }
-  let total = 0;
-  for (const texts of lowerTextsByItem) {
-    for (const lowerText of texts) {
-      let pos = 0;
-      while ((pos = lowerText.indexOf(lowerTerm, pos)) !== -1) {
-        total++;
-        pos += lowerTerm.length;
-      }
+// and normalizing the texts happens once, not per keystroke.
+export const countMatchesByItem = (
+  normalizedTextsByItem: string[][],
+  term: string
+): ItemMatchCount[] => {
+  if (term.length === 0) return [];
+  const variants = searchVariants(term);
+  const counts: ItemMatchCount[] = [];
+  normalizedTextsByItem.forEach((texts, item) => {
+    let count = 0;
+    for (const text of texts) {
+      count += findVariantHits(text, variants).length;
     }
-  }
-  return total;
+    if (count > 0) counts.push({ item, count });
+  });
+  return counts;
+};
+
+type SettleTick = "stop" | "moved" | "still";
+
+// Module-level because a self-scheduling closure inside useCallback reads to
+// the compiler's dependency check as a missing dependency of itself.
+const settleEachFrame = (
+  frameRef: { current: number },
+  tick: () => SettleTick,
+  finish: () => void
+): void => {
+  let frames = 0;
+  let stable = 0;
+  const settle = () => {
+    const result = tick();
+    if (result === "stop") {
+      finish();
+      return;
+    }
+    stable = result === "moved" ? 0 : stable + 1;
+    if (stable < 3 && (frames += 1) < 30) {
+      frameRef.current = requestAnimationFrame(settle);
+    } else {
+      finish();
+    }
+  };
+  frameRef.current = requestAnimationFrame(settle);
 };
 
 export function VirtualList<T>({
@@ -103,10 +131,14 @@ export function VirtualList<T>({
   components,
   smoothScroll = true,
   itemSearchText,
-  findScope = "local",
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
+  // The virtualizer is one stable instance whose getters (getTotalSize,
+  // getVirtualItems) return changing data. Compiled, those reads would be
+  // memoized on the instance's identity and go stale, so this component
+  // stays uncompiled and reads them fresh each render.
+  "use no memo";
   // An embedded list shares a container whose position the host owns;
   // resetting it on mount would yank the host's scroller.
   const resetScrollOnMount = resetScrollOnMountProp ?? !embedded;
@@ -120,6 +152,7 @@ export function VirtualList<T>({
     externalScroll instanceof HTMLElement ? externalScroll : null;
   const internalScrollRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const bandRef = useRef<HTMLDivElement | null>(null);
   const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
 
   // Offset of the list within an external scroll parent. Content can sit
@@ -193,6 +226,7 @@ export function VirtualList<T>({
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [externalScrollRef, measureScrollMargin]);
+  const scrollTarget = externalScrollEl ?? scrollParent ?? internalScrollRef;
   const getScrollElement = useCallback(
     () => externalScrollEl ?? scrollParent ?? internalScrollRef.current,
     [externalScrollEl, scrollParent]
@@ -350,13 +384,9 @@ export function VirtualList<T>({
   );
   // Read (not depend on) followOutput below: the finish effect flips it, and
   // a dependency would make the cleanup cancel the timer it just scheduled.
-  const followOutputRef = useRef(followOutput);
-  // Mirror BEFORE the finish effect below: effects run in declaration order,
-  // so the finish effect always reads the value from its own commit.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    followOutputRef.current = followOutput;
-  }, [followOutput]);
+  // A layout-effect mirror, so the finish effect always reads the value from
+  // its own commit.
+  const followOutputRef = useLatestRef(followOutput);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scrollToTopOnFinish && !live && prevLive && followOutputRef.current) {
@@ -381,7 +411,14 @@ export function VirtualList<T>({
         finishScrollTimerRef.current = null;
       }
     };
-  }, [live, prevLive, scrollToTopOnFinish, getScrollElement, setFollowOutput]);
+  }, [
+    live,
+    prevLive,
+    scrollToTopOnFinish,
+    getScrollElement,
+    setFollowOutput,
+    followOutputRef,
+  ]);
 
   const handleScroll = useRafThrottle(() => {
     if (!live) return;
@@ -403,45 +440,31 @@ export function VirtualList<T>({
     }
   });
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [getScrollElement, handleScroll]);
+  useEventListener(scrollTarget, "scroll", handleScroll);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    const onWheel = () => noteUserInteraction();
-    const onTouchMove = () => noteUserInteraction();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
-    };
-    const onPointerDown = () => {
+  useEventListener(scrollTarget, "wheel", noteUserInteraction, {
+    passive: true,
+  });
+  useEventListener(scrollTarget, "touchmove", noteUserInteraction, {
+    passive: true,
+  });
+  useEventListener(scrollTarget, "keydown", (e) => {
+    if (SCROLL_KEYS.has(e.key)) noteUserInteraction();
+  });
+  useEventListener(
+    scrollTarget,
+    "pointerdown",
+    () => {
       pointerDownRef.current = true;
       noteUserInteraction();
-    };
-    const onPointerUp = () => {
-      pointerDownRef.current = false;
-    };
-    el.addEventListener("wheel", onWheel, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    el.addEventListener("keydown", onKeyDown);
-    el.addEventListener("pointerdown", onPointerDown, { passive: true });
-    window.addEventListener("pointerup", onPointerUp, { passive: true });
-    window.addEventListener("pointercancel", onPointerUp, { passive: true });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("keydown", onKeyDown);
-      el.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
-    };
-  }, [getScrollElement, noteUserInteraction]);
+    },
+    { passive: true }
+  );
+  const onPointerUp = () => {
+    pointerDownRef.current = false;
+  };
+  useEventListener(window, "pointerup", onPointerUp, { passive: true });
+  useEventListener(window, "pointercancel", onPointerUp, { passive: true });
 
   const contentTotal = virtualizer.getTotalSize();
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -480,12 +503,25 @@ export function VirtualList<T>({
   // Re-fires scrollToIndex each frame to absorb external chrome shifts TanStack won't reconcile on its own; bounded, and real user input cancels it.
   const settleFrameRef = useRef(0);
   const releaseFrameRef = useRef(0);
+  // The in-flight settleScrollToIndex's onAbandon. A newer settle, a restore
+  // or unmount stops that settle before it lands; onDone doesn't fire then.
+  const settleAbandonRef = useRef<(() => void) | null>(null);
+  const abandonSettle = useCallback(() => {
+    cancelAnimationFrame(settleFrameRef.current);
+    const abandon = settleAbandonRef.current;
+    settleAbandonRef.current = null;
+    abandon?.();
+  }, []);
+  // Returns a cancel that stops this settle where it is, if it's still
+  // running, and reports it abandoned.
   const settleScrollToIndex = useCallback(
     (
       index: number,
       align?: "start" | "center" | "end",
-      onDone?: () => void
-    ) => {
+      onDone?: () => void,
+      onAbandon?: () => void
+    ): (() => void) => {
+      abandonSettle();
       const jump = () =>
         virtualizer.scrollToIndex(index, { align, behavior: "auto" });
       // Every exit path must release the auto-scroll guard (else persistence
@@ -493,47 +529,59 @@ export function VirtualList<T>({
       // can't flip the guard off mid-settle.
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
-      const finish = () => {
+      const release = () => {
         const elNow = getScrollElement();
         if (elNow) lastAutoScrollTopRef.current = elNow.scrollTop;
         releaseFrameRef.current = requestAnimationFrame(() => {
           isAutoScrollingRef.current = false;
         });
+      };
+      // Identifies this settle in settleAbandonRef.
+      const abandon = () => onAbandon?.();
+      const finish = () => {
+        if (settleAbandonRef.current === abandon) {
+          settleAbandonRef.current = null;
+        }
+        release();
         onDone?.();
+      };
+      const cancel = () => {
+        if (settleAbandonRef.current !== abandon) return;
+        cancelAnimationFrame(settleFrameRef.current);
+        settleAbandonRef.current = null;
+        release();
+        abandon();
       };
       jump();
       const el = getScrollElement();
       if (!el) {
         finish();
-        return;
+        return cancel;
       }
-      cancelAnimationFrame(settleFrameRef.current);
-      let frames = 0;
-      let stable = 0;
+      settleAbandonRef.current = abandon;
       let lastTop = el.scrollTop;
       // A keyboard-initiated jump must finish measuring; only input AFTER the
       // request cancels it, not the keypress that requested the jump itself.
       const interactionAtStart = interactionSequenceRef.current;
-      const settle = () => {
-        if (interactionSequenceRef.current !== interactionAtStart) {
-          finish();
-          return;
-        }
-        jump();
-        stable = Math.abs(el.scrollTop - lastTop) <= 1 ? stable + 1 : 0;
-        lastTop = el.scrollTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
-      };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      settleEachFrame(
+        settleFrameRef,
+        () => {
+          if (interactionSequenceRef.current !== interactionAtStart) {
+            return "stop";
+          }
+          jump();
+          const moved = Math.abs(el.scrollTop - lastTop) > 1;
+          lastTop = el.scrollTop;
+          return moved ? "moved" : "still";
+        },
+        finish
+      );
+      return cancel;
     },
-    [virtualizer, getScrollElement]
+    [virtualizer, getScrollElement, abandonSettle]
   );
   useUnmount(() => {
-    cancelAnimationFrame(settleFrameRef.current);
+    abandonSettle();
     cancelAnimationFrame(releaseFrameRef.current);
   });
   const lastInitialKeyRef = useRef<string | null>(null);
@@ -551,13 +599,13 @@ export function VirtualList<T>({
   // ref-backed converters, a fresh scale — as totals grow.
   const settleRestoreScroll = useCallback(
     (getTargetSpacerTop: () => number) => {
+      abandonSettle();
       // Guard bookkeeping mirrors settleScrollToIndex: every exit path —
       // including a missing scroll element — must book the guard release, or
       // the caller-taken auto-scroll guard leaks and persistence stays
       // silently dead for the rest of the mount.
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
-      cancelAnimationFrame(settleFrameRef.current);
       const el = getScrollElement();
       const keyAtStart = lastInitialKeyRef.current;
       const finish = () => {
@@ -571,10 +619,8 @@ export function VirtualList<T>({
         return;
       }
       el.scrollTop = getTargetSpacerTop();
-      let frames = 0;
-      let stable = 0;
       let lastTop = el.scrollTop;
-      const settle = () => {
+      const tick = (): SettleTick => {
         // A key change mid-settle means this restore belongs to the previous
         // sample — stop before writing its offset into the new one's list.
         // User input always wins over a pending restore.
@@ -582,8 +628,7 @@ export function VirtualList<T>({
           userInteractingRef.current ||
           lastInitialKeyRef.current !== keyAtStart
         ) {
-          finish();
-          return;
+          return "stop";
         }
         // Read BEFORE re-forcing: the drift being waited out (re-measure
         // compensation nudging scrollTop after our write) happens between
@@ -596,17 +641,12 @@ export function VirtualList<T>({
         // grew, postTop) — means the layout is still moving.
         const moved =
           Math.abs(preTop - lastTop) > 1 || Math.abs(postTop - lastTop) > 1;
-        stable = moved ? 0 : stable + 1;
         lastTop = postTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
+        return moved ? "moved" : "still";
       };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      settleEachFrame(settleFrameRef, tick, finish);
     },
-    [getScrollElement]
+    [getScrollElement, abandonSettle]
   );
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
   // The no-snapshot "reset to top" is a one-shot per (re)key: re-firing on
@@ -660,9 +700,10 @@ export function VirtualList<T>({
         release();
       } else if (snapshot) {
         // Restore unless the user already scrolled this list (don't fight the
-        // wheel); a foreign scrollTop from a shared container doesn't block it.
+        // wheel) or a caller already asked to scroll it (e.g. find revealing a
+        // row); a foreign scrollTop from a shared container doesn't block it.
         hasInitialScrolledRef.current = true;
-        if (!userScrolledRef.current) {
+        if (!userScrolledRef.current && settleAbandonRef.current === null) {
           // settleRestoreScroll releases the auto-scroll guard itself.
           // Whether to clamp is decided once at restore time (one-shot
           // semantics); only the clamp BOUNDS are re-read per frame.
@@ -766,13 +807,7 @@ export function VirtualList<T>({
     }, PERSIST_DEBOUNCE_MS);
   });
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const el = getScrollElement();
-    if (!el) return;
-    el.addEventListener("scroll", persistOnScroll);
-    return () => el.removeEventListener("scroll", persistOnScroll);
-  }, [getScrollElement, persistOnScroll]);
+  useEventListener(scrollTarget, "scroll", persistOnScroll);
 
   // FLUSH (not cancel) a pending debounced save on key change/unmount, with
   // the scroll-time snapshot: cancelling loses a tab-flip inside the debounce
@@ -802,12 +837,9 @@ export function VirtualList<T>({
   const items = virtualizer.getVirtualItems();
   const startIndex = items[0]?.index ?? 0;
   const endIndex = items[items.length - 1]?.index ?? 0;
-  const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 });
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    const range = { startIndex, endIndex };
-    visibleRangeRef.current = range;
-    onVisibleRangeChange?.(range);
+    onVisibleRangeChange?.({ startIndex, endIndex });
   }, [startIndex, endIndex, onVisibleRangeChange]);
 
   useImperativeHandle(
@@ -819,8 +851,12 @@ export function VirtualList<T>({
             ? "auto"
             : (opts.behavior ?? (smoothScroll ? "smooth" : "auto"));
         if (behavior === "auto") {
-          settleScrollToIndex(opts.index, opts.align, opts.onDone);
-          return;
+          return settleScrollToIndex(
+            opts.index,
+            opts.align,
+            opts.onDone,
+            opts.onAbandon
+          );
         }
         // Smooth scrolls animate over many frames — settling would fight the
         // animation, so they stay a single fire.
@@ -829,6 +865,7 @@ export function VirtualList<T>({
           behavior,
         });
         opts.onDone?.();
+        return () => {};
       },
       scrollTo(opts) {
         const el = getScrollElement();
@@ -873,82 +910,55 @@ export function VirtualList<T>({
   // Null when this list doesn't participate in find (opted out, or no
   // provider mounted).
   const extendedFind = useExtendedFindOptional();
-  const findContext = findScope === "none" ? null : extendedFind;
-  const searchInData = useCallback<ExtendedFindFn>(
-    (term, direction, onContentReady) => {
-      if (!term || data.length === 0) return Promise.resolve(false);
-      const isForward = direction === "forward";
-      const len = data.length;
-      const range = visibleRangeRef.current;
-      const current = isForward ? range.endIndex : range.startIndex;
-      const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
-      const prepared = prepareSearchTerm(term);
-      for (let offset = 1; offset < len; offset++) {
-        const i = isForward
-          ? (current + offset) % len
-          : (current - offset + len) % len;
-        const item = data[i];
-        if (item === undefined) continue;
-        const texts = getText(item);
-        const textArray = Array.isArray(texts) ? texts : [texts];
-        const hit = textArray.some((text) => {
-          const lower = text.toLowerCase();
-          if (lower.includes(prepared.simple)) return true;
-          if (prepared.unquoted && lower.includes(prepared.unquoted))
-            return true;
-          if (prepared.jsonEscaped && lower.includes(prepared.jsonEscaped))
-            return true;
-          return false;
-        });
-        if (hit) {
-          // Starting a new settle cancels the previous landing while retaining
-          // ownership of the auto-scroll guard until the find landing finishes.
-          settleScrollToIndex(i, "center");
-          setTimeout(onContentReady, 200);
-          return Promise.resolve(true);
-        }
-      }
-      return Promise.resolve(false);
-    },
-    [data, itemSearchText, settleScrollToIndex]
-  );
-
-  // Pre-compute lowercased search text for every item once per data /
-  // accessor change, so the FindBand counter doesn't re-extract and
-  // re-lowercase the whole list on each keystroke. Skipped entirely when the
-  // list doesn't participate in find — extraction can be expensive (default
-  // accessor JSON.stringifies every item).
+  const findContext = itemSearchText ? extendedFind : null;
+  // Pre-compute normalized search text for every item once per data /
+  // accessor change, so the find counter doesn't re-extract and
+  // re-normalize the whole list on each keystroke.
   const precomputedSearchTexts = useMemo(() => {
-    if (!findContext) return [];
-    const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
+    if (!findContext || !itemSearchText) return [];
     return data.map((item) => {
-      const texts = getText(item);
+      const texts = itemSearchText(item);
       const textArray = Array.isArray(texts) ? texts : [texts];
-      return textArray.map((t) => t.toLowerCase());
+      return textArray.map((t) => normalizeFindText(t));
     });
   }, [data, itemSearchText, findContext]);
 
-  const countMatchesInData = useCallback<ExtendedCountFn>(
-    (term) => {
-      if (!term || precomputedSearchTexts.length === 0) return 0;
-      return countMatchesInTexts(precomputedSearchTexts, term.toLowerCase());
-    },
-    [precomputedSearchTexts]
-  );
+  // Identity matters: registering a new source makes the find band re-collect
+  // its matches, so it changes only when the searchable data does.
+  const findSource = useMemo<FindSource>(() => {
+    const renderedItems = () =>
+      new Set(virtualizer.getVirtualItems().map((item) => item.index));
+    return {
+      anchor: () => wrapperRef.current,
+      countByItem: cacheLastCall((term: string) =>
+        countMatchesByItem(precomputedSearchTexts, term)
+      ),
+      itemOf: (node) => {
+        const band = bandRef.current;
+        if (!band) return null;
+        let el = node instanceof Element ? node : node.parentElement;
+        while (el && el.parentElement !== band) el = el.parentElement;
+        return el instanceof HTMLElement ? Number(el.dataset.index) : null;
+      },
+      renderedItems,
+      reveal: (item, _direction, signal) =>
+        new Promise<boolean>((resolve, reject) => {
+          const cancel = settleScrollToIndex(
+            item,
+            "center",
+            () => resolve(renderedItems().has(item)),
+            () => reject(new Error("Another scroll took over the reveal"))
+          );
+          signal.addEventListener("abort", cancel, { once: true });
+        }),
+    };
+  }, [precomputedSearchTexts, virtualizer, settleScrollToIndex]);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!findContext) return;
-    const u1 = findContext.registerVirtualList(persistenceKey, searchInData);
-    const u2 = findContext.registerMatchCounter(
-      persistenceKey,
-      countMatchesInData
-    );
-    return () => {
-      u1();
-      u2();
-    };
-  }, [findContext, persistenceKey, searchInData, countMatchesInData]);
+    return findContext.registerFindSource(persistenceKey, findSource);
+  }, [findContext, persistenceKey, findSource]);
 
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
@@ -998,7 +1008,10 @@ export function VirtualList<T>({
       }
     >
       <PaddingChunks height={topPaddingSpacer} prefix="top" />
-      <div style={{ position: "relative", height: renderedBandHeight }}>
+      <div
+        ref={bandRef}
+        style={{ position: "relative", height: renderedBandHeight }}
+      >
         {items.map((vItem) => {
           const item = data[vItem.index];
           if (item === undefined) return null;

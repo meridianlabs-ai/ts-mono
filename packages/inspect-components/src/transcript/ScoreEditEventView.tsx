@@ -6,7 +6,6 @@ import { RecordTree, RenderedText } from "@tsmono/inspect-components/content";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
-import { TranscriptIcons } from "./icons";
 import styles from "./ScoreEditEventView.module.css";
 import { ScoreValue } from "./ScoreValue";
 import { EventNode } from "./types";
@@ -34,7 +33,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
       title={"Edit Score"}
       className={clsx(className, "text-size-small")}
       subTitle={subtitle}
-      icon={TranscriptIcons.edit}
+      icon="edit"
     >
       <div data-name="Summary">
         <div

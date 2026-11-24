@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/hooks -- each host app injects its store hooks through ComponentStateContext, so they arrive as values; the compiler skips this hook until that context hands out a store API instead */
 import { useMemo } from "react";
 
 import { useComponentStateHooks } from "../state/ComponentStateContext";

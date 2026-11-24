@@ -30,16 +30,18 @@
   margin-bottom: -1px;
 }
 
+/* A tab rendered as <a> (href set): match the <button> tab's centred label
+   when a caller gives tabs a fixed width. */
+.linkTab {
+  text-align: center;
+}
+
 .tabItem {
   align-self: end;
 }
 
 .pillSmallContainer {
-  gap: 0.25rem;
-}
-
-.pillSmall {
-  padding: 0.3rem 0.5rem;
+  gap: 0.125rem;
 }
 
 .tabIcon {

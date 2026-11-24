@@ -13,7 +13,7 @@ import {
   SampleData,
   SampleDataResponse,
 } from "../client/api/types";
-import { resolveAttachments } from "../utils/attachments";
+import { resolveEventAttachments } from "../utils/attachments";
 
 const log = createLogger("sampleStream");
 
@@ -312,28 +312,24 @@ function processEvents(
       };
 
       if (api.log_message) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        api.log_message(
-          logFile,
-          `Unable to resolve attachment ${attachmentId}\n` +
-            JSON.stringify(snapshot)
-        );
+        api
+          .log_message(
+            logFile,
+            `Unable to resolve attachment ${attachmentId}\n` +
+              JSON.stringify(snapshot)
+          )
+          .catch((error: unknown) => {
+            console.warn("Unable to report attachment miss", error);
+          });
       }
       console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
     };
 
-    const withAttachments = resolveAttachments<SampleEvent>(
-      event,
-      state.attachments,
-      reportAttachmentMiss
-    );
-
-    const withPoolRefs = resolvePoolRefs(withAttachments, state);
-
-    // Resolve attachments again after pool expansion, since pool entries
-    // may contain attachment:// URIs that weren't visible before expansion.
-    const resolvedEvent = resolveAttachments<SampleEvent>(
-      withPoolRefs,
+    // Expand pools first so one pass resolves pooled and direct refs alike.
+    // A second pass would resolve the text of an escaped literal (an
+    // attachment holding "attachment://..." as written) as a genuine ref.
+    const resolvedEvent = resolveEventAttachments<SampleEvent>(
+      resolvePoolRefs(event, state),
       state.attachments,
       reportAttachmentMiss
     );

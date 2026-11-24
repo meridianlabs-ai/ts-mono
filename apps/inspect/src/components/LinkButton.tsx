@@ -1,12 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import styles from "./LinkButton.module.css";
 
 interface LinkButtonProps {
   id?: string;
   text?: string;
-  icon?: string;
+  icon?: IconName;
   onClick: () => void;
   className?: string | string[];
 }
@@ -28,7 +30,7 @@ export const LinkButton: FC<LinkButtonProps> = ({
       onClick={onClick}
       className={clsx(className, styles.button, "text-size-smaller")}
     >
-      {icon ? <i className={clsx(icon)}></i> : undefined}
+      {icon ? <Icon name={icon} /> : undefined}
       {text ? <div className={clsx(styles.label)}>{text}</div> : undefined}
     </button>
   );

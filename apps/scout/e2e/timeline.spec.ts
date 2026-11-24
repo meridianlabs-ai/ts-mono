@@ -64,28 +64,25 @@ function transcriptUrl(): string {
 }
 
 // ---------------------------------------------------------------------------
-// P0: Timeline swimlane renders with timeline data
+// P0: Swimlane selection filters the event list
 // ---------------------------------------------------------------------------
 
-test("timeline swimlane renders rows from server timeline data", async ({
+test("clicking a swimlane row filters the event list to that agent", async ({
   page,
   network,
 }) => {
   setupTranscriptWithTimeline(network, createTimelineScenario());
   await page.goto(transcriptUrl());
 
-  // The swimlane grid should appear
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore", { exact: true });
+  await expect(exploreCard).toBeVisible();
 
-  // Row labels for the child spans should be visible
-  // (root "Transcript" is depth 0, children "Explore" and "Build" are depth 1)
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Build" })
-  ).toBeVisible();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
+
+  await expect(page).toHaveURL(/selected=/);
+  await expect(page.getByText("Building the feature").first()).toBeVisible();
+  await expect(exploreCard).toBeHidden();
 });
 
 // ---------------------------------------------------------------------------
@@ -125,25 +122,6 @@ test("clicking chevron collapses and expands child rows", async ({
 // ---------------------------------------------------------------------------
 // P0: Branch marker click expands row and enables branches
 // ---------------------------------------------------------------------------
-
-test("row with branches shows chevron even before branches are expanded", async ({
-  page,
-  network,
-}) => {
-  setupTranscriptWithTimeline(
-    network,
-    createTimelineScenario({ withBranch: true })
-  );
-  await page.goto(transcriptUrl());
-
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-
-  // Build row should show an "Expand" chevron even though showBranches is off,
-  // because it has branch markers indicating expandable children.
-  const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
-  await expect(buildRow.getByRole("button", { name: "Expand" })).toBeVisible();
-});
 
 test("clicking chevron on row with branches enables showBranches and reveals branch rows", async ({
   page,
@@ -201,43 +179,37 @@ test("clicking branch marker auto-expands parent row", async ({
 // P1: Transcript with no timeline data falls back gracefully
 // ---------------------------------------------------------------------------
 
-test("transcript without timeline data renders without swimlane rows", async ({
+test("transcript without timeline data shows the event list without a swimlane", async ({
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(
-    network,
-    // No timelines, no events — the swimlane should still render but be collapsed/empty
-    {
-      messages: [{ role: "user", content: "Hello" }],
-      events: [],
-      timelines: [],
-    }
-  );
+  setupTranscriptWithTimeline(network, {
+    messages: [{ role: "user", content: "Hello" }],
+    events: [
+      createModelEvent({
+        uuid: "m1",
+        startSec: 0,
+        endSec: 2,
+        content: "Flat event",
+      }),
+    ],
+    timelines: [],
+  });
   await page.goto(transcriptUrl());
 
-  // The page should load without errors — check for the transcript task info
-  await expect(page.getByText("timeline-task").first()).toBeVisible();
-
-  // No swimlane rows should be present (or the swimlane is auto-collapsed)
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  // With no timeline data, swimlane may still render but with no meaningful rows
-  // The key assertion: the page doesn't crash and the transcript content is accessible
-  const rowCount = await swimlane.getByRole("row").count();
-  // At most the root row (or 0 if completely hidden)
-  expect(rowCount).toBeLessThanOrEqual(1);
+  await expect(page.getByText("Flat event")).toBeVisible();
+  await expect(
+    page.getByRole("grid", { name: "Timeline swimlane" })
+  ).toHaveCount(0);
 });
 
 // ---------------------------------------------------------------------------
 // Characterization: punch-down view stack
 // ---------------------------------------------------------------------------
 
-// NOTE: punch-down only supports branches reachable through the root span's
-// branch tree whose fork anchor is a direct content event of the parent
-// (`spliceToTimeline`/`ancestorChain` walk `branches`, not `content`) — a
-// branch attached to a nested agent span crashes on punch-down. This
-// scenario therefore attaches the branch (and its anchor) to the root span.
-function createRootBranchScenario(): MessagesEventsResponse {
+// The branch hangs off the nested Build agent rather than the root, the shape
+// `timeline_branch()` produces inside a subagent.
+function createNestedBranchScenario(): MessagesEventsResponse {
   const rootEvt = createModelEvent({
     uuid: "evt-root-1",
     startSec: 0,
@@ -265,8 +237,8 @@ function createRootBranchScenario(): MessagesEventsResponse {
   const anchorEvt = createAnchorEvent({
     anchorId: "fork-1",
     uuid: "evt-anchor-1",
-    atSec: 6,
-    spanId: "transcript",
+    atSec: 9,
+    spanId: "build",
   });
   const branchEvt = createModelEvent({
     uuid: "evt-branch-1",
@@ -308,7 +280,6 @@ function createRootBranchScenario(): MessagesEventsResponse {
     span_type: "agent",
     content: [
       { type: "event", event: "evt-root-1" },
-      { type: "event", event: "evt-anchor-1" },
       createTimelineSpan({
         id: "explore",
         name: "Explore",
@@ -319,20 +290,23 @@ function createRootBranchScenario(): MessagesEventsResponse {
         id: "build",
         name: "Build",
         span_type: "agent",
-        content: [{ type: "event", event: "evt-build-1" }],
-      }),
-    ],
-    branches: [
-      createTimelineSpan({
-        id: "branch-1",
-        name: "branch",
-        span_type: "branch",
-        branched_from: "fork-1",
         content: [
-          { type: "event", event: "evt-branch-1" },
-          { type: "event", event: "evt-sb-retry" },
-          { type: "event", event: "evt-retry-1" },
-          { type: "event", event: "evt-se-retry" },
+          { type: "event", event: "evt-build-1" },
+          { type: "event", event: "evt-anchor-1" },
+        ],
+        branches: [
+          createTimelineSpan({
+            id: "branch-1",
+            name: "branch",
+            span_type: "branch",
+            branched_from: "fork-1",
+            content: [
+              { type: "event", event: "evt-branch-1" },
+              { type: "event", event: "evt-sb-retry" },
+              { type: "event", event: "evt-retry-1" },
+              { type: "event", event: "evt-se-retry" },
+            ],
+          }),
         ],
       }),
     ],
@@ -342,9 +316,9 @@ function createRootBranchScenario(): MessagesEventsResponse {
     messages: [{ role: "user", content: "Help me refactor this code" }],
     events: [
       rootEvt,
-      anchorEvt,
       evt1,
       evt2,
+      anchorEvt,
       branchEvt,
       branchSpanBegin,
       branchInnerEvt,
@@ -358,13 +332,13 @@ test("punch-down opens a branch as a standalone timeline and back returns", asyn
   page,
   network,
 }) => {
-  setupTranscriptWithTimeline(network, createRootBranchScenario());
+  setupTranscriptWithTimeline(network, createNestedBranchScenario());
   await page.goto(transcriptUrl());
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
   await expect(swimlane).toBeVisible();
 
-  // Reveal the branch row via the root row's branch marker.
+  // Reveal the branch row via the Build row's branch marker.
   const branchMarker = swimlane
     .getByRole("button", { name: "Toggle branches" })
     .first();

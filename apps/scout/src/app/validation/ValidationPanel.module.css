@@ -40,11 +40,11 @@
 
 .searchInput {
   width: 180px;
-  font-size: 0.85rem !important;
+  font-size: 0.85rem;
 }
 
 .searchInput input {
-  font-size: 0.85rem !important;
+  font-size: 0.85rem;
 }
 
 .splitFilter {
@@ -59,9 +59,9 @@
 }
 
 .splitSelect {
-  width: 80px !important;
-  min-width: 80px !important;
-  max-width: 80px !important;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
 }
 
 .iconButton {

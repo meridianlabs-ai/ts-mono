@@ -2,9 +2,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { testIcons } from "../test/test-icons";
-
-import { ComponentIconProvider } from "./ComponentIconContext";
 import { ToolDropdownButton } from "./ToolDropdownButton";
 
 afterEach(cleanup);
@@ -14,14 +11,12 @@ describe("ToolDropdownButton heading and footer", () => {
     const onItem = vi.fn();
     const onFooter = vi.fn();
     render(
-      <ComponentIconProvider icons={testIcons}>
-        <ToolDropdownButton
-          label="Copy"
-          heading="Selected events (2)"
-          items={{ Markdown: onItem }}
-          footer={{ label: "Clear selection", icon: "i-x", onClick: onFooter }}
-        />
-      </ComponentIconProvider>
+      <ToolDropdownButton
+        label="Copy"
+        heading="Selected events (2)"
+        items={{ Markdown: onItem }}
+        footer={{ label: "Clear selection", icon: "close", onClick: onFooter }}
+      />
     );
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
@@ -43,13 +38,28 @@ describe("ToolDropdownButton heading and footer", () => {
   });
 
   it("renders neither heading nor divider without the props", () => {
-    render(
-      <ComponentIconProvider icons={testIcons}>
-        <ToolDropdownButton label="Copy" items={{ UUID: () => {} }} />
-      </ComponentIconProvider>
-    );
+    render(<ToolDropdownButton label="Copy" items={{ UUID: () => {} }} />);
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(screen.getByRole("button", { name: "UUID" })).toBeDefined();
     expect(screen.queryByRole("separator")).toBeNull();
+  });
+
+  it("marks the selected item of a rich item list", () => {
+    const onPick = vi.fn();
+    render(
+      <ToolDropdownButton
+        label="Agent"
+        items={[
+          { key: "a", label: "main", selected: true, onClick: vi.fn() },
+          { key: "b", label: "test-runner", onClick: onPick },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+    expect(
+      screen.getByRole("button", { name: "main" }).getAttribute("aria-current")
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "test-runner" }));
+    expect(onPick).toHaveBeenCalledOnce();
   });
 });

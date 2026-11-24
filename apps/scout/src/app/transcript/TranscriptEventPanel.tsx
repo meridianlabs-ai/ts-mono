@@ -3,6 +3,7 @@ import { FC, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   FocusTurnView,
   useEventNodes,
@@ -11,15 +12,12 @@ import {
   useFocusTurnNavigation,
 } from "@tsmono/inspect-components/transcript";
 import {
+  ContentTrustProvider,
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
-import {
-  navigateAndForget,
-  useDocumentTitle,
-  useRequiredParams,
-} from "@tsmono/react/hooks";
+import { useDocumentTitle, useRequiredParams } from "@tsmono/react/hooks";
 
 import { parseTranscriptParams, transcriptRoute } from "../../router/url";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
@@ -54,6 +52,7 @@ export const TranscriptEventPanel: FC = () => {
   const config = useAppConfig();
   const {
     displayTranscriptsDir,
+    resolvedTranscriptsDir,
     resolvedTranscriptsDirSource,
     setTranscriptsDir,
   } = useTranscriptsDir(true);
@@ -65,8 +64,8 @@ export const TranscriptEventPanel: FC = () => {
     data: transcript,
     error,
   } = useTranscript(
-    config.transcripts
-      ? { location: config.transcripts.dir, id: transcriptId }
+    resolvedTranscriptsDir
+      ? { location: resolvedTranscriptsDir, id: transcriptId }
       : skipToken
   );
 
@@ -81,12 +80,13 @@ export const TranscriptEventPanel: FC = () => {
   );
   // The full list keeps uuid-less node ids identical to the transcript's, so
   // focus links and `?event=` resolve here too.
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(
-    scope.laneEvents,
-    false,
-    undefined,
-    transcript?.events ?? kNoEvents
-  );
+  const { eventNodes, defaultCollapsedIds, recordsExecutionIds } =
+    useEventNodes(
+      scope.laneEvents,
+      false,
+      undefined,
+      transcript?.events ?? kNoEvents
+    );
   const setParams = useFocusSetParams(setSearchParams);
   const nav = useFocusTurnNavigation(
     eventNodes,
@@ -94,7 +94,8 @@ export const TranscriptEventPanel: FC = () => {
     searchParams.get("tab") ?? "Summary",
     setParams,
     defaultCollapsedIds,
-    scope
+    scope,
+    { recordsExecutionIds }
   );
 
   // Exit focus mode back to the transcript's events tab, deep-linked at the
@@ -112,7 +113,7 @@ export const TranscriptEventPanel: FC = () => {
   }, [transcriptsDir, transcriptId, resolvedEventId]);
   const onExit = useCallback(() => {
     if (!exitUrl) return;
-    navigateAndForget(navigate, exitUrl);
+    navigate(exitUrl);
   }, [exitUrl, navigate]);
 
   // Reuse the transcript view's own header on the focus page (mirrors how the
@@ -171,18 +172,22 @@ export const TranscriptEventPanel: FC = () => {
   return (
     <>
       <LoadingBar loading={loading} />
-      <FocusTurnView
-        nav={nav}
-        eventId={eventId}
-        header={header}
-        className={styles.focusRoot}
-        error={
-          transcript.error
-            ? { label: "Transcript error", message: transcript.error }
-            : undefined
-        }
-        onExit={onExit}
-      />
+      <ContentTrustProvider
+        value={trustContentSetting(transcript.trust_content)}
+      >
+        <FocusTurnView
+          nav={nav}
+          eventId={eventId}
+          header={header}
+          className={styles.focusRoot}
+          error={
+            transcript.error
+              ? { label: "Transcript error", message: transcript.error }
+              : undefined
+          }
+          onExit={onExit}
+        />
+      </ContentTrustProvider>
     </>
   );
 };

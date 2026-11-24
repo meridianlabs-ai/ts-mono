@@ -22,11 +22,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   testAssistantMessage,
+  testBranchEvent,
   testChatCompletionChoice,
+  testCompactionEvent,
+  testInfoEvent,
   testModelEvent,
   testModelOutput,
   testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
   testToolCall,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type {
   ChatCompletionChoice,
@@ -61,6 +67,7 @@ interface JsonEvent {
   timestamp?: string;
   completed?: string;
   model?: string;
+  origin?: string | null;
   function?: string;
   agent?: string;
   agent_span_id?: string;
@@ -221,6 +228,7 @@ function createEvent(data: JsonEvent): Event | null {
       return testModelEvent({
         ...baseFields,
         model,
+        origin: data.origin ?? null,
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         config: data.config ?? {},
@@ -254,13 +262,11 @@ function createEvent(data: JsonEvent): Event | null {
       const nestedEvents = data.events
         ?.map((e) => createEvent(e))
         .filter((e): e is Event => e !== null);
-      return {
+      return testToolEvent({
         ...baseFields,
-        event: "tool",
         id: data.id ?? "",
         function: data.function ?? "",
         arguments: {},
-        type: "function",
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         agent: data.agent ?? null,
@@ -268,64 +274,73 @@ function createEvent(data: JsonEvent): Event | null {
         result: data.result ?? "",
         agent_span_id: data.agent_span_id ?? null,
         message_id: data.message_id ?? null,
-      };
+      });
     }
 
     case "info": {
-      return {
+      return testInfoEvent({
         ...baseFields,
-        event: "info",
         source: data.source ?? "unknown",
         data: {},
         span_id: data.span_id ?? null,
-      };
+      });
     }
 
     case "span_begin": {
-      return {
+      return testSpanBeginEvent({
         ...baseFields,
-        event: "span_begin",
         id: data.id ?? "",
         name: data.name ?? "",
         type: data.type ?? null,
         parent_id: data.parent_id ?? null,
         span_id: data.span_id ?? null,
-      };
+      });
     }
 
     case "span_end": {
-      return {
+      return testSpanEndEvent({
         ...baseFields,
-        event: "span_end",
         id: data.id ?? "",
         span_id: data.span_id ?? null,
-      };
+      });
     }
 
     case "compaction": {
-      return {
+      return testCompactionEvent({
         ...baseFields,
-        event: "compaction",
         type: compactionType(data.type),
         span_id: data.span_id ?? null,
         source: null,
         tokens_before: null,
         tokens_after: null,
-      };
+      });
     }
 
     case "branch": {
-      return {
+      return testBranchEvent({
         ...baseFields,
-        event: "branch",
         span_id: data.span_id ?? null,
         from_anchor: data.from_anchor ?? "",
-      };
+      });
     }
 
     default:
       return null;
   }
+}
+
+function withoutOrigin(events: JsonEvent[]): boolean {
+  return events.every(
+    (event) => event.origin === undefined && withoutOrigin(event.events ?? [])
+  );
+}
+
+function recordedAsAgent(events: JsonEvent[]): JsonEvent[] {
+  return events.map((event) => ({
+    ...event,
+    ...(event.event === "model" ? { origin: "agent" } : {}),
+    ...(event.events ? { events: recordedAsAgent(event.events) } : {}),
+  }));
 }
 
 function eventsFromJson(data: FixtureData): Event[] {
@@ -658,6 +673,21 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
     const result = buildTimeline(events);
     assertTimelineMatches(result, fixture.expected);
   });
+
+  // a call recorded as "agent" goes through the same rules as one with no
+  // origin, so a log written with origins keeps its tree
+  it.each(fixtures.filter((name) => withoutOrigin(loadFixture(name).events)))(
+    "fixture with every call recorded as agent: %s",
+    (fixtureName) => {
+      const fixture = loadFixture(fixtureName);
+      const events = eventsFromJson({
+        ...fixture,
+        events: recordedAsAgent(fixture.events),
+      });
+      const result = buildTimeline(events);
+      assertTimelineMatches(result, fixture.expected);
+    }
+  );
 
   it("returns empty structure for empty events array", () => {
     const result = buildTimeline([]);

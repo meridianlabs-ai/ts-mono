@@ -2,7 +2,10 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { testAssistantMessage } from "@tsmono/inspect-common/testing";
+import {
+  testAssistantMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { ExtendedFindProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
@@ -45,11 +48,9 @@ function mountFollow(props: {
 describe("ChatViewRowsVirtualList paging", () => {
   const rowsOf = (count: number) =>
     buildMessageRows(
-      Array.from({ length: count }, (_, i): ChatMessage => ({
-        id: `m-${i}`,
-        role: "user",
-        content: `message ${i}`,
-      })),
+      Array.from({ length: count }, (_, i) =>
+        testUserMessage({ id: `m-${i}`, content: `message ${i}` })
+      ),
       messageRowOptions()
     );
 

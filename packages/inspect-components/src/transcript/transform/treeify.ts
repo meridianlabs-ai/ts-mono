@@ -330,9 +330,7 @@ const injectScorersSpan = (events: Event[]): Event[] => {
  * (agent cards) and structural `fork_nav`/`empty_branch` spans are preserved
  * even when childless.
  */
-export const filterEmptySpans = (
-  eventNodes: EventNode<EventType>[]
-): EventNode<EventType>[] => {
+export const filterEmptySpans = (eventNodes: EventNode[]): EventNode[] => {
   return eventNodes.filter((node) => {
     if (node.children.length > 0) {
       node.children = filterEmptySpans(node.children);

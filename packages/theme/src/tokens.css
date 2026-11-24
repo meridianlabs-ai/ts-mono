@@ -1,0 +1,98 @@
+/*
+ * Design tokens, under Bootstrap's --bs-* names. Values are copied from
+ * Bootstrap v5.3.8 (Copyright 2011-2025 The Bootstrap Authors, MIT license,
+ * https://github.com/twbs/bootstrap/blob/main/LICENSE).
+ *
+ * Colours that change with the theme use light-dark(), which follows
+ * color-scheme rather than data-bs-theme. setDocumentBaseScheme writes both
+ * on <html>; hosts that write only the attribute need a matching color-scheme
+ * rule (vscode.css and hawk have one). The -rgb triplets aren't colours, so
+ * they keep per-theme blocks.
+ */
+
+:root {
+  --bs-red: #dc3545;
+  --bs-orange: #fd7e14;
+  --bs-gray-600: #6c757d;
+  --bs-primary: #0d6efd;
+  --bs-secondary: #6c757d;
+  --bs-success: #198754;
+  --bs-warning: #ffc107;
+  --bs-danger: #dc3545;
+  --bs-light: #f8f9fa;
+  --bs-primary-rgb: 13, 110, 253;
+  --bs-secondary-rgb: 108, 117, 125;
+  --bs-info-rgb: 13, 202, 240;
+  --bs-danger-rgb: 220, 53, 69;
+  --bs-primary-text-emphasis: light-dark(#052c65, #6ea8fe);
+  --bs-success-text-emphasis: light-dark(#0a3622, #75b798);
+  --bs-warning-text-emphasis: light-dark(#664d03, #ffda6a);
+  --bs-danger-text-emphasis: light-dark(#58151c, #ea868f);
+  --bs-primary-bg-subtle: light-dark(#cfe2ff, #031633);
+  --bs-secondary-bg-subtle: light-dark(#e2e3e5, #161719);
+  --bs-success-bg-subtle: light-dark(#d1e7dd, #051b11);
+  --bs-info-bg-subtle: light-dark(#cff4fc, #032830);
+  --bs-warning-bg-subtle: light-dark(#fff3cd, #332701);
+  --bs-danger-bg-subtle: light-dark(#f8d7da, #2c0b0e);
+  --bs-light-bg-subtle: light-dark(#fcfcfd, #343a40);
+  --bs-success-border-subtle: light-dark(#a3cfbb, #0f5132);
+  --bs-warning-border-subtle: light-dark(#ffe69c, #997404);
+  --bs-danger-border-subtle: light-dark(#f1aeb5, #842029);
+  --bs-light-border-subtle: light-dark(#e9ecef, #495057);
+  --bs-font-sans-serif:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
+    "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+  --bs-font-monospace:
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  --bs-body-font-family: var(--bs-font-sans-serif);
+  --bs-body-font-size: 1rem;
+  --bs-body-font-weight: 400;
+  --bs-body-line-height: 1.5;
+  --bs-body-color: light-dark(#212529, #dee2e6);
+  --bs-body-bg: light-dark(#fff, #212529);
+  --bs-emphasis-color: light-dark(#000, #fff);
+  --bs-secondary-color: light-dark(
+    rgba(33, 37, 41, 0.75),
+    rgba(222, 226, 230, 0.75)
+  );
+  --bs-secondary-bg: light-dark(#e9ecef, #343a40);
+  --bs-tertiary-color: light-dark(
+    rgba(33, 37, 41, 0.5),
+    rgba(222, 226, 230, 0.5)
+  );
+  --bs-tertiary-bg: light-dark(#f8f9fa, #2b3035);
+  --bs-heading-color: inherit;
+  --bs-link-color: light-dark(#0d6efd, #6ea8fe);
+  --bs-link-hover-color: light-dark(#0a58ca, #8bb9fe);
+  --bs-code-color: light-dark(#d63384, #e685b5);
+  --bs-highlight-color: light-dark(#212529, #dee2e6);
+  --bs-highlight-bg: light-dark(#fff3cd, #664d03);
+  --bs-border-width: 1px;
+  --bs-border-color: light-dark(#dee2e6, #495057);
+  --bs-border-color-translucent: light-dark(
+    rgba(0, 0, 0, 0.175),
+    rgba(255, 255, 255, 0.15)
+  );
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-sm: 0.25rem;
+  --bs-border-radius-pill: 50rem;
+  --bs-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+:root,
+[data-bs-theme="light"] {
+  --bs-body-color-rgb: 33, 37, 41;
+  --bs-emphasis-color-rgb: 0, 0, 0;
+  --bs-link-color-rgb: 13, 110, 253;
+  --bs-link-hover-color-rgb: 10, 88, 202;
+}
+
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+  --bs-body-color-rgb: 222, 226, 230;
+  --bs-emphasis-color-rgb: 255, 255, 255;
+  --bs-link-color-rgb: 110, 168, 254;
+  --bs-link-hover-color-rgb: 139, 185, 254;
+}

@@ -3,13 +3,13 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import {
+  ContentTrustProvider,
   JSONPanel,
   SegmentedControl,
   TabPanel,
   TabSet,
 } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../icons";
 import { GRID_STATE_NAME } from "../../state/dataframeState";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
@@ -48,7 +48,6 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
     (state) => state.setSelectedResultsTab
   );
 
-  const selectedScanner = useStore((state) => state.selectedScanner);
   const visibleScannerResults = useStore(
     (state) => state.visibleScannerResults
   );
@@ -155,9 +154,7 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
       options.push("model");
     }
     return options;
-    // TODO: lint react-hooks/exhaustive-deps - refactor to avoid the lint
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedScanner, visibleScannerResults]);
+  }, [visibleScannerResults]);
 
   const tools: ReactNode[] = [];
   if (selectedTab === kTabIdScans || selectedTab === undefined) {
@@ -213,15 +210,15 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
           {
             id: kSegmentList,
             label: kSegmentList,
-            icon: ApplicationIcons.file,
+            icon: "file",
           },
           {
-            icon: ApplicationIcons.samples,
+            icon: "samples",
             id: kSegmentDataframe,
             label: kSegmentDataframe,
           },
         ]}
-        onSegmentChange={(segmentId: string, _index: number) => {
+        onSegmentChange={(segmentId: string) => {
           setSelectedResultsView(segmentId);
         }}
       />
@@ -268,11 +265,14 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
           }}
           scrollable={true}
         >
-          <JSONPanel
-            id="task-json-contents"
-            data={selectedScan}
-            simple={true}
-          />
+          {/* Scan status is application data; JSON strings can't render as markdown or media. */}
+          <ContentTrustProvider value="trusted">
+            <JSONPanel
+              id="task-json-contents"
+              data={selectedScan}
+              simple={true}
+            />
+          </ContentTrustProvider>
         </TabPanel>
       </TabSet>
       {selectedResultsView === kSegmentDataframe && buttonElement && (

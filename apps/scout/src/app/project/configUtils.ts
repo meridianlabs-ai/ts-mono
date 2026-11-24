@@ -190,6 +190,7 @@ const kEditableConfigKeys = [
   "model_base_url",
   "model_args",
   "generate_config",
+  "trust_content",
 ] as const satisfies readonly (keyof ProjectConfigInput)[];
 
 type EditableConfigKey = (typeof kEditableConfigKeys)[number];
@@ -269,6 +270,7 @@ export function initializeEditedConfig(
     model_base_url: ownField(serverConfig, "model_base_url") ?? null,
     model_args: ownField(serverConfig, "model_args") ?? null,
     generate_config: ownField(serverConfig, "generate_config") ?? null,
+    trust_content: ownField(serverConfig, "trust_content") ?? null,
   } satisfies Record<EditableConfigKey, unknown>;
 }
 

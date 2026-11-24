@@ -3,18 +3,17 @@ import { FC, ReactNode } from "react";
 
 import type { SubtaskEvent } from "@tsmono/inspect-common/types";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { Icon } from "@tsmono/react/icons";
 import { isRecord } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import styles from "./SubtaskEventView.module.css";
-import { EventNode, EventPanelCallbacks, EventType } from "./types";
-
-const kArrowRightIcon = "bi bi-arrow-right";
+import { EventNode, EventPanelCallbacks } from "./types";
 
 interface SubtaskEventViewProps {
   eventNode: EventNode<SubtaskEvent>;
-  childNodes: EventNode<EventType>[];
+  childNodes: EventNode[];
   className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }
@@ -84,7 +83,7 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
       <div className={clsx("text-style-label", "text-size-small")}>Output</div>
       <Rendered values={input} />
       <div className={clsx("text-size-title-secondary", styles.subtaskLabel)}>
-        <i className={kArrowRightIcon} />
+        <Icon name="arrowRight" />
       </div>
       <div>{output ? <Rendered values={output} /> : "-"}</div>
     </div>

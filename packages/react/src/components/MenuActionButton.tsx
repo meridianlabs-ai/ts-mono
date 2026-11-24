@@ -1,12 +1,14 @@
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useState } from "react";
 
-import { useComponentIcons } from "./ComponentIconContext";
+import { Icon, IconName } from "../icons";
+
+import { AnchoredPopover } from "./AnchoredPopover";
 import styles from "./MenuActionButton.module.css";
 
 export interface MenuActionItem {
   label: string;
   value: string;
-  icon?: string;
+  icon?: IconName;
   disabled?: boolean;
 }
 
@@ -23,75 +25,48 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   disabled,
   title,
 }) => {
-  const icons = useComponentIcons();
   const [showMenu, setShowMenu] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
 
   const handleSelect = (value: string) => {
     setShowMenu(false);
     onSelect(value);
   };
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!showMenu) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // This Escape closes the menu and nothing else: stop it here (the
-      // capture-phase registration below runs first) so an enclosing
-      // surface's own Escape handler — e.g. Modal's, on document bubble —
-      // doesn't also fire and close both layers at once.
-      e.stopPropagation();
-      // Only pull focus back to the trigger when it was inside the menu —
-      // Escape is a document listener, so it also fires from anywhere else.
-      const refocus =
-        wrapperRef.current?.contains(document.activeElement) ?? false;
-      setShowMenu(false);
-      if (refocus) triggerRef.current?.focus();
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [showMenu]);
-
   return (
-    <div ref={wrapperRef} className={styles.wrapper}>
+    <div className={styles.wrapper}>
       <button
-        ref={triggerRef}
+        ref={setTrigger}
         type="button"
         className={styles.iconButton}
         onClick={() => setShowMenu((prev) => !prev)}
         title={title}
         disabled={disabled}
-        aria-haspopup="menu"
         aria-expanded={showMenu}
       >
-        <i className={icons.menu} aria-hidden="true" />
+        <Icon name="threeDots" />
       </button>
-      {showMenu && (
-        <>
-          {/* Mouse-only dismissal; Escape closes the menu for keyboard users. */}
-          <div
-            className={styles.backdrop}
-            role="presentation"
-            onClick={() => setShowMenu(false)}
-          />
-          <div className={styles.menu}>
-            {items.map((item) => (
-              <button
-                type="button"
-                key={item.value}
-                className={styles.menuItem}
-                onClick={() => handleSelect(item.value)}
-                disabled={item.disabled}
-              >
-                {item.icon && <i className={item.icon} />}
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <AnchoredPopover
+        open={showMenu}
+        onClose={() => setShowMenu(false)}
+        anchor={trigger}
+        placement="bottom-end"
+        offset={2}
+        className={styles.menu}
+      >
+        {items.map((item) => (
+          <button
+            type="button"
+            key={item.value}
+            className={styles.menuItem}
+            onClick={() => handleSelect(item.value)}
+            disabled={item.disabled}
+          >
+            {item.icon && <Icon name={item.icon} />}
+            {item.label}
+          </button>
+        ))}
+      </AnchoredPopover>
     </div>
   );
 };

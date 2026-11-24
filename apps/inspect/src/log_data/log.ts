@@ -6,7 +6,7 @@ import { AsyncData, data as asyncData, loading } from "@tsmono/util";
 
 import { Log, LogFetchState, LogHeader } from "../client/api/types";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import { currentDatabase } from "./databaseInstance";
 import { logKey, useLogs } from "./logsContent";
 import { fetchLog } from "./replicationControl";
 
@@ -28,8 +28,8 @@ const useLogRow = (
       key === undefined
         ? skipToken
         : async () => {
-            const db = getDatabaseService();
-            return (db.opened() ? await db.readLogRow(key) : null) ?? null;
+            const db = currentDatabase();
+            return (db ? await db.readLogRow(key) : null) ?? null;
           },
     staleTime: Infinity,
     // default gcTime: eviction is desired — IndexedDB re-seeds on remount.

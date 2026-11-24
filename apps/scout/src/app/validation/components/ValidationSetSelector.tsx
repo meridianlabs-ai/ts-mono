@@ -1,8 +1,7 @@
 import { VscodeTextfield } from "@vscode-elements/react-elements";
-import { FC, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { FC, useMemo, useState } from "react";
 
-import { Modal } from "@tsmono/react/components";
+import { AnchoredPopover, Modal } from "@tsmono/react/components";
 import { dirname } from "@tsmono/util";
 
 import { AppConfig } from "../../../types/api-types";
@@ -50,26 +49,18 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   appConfig,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
 
   // Modal state for creating new set
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSetName, setNewSetName] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Extract display name from URI (last part of path with extension)
-  const getDisplayName = (uri: string): string => {
-    return getFilenameFromUri(uri);
-  };
-
   // Find the longest display name for sizing
   const longestDisplayName = useMemo(() => {
     if (validationSets.length === 0) return "";
     return validationSets.reduce((longest, uri) => {
-      const name = getDisplayName(uri);
+      const name = getFilenameFromUri(uri);
       return name.length > longest.length ? name : longest;
     }, "");
   }, [validationSets]);
@@ -84,60 +75,6 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
     }
     return path ?? uri;
   };
-
-  // Update dropdown position when opening
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setDropdownStyle({
-        position: "fixed",
-        top: rect.bottom + 2,
-        left: rect.left,
-        width: rect.width,
-      });
-    }
-  }, [isOpen]);
-
-  // Close dropdown when trigger resizes to prevent orphaned positioning
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
-
-    let initialCall = true;
-    const observer = new ResizeObserver(() => {
-      // Skip the initial callback that fires when observe() is called
-      if (initialCall) {
-        initialCall = false;
-        return;
-      }
-      setIsOpen(false);
-    });
-
-    observer.observe(triggerRef.current);
-    return () => observer.disconnect();
-  }, [isOpen]);
-
-  // Close on click outside (check both container and dropdown since dropdown is in portal)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target instanceof Node ? e.target : null;
-      const isOutsideContainer =
-        containerRef.current && !containerRef.current.contains(target);
-      const isOutsideDropdown =
-        dropdownRef.current && !dropdownRef.current.contains(target);
-
-      if (isOutsideContainer && isOutsideDropdown) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isOpen]);
 
   const handleSelect = (uri: string) => {
     if (uri === "__create_new__") {
@@ -253,11 +190,14 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
     return !!getDisplayPath(uri, appConfig);
   });
 
-  const dropdown = isOpen ? (
-    <div
-      ref={dropdownRef}
+  const dropdown = (
+    <AnchoredPopover
+      open={isOpen}
+      onClose={() => setIsOpen(false)}
+      anchor={trigger}
+      placement="bottom-start"
+      offset={2}
       className={styles.dropdown}
-      style={dropdownStyle}
       role="listbox"
     >
       {validationSets.map((uri) => (
@@ -269,7 +209,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           className={`${styles.item} ${selectedUri === uri ? styles.selected : ""}`}
           onClick={() => handleSelect(uri)}
         >
-          <div className={styles.primaryText}>{getDisplayName(uri)}</div>
+          <div className={styles.primaryText}>{getFilenameFromUri(uri)}</div>
           <div className={styles.secondaryText}>
             {getDisplayPath(uri, appConfig) || (hasNonRootDir ? "\u00A0" : "")}
           </div>
@@ -291,16 +231,16 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           </button>
         </>
       )}
-    </div>
-  ) : null;
+    </AnchoredPopover>
+  );
 
   return (
     <>
-      <div ref={containerRef} className={styles.container}>
+      <div className={styles.container}>
         {/* Trigger button - shows selected item */}
         <button
           type="button"
-          ref={triggerRef}
+          ref={setTrigger}
           className={styles.trigger}
           onClick={() => setIsOpen(!isOpen)}
           onKeyDown={handleKeyDown}
@@ -316,7 +256,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             )}
             {selectedUri ? (
               <span className={styles.triggerPrimary}>
-                {getDisplayName(selectedUri)}
+                {getFilenameFromUri(selectedUri)}
               </span>
             ) : (
               <span className={styles.triggerPlaceholder}>
@@ -329,8 +269,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           </span>
         </button>
 
-        {/* Dropdown rendered via portal to escape clipping */}
-        {createPortal(dropdown, document.body)}
+        {dropdown}
       </div>
 
       {/* Create new set modal */}

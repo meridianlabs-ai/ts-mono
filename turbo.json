@@ -4,7 +4,8 @@
   "globalDependencies": [
     "tooling/eslint-config/**",
     "tooling/tsconfig/**",
-    "tooling/prettier-config/**"
+    "tooling/prettier-config/**",
+    "tooling/vitest-config/**"
   ],
   "tasks": {
     "generate:css": {

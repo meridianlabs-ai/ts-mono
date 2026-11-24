@@ -4,13 +4,11 @@ import type { StoreSlice } from "./store";
 
 export interface AppSlice {
   singleFileMode?: boolean;
-  hasInitializedEmbeddedData?: boolean;
   scopedErrors: Record<ErrorScope, string | undefined>;
   showFind?: boolean;
 
   setShowFind: (show: boolean) => void;
   setSingleFileMode: (enabled: boolean) => void;
-  setHasInitializedEmbeddedData: (initialized: boolean) => void;
   setError: (scope: ErrorScope, error: string | undefined) => void;
   clearError: (scope: ErrorScope) => void;
 }
@@ -32,11 +30,6 @@ export const createAppSlice: StoreSlice<AppSlice> = (set) => ({
   setSingleFileMode: (enabled: boolean) => {
     set((state) => {
       state.singleFileMode = enabled;
-    });
-  },
-  setHasInitializedEmbeddedData: (initialized: boolean) => {
-    set((state) => {
-      state.hasInitializedEmbeddedData = initialized;
     });
   },
   setError: (scope: ErrorScope, error: string | undefined) => {

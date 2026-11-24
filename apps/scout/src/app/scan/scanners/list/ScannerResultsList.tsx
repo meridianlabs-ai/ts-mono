@@ -5,6 +5,8 @@ import { useSearchParams } from "react-router";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
+import { useEventListener, useMirrorToStore } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { basename, isRecord, valueAsString } from "@tsmono/util";
@@ -31,7 +33,7 @@ import {
 import { ScannerResultsGroup } from "./ScannerResultsGroup";
 import { ScannerResultsHeader } from "./ScannerResultsHeader";
 import styles from "./ScannerResultsList.module.css";
-import { ScannerResultsRow } from "./ScannerResultsRow";
+import { ScannerResultsRow, scanResultSearchText } from "./ScannerResultsRow";
 
 export interface GridDescriptor {
   gridStyle: Record<string, string>;
@@ -92,12 +94,12 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const sortResults = useStore((state) => state.sortResults);
   const setSortResults = useStore((state) => state.setSortResults);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (selectedFilter === undefined && selectedScan.complete === false) {
-      setSelectedFilter(kFilterAllResults);
-    }
-  }, [selectedScan, selectedFilter, setSelectedFilter]);
+  useMirrorToStore(
+    selectedFilter === undefined && selectedScan.complete === false
+      ? kFilterAllResults
+      : undefined,
+    setSelectedFilter
+  );
 
   const kDefaultSort: SortColumn[] = useMemo(
     () => [{ column: "Result", direction: "asc" }],
@@ -108,12 +110,10 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const activeSort = sortResults ?? kDefaultSort;
 
   // Sync the default to the store so the column header shows the sort indicator.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!sortResults && scannerSummaries.length > 0) {
-      setSortResults(kDefaultSort);
-    }
-  }, [sortResults, scannerSummaries, kDefaultSort, setSortResults]);
+  useMirrorToStore(
+    !sortResults && scannerSummaries.length > 0 ? kDefaultSort : undefined,
+    setSortResults
+  );
 
   // Apply text filtering to the scanner summaries
   const filteredSummaries = useMemo(() => {
@@ -244,7 +244,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
         searchParams
       );
       if (newWindow) {
-        window.open(route, "_blank");
+        openRouteInNewTab(route);
       } else {
         navigate(route);
       }
@@ -264,9 +264,10 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     currentIndex >= 0 && currentIndex < filteredSummaries.length - 1;
 
   // Global keydown handler for keyboard shortcuts
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
+  useEventListener(
+    document,
+    "keydown",
+    (e) => {
       // Don't handle keyboard events if focus is on an input, textarea, or select element
       const activeElement = document.activeElement;
       const isInputFocused =
@@ -311,35 +312,17 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           handleEnter(e.metaKey || e.ctrlKey);
         }
       }
-    };
-
+    },
     // Use capture phase to catch event before it reaches other handlers
-    document.addEventListener("keydown", handleGlobalKeyDown, true);
+    { capture: true }
+  );
 
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown, true);
-    };
-  }, [
-    hasPrevious,
-    hasNext,
-    handlePrevious,
-    handleNext,
-    handleEnter,
-    filteredSummaries,
-    setSelectedScanResult,
-  ]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // Only set if nothing is selected and we have results
-    if (
-      !selectedScanResult &&
-      filteredSummaries.length > 0 &&
-      filteredSummaries[0]?.identifier
-    ) {
-      setSelectedScanResult(filteredSummaries[0].identifier);
-    }
-  }, [filteredSummaries, selectedScanResult, setSelectedScanResult]);
+  useMirrorToStore(
+    selectedScanResult
+      ? undefined
+      : filteredSummaries[0]?.identifier || undefined,
+    setSelectedScanResult
+  );
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
@@ -392,6 +375,14 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     [gridDescriptor]
   );
 
+  const itemSearchText = useCallback(
+    (entry: ScanResultSummary | ResultGroup) =>
+      isResultGroup(entry)
+        ? entry.label
+        : scanResultSearchText(entry, gridDescriptor),
+    [gridDescriptor]
+  );
+
   let noContentMessage: string | undefined = undefined;
   if (!isLoading && scannerSummaries.length === 0) {
     noContentMessage = "No scan results are available.";
@@ -424,6 +415,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           ref={listHandle}
           data={rows}
           renderRow={renderRow}
+          itemSearchText={itemSearchText}
           smoothScroll={false}
         />
       )}

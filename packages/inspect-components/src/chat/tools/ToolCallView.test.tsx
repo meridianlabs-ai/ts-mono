@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUi, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
+import {
+  makeStateHooks,
+  ResizeObserverStub,
+  TrustedContentWrapper,
+} from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../../content/DisplayModeContext";
 
 import { ClientToolCall } from "./ClientToolCall";
 import { ToolCallView } from "./ToolCallView";
 import { ToolOutput } from "./ToolOutput";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
@@ -158,5 +166,35 @@ describe("ToolOutput JSON-looking text", () => {
     const { container } = renderToolOutput("{not json}", "rendered");
 
     expect(container.querySelector("code")?.textContent).toBe("{not json}");
+  });
+});
+
+describe("ClientToolCall selection", () => {
+  it("keeps the selection control when a custom tool view owns the content", () => {
+    const { getByRole, getByText } = render(
+      <ClientToolCall
+        id="custom-tool"
+        tool="custom"
+        functionCall="custom()"
+        output="result"
+        getCustomToolView={() => <div>Custom tool content</div>}
+        headerLeading={
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={false}
+            aria-label="Select message"
+          />
+        }
+      />
+    );
+    expect(getByText("Custom tool content").textContent).toBe(
+      "Custom tool content"
+    );
+    expect(
+      getByRole("checkbox", { name: "Select message" }).getAttribute(
+        "aria-checked"
+      )
+    ).toBe("false");
   });
 });

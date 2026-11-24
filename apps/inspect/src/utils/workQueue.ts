@@ -33,10 +33,7 @@ interface WorkQueueOptions<TInput, TOutput> {
   worker: (items: TInput[]) => Promise<WorkResult<TOutput>[]>;
   /** Called once per batch with SETTLED items only (successes + final
    *  failures). Retryable failures are re-enqueued silently. */
-  onComplete: (
-    results: WorkResult<TOutput>[],
-    inputs: TInput[]
-  ) => Promise<void>;
+  onComplete: (results: WorkResult<TOutput>[], inputs: TInput[]) => void;
   onProcessingChanged?: (processing: boolean) => void;
 }
 
@@ -52,7 +49,7 @@ export class WorkQueue<TInput, TOutput> {
       batchSizeFor: () => 1,
       processingDelay: 100,
       maxRetries: 3,
-      onProcessingChanged: (_processing: boolean) => {},
+      onProcessingChanged: () => {},
       ...options,
     };
   }
@@ -80,7 +77,7 @@ export class WorkQueue<TInput, TOutput> {
         });
       }
     }
-    void this.startProcessing();
+    this.startProcessing();
   }
 
   private startProcessing() {
@@ -100,9 +97,9 @@ export class WorkQueue<TInput, TOutput> {
         }
       }
 
-      // Run the worker
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.runWorker();
+      this.runWorker().catch((error: unknown) => {
+        console.error(`${this.options.name} worker error:`, error);
+      });
     }
   }
 
@@ -150,7 +147,6 @@ export class WorkQueue<TInput, TOutput> {
           }
         }
         if (settledResults.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.options.onComplete(settledResults, settledInputs);
         }
 

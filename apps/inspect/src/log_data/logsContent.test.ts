@@ -5,40 +5,53 @@
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
+import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
+import { Log } from "../client/api/types";
 import { DB_NAME } from "../client/database/schema";
-import {
-  createDatabaseService,
-  DatabaseService,
-} from "../client/database/service";
+import { OpenDatabase } from "../client/database/service";
+import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
 import {
+  databaseLogsListingKey,
+  invalidateDatabaseLogsListings,
+} from "./databaseListings";
+import {
   clearFile,
+  getLogRows,
   logKey,
   mergeFetchStates,
+  mergeRows,
   setListing,
+  setRows,
+  writeDetails,
+  writeFetchStates,
   writeListing,
   writePreviews,
 } from "./logsContent";
 
-const invalidateListings = vi.hoisted(() => vi.fn());
-vi.mock("./databaseListings", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./databaseListings")>()),
-  invalidateDatabaseLogsListings: invalidateListings,
-}));
+const row = (name: string): Log => ({
+  name,
+  depth: "listed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
 
 describe("writeListing", () => {
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
-    await db.openDatabase();
+    db = await OpenDatabase.open();
   });
 
   afterEach(async () => {
     queryClient.clear();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
+    vi.restoreAllMocks();
   });
 
   test("persists and reads back rows in the dir's namespace", async () => {
@@ -66,14 +79,155 @@ describe("writeListing", () => {
     expect(await db.readLogs({ prefix: "~/logs" })).toHaveLength(0);
     expect(await db.getSyncScope("~/logs")).toBeUndefined();
   });
+
+  test("keeps a details write that lands in the cache after the read-back", async () => {
+    const logDir = "file:///logs";
+    const name = "file:///logs/a.eval";
+    await writeListing(db, logDir, [{ name, mtime: 1 }]);
+    // The log is open: its per-entity entry is observed.
+    queryClient.setQueryData(logKey(logDir, name), null);
+
+    // A details flush merges into the cache between the listing's read-back
+    // and its cache write; its transaction commits after the read.
+    let details: Promise<unknown> | undefined;
+    const readLogs = db.readLogs.bind(db);
+    vi.spyOn(db, "readLogs").mockImplementationOnce(async (scope) => {
+      const rows = await readLogs(scope);
+      details = writeDetails(db, logDir, { [name]: testLogDetails() });
+      await vi.waitFor(() =>
+        expect(getLogRows(logDir)[0]?.depth).toBe("detailed")
+      );
+      return rows;
+    });
+
+    const rows = await writeListing(db, logDir, [{ name, mtime: 2 }]);
+    await details;
+
+    expect(rows.map((row) => [row.depth, row.mtime])).toEqual([
+      ["detailed", 2],
+    ]);
+    expect(
+      getLogRows(logDir).map((row) => [row.depth, row.mtime, !!row.header])
+    ).toEqual([["detailed", 2, true]]);
+    const entry = queryClient.getQueryData<Log>(logKey(logDir, name));
+    expect([entry?.depth, entry?.mtime, !!entry?.header]).toEqual([
+      "detailed",
+      2,
+      true,
+    ]);
+    expect(await db.readLogRow(name)).toMatchObject({
+      depth: "detailed",
+      mtime: 2,
+    });
+  });
+
+  test("keeps an open log's retrieval facts, which the cached listing row lags", async () => {
+    const logDir = "file:///logs";
+    const name = "file:///logs/a.eval";
+    await writeListing(db, logDir, [{ name, mtime: 1 }]);
+    queryClient.setQueryData(logKey(logDir, name), null);
+    await writeFetchStates(db, logDir, {
+      [name]: {
+        preview_attempts: 0,
+        details_attempts: 0,
+        details_settled_seq: 3,
+      },
+    });
+
+    await writeListing(db, logDir, [{ name, mtime: 2 }]);
+
+    expect(queryClient.getQueryData(logKey(logDir, name))).toMatchObject({
+      mtime: 2,
+      details_settled_seq: 3,
+    });
+  });
+});
+
+describe("writeDetails", () => {
+  let db: OpenDatabase;
+
+  beforeEach(async () => {
+    db = await OpenDatabase.open();
+  });
+
+  afterEach(async () => {
+    queryClient.clear();
+    db.close();
+    await Dexie.delete(DB_NAME);
+    vi.restoreAllMocks();
+  });
+
+  test("a payload whose derivation throws is skipped and reported without taking the rest of the batch with it", async () => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Wire data the normalizers pass through but derivation rejects: the
+    // spec normalizer does not validate model_roles, and modelRoleNames
+    // dereferences each role's config.
+    const poisoned = normalizeEvalHeader({
+      eval: { ...testEvalSpec(), model_roles: { grader: null } },
+    });
+
+    const failures = await writeDetails(db, "file:///logs", {
+      "file:///logs/bad.eval": testLogDetails(poisoned),
+      "file:///logs/good.eval": testLogDetails({
+        sampleSummaries: [testSampleSummary({ id: "s1" })],
+      }),
+    });
+
+    const rows = await db.readLogs({ prefix: "file:///logs" });
+    expect(rows?.map((row) => [row.name, row.depth])).toEqual([
+      ["file:///logs/good.eval", "detailed"],
+    ]);
+    expect(
+      await db.readSampleSummaries({ file: "file:///logs/good.eval" })
+    ).toHaveLength(1);
+    expect(Object.keys(failures)).toEqual(["file:///logs/bad.eval"]);
+    expect(logError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("mergeRows", () => {
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  // Regression for the beginFetch cache-hit path calling seedRows([cached])
+  // (a full-collection replace) instead of a merge — one hit collapsed the
+  // whole directory listing down to that one row.
+  test("upserts one row without dropping the rest of the collection", () => {
+    setRows("/logs", [row("/logs/a.eval"), row("/logs/b.eval")]);
+
+    mergeRows("/logs", { "/logs/a.eval": { status: "success" } });
+
+    const rows = getLogRows("/logs");
+    expect(rows.map((r) => r.name)).toEqual(["/logs/a.eval", "/logs/b.eval"]);
+    expect(rows.find((r) => r.name === "/logs/a.eval")?.status).toBe("success");
+  });
+
+  test("appends a row for a name outside the current collection", () => {
+    setRows("/logs", [row("/logs/a.eval")]);
+
+    mergeRows("/logs", { "/logs/b.eval": { status: "success" } });
+
+    expect(getLogRows("/logs").map((r) => r.name)).toEqual([
+      "/logs/a.eval",
+      "/logs/b.eval",
+    ]);
+  });
 });
 
 describe("db-less write invalidation", () => {
   // Listing queries in db-less sessions read from the react-query cache and
   // only refetch on invalidation — so every cache-updating write must fire
   // it, not just the persisted ones.
+  const listingKey = databaseLogsListingKey("/plain/logs", "accessors");
+  const listingInvalidated = () =>
+    queryClient.getQueryState(listingKey)?.isInvalidated;
+
   beforeEach(() => {
-    invalidateListings.mockClear();
+    // Fire a trailing invalidation armed by an earlier test's write now, so
+    // it can't stand in for the one under test.
+    invalidateDatabaseLogsListings.flush();
+    queryClient.setQueryData(listingKey, { items: [] });
   });
 
   afterEach(() => {
@@ -81,13 +235,15 @@ describe("db-less write invalidation", () => {
   });
 
   test("a db-less preview merge refreshes the listings", async () => {
+    expect(listingInvalidated()).toBe(false);
     await writePreviews(null, "/plain/logs", {});
-    expect(invalidateListings).toHaveBeenCalled();
+    await vi.waitFor(() => expect(listingInvalidated()).toBe(true));
   });
 
   test("a db-less file clear refreshes the listings", async () => {
+    expect(listingInvalidated()).toBe(false);
     await clearFile(null, "/plain/logs", "/plain/logs/a.eval");
-    expect(invalidateListings).toHaveBeenCalled();
+    await vi.waitFor(() => expect(listingInvalidated()).toBe(true));
   });
 });
 

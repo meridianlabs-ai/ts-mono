@@ -1,4 +1,9 @@
-import type { SamplesViewState } from "../app/samples/list/samplesView";
+import { fillPersistedDefaults } from "@tsmono/util";
+
+import {
+  defaultSamplesView,
+  type SamplesViewState,
+} from "../app/samples/list/samplesView";
 import {
   DisplayedSample,
   LogListGridState,
@@ -11,9 +16,6 @@ import { StoreState } from "./store";
 export interface LogsSlice {
   logs: LogsState;
   logsActions: {
-    setSelectedLogFile: (logFile: string) => void;
-    clearSelectedLogFile: () => void;
-
     setSelectedRowIndex: (index: number | null) => void;
 
     /** Merge a partial grid-state update into the scope entry (created with
@@ -53,7 +55,6 @@ export interface LogsSlice {
 }
 
 const initialState: LogsState = {
-  selectedLogFile: undefined as string | undefined,
   listing: {
     columnVisibility: {},
     gridStateByScope: {},
@@ -68,8 +69,7 @@ const initialState: LogsState = {
 
 export const createLogsSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
-  _store: unknown
+  get: () => StoreState
 ): LogsSlice => {
   const slice = {
     // State
@@ -118,15 +118,6 @@ export const createLogsSlice = (
           state.logs.samplesListState.previousSamplesPath = path;
         });
       },
-      // Select a specific log file (pure UI state). Expects an already-absolute
-      // path; callers absolutize via the selectLogFile action. Ensuring the file is
-      // loadable happens in the loader layer (ensureSelectableLog), driven by
-      // loadLog when the selection is opened.
-      setSelectedLogFile: (logFile: string) => {
-        set((state) => {
-          state.logs.selectedLogFile = logFile;
-        });
-      },
       setSelectedRowIndex: (index: number | null) => {
         set((state) => {
           state.logs.listing.selectedRowIndex = index;
@@ -162,11 +153,6 @@ export const createLogsSlice = (
           state.logs.listing.columnVisibility = visibility;
         });
       },
-      clearSelectedLogFile: () => {
-        set((state) => {
-          state.logs.selectedLogFile = undefined;
-        });
-      },
     },
   } as const;
 
@@ -177,9 +163,12 @@ export const initializeLogsSlice = <T extends LogsSlice>(
   set: (fn: (state: T) => void) => void
 ) => {
   set((state) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.logs) {
-      state.logs = initialState;
+    if ("selectedLogFile" in state.logs) delete state.logs.selectedLogFile;
+    // Per-log views are keyed by file, so the store's merge has no initial
+    // entry to fill them from; fill each from the default view instead.
+    const byLog = state.logs.samplesListState.byLog;
+    for (const [logFile, view] of Object.entries(byLog)) {
+      byLog[logFile] = fillPersistedDefaults(view, defaultSamplesView());
     }
   });
 };

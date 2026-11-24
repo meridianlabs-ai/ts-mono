@@ -21,7 +21,6 @@
 }
 
 .table {
-  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   background-color: transparent;
@@ -115,6 +114,30 @@
 
 .sortIcon {
   font-size: 10px;
+}
+
+.sortIconIdle {
+  visibility: hidden;
+}
+
+/* The full view auto-sizes columns so names read in full (only the compact
+   card truncates). Full width lets stacked group tables line up: the scorer
+   column absorbs the slack, keeping metric columns flush right. */
+.table:not(.compact) {
+  width: 100%;
+}
+
+/* A scorer name too long for the capped dialog wraps, not ellipsizes. */
+.table:not(.compact) td.scorerCell {
+  min-width: 180px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.compact {
+  table-layout: fixed;
 }
 
 .compact th,

@@ -1,5 +1,5 @@
 import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
-import { FC, memo, RefObject, useCallback, useEffect, useMemo } from "react";
+import { FC, memo, RefObject, useCallback, useMemo } from "react";
 
 import { EarlyStoppingSummary } from "@tsmono/inspect-common/types";
 import type {
@@ -7,15 +7,21 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import { useDocumentTitleText } from "@tsmono/react/hooks";
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { selectSample, setDocumentTitle } from "../../../state/actions";
+import { documentTitle, highlightSample } from "../../../state/actions";
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
-import { useLogRouteParams } from "../../routing/url";
-import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
+import {
+  routeFromFullUrl,
+  toFullUrl,
+  useLogRouteParams,
+} from "../../routing/url";
 import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
@@ -79,22 +85,17 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const sampleNavigation = useSampleNavigationActions();
   const { sampleId: routeSampleId, epoch: routeEpoch } = useLogRouteParams();
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const highlightedSample = useStore((state) => state.log.highlightedSample);
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setDocumentTitle({ evalSpec });
-  }, [evalSpec]);
+  useDocumentTitleText(documentTitle({ evalSpec }));
 
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       // Re-clicking the sample that's currently open in the detail view
-      // would re-run selectSample + navigate redundantly — skip only that.
-      // Keyed off the route (not selectedSampleHandle, which persists after
+      // would re-run highlightSample + navigate redundantly — skip only that.
+      // Keyed off the route (not highlightedSample, which persists after
       // navigating back to the log and would wrongly ignore the re-click).
       if (
         isSampleOpenInRoute(routeSampleId, routeEpoch, row.sampleId, row.epoch)
@@ -106,6 +107,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     [sampleNavigation, routeSampleId, routeEpoch]
   );
 
+  const getRowHref = (row: SampleRow) => {
+    const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
+    return url ? toFullUrl(routeFromFullUrl(url)) : undefined;
+  };
+
   const getRowId = useCallback(
     (row: SampleRow) => makeSampleRowId(row.sampleId, row.epoch),
     []
@@ -114,13 +120,15 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   // Keyboard/click selection moves flow to the selection's owner (zustand),
   // which feeds back through selectedRowId — the grid never shadows it.
   const handleRowSelect = useCallback(
-    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    (row: SampleRow) => highlightSample(row.sampleId, row.epoch, row.logFile),
     []
   );
 
-  const selectedRowId = selectedSampleHandle
-    ? makeSampleRowId(selectedSampleHandle.id, selectedSampleHandle.epoch)
-    : undefined;
+  const logFile = useCurrentLogFile();
+  const selectedRowId =
+    highlightedSample?.logFile === logFile && highlightedSample
+      ? makeSampleRowId(highlightedSample.id, highlightedSample.epoch)
+      : undefined;
 
   const sampleCount = items.length;
 
@@ -188,6 +196,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         onRowSelect={handleRowSelect}
         scrollRef={scrollRef}
         onRowOpen={handleRowOpen}
+        getRowHref={getRowHref}
         columnFilters={columnFilters}
         onColumnFilterChange={onColumnFilterChange}
         hideColumnFilters={hideColumnFilters}

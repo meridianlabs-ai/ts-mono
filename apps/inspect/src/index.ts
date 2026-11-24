@@ -8,6 +8,8 @@
  * at any time and adapt accordingly.
  */
 
+import "./client/jsonParseWorker";
+
 // Main React App Component
 export { App } from "./app/App";
 
@@ -49,12 +51,12 @@ export type {
 // State Store
 export { initializeStore } from "./state/store";
 
-// Selection hooks
+// Selection hooks (also usable by chrome outside RouterProvider)
 export {
-  useSelectedSampleSummary,
   useSelectedScores,
+  useSelectedSampleSummary,
   useLogSelection,
-} from "./state/hooks";
+} from "./embed";
 
 // Selection-related types
 export type { SampleSummary } from "./client/api/types";

@@ -10,7 +10,7 @@ import { createContext, FC, ReactNode, useContext } from "react";
  * app's store and returns reactive values.
  *
  * Adding a new member causes compile errors in both apps until they
- * supply an implementation (same enforcement pattern as ComponentIcons).
+ * supply an implementation.
  */
 export interface ComponentStateHooks {
   // Property bag (persistent key-value UI state)

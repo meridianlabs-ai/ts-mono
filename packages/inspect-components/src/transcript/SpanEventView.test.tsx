@@ -7,16 +7,9 @@ import {
   testStepEvent,
 } from "@tsmono/inspect-common/testing";
 import type { SpanBeginEvent, StepEvent } from "@tsmono/inspect-common/types";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import {
-  makeStateHooks,
-  ResizeObserverStub,
-  testIcons,
-} from "@tsmono/react/testing";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { SpanEventView } from "./SpanEventView";
 import { eventNode } from "./testHelpers";
@@ -25,11 +18,9 @@ import { kSandboxSignalName } from "./transform/fixups";
 const renderView = (event: SpanBeginEvent | StepEvent) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <SpanEventView eventNode={eventNode(event)} childNodes={[]} />
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <SpanEventView eventNode={eventNode(event)} childNodes={[]} />
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 

@@ -1,7 +1,12 @@
-import clsx from "clsx";
 import { useCallback, useMemo } from "react";
 
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+import {
+  ColumnComparator,
+  ExtendedColumnDef,
+  type PickerColumn,
+} from "@tsmono/inspect-components/dataGrid";
+import { Icon, IconName } from "@tsmono/react/icons";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
@@ -16,13 +21,8 @@ import {
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
-import { ApplicationIcons } from "../../../appearance/icons";
-import {
-  ColumnComparator,
-  ExtendedColumnDef,
-} from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
-import { type PickerColumn } from "../../../shared/gridUtils";
+import { toPickerColumns } from "../../../shared/gridUtils";
 
 import localStyles from "./columns.module.css";
 import { dateCompare, numberCompare } from "./comparators";
@@ -64,6 +64,13 @@ const byMetricField = (metricName: string): string => `metric_${metricName}`;
 export type LogListMode = "logs" | "tasks";
 export type ScoresViewMode = "by-metric" | "per-scorer";
 
+// Base columns (neither prefix) belong to both modes.
+const matchesViewMode = (field: string, viewMode: ScoresViewMode): boolean => {
+  if (field.startsWith("score_")) return viewMode === "per-scorer";
+  if (field.startsWith("metric_")) return viewMode === "by-metric";
+  return true;
+};
+
 export const useLogListColumns = (
   mode: LogListMode = "logs",
   /**
@@ -87,8 +94,7 @@ export const useLogListColumns = (
   /** Visibility map keyed by column id — passed to the DataGrid. */
   visibility: Record<string, boolean>;
   /** Subset passed to the ColumnSelectorPopover so the picker only lists
-   *  checkboxes for the currently active view mode. A lightweight shim
-   *  (`colId` + `headerName`) of the full column defs. */
+   *  checkboxes for the currently active view mode. */
   pickerColumns: PickerColumn[];
   /** Reads a row's raw value for a column id (for client-side filter/sort). */
   getValue: (row: LogListRow, columnId: string) => unknown;
@@ -129,13 +135,13 @@ export const useLogListColumns = (
         accessorFn: (row) => row.type,
         cell: ({ row }) => {
           const type = row.original.type;
-          const icon =
+          const icon: IconName =
             type === "file" || type === "pending-task"
-              ? ApplicationIcons.inspectFile
-              : ApplicationIcons.folder;
+              ? "inspectFile"
+              : "folder";
           return (
             <div className={styles.iconCell}>
-              <i className={clsx(icon)} />
+              <Icon name={icon} />
             </div>
           );
         },
@@ -163,39 +169,12 @@ export const useLogListColumns = (
           if (item.type === "file") {
             value = item.task || parseLogFileName(item.name).name;
           }
-          const href = item.url
-            ? `${window.location.pathname}#${item.url}`
-            : undefined;
-          const label =
-            item.type === "folder" ? (
-              <span className={styles.folder}>{value}</span>
-            ) : (
-              <span className={styles.taskText}>{value}</span>
-            );
           return (
             <div className={styles.nameCell}>
-              {href ? (
-                <a
-                  href={href}
-                  className={styles.rowLink}
-                  onClick={(e) => {
-                    // Normal click: prevent <a> navigation, let the row click
-                    // handle it. Modifier / middle clicks fall through to the
-                    // native <a> for open-in-new-tab.
-                    if (
-                      !e.metaKey &&
-                      !e.ctrlKey &&
-                      !e.shiftKey &&
-                      e.button === 0
-                    ) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  {label}
-                </a>
+              {item.type === "folder" ? (
+                <span className={styles.folder}>{value}</span>
               ) : (
-                label
+                <span className={styles.taskText}>{value}</span>
               )}
             </div>
           );
@@ -281,16 +260,16 @@ export const useLogListColumns = (
             return <EmptyCell />;
           }
 
-          const icon =
+          const icon: IconName =
             item.type === "pending-task"
-              ? ApplicationIcons.pendingTask
+              ? "pendingTaskSubtle"
               : status === "error"
-                ? ApplicationIcons.error
+                ? "error"
                 : status === "started"
-                  ? ApplicationIcons.running
+                  ? "running"
                   : status === "cancelled"
-                    ? ApplicationIcons.cancelled
-                    : ApplicationIcons.success;
+                    ? "cancel"
+                    : "success";
 
           const clz =
             item.type === "pending-task"
@@ -305,7 +284,7 @@ export const useLogListColumns = (
 
           return (
             <div className={styles.statusCell}>
-              <i className={clsx(icon, clz)} />
+              <Icon name={icon} className={clz} />
             </div>
           );
         },
@@ -384,8 +363,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -401,8 +379,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -431,8 +408,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -452,8 +428,7 @@ export const useLogListColumns = (
           row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatTime(value)}</div>;
@@ -517,8 +492,7 @@ export const useLogListColumns = (
             : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatPrettyDecimal(value)}%</div>;
@@ -534,8 +508,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
-          if (value === undefined || value === null) {
+          if (value === undefined) {
             return <EmptyCell />;
           }
           return <div>{formatNumber(value)}</div>;
@@ -816,15 +789,6 @@ export const useLogListColumns = (
     return hidden;
   }, [mode, hasSampleLimits]);
 
-  // Determine whether a column belongs to the active scores view mode. Base
-  // columns (neither prefix) always match. Per-scorer and by-metric columns
-  // only match when the corresponding mode is selected.
-  const matchesActiveMode = (field: string): boolean => {
-    if (field.startsWith("score_")) return viewMode === "per-scorer";
-    if (field.startsWith("metric_")) return viewMode === "by-metric";
-    return true;
-  };
-
   // Visibility map keyed by column id, consumed by the DataGrid.
   const visibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
@@ -845,17 +809,11 @@ export const useLogListColumns = (
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
   const pickerColumns = useMemo((): PickerColumn[] => {
-    return allColumns.flatMap((col) =>
-      col.id === undefined || !matchesActiveMode(col.id)
-        ? []
-        : [
-            {
-              colId: col.id,
-              headerName: typeof col.header === "string" ? col.header : "",
-            },
-          ]
+    return toPickerColumns(
+      allColumns.filter(
+        (col) => col.id !== undefined && matchesViewMode(col.id, viewMode)
+      )
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
 
   // Lookup by column id for the client-side listing query's value/comparator

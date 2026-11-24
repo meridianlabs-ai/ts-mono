@@ -11,10 +11,16 @@ import {
   parseDataUri,
 } from "@tsmono/util";
 
+import {
+  defaultMarkdownRenderer,
+  escapeHtmlCharacters,
+  type MarkdownRenderer,
+} from "./markdownText";
+
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
-const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
+export const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
     const loading = import("markdown-it-mathjax3").then(
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- untyped dependency: markdown-it-mathjax3 ships no types, so its default export arrives as any
@@ -33,15 +39,21 @@ const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   return mathjaxPluginPromise;
 };
 
+// markdown-it-mathjax3 opens each formula with its own <style>. The viewer
+// loads those rules from mathjax.css instead, and the sheet is dropped here,
+// before any parse: even an inert parse of an inline <style> (the sanitizer's
+// DOMParser) is reported as a CSP violation.
+const MATHJAX_STYLE =
+  /^(\s*<span id="mjx-[a-f0-9]+">\s*)<style>[\s\S]*?<\/style>/i;
+
+const withoutMathJaxStyle = (html: string): string =>
+  html.replace(MATHJAX_STYLE, "$1");
+
 export const hasMathContent = (text: string): boolean =>
   text.includes("$") || text.includes("\\(") || text.includes("\\[");
 
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
-
-export type MarkdownRenderer = "full" | "textOnly" | "fragment";
-
-export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
 /** Unescape HTML entities within math token content before MathJax processing.
  *  This is safe because MathJax renders TeX to SVG/MathML, not raw HTML. */
@@ -134,7 +146,7 @@ export const getMarkdownInstance = async (
         if (token) {
           token.content = unescapeHtmlForMath(token.content);
         }
-        return origInline(tokens, idx, options, env, self);
+        return withoutMathJaxStyle(origInline(tokens, idx, options, env, self));
       };
     }
     if (origBlock) {
@@ -143,34 +155,13 @@ export const getMarkdownInstance = async (
         if (token) {
           token.content = unescapeHtmlForMath(token.content);
         }
-        return origBlock(tokens, idx, options, env, self);
+        return withoutMathJaxStyle(origBlock(tokens, idx, options, env, self));
       };
     }
   }
   mdInstanceCache[cacheKey] = md;
 
   return md;
-};
-
-export const escapeHtmlCharacters = (content: string): string => {
-  if (!content) return content;
-
-  return content.replace(/[<>&'"]/g, (c: string): string => {
-    switch (c) {
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "&":
-        return "&amp;";
-      case "'":
-        return "&apos;";
-      case '"':
-        return "&quot;";
-      default:
-        throw new Error("Matched a value that isn't replaceable");
-    }
-  });
 };
 
 export const protectBackslashesInLatex = (content: string): string => {
@@ -268,8 +259,7 @@ const kLetterListPattern = /^([a-zA-Z][).]\s.*?)$/gm;
 export const preRenderText = (txt: string): string => {
   if (!txt) return txt;
 
-  // eslint-disable-next-line no-misleading-character-class
-  txt = txt.replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, "");
+  txt = txt.replace(/^(?:\u200B|\u200C|\u200D|\u200E|\u200F|\uFEFF)/, "");
 
   // Special handling for ordered lists that look like
   // multiple choice (e.g. a), b), c), d) etc..)

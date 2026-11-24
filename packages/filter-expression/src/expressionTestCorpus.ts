@@ -1,0 +1,621 @@
+/**
+ * Filter expressions for the differential tests that hold the tree-walking
+ * evaluator to filtrex's behaviour.
+ */
+
+/** Every expression form the other sample-tools tests exercise. */
+const kExistingTestExpressions = [
+  "epoch == 2",
+  "epoch == 99",
+  "grader.epoch == 99",
+  "other == 9",
+  "tokens > 100",
+  "duration <= 1.5",
+  "duration < 5",
+  "tokens >= 100",
+  "tokens >= 100 and tokens <= 500",
+  "tokens <= 500 and tokens >= 100",
+  "tokens > 100 and tokens < 500",
+  "tokens > 100 and tokens > 100",
+  "(tokens >= 100 and tokens <= 500)",
+  "(tokens > 100 and tokens < 500)",
+  "(tokens > 100 and tokens < 500) and epoch == 1",
+  "tokens == None",
+  "tokens != None",
+  'input == "hello"',
+  'input != "x"',
+  'input == "exact"',
+  'input == ""',
+  'input == "he said \\"hi\\""',
+  'input == "path\\\\to"',
+  'input_contains("foo")',
+  'input_contains("a")',
+  'target_contains("No")',
+  'not error_contains("boom")',
+  'not error_contains("x") or error == None',
+  'input_contains("a[.]b[+]c")',
+  'input_contains("a\\\\^b")',
+  'input_contains("a\\\\]b")',
+  'input_contains("a[^]b")',
+  'input_contains("a[]]b")',
+  '(input_contains("a") or input_contains("b"))',
+  'input_contains("a") or input_contains("b")',
+  'target ~= "^pre"',
+  'target ~= "post$"',
+  'target ~= "^\\\\^up"',
+  'target ~= "x\\\\]$"',
+  'target ~= "foo\\\\\\\\$"',
+  'uuid ~= "foo\\\\$"',
+  'uuid ~= "abc"',
+  'not (uuid ~= "abc")',
+  'uuid ~= "^xyz$"',
+  'not target ~= "^pre"',
+  'input ~= "(test)"',
+  'input ~= "foo"',
+  'id == "1"',
+  "id == 1",
+  "error == None",
+  "graderA.score > 0.5",
+  "grader.epoch > 0.5",
+  "epoch == 1 and tokens > 100",
+  "((tokens >= 100 and tokens <= 500) or tokens == 900)",
+  "((tokens >= 100 and tokens <= 500) and tokens == 900)",
+  "(tokens == 900 or (tokens >= 100 and tokens <= 500))",
+  "((tokens >= 1 and tokens <= 5) or (tokens >= 80 and tokens <= 90))",
+  "epoch == 1 or epoch == 3",
+  "(epoch == 1 or epoch == 3)",
+  "(epoch == 1 or epoch == 3) and tokens > 5",
+  "epoch == 1 or epoch == 2 or epoch == 3",
+  "not (epoch == 1 or epoch == 2)",
+  "tokens > 1 and tokens > 2 and tokens > 3",
+  "(tokens >= 1 and tokens <= 5) and tokens > 2",
+  "epoch == 1 or tokens > 5",
+  "tokens + 5 == 10",
+  "foo > 5",
+  'tokens == "five"',
+  "has_error",
+  "epoch in (1, 2)",
+  "epoch in (1, 2, 3)",
+  "epoch not in (1, 2)",
+  "epoch ==",
+  "",
+  "   ",
+  "42",
+  "3.14",
+  '"hello"',
+  '"he said \\"hi\\""',
+  '"path\\\\to"',
+  "epoch",
+  "scorer.metric",
+  "True",
+  "False",
+  "None",
+  "a and b and c",
+  "a or b or c",
+  "a or b and c",
+  "not a",
+  "(a or b) and c",
+  "min()",
+  "min(1, 2, 3)",
+  "a and",
+  "(a and b",
+  'a == "foo',
+];
+
+/** Each grammar production and the edge cases around it. */
+const kGrammarExpressions = [
+  // literals and lexer quirks
+  "0",
+  "007",
+  "010",
+  "0010",
+  "08",
+  "019",
+  "08.5",
+  "078.5",
+  "01.5",
+  "00.5",
+  "0.5",
+  "1.0",
+  "12345678901234567890",
+  "1.2.3",
+  "1.",
+  ".5",
+  "1e5",
+  "1 .5",
+  '"a\\"b"',
+  '"\\\\"',
+  '"\\"',
+  '"\\n"',
+  '"it\'s"',
+  '"multi\nline"',
+  "'quoted symbol'",
+  "'a\\'b'",
+  "'a\\\\b'",
+  "'x.y'",
+  "'True'",
+  "'input_contains'(\"a\")",
+  "a.b.c",
+  "a.",
+  "a..b",
+  "$a",
+  "_a",
+  "a$b",
+  "and",
+  "or",
+  "not",
+  "in",
+  "of",
+  "if",
+  "mod",
+  "android",
+  "order",
+  "notable",
+  "inx",
+  "office",
+  "iffy",
+  "thence",
+  "elsewhere",
+  "model",
+  "a and(b)",
+  "not(a)",
+  "not!a",
+  "a in(1, 2)",
+  "a not in(1, 2)",
+  "a not  in (1, 2)",
+  "a not\nin (1, 2)",
+  "a not inx",
+  "in.x",
+  "mod.x",
+  "a mod.b",
+  "a and$b",
+  "#",
+  "a # b",
+  "a b #",
+  "a = b",
+  "a ! b",
+  "a ~ b",
+  "@",
+  "\u00e9",
+  "a\u00a0and b",
+  "a\u2028and b",
+  // arithmetic and precedence
+  "1 + 2",
+  "1 - 2",
+  "1 - -2",
+  "- 1",
+  "--1",
+  "-a",
+  "2 * 3 + 4",
+  "2 + 3 * 4",
+  "2 - 3 - 4",
+  "12 / 3 / 2",
+  "2 ^ 3 ^ 2",
+  "-2 ^ 2",
+  "2 ^ -2",
+  "2 ^ - 2 ^ 3",
+  "2 ^ -2 * 3",
+  "7 mod 3",
+  "-7 mod 3",
+  "7 mod -3",
+  "7 % 3",
+  "7 mod 0",
+  "1 / 0",
+  "-1 / 0",
+  "0 / 0",
+  '"a" + "b"',
+  '"a" + 1',
+  '1 + "a"',
+  "s + 1",
+  "a + t",
+  "a - u",
+  "a - n",
+  "arr + 1",
+  "one + 1",
+  "one - 1",
+  "- s",
+  "a * b + c ^ 2 mod 5",
+  // logic
+  "t and f",
+  "t or f",
+  "f and missing",
+  "t or missing",
+  "t and missing",
+  "not t",
+  "not not t",
+  "not a",
+  "not a == b",
+  "not t == f",
+  "- a == -1",
+  "a and b",
+  "t and t or f",
+  "t or f and f",
+  // relations
+  "1 < 2 < 3",
+  "3 > 2 > 1",
+  "1 < 3 < 2",
+  "1 == 1 == 1",
+  "a == b == c",
+  "1 < 2 <= 2 < 3 != 4",
+  "3 < 2 < missing",
+  "1 < 2 < missing",
+  "1 + 2 < 3 + 4 < 5",
+  "a < b + c",
+  "a < b in c",
+  "a < b in c == d",
+  "a == b in c",
+  "a in b == c",
+  "a == not b",
+  "a == not b == c",
+  "nan == nan",
+  "nan != nan",
+  "nan < 1",
+  "inf > 1",
+  "a == one",
+  "n == None",
+  "u == None",
+  "u == n",
+  "arr == arr",
+  "(1, 2) == (1, 2)",
+  "s < 1",
+  "a < n",
+  "one < 2",
+  "t < 1",
+  // regex
+  's ~= "st"',
+  's ~= "^S"',
+  's ~= "("',
+  '1 ~= "("',
+  "s ~= 1",
+  'one ~= "1"',
+  'arr ~= "1"',
+  'n ~= "x"',
+  's ~= "\\\\d"',
+  's ~= "[a-z]+"',
+  's ~= "a|b"',
+  '"a" ~= "b" ~= "c"',
+  // in / not in
+  "1 in (1, 2)",
+  "3 in (1, 2)",
+  "1 not in (1, 2)",
+  "(1, 2) in (1, 2, 3)",
+  "(1, 4) in (1, 2, 3)",
+  "1 in 1",
+  "1 in (1)",
+  "a in arr",
+  "arr in arr",
+  "nan in (nan)",
+  "nan in (1, nan)",
+  "n in (1, 2)",
+  "1 in n",
+  "u in (1, 2)",
+  "1 in u",
+  "a in b in c",
+  "a in (1, 2) and t",
+  "t and a in (1, 2)",
+  '"s" in ("s", "t")',
+  "s in (s, 1)",
+  "(1, 2) in (1)",
+  "()",
+  "(1,)",
+  "(1, 2, 3)",
+  "((1, 2), 3)",
+  "(1)",
+  "((1))",
+  // conditionals
+  "if t then 1 else 2",
+  "if f then 1 else 2",
+  "if a then 1 else 2",
+  "if t then 1 else 2 + 3",
+  "1 + if t then 1 else 2 + 3",
+  "if t then if f then 1 else 2 else 3",
+  "if t then 1 else if f then 2 else 3",
+  "if t or f then a else b",
+  "if t then missing else 2",
+  "if f then missing else 2",
+  "if t then 1",
+  "if t 1 else 2",
+  "if t then 1 else",
+  "t ? 1 : 2",
+  "f ? 1 : 2",
+  "t ? 1 : f ? 2 : 3",
+  "f ? 1 : f ? 2 : 3",
+  "t ? f ? 1 : 2 : 3",
+  "t or f ? 1 : 2",
+  "if t then 1 else f ? 2 : 3",
+  "t ? if f then 1 else 2 : 3",
+  "t ? 1",
+  "t ? 1 : ",
+  "a ? 1 : 2",
+  "then",
+  "else",
+  "a then b",
+  "a else b",
+  "a : b",
+  // properties
+  "a",
+  "missing",
+  "one",
+  "obj",
+  "arr",
+  "x of obj",
+  "y of obj",
+  "a.b of obj",
+  "'a.b' of obj",
+  "x of obj of wrap",
+  "obj of wrap",
+  "x of missing",
+  "x of n",
+  "x of u",
+  "length of s",
+  "length of arr",
+  "x of 1",
+  "x of (obj)",
+  "x of obj + 1",
+  "x of obj ^ 2",
+  "x of - a",
+  "x of not t",
+  "True of missing",
+  "True of obj",
+  "(a) of obj",
+  "1 of obj",
+  "x of",
+  "of obj",
+  "toString",
+  "constructor",
+  "__proto__",
+  "hasOwnProperty",
+  "valueOf of obj",
+  // functions
+  "abs(-2)",
+  "abs(s)",
+  'abs("-3")',
+  "abs(n)",
+  "abs()",
+  "ceil(1.2)",
+  "floor(1.8)",
+  "round(2.5)",
+  "round(-2.5)",
+  "sqrt(4)",
+  "sqrt(-1)",
+  "log(1)",
+  "log2(8)",
+  "log10(1000)",
+  "max()",
+  "min()",
+  "max(1, 3, 2)",
+  "min(1, 3, 2)",
+  "max(arr)",
+  "max(a, s)",
+  "exists(a)",
+  "exists(n)",
+  "exists(u)",
+  "exists(missing)",
+  "empty(n)",
+  'empty("")',
+  "empty(arr)",
+  "empty(empty_arr)",
+  "empty(s)",
+  "unknownfn()",
+  "unknownfn(1)",
+  "unknownfn(missing)",
+  "toString()",
+  "constructor()",
+  "hasOwnProperty(a)",
+  "abs(1, missing)",
+  "abs(1",
+  "abs(1 2)",
+  "abs(,)",
+  "abs 1",
+  "max(1, 2,)",
+  "a(b)(c)",
+  // whitespace, lines and long inputs
+  "  a  ",
+  "\ta\t==\t1",
+  "a ==\n1",
+  "a\n==\n",
+  "a\r\n== 1 and\r\n",
+  "a and\r\nb and\n#",
+  "\n\n\n)",
+  "this is a much longer expression that fails at the end and",
+  "a == 1 and b == 2 and c == 3 and d == 4 and ) and e",
+  "a_very_long_symbol_name_over_twenty_chars b",
+  'x == "a string literal longer than twenty" y',
+  "averyveryverylongsymbolname == 1 #",
+];
+
+// Mulberry32: deterministic, so a failing generated case reproduces.
+const seededRandom = (seed: number): (() => number) => {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const pick = <T>(random: () => number, items: readonly T[]): T => {
+  const item = items[Math.floor(random() * items.length)];
+  if (item === undefined) throw new Error("pick from an empty list");
+  return item;
+};
+
+const kSymbols = [
+  "a",
+  "b",
+  "c",
+  "s",
+  "t",
+  "f",
+  "n",
+  "u",
+  "one",
+  "arr",
+  "obj",
+  "nan",
+  "inf",
+  "missing",
+  "True",
+  "False",
+  "None",
+  "obj.x",
+  "'a'",
+  "'quoted name'",
+  "epoch",
+  "has_error",
+  "metadata.nested.value",
+];
+
+const kNumbers = ["0", "1", "2", "3", "2.5", "010", "08", "100"];
+
+const kStrings = ['"s"', '"st"', '""', '"a\\"b"', '"\\\\"', '"^s"', '"("'];
+
+const kFunctions = [
+  "abs",
+  "max",
+  "min",
+  "round",
+  "sqrt",
+  "exists",
+  "empty",
+  "is_nan",
+  "input_contains",
+  "unknownfn",
+];
+
+const kBinaryOperators = [
+  "+",
+  "-",
+  "*",
+  "/",
+  "^",
+  "mod",
+  "%",
+  "and",
+  "or",
+  "in",
+  "not in",
+  "==",
+  "!=",
+  "<",
+  "<=",
+  ">",
+  ">=",
+  "~=",
+];
+
+const kSeparators = [" ", " ", " ", "", "\n", "  "];
+
+const randomTree = (random: () => number, depth: number): string => {
+  const sep = (): string => pick(random, kSeparators);
+  const sub = (): string => randomTree(random, depth - 1);
+  if (depth <= 0 || random() < 0.25) {
+    const atoms = [kSymbols, kSymbols, kNumbers, kStrings];
+    return pick(random, pick(random, atoms));
+  }
+  switch (Math.floor(random() * 11)) {
+    case 0:
+    case 1:
+    case 2:
+      return `${sub()} ${pick(random, kBinaryOperators)} ${sub()}`;
+    case 3:
+      return `${sub()} < ${sub()} <= ${sub()}`;
+    case 4:
+      return `${pick(random, ["-", "not "])}${sep()}${sub()}`;
+    case 5:
+      return `if ${sub()} then ${sub()} else ${sub()}`;
+    case 6:
+      return `${sub()} ? ${sub()} : ${sub()}`;
+    case 7:
+      return `(${sep()}${sub()}${sep()})`;
+    case 8:
+      return `(${sub()},${sep()}${sub()})`;
+    case 9: {
+      const args = Array.from({ length: Math.floor(random() * 3) }, sub);
+      return `${pick(random, kFunctions)}(${args.join(", ")})`;
+    }
+    default:
+      return `${pick(random, ["x", "a", "length", "True"])} of ${sub()}`;
+  }
+};
+
+const kSoupTokens = [
+  ...kSymbols,
+  ...kNumbers,
+  ...kStrings,
+  ...kBinaryOperators,
+  "not",
+  "of",
+  "if",
+  "then",
+  "else",
+  "?",
+  ":",
+  "(",
+  ")",
+  ",",
+  "abs(",
+  "max(",
+  "#",
+  "=",
+  "'",
+  '"',
+];
+
+const randomSoup = (random: () => number): string => {
+  const length = 1 + Math.floor(random() * 8);
+  let text = "";
+  for (let i = 0; i < length; i++) {
+    text += pick(random, kSoupTokens) + pick(random, kSeparators);
+  }
+  return text;
+};
+
+const generate = (
+  count: number,
+  seed: number,
+  make: (random: () => number) => string
+): string[] => {
+  const random = seededRandom(seed);
+  return Array.from({ length: count }, () => make(random));
+};
+
+export const kHandPickedExpressions: readonly string[] = [
+  ...kExistingTestExpressions,
+  ...kGrammarExpressions,
+];
+
+export const kGeneratedExpressions: readonly string[] = [
+  ...generate(2500, 1, (random) => randomTree(random, 4)),
+  ...generate(2500, 2, randomSoup),
+];
+
+export const kCorpus: readonly string[] = [
+  ...kHandPickedExpressions,
+  ...kGeneratedExpressions,
+];
+
+const kChunkSize = 250;
+
+/**
+ * The corpus in fixed slices, for tests that run both engines per
+ * expression: no single test does thousands of filtrex compiles, which a
+ * contended CI runner can stretch past the default timeout, and a failure
+ * names the slice it came from.
+ */
+export const kCorpusChunks: ReadonlyArray<{
+  label: string;
+  expressions: readonly string[];
+}> = Array.from(
+  { length: Math.ceil(kCorpus.length / kChunkSize) },
+  (_, index) => {
+    const start = index * kChunkSize;
+    const expressions = kCorpus.slice(start, start + kChunkSize);
+    return {
+      label: `${start}-${start + expressions.length - 1}`,
+      expressions,
+    };
+  }
+);

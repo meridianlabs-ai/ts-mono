@@ -3,18 +3,14 @@ import { create, Mutate, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { createLogger, debounce } from "@tsmono/util";
+import { createLogger, debounce, fillPersistedDefaults } from "@tsmono/util";
 
 import { Capabilities, ClientStorage } from "../client/api/types";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
-import {
-  createSampleSlice,
-  initializeSampleSlice,
-  SampleSlice,
-} from "./sampleSlice";
+import { createSampleSlice, SampleSlice } from "./sampleSlice";
 import { createSearchSlice, SearchSlice } from "./searchSlice";
 
 const log = createLogger("store");
@@ -81,21 +77,20 @@ export const initializeStore = (
   const store = create<StoreState>()(
     devtools(
       persist(
-        immer((set, get, store) => ({
+        immer((set, get) => ({
           // Initialize
           initialize: (capabilities) => {
             // Initialize application slices
             initializeAppSlice(set, capabilities);
             initializeLogsSlice(set);
             initalializeLogSlice(set);
-            initializeSampleSlice(set);
           },
 
           // Create the slices and merge them in
-          ...createAppSlice(set, get, store),
-          ...createLogsSlice(set, get, store),
-          ...createLogSlice(set, get, store),
-          ...createSampleSlice(set, get, store),
+          ...createAppSlice(set, get),
+          ...createLogsSlice(set, get),
+          ...createLogSlice(set, get),
+          ...createSampleSlice(set),
           ...createSearchSlice(set),
         })),
         {
@@ -104,11 +99,12 @@ export const initializeStore = (
           partialize: (state) =>
             // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- zustand-persist types partialize as StoreState -> StoreState, but a partial slice is exactly what it is for
             ({
-              app: { ...state.app, rehydrated: true },
+              app: state.app,
               log: state.log,
               logs: state.logs,
             }) as unknown as StoreState,
           version: 4,
+          merge: fillPersistedDefaults,
           onRehydrateStorage: (state: StoreState) => {
             return (hydrationState, error) => {
               log.debug("REHYDRATING STATE");

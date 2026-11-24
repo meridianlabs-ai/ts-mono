@@ -1,4 +1,4 @@
-import { cpSync, rmSync } from "fs";
+import { cpSync, existsSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
 import react from "@vitejs/plugin-react-swc";
@@ -12,14 +12,21 @@ import {
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
+  contentSecurityPolicy,
   inlineThemeBootstrap,
+  inlineWorkerUrls,
   rewriteLoopbackOrigin,
+  VIEWER_CSP_DIRECTIVES,
 } from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
   return {
     name: "copy-to-python-repo",
     closeBundle() {
+      // closeBundle runs, with no error, even when the build failed after
+      // emptying dist (e.g. contentSecurityPolicy rejecting eval); don't wipe
+      // the Python repo's viewer with it.
+      if (!existsSync("dist/index.html")) return;
       const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
       const target = join(pythonRoot, "src/inspect_ai/_view/dist");
@@ -36,6 +43,10 @@ const viewServerUrl = "http://127.0.0.1:7575";
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
+  // The e2e build is served by `vite preview`; it gets its own outDir and
+  // isn't copied into the Python repo, so running e2e locally leaves the
+  // shipped dist untouched.
+  const isE2e = mode === "e2e";
 
   const baseConfig = {
     plugins: [
@@ -78,6 +89,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
+        inlineWorkerUrls(),
         dts({
           insertTypesEntry: true,
           exclude: ["**/*.test.ts", "**/*.test.tsx", "src/setupTests.ts"],
@@ -108,8 +120,6 @@ export default defineConfig(({ mode }) => {
           // consumer's bundler does the CJS interop.
           external: (id: string) =>
             /^(react|react-dom|use-sync-external-store)(\/|$)/.test(id) ||
-            id === "mathjax-full" ||
-            id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
           output: {
             assetFileNames: (assetInfo) => {
@@ -134,14 +144,19 @@ export default defineConfig(({ mode }) => {
         inlineThemeBootstrap(
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
+        contentSecurityPolicy(VIEWER_CSP_DIRECTIVES),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
-        copyToPythonRepo(),
+        ...(isE2e ? [] : [copyToPythonRepo()]),
       ],
       mode: "development",
       base: "",
+      // Overrides postcss.config.cjs, whose inlining is for the library's
+      // self-contained stylesheet: the app serves its fonts as files, since
+      // the viewer's CSP allows `font-src 'self'` but not `data:`.
+      css: { postcss: {} },
       server: {
         // Pinned so `pnpm dev` from the root always gives inspect 5173 and
-        // scout 5174 regardless of startup order (e2e uses 5175/5176).
+        // scout 5174 regardless of startup order (e2e uses 5175–5178).
         port: 5173,
         strictPort: true,
         proxy: {
@@ -152,8 +167,13 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      // Unhashed like the app's own chunks, so the committed dist in the
+      // Python repo keeps stable file names.
+      worker: {
+        rollupOptions: { output: { entryFileNames: "assets/[name].js" } },
+      },
       build: {
-        outDir: "dist",
+        outDir: isE2e ? "dist-e2e" : "dist",
         emptyOutDir: true,
         minify: false,
         rollupOptions: {

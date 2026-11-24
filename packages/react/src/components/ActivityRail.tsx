@@ -1,11 +1,13 @@
 import clsx from "clsx";
 
+import { Icon, IconName } from "../icons";
+
 import styles from "./ActivityRail.module.css";
 
 export interface ActivityRailItem<Id extends string = string> {
   id: Id;
   label: string;
-  icon: string;
+  icon: IconName;
   disabled?: boolean;
   title?: string;
 }
@@ -45,7 +47,7 @@ export const ActivityRail = <Id extends string = string>({
           className={clsx(styles.item, isActive && styles.itemActive)}
           onClick={() => onSelect(item.id)}
         >
-          <i className={clsx(item.icon, styles.icon)} aria-hidden="true" />
+          <Icon name={item.icon} className={styles.icon} />
           <span className={clsx(styles.label, "text-size-smallest")}>
             {item.label}
           </span>

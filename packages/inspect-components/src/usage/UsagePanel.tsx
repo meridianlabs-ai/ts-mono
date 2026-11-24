@@ -1,10 +1,11 @@
 import clsx from "clsx";
-import { Fragment, MouseEvent, ReactNode, useMemo, useState } from "react";
+import { Fragment, ReactNode, useMemo, useState } from "react";
 
 import type {
   ConfigUpdate,
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
+import { costSummary } from "@tsmono/inspect-common/utils";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatCurrency } from "@tsmono/util";
@@ -18,7 +19,6 @@ import {
 } from "./connectionHistory";
 import { ConnectionLogModal } from "./ConnectionLogModal";
 import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
-import { costSummary } from "./cost";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
 import { rolesForModel } from "./roleAliases";
@@ -52,10 +52,9 @@ interface UsagePanelProps {
    *  log identity so the modal doesn't leak across logs in a session. */
   state_key?: string;
   /** Deep-link to the Timeline tab with the model's band toggled on. */
-  onViewTimeline?: (
-    model: string,
-    event: MouseEvent<HTMLButtonElement>
-  ) => void;
+  onViewTimeline?: (model: string) => void;
+  /** The Timeline tab's URL, so the timeline actions are links. */
+  timelineHref?: string;
 }
 
 type Mode = "model" | "role" | "connections";
@@ -64,6 +63,12 @@ const kModes: readonly Mode[] = ["model", "role", "connections"];
 
 const isMode = (value: string): value is Mode =>
   kModes.some((mode) => mode === value);
+
+const keysOf = (...maps: (Record<string, unknown> | undefined)[]): string[] => {
+  const out = new Set<string>();
+  for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
+  return Array.from(out);
+};
 
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   label,
@@ -84,15 +89,8 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   main_model,
   state_key,
   onViewTimeline,
+  timelineHref,
 }) => {
-  const keysOf = (
-    ...maps: (Record<string, unknown> | undefined)[]
-  ): string[] => {
-    const out = new Set<string>();
-    for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
-    return Array.from(out);
-  };
-
   // Memoized so mode-toggle / modal renders don't rebuild the lanes and the
   // stable identities keep ConnectionLogModal's useMemo effective.
   const usageWindow = useMemo(
@@ -232,6 +230,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           retunes_by_model={retunesByModel}
           onShowLog={setLogModel}
           onViewTimeline={onViewTimeline}
+          timelineHref={timelineHref}
         />
       ) : (
         // Roles/Models are token lenses — connection lanes render once, in
@@ -257,15 +256,16 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           retunes={retunesByModel[logLane.model]}
           onViewTimeline={
             onViewTimeline
-              ? (event) => {
+              ? () => {
                   // The modal's visibility lives in a property bag that
                   // survives unmount — clear it before navigating away or
                   // it reopens the next time this tab is shown.
                   setLogModel(null);
-                  onViewTimeline(logLane.model, event);
+                  onViewTimeline(logLane.model);
                 }
               : undefined
           }
+          timelineHref={timelineHref}
         />
       )}
     </div>

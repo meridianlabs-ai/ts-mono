@@ -125,7 +125,7 @@ test("log list task column filter narrows rows and reset restores", async ({
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(richCell).toBeVisible();
-  await expect(arithmeticCell).not.toBeVisible();
+  await expect(arithmeticCell).toBeHidden();
   // Two matches: the fixture dir holds viewer_rich as both .eval and .json.
   await expect(footerCount).toHaveText(`2 / ${totalItems} items`);
   await shot(page, "log-list-filter-applied.png");

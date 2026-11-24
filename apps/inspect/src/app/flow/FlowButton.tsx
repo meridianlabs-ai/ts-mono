@@ -1,46 +1,38 @@
 import clsx from "clsx";
-import { forwardRef } from "react";
+import { FC } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { ApplicationIcons } from "../appearance/icons";
-import { useLogOrSampleRouteParams } from "../routing/url";
+import { InAppLink } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
+
+import { toFullUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowButton.module.css";
 
-export const FlowButton = forwardRef<HTMLButtonElement>((_, ref) => {
+export const FlowButton: FC = () => {
   const navigateRouter = useNavigate();
   const location = useLocation();
   const { logPath } = useLogOrSampleRouteParams();
 
-  const navigate = () => {
-    // Navigate to flow.yaml in the current directory
-    // Preserve whether we're in /samples or /logs context
-    const isSamplesRoute = location.pathname.startsWith("/samples/");
-    const routePrefix = isSamplesRoute ? "/samples" : "/logs";
-
-    const flowPath = logPath
-      ? `${routePrefix}/${logPath}/flow.yaml`
-      : `${routePrefix}/flow.yaml`;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    navigateRouter(flowPath);
-  };
-
+  // Flow for the current directory, keeping the /samples or /logs context.
+  const routePrefix = location.pathname.startsWith("/samples/")
+    ? "/samples"
+    : "/logs";
+  const flowPath = logPath
+    ? `${routePrefix}/${logPath}/flow.yaml`
+    : `${routePrefix}/flow.yaml`;
   return (
     <div>
-      <button
-        ref={ref}
-        type="button"
+      <InAppLink
+        href={toFullUrl(flowPath)}
+        onNavigate={() => {
+          navigateRouter(flowPath);
+        }}
         className={clsx(styles.button)}
-        onClick={navigate}
-        title={"View Flow configuration for this directory"}
+        title="View Flow configuration for this directory"
       >
-        <i
-          ref={ref}
-          className={clsx(ApplicationIcons.flow, styles.viewerOptions)}
-        />
-      </button>
+        <Icon name="flow" className={styles.viewerOptions} />
+      </InAppLink>
     </div>
   );
-});
-
-FlowButton.displayName = "FlowButton";
+};

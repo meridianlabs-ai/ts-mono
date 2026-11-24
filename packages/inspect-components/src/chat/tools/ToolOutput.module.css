@@ -12,11 +12,15 @@
   padding: 0.5em 0.5em 0.5em 0.5em;
   white-space: pre-wrap;
   margin-bottom: 0;
-  font-size: 0.9em !important;
+  font-size: 0.9em;
   border-radius: var(--bs-border-radius);
 }
 
+/* A block that inherits the pre's unicode-bidi, so an untrusted output's
+   `plaintext` reaches the content-visibility chunks inside a long one. */
 .textCode {
+  display: block;
+  unicode-bidi: inherit;
   word-wrap: anywhere;
   color: inherit;
 }

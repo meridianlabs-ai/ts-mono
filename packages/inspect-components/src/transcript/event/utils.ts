@@ -1,6 +1,12 @@
-import { formatDateTime, formatNumber, formatTime } from "@tsmono/util";
+import {
+  formatDateTime,
+  formatNumber,
+  formatTime,
+  toTitleCase,
+} from "@tsmono/util";
 
 import { kSandboxSignalName } from "../transform/fixups";
+import { instanceLabel } from "../transform/toolSentinels";
 import type { EventType } from "../types";
 
 const sampleLimitTitles: Record<string, string> = {
@@ -105,8 +111,16 @@ export const eventTitle = (event: EventType): string => {
       return approvalDecisionLabels[event.decision] ?? event.decision;
     case "review":
       return reviewDecisionLabels[event.decision] ?? event.decision;
+    case "sentinel":
+      return event.status === "reported"
+        ? `Sentinel ${toTitleCase(event.kind)}: ${instanceLabel(event)}`
+        : `Sentinel ${toTitleCase(event.kind)} (${event.status}): ${instanceLabel(event)}`;
     case "sandbox":
       return `Sandbox: ${event.action}`;
+    case "communication":
+      return `Communication: ${event.kind}`;
+    case "swarm":
+      return `Swarm: ${event.kind}`;
     default:
       return "";
   }
@@ -132,7 +146,7 @@ export const formatTitle = (
     subItems.push(`${formatNumber(total_tokens)} tokens`);
   }
   if (working_start) {
-    subItems.push(`${formatTime(working_start)}`);
+    subItems.push(formatTime(working_start));
   }
   const subtitle = subItems.length > 0 ? ` (${subItems.join(", ")})` : "";
   return `${titleWithRole}${subtitle}`;

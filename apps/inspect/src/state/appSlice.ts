@@ -20,13 +20,6 @@ export interface AppSlice {
     setWorkspaceTab: (tab: string) => void;
     clearWorkspaceTab: () => void;
 
-    setInitialState: (
-      log: string,
-      sample_id?: string,
-      sample_epoch?: string
-    ) => void;
-    clearInitialState: () => void;
-
     setSampleTab: (tab: string) => void;
     clearSampleTab: () => void;
 
@@ -62,8 +55,6 @@ export interface AppSlice {
     removeBagsByPrefix: (bagNamePrefix: string) => void;
     removeByPrefix: (bagName: string, prefix: string) => void;
 
-    setUrlHash: (urlHash: string) => void;
-
     setDisplayMode: (mode: "raw" | "rendered") => void;
 
     setLogsSampleView: (logsSampleView: boolean) => void;
@@ -95,8 +86,7 @@ const initialState: AppState = {
 
 export const createAppSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
-  _store: unknown
+  get: () => StoreState
 ): AppSlice => {
   const getBoolRecord = (
     record: Record<string, boolean>,
@@ -166,24 +156,6 @@ export const createAppSlice = (
       clearWorkspaceTab: () => {
         set((state) => {
           state.app.tabs.workspace = kDefaultWorkspaceTab;
-        });
-      },
-      setInitialState: (
-        log: string,
-        sample_id?: string,
-        sample_epoch?: string
-      ) => {
-        set((state) => {
-          state.app.initialState = {
-            log,
-            sample_id,
-            sample_epoch,
-          };
-        });
-      },
-      clearInitialState: () => {
-        set((state) => {
-          state.app.initialState = undefined;
         });
       },
       setSampleTab: (tab: string) => {
@@ -365,11 +337,6 @@ export const createAppSlice = (
         });
       },
 
-      setUrlHash: (urlHash: string) => {
-        set((state) => {
-          state.app.urlHash = urlHash;
-        });
-      },
       setDisplayMode: (mode: "raw" | "rendered") => {
         set((state) => {
           state.app.displayMode = mode;
@@ -392,9 +359,5 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!state.app) {
-      state.app = initialState;
-    }
   });
 };

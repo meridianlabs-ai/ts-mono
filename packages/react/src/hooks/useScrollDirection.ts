@@ -1,16 +1,12 @@
-import {
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { isReadonlyArray } from "@tsmono/util";
 
 const asArray = <T>(v: T | ReadonlyArray<T>): ReadonlyArray<T> =>
   isReadonlyArray(v) ? v : [v];
+
+const sameItems = <T>(a: ReadonlyArray<T>, b: ReadonlyArray<T>): boolean =>
+  a.length === b.length && a.every((item, i) => item === b[i]);
 
 export interface UseScrollDirectionOptions {
   /** Minimum px delta before recognizing a direction change. Default: 15 */
@@ -130,14 +126,14 @@ export function useScrollDirection(
     [transitionLockMs]
   );
 
-  // Normalize input to an array of refs.
-  const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
-    () => asArray(scrollRef),
-    // Array identity changes each render unless the caller memoizes — treat
-    // the joined length + identity of the first ref as the stable key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo -- non-literal dep list is intentional (stable key)
-    Array.isArray(scrollRef) ? scrollRef : [scrollRef]
-  );
+  // The listener effect and the scroller-change reset below key on this
+  // array's identity, so it only changes when the refs themselves do —
+  // callers may pass a fresh array (or a different number of refs) each
+  // render.
+  const incomingRefs = asArray(scrollRef);
+  const [refArray, setRefArray] = useState(incomingRefs);
+  const primaryRefChanged = refArray[0] !== incomingRefs[0];
+  if (!sameItems(refArray, incomingRefs)) setRefArray(incomingRefs);
 
   // The primary scroll element (used by resetAnchor — typically the main
   // list's scroller).
@@ -153,15 +149,7 @@ export function useScrollDirection(
       const resolved = refArray
         .map((r) => r.current)
         .filter((el): el is HTMLElement => el != null);
-      setScrollEls((prev) => {
-        if (
-          prev.length === resolved.length &&
-          prev.every((el, i) => el === resolved[i])
-        ) {
-          return prev;
-        }
-        return resolved;
-      });
+      setScrollEls((prev) => (sameItems(prev, resolved) ? prev : resolved));
     };
     sync();
 
@@ -170,22 +158,19 @@ export function useScrollDirection(
     return () => observer.disconnect();
   }, [refArray]);
 
-  // Reset hidden when the scroller changes — different refs from the caller,
-  // or the same logical scroller remounting its element (loading→loaded
+  // Reset hidden when the primary scroller changes — a different ref from the
+  // caller (secondary scrollers joining or leaving don't count), or the same
+  // logical scroller remounting its element (loading→loaded
   // swaps, content switches): a fresh scroller starts at the top, where the
   // headroom shows. EXCEPT while suppressed: a nav-owned deep-link mount
   // swaps its element mid-landing, and wiping the forced/initial state there
   // painted the headroom expanded right before the landing re-collapsed it.
-  // eslint-disable-next-line react-hooks/refs -- stores the ref ARRAY's identity for change detection; no .current read
-  const [prevRefs, setPrevRefs] = useState(refArray);
   const [prevPrimary, setPrevPrimary] = useState<HTMLElement | null>(
     scrollEls[0] ?? null
   );
   const primaryEl = scrollEls[0] ?? null;
   const scrollerChanged =
-    prevRefs !== refArray ||
-    (prevPrimary !== primaryEl && prevPrimary !== null);
-  if (prevRefs !== refArray) setPrevRefs(refArray);
+    primaryRefChanged || (prevPrimary !== primaryEl && prevPrimary !== null);
   if (prevPrimary !== primaryEl) setPrevPrimary(primaryEl);
   // eslint-disable-next-line react-hooks/refs -- deliberate render-phase gate: the reset must be suppressed in the SAME render the scroller swaps, or the headroom paints expanded for a frame before a nav-owned landing re-collapses it
   if (scrollerChanged && hidden && !suppressRef?.current) {

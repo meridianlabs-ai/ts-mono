@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { Transcript } from "../types/api-types";
+import { testUserMessage } from "@tsmono/inspect-common/testing";
+
+import { createTranscript } from "../test/objectFactories";
 
 import { expandInputEvents } from "./expandInputEvents";
 
 describe("expandInputEvents", () => {
   it("resolves attachment refs carried in input_data", () => {
     const id = "c".repeat(32);
-    const input: Transcript = {
+    const input = createTranscript({
       transcript_id: "t1",
-      messages: [{ id: "m1", role: "user", content: `attachment://${id}` }],
-      events: [],
-      timelines: [],
-      metadata: {},
-    };
+      messages: [testUserMessage({ id: "m1", content: `attachment://${id}` })],
+    });
 
     const result = expandInputEvents(input, "transcript", {
       messages: [],
@@ -23,7 +22,7 @@ describe("expandInputEvents", () => {
 
     expect(result).toEqual({
       ...input,
-      messages: [{ id: "m1", role: "user", content: "hello" }],
+      messages: [testUserMessage({ id: "m1", content: "hello" })],
     });
   });
 
@@ -83,6 +82,32 @@ describe("expandInputEvents", () => {
     expect(result).toMatchObject([
       { event: "model", working_start: 0, config: {}, tools: [] },
     ]);
+  });
+
+  // inspect_ai 0.3.123–0.3.125 wrote tool-use values as JSON values.
+  it("normalizes message inputs", () => {
+    const legacy = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: { query: "q" },
+          result: [],
+        },
+      ],
+    };
+    const converted = {
+      ...legacy,
+      content: [
+        { ...legacy.content[0], arguments: '{"query":"q"}', result: "[]" },
+      ],
+    };
+
+    expect(expandInputEvents([legacy], "messages", null)).toEqual([converted]);
+    expect(expandInputEvents(legacy, "message", null)).toEqual(converted);
   });
 
   it("normalizes single-event inputs", () => {

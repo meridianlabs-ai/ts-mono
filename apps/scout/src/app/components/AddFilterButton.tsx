@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { FC, useRef } from "react";
+import { FC, useState } from "react";
 
 import {
   ColumnFilterEditor,
@@ -8,7 +8,6 @@ import {
 import { PopOver } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
-import { ApplicationIcons } from "../../icons";
 
 import styles from "./AddFilterButton.module.css";
 import { Chip } from "./Chip";
@@ -32,7 +31,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
   popoverState,
   suggestions = [],
 }) => {
-  const chipRef = useRef<HTMLDivElement | null>(null);
+  const [chipEl, setChipEl] = useState<HTMLButtonElement | null>(null);
 
   const {
     isOpen,
@@ -49,8 +48,8 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
   return (
     <>
       <Chip
-        ref={chipRef}
-        icon={ApplicationIcons.add}
+        ref={setChipEl}
+        icon="add"
         value="Add"
         title="Add a new filter"
         className={clsx(filterStyles.filterChip, "text-size-smallest")}
@@ -60,8 +59,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
         id={`${idPrefix}-add-filter-editor`}
         isOpen={isOpen}
         setIsOpen={setIsOpen}
-        // eslint-disable-next-line react-hooks/refs -- positionEl accepts null; PopOver/Popper handles this in effects and updates when ref is populated
-        positionEl={chipRef.current}
+        positionEl={chipEl}
         placement="bottom-start"
         showArrow={true}
         hoverDelay={-1}

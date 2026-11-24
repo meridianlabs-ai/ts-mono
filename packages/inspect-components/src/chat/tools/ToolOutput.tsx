@@ -2,14 +2,20 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import type { Content } from "@tsmono/inspect-common/types";
-import { ANSIDisplay } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  ChunkedText,
+  RequireMedia,
+  usePlainText,
+} from "@tsmono/react/components";
 import {
   isAnsiOutput,
   isRenderableImageSource,
   parseJsonRecord,
+  stripAnsi,
 } from "@tsmono/util";
 
-import { cappedText } from "../../content/cappedText";
+import { CappedText, kMaxInlineChars } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
@@ -55,12 +61,13 @@ export const ToolOutput: FC<ToolOutputProps> = ({
       } else if (out.type === "image") {
         if (isRenderableImageSource(out.image)) {
           outputs.push(
-            <img
-              className={clsx(styles.toolImage)}
-              src={out.image}
-              alt="Tool output"
-              key={key}
-            />
+            <RequireMedia kind="image" key={key}>
+              <img
+                className={clsx(styles.toolImage)}
+                src={out.image}
+                alt="Tool output"
+              />
+            </RequireMedia>
           );
         } else {
           outputs.push(<MediaReference source={out.image} key={key} />);
@@ -92,6 +99,7 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
+  const plain = usePlainText();
 
   if (displayMode === "rendered") {
     const obj = parseJsonRecord(text);
@@ -100,33 +108,44 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     }
   }
 
-  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
-  // which the browser re-layerizes on every resize (~1.4s each — laggy in
-  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
-  // a fixed-height scroller does not help because the off-screen content is
-  // still layerized.
-  const { text: capped, notice } = cappedText(text);
+  // It could have ANSI codes. Colors render only for the head, so only the
+  // head is checked.
+  const ansi =
+    displayMode === "rendered" && isAnsiOutput(text.slice(0, kMaxInlineChars));
 
-  // It could have ANSI codes. Detection is bounded to the capped prefix so
-  // log-authored output can never feed the regex an unbounded string; the
-  // ANSI renderer still receives the full text as before.
-  if (displayMode === "rendered" && isAnsiOutput(capped)) {
-    return (
-      <ANSIDisplay
-        output={text}
-        style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
-      />
-    );
-  }
+  // As the head shows it: trimmed, unless raw or untrusted.
+  const trim = plain.trusted && displayMode !== "raw";
+  const renderPlain = (shown: string) => (
+    <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
+      <code className={clsx("sourceCode", styles.textCode)}>
+        <ChunkedText text={shown} />
+      </code>
+    </pre>
+  );
 
   return (
-    <>
-      <pre className={clsx(styles.textOutput, "tool-output")}>
-        <code className={clsx("sourceCode", styles.textCode)}>
-          {displayMode === "raw" ? capped : capped.trim()}
-        </code>
-      </pre>
-      {notice}
-    </>
+    <CappedText
+      text={text}
+      // Escapes can start past the head, so trusted output is stripped
+      // whenever it's rendered. Untrusted output keeps them, for `present` to
+      // reveal. Only the start is trimmed: where the hidden text starts is
+      // measured on the head's length.
+      toPlainText={(all) => {
+        const shown =
+          displayMode === "rendered" && plain.trusted ? stripAnsi(all) : all;
+        return trim ? shown.trimStart() : shown;
+      }}
+      render={(shown) =>
+        ansi ? (
+          <ANSIDisplay
+            output={shown}
+            style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
+          />
+        ) : (
+          renderPlain(trim ? shown.trim() : plain.present(shown))
+        )
+      }
+      renderPlain={renderPlain}
+    />
   );
 };

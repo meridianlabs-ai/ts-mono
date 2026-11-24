@@ -27,7 +27,7 @@ export function isStringValue<T extends ValueOnly>(
 export function isNumberValue<T extends ValueOnly>(
   r: T
 ): r is T & { valueType: "number"; value: number } {
-  return r.valueType === "number";
+  return r.valueType === "number" && typeof r.value === "number";
 }
 
 export function isBooleanValue<T extends ValueOnly>(

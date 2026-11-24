@@ -8,9 +8,10 @@ import {
   LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService, scopePrefix } from "../client/database";
+import { OpenDatabase, scopePrefix } from "../client/database";
 import {
   maxDepth,
+  PreparedLogDetails,
   prepareLogDetails,
   previewTier,
 } from "../client/utils/type-utils";
@@ -34,9 +35,9 @@ import {
  *
  * The invariant for this module: IndexedDB is never written without the same
  * write landing in the cache. The `write*` / `clear*` / `reset*` seam below
- * are the only callers of the `DatabaseService` mutators anywhere — each
+ * are the only callers of the `OpenDatabase` mutators anywhere — each
  * pairs the persistence with its cache update. Cache-only writes (the
- * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
+ * `set*`/`merge*`/`replace*` primitives) are allowed; the invariant is
  * one-directional (db ⟹ cache).
  */
 
@@ -138,6 +139,13 @@ const mergePatches = (
   }
 };
 
+/** Upsert `patches` into the collection by name (new names are appended) —
+ *  the single-row-safe counterpart to `setRows`' full replace. */
+export const mergeRows = (
+  logDir: string,
+  patches: Record<string, Partial<Log>>
+): void => mergePatches(logDir, patches);
+
 export const mergePreviews = (
   logDir: string,
   previews: Record<string, LogPreview>
@@ -197,7 +205,7 @@ const clearCache = (logDir: string): void => {
 };
 
 // ---------------------------------------------------------------------------
-// IndexedDB + cache seam. The only callers of the DatabaseService mutators.
+// IndexedDB + cache seam. The only callers of the OpenDatabase mutators.
 // Each persists to IndexedDB (when a database is open) and mirrors the same
 // write into the cache.
 // ---------------------------------------------------------------------------
@@ -243,28 +251,51 @@ const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   return true;
 };
 
+const retrievalFacts = (row: Log): LogFetchState => ({
+  preview_fetch_error: row.preview_fetch_error,
+  preview_attempts: row.preview_attempts,
+  details_fetch_error: row.details_fetch_error,
+  details_attempts: row.details_attempts,
+  details_settled_seq: row.details_settled_seq,
+});
+
 /**
  * Persist the listing identity tier and cache the resulting full row list.
- * The db write is a merge-upsert (rows keep depth/content) and the cache
- * holds the full re-read, so the full list is read back and returned for the
- * caller's continued sync logic.
+ * The db write is a merge-upsert (rows keep depth/content), so the full list
+ * is read back and returned for the caller's continued sync logic.
+ *
+ * A row the cache already holds keeps its cached content and only takes the
+ * listing's identity: keyed writes land in the cache before their
+ * transaction commits, so the read-back can predate a details or preview
+ * write the cache already has. Retrieval facts still come from the
+ * read-back: the collection's copy of them lags further (see
+ * `mergeFetchStates`), though the read-back can also predate an in-flight
+ * `writeFetchStates`.
  */
 export const writeListing = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   handles: LogHandle[]
 ): Promise<Log[]> => {
-  if (db?.opened() && namesInScope(logDir, handles)) {
+  if (db && namesInScope(logDir, handles)) {
     await db.writeLogs(handles);
     await db.markScopeSynced(logDir);
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
-      setRows(logDir, all);
+      const held = new Map(currentLogs(logDir).map((row) => [row.name, row]));
+      const listed = new Map(handles.map((handle) => [handle.name, handle]));
+      const rows = all.map((row) => {
+        const cached = held.get(row.name);
+        return cached
+          ? { ...cached, ...listed.get(row.name), ...retrievalFacts(row) }
+          : row;
+      });
+      setRows(logDir, rows);
       // Invalidate only after the re-read rows land in the cache: a listing
       // refetch scheduled between the write and setRows would run against
       // the pre-write rows and drop the newly written files from its result.
       invalidateDatabaseLogsListings();
-      return all;
+      return rows;
     }
     // A failed read-back degrades to the cache-only listing write below.
   }
@@ -281,18 +312,43 @@ export const writeListing = async (
 // fire-and-forget call still reflects in the cache synchronously.
 
 export const writePreviews = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   previews: Record<string, LogPreview>
 ): Promise<void> => {
   mergePreviews(logDir, previews);
-  if (db?.opened()) {
+  if (db) {
     await db.writeLogPreviews(previews);
   }
   // Unconditional (after the db write, so a refetch reads committed rows):
   // cache-backed listings serve the merge above and refetch on the same
   // nudge — a db-less session's preview columns must not stay blank.
   invalidateDatabaseLogsListings();
+};
+
+interface PreparedBatch {
+  prepared: (readonly [string, PreparedLogDetails])[];
+  failures: Record<string, Error>;
+}
+
+/**
+ * Prepare each payload of a flush batch on its own, so a payload the
+ * normalizers let through but derivation still rejects can't keep every
+ * unrelated log in the same flush out of the stores.
+ */
+const prepareBatch = (details: Record<string, LogDetails>): PreparedBatch => {
+  const prepared: (readonly [string, PreparedLogDetails])[] = [];
+  const failures: Record<string, Error> = {};
+  for (const [name, payload] of Object.entries(details)) {
+    try {
+      prepared.push([name, prepareLogDetails(payload)]);
+    } catch (error) {
+      log.error(`Skipping details ingestion for ${name}`, error);
+      failures[name] =
+        error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  return { prepared, failures };
 };
 
 /**
@@ -305,16 +361,15 @@ export const writePreviews = async (
  * persistence-gated: samples listings read from the database, and in db-less
  * sessions invalidating would clobber the pushes — the only landing spot —
  * with an empty read. Log listings have a cache-backed read path, so their
- * invalidation is unconditional.
+ * invalidation is unconditional. Resolves to the payloads that could not be
+ * ingested (those logs stay at their current depth).
  */
 export const writeDetails = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   details: Record<string, LogDetails>
-): Promise<void> => {
-  const prepared = Object.entries(details).map(
-    ([name, payload]) => [name, prepareLogDetails(payload)] as const
-  );
+): Promise<Record<string, Error>> => {
+  const { prepared, failures } = prepareBatch(details);
   await Promise.all(
     prepared.map(([name, file]) =>
       pushFileSamples(
@@ -328,20 +383,21 @@ export const writeDetails = async (
     logDir,
     Object.fromEntries(prepared.map(([name, file]) => [name, file.patch]))
   );
-  if (db?.opened()) {
+  if (db) {
     await db.writeLogDetails(Object.fromEntries(prepared));
     invalidateSamplesListings(logDir);
   }
   invalidateDatabaseLogsListings();
+  return failures;
 };
 
 export const writeFetchStates = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   states: Record<string, LogFetchState>
 ): Promise<void> => {
   mergeFetchStates(logDir, states);
-  if (db?.opened()) {
+  if (db) {
     await db.writeFetchStates(states);
   }
 };
@@ -353,7 +409,7 @@ export const writeFetchStates = async (
  * apply to explicit resets.
  */
 export const resetDepth = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   names: string[]
 ): Promise<void> => {
@@ -374,7 +430,7 @@ export const resetDepth = async (
       pushLog(logDir, row);
     }
   }
-  if (db?.opened()) {
+  if (db) {
     await db.resetDepth(names);
   }
   invalidateDatabaseLogsListings();
@@ -382,12 +438,12 @@ export const resetDepth = async (
 };
 
 export const clearFile = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   name: string
 ): Promise<void> => {
   evictFile(logDir, name);
-  if (db?.opened()) {
+  if (db) {
     await db.clearCacheForFile(name);
   }
   invalidateDatabaseLogsListings();
@@ -397,11 +453,11 @@ export const clearFile = async (
 };
 
 export const clearAll = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string
 ): Promise<void> => {
   clearCache(logDir);
-  if (db?.opened()) {
+  if (db) {
     // The whole database, not just this scope: the button this backs says
     // "Clear Local Database", and a scoped clear can't reach rows persisted
     // under out-of-namespace names (see namesInScope). It's all a cache —
@@ -411,25 +467,35 @@ export const clearAll = async (
   invalidateDatabaseLogsListings();
 };
 
+// A warm session coming online must refresh samples listings: a listing
+// query mounted before the db opened settled empty (staleTime: Infinity)
+// and a no-change boot performs none of the writes that would otherwise
+// invalidate it — so /#/samples as the entry route stayed blank. Log
+// listings need the same nudge: one mounted before the db opened read
+// nothing, and a no-change boot never writes. Both row-seeding sink methods
+// (full replace and single-row merge) need this, so it's shared to keep
+// them from drifting apart.
+const invalidateOnRowSeed = (logDir: string): void => {
+  invalidateDatabaseLogsListings();
+  invalidateSamplesListings(logDir);
+};
+
 /**
  * The seam as a fetch-engine sink: the write surface bound to a directory and
  * its database. Built at the composition root so the engine stays
  * framework-free (it sees callbacks, not this react-query-backed module).
  */
 export const createLogsContentSink = (
-  db: DatabaseService | null,
+  db: OpenDatabase | null,
   logDir: string
 ): LogsContentSink => ({
-  seedRows: (rows) => {
+  replaceRows: (rows) => {
     setRows(logDir, rows);
-    // A warm session coming online must refresh samples listings: a listing
-    // query mounted before the db opened settled empty (staleTime: Infinity)
-    // and a no-change boot performs none of the writes that would otherwise
-    // invalidate it — so /#/samples as the entry route stayed blank. Log
-    // listings need the same nudge: one mounted before the db opened read
-    // nothing, and a no-change boot never writes.
-    invalidateDatabaseLogsListings();
-    invalidateSamplesListings(logDir);
+    invalidateOnRowSeed(logDir);
+  },
+  mergeRows: (patches) => {
+    mergeRows(logDir, patches);
+    invalidateOnRowSeed(logDir);
   },
   setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),

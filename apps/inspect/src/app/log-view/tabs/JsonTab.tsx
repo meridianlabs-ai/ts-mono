@@ -8,7 +8,7 @@ import { LogHeader } from "../../../client/api/types";
 import { DownloadPanel } from "../../../components/DownloadPanel";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
-import { ApplicationIcons } from "../../appearance/icons";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 
 import styles from "./JsonTab.module.css";
 
@@ -16,7 +16,7 @@ const kJsonMaxSize = 10000000;
 
 // Individual hook for JSON tab
 export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const selectedTab = useStore((state) => state.app.tabs.workspace);
 
   return useMemo(() => {
@@ -33,12 +33,13 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
       id: kLogViewJsonTabId,
       label: "JSON",
       scrollable: true,
-      component: JsonTab,
-      componentProps: {
-        logFile: selectedLogFile,
-        json,
-        selected: selectedTab === kLogViewJsonTabId,
-      },
+      content: (
+        <JsonTab
+          logFile={selectedLogFile}
+          json={json}
+          selected={selectedTab === kLogViewJsonTabId}
+        />
+      ),
       tools: () => [<CopyJsonButton key="copy-json" json={json} />],
     };
   }, [selectedLogFile, logDetails, selectedTab]);
@@ -54,7 +55,7 @@ export const CopyJsonButton: FC<{ json: string }> = ({ json }) => {
   return (
     <ToolButton
       label={copied ? "Copied!" : "Copy JSON"}
-      icon={copied ? ApplicationIcons.confirm : ApplicationIcons.copy}
+      icon={copied ? "confirm" : "copy"}
       subtle
       disabled={copied}
       onClick={() => copy(json)}

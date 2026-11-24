@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { expectEvent } from "../testing";
-import type { ModelEvent } from "../types";
+import {
+  expectEvent,
+  testEvalMetric,
+  testEvalScore,
+  testUserMessage,
+} from "../testing";
+import type { ChatMessage, ModelEvent } from "../types";
+import { inputString } from "../utils";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
 import {
+  normalizeChatMessages,
   normalizeConfigUpdates,
   normalizeEvalPlan,
   normalizeEvalResults,
@@ -16,6 +23,9 @@ import {
   normalizeTimelines,
   type WireTimeline,
 } from "./index";
+
+const inputMessages = (input: string | ChatMessage[]): ChatMessage[] =>
+  typeof input === "string" ? [] : input;
 
 describe("normalizeEvalSample on a real Nov-2024 log", () => {
   const sample = normalizeEvalSample(legacySample);
@@ -67,6 +77,47 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     expect(plan.name).toBe(legacyHeader.plan.name);
   });
 
+  it("drops malformed results.scores entries and fills score defaults", () => {
+    const results = normalizeEvalResults({
+      total_samples: 1,
+      completed_samples: 1,
+      scores: [
+        null,
+        1,
+        { scorer: "nameless" },
+        { name: "legacy" },
+        {
+          name: "match",
+          scorer: "match",
+          params: {},
+          metrics: {
+            gone: null,
+            text: { name: "text", value: "1" },
+            accuracy: { name: "accuracy", value: 1, params: {} },
+          },
+        },
+      ],
+    })!;
+    expect(results.scores).toEqual([
+      testEvalScore({ name: "legacy", scorer: "legacy" }),
+      testEvalScore({
+        name: "match",
+        scorer: "match",
+        metrics: { accuracy: testEvalMetric({ value: 1 }) },
+      }),
+    ]);
+  });
+
+  it("keeps a metric named __proto__ as an ordinary entry", () => {
+    const raw: unknown = JSON.parse(
+      '[{"name": "s", "metrics": {"__proto__": {"name": "m", "value": 1}}}]'
+    );
+    const results = normalizeEvalResults({ scores: raw })!;
+    expect(Object.entries(results.scores[0]!.metrics)).toEqual([
+      ["__proto__", testEvalMetric({ name: "m", value: 1 })],
+    ]);
+  });
+
   it("returns null results for in-progress logs", () => {
     expect(normalizeEvalResults(undefined)).toBeNull();
     expect(normalizeEvalResults(null)).toBeNull();
@@ -99,6 +150,192 @@ describe("legacy shape migrations", () => {
       score: { value: "C" },
     });
     expect(sample.scores).toEqual({ scorer: { value: "C" } });
+  });
+
+  it("drops a null legacy score instead of lifting it", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      score: null,
+    });
+    expect(sample.scores).toEqual({});
+  });
+
+  // inspect_ai 0.3.123–0.3.125 wrote tool-use arguments and results as JSON
+  // values; they read as their JSON text everywhere content can appear.
+  it("stores legacy tool-use arguments and results as JSON text", () => {
+    const legacyToolUse = () => ({
+      type: "tool_use",
+      tool_type: "web_search",
+      id: "srvtoolu_1",
+      name: "web_search",
+      arguments: { query: "q" },
+      result: [
+        { type: "web_search_result", title: "T", url: "https://x.test" },
+      ],
+    });
+    const assistant = () => ({ role: "assistant", content: [legacyToolUse()] });
+    const output = () => ({
+      model: "m",
+      choices: [{ message: assistant(), stop_reason: "stop" }],
+    });
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [assistant()],
+      target: "a",
+      messages: [assistant()],
+      output: output(),
+      events: [
+        { event: "model", model: "m", input: [assistant()], output: output() },
+      ],
+    });
+    const event = expectEvent(sample.events[0], "model");
+    const toolUses = [
+      sample.messages[0],
+      inputMessages(sample.input)[0],
+      sample.output.choices[0]?.message,
+      event.input[0],
+      event.output.choices[0]?.message,
+    ].map((message) => {
+      const content = message?.content;
+      const item = Array.isArray(content) ? content[0] : undefined;
+      return item?.type === "tool_use" ? item : undefined;
+    });
+    for (const toolUse of toolUses) {
+      expect(toolUse?.arguments).toBe('{"query":"q"}');
+      expect(toolUse?.result).toBe(
+        '[{"type":"web_search_result","title":"T","url":"https://x.test"}]'
+      );
+    }
+  });
+
+  it("leaves current tool-use content untouched", () => {
+    const assistant = () => ({
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: '{"query":"q"}',
+          result: "[]",
+        },
+      ],
+    });
+    const messages = [assistant()];
+    const input = [assistant()];
+    const choice = { message: assistant(), stop_reason: "stop" };
+    const eventInput = [assistant()];
+    const eventChoice = { message: assistant(), stop_reason: "stop" };
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input,
+      target: "a",
+      messages,
+      output: { model: "m", choices: [choice], completion: "" },
+      events: [
+        {
+          event: "model",
+          model: "m",
+          input: eventInput,
+          output: { model: "m", choices: [eventChoice], completion: "" },
+        },
+      ],
+    });
+    const event = expectEvent(sample.events[0], "model");
+    expect(sample.messages).toBe(messages);
+    expect(sample.input).toBe(input);
+    expect(sample.output.choices[0]).toBe(choice);
+    expect(event.input).toBe(eventInput);
+    expect(event.output.choices[0]).toBe(eventChoice);
+  });
+
+  it("keeps the clean neighbours of a legacy tool use in place", () => {
+    const before = { type: "text", text: "before" };
+    const after = { type: "text", text: "after" };
+    const legacy = {
+      role: "assistant",
+      content: [
+        before,
+        {
+          type: "tool_use",
+          id: "t",
+          name: "n",
+          arguments: { q: 1 },
+          result: 2,
+        },
+        after,
+      ],
+    };
+    const first = { role: "user", content: "first" };
+    const last = { role: "user", content: "last" };
+    const messages = normalizeChatMessages([first, legacy, last]);
+
+    expect(messages).toHaveLength(3);
+    expect(messages[0]).toBe(first);
+    expect(messages[2]).toBe(last);
+    const content = messages[1]?.content;
+    const items = Array.isArray(content) ? content : [];
+    expect(items).toEqual([
+      before,
+      {
+        type: "tool_use",
+        id: "t",
+        name: "n",
+        arguments: '{"q":1}',
+        result: "2",
+      },
+      after,
+    ]);
+    expect(items[0]).toBe(before);
+    expect(items[2]).toBe(after);
+  });
+
+  it("normalizes a raw message list from a source that skips the sample", () => {
+    const legacy = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          tool_type: "web_search",
+          id: "srvtoolu_1",
+          name: "web_search",
+          arguments: { query: "q" },
+          result: [],
+        },
+      ],
+    };
+    const [message, ...rest] = normalizeChatMessages([legacy, { content: 7 }]);
+    const item = Array.isArray(message?.content)
+      ? message.content[0]
+      : undefined;
+    expect(item?.type === "tool_use" ? item.arguments : undefined).toBe(
+      '{"query":"q"}'
+    );
+    // Entries without chat-message content are dropped, as pydantic would.
+    expect(rest).toEqual([]);
+    expect(normalizeChatMessages(undefined)).toEqual([]);
+    const clean = [{ role: "user", content: "hi" }];
+    expect(normalizeChatMessages(clean)).toBe(clean);
+  });
+
+  // Pydantic resolves an untagged block by its payload field, so one missing
+  // tag must not drop the message.
+  it("tags untagged content blocks in chat messages", () => {
+    const [message] = normalizeChatMessages([
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "a" }, { text: "b" }],
+      },
+    ]);
+    expect(message?.content).toEqual([
+      { type: "text", text: "a" },
+      { type: "text", text: "b" },
+    ]);
   });
 
   it("migrates a sandbox tuple to a spec object", () => {
@@ -349,6 +586,28 @@ describe("normalizeEvalSample input validation", () => {
     ]);
   });
 
+  it("drops malformed input messages so inputString stays unguarded", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [1, null, { role: "user" }, { role: "user", content: "q" }],
+    });
+    expect(sample.input).toEqual([testUserMessage({ content: "q" })]);
+    expect(inputString(sample.input)).toEqual(["q"]);
+  });
+
+  it("drops malformed model_fallbacks elements", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      model_fallbacks: [null, 1, { model: "a", fallback_model: "b" }],
+    });
+    expect(sample.model_fallbacks).toEqual([
+      { model: "a", fallback_model: "b", count: 1 },
+    ]);
+  });
+
   it("normalizes retry-error events recursively", () => {
     const sample = normalizeEvalSample({
       id: 1,
@@ -479,6 +738,211 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
+  const pathless = {
+    ...base,
+    event: "sentinel",
+    kind: "decision",
+    step_id: "call_1",
+    conversation: "agent",
+  };
+  const sentinel = { ...pathless, factory: "guard", path: "guard/rules" };
+
+  it("sentinel: reads an old log's continue action as proceed", () => {
+    expect(normalizeEvent({ ...sentinel, action: "continue" })).toMatchObject({
+      action: "proceed",
+    });
+    const current = { ...sentinel, action: "proceed" };
+    expect(normalizeEvent(current)).toBe(current);
+  });
+
+  it("sentinel: fills the required strings a crafted record omits", () => {
+    expect(normalizeEvent({ ...pathless, action: "reject" })).toMatchObject({
+      path: "",
+      factory: "",
+      step_id: "call_1",
+      conversation: "agent",
+    });
+  });
+
+  // Current inspect_ai accepts each of these with the defaulted fields omitted.
+  const communication = {
+    ...base,
+    event: "communication",
+    source: "test",
+    agent: "a",
+  };
+
+  it("communication: fills the defaults of each kind", () => {
+    expect(
+      normalizeEvent({ ...communication, kind: "read", channel: "c" })
+    ).toMatchObject({ nested: false, record_ids: [], data: {} });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "sent",
+        channel: "c",
+        send: { record: { kind: "message", sender: "a" } },
+      })
+    ).toMatchObject({
+      record_ids: [],
+      send: { record: { kind: "message", to: [], recipients: [] } },
+    });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "delivered",
+        channel: "c",
+        delivery: { seq: 1 },
+      })
+    ).toMatchObject({ delivery: { seq: 1, recipients: [] } });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news", duration: 1 },
+      })
+    ).toMatchObject({
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: [] },
+    });
+  });
+
+  const sent = (send: unknown) =>
+    normalizeEvent({ ...communication, kind: "sent", channel: "c", send });
+
+  it.each([
+    ["an empty send", {}],
+    ["a send that is not an object", true],
+    ["a null record", { record: null }],
+    ["a record that is not an object", { record: false }],
+    ["a record without a sender", { record: { kind: "message" } }],
+    [
+      "a rejection that is not an object",
+      { record: { kind: "message", sender: "a" }, rejected: true },
+    ],
+    [
+      "a rejection without a reason",
+      { record: { kind: "message", sender: "a" }, rejected: { control: "r" } },
+    ],
+  ])("communication: drops %s", (_, send) => {
+    expect(sent(send)).toMatchObject({ kind: "sent", send: null });
+  });
+
+  it("communication: keeps a valid send, filling its record's fields", () => {
+    expect(
+      sent({
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b", 1],
+          content: 7,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      })
+    ).toMatchObject({
+      send: {
+        record: {
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: [],
+          content: null,
+          reply_to: "m-1",
+        },
+        rejected: { control: "rate", reason: "slow down" },
+      },
+    });
+  });
+
+  it("communication: drops what a reader cannot use in the other fields", () => {
+    expect(
+      normalizeEvent({
+        ...communication,
+        agent: 3,
+        kind: "delivered",
+        channel: 4,
+        record_ids: ["m-1", null],
+        delivery: { recipients: ["b", {}], seq: "1" },
+      })
+    ).toMatchObject({
+      agent: "",
+      channel: null,
+      record_ids: ["m-1"],
+      delivery: { recipients: ["b"], seq: null },
+    });
+    expect(
+      normalizeEvent({ ...communication, kind: "delivered", delivery: 1 })
+    ).toMatchObject({ delivery: null });
+    expect(
+      normalizeEvent({
+        ...communication,
+        kind: "waited",
+        wait: { outcome: "news" },
+      })
+    ).toMatchObject({ wait: null });
+  });
+
+  it("communication: keeps a complete send's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "sent",
+      channel: "c",
+      nested: false,
+      record_ids: ["m-1"],
+      data: {},
+      send: {
+        record: {
+          id: "m-1",
+          kind: "message",
+          sender: "a",
+          to: ["b"],
+          recipients: ["b"],
+          content: "hi",
+        },
+      },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: keeps a complete event's identity", () => {
+    const complete = {
+      ...communication,
+      kind: "waited",
+      nested: false,
+      record_ids: [],
+      data: {},
+      wait: { outcome: "news", duration: 1, channels: ["c"] },
+    };
+    expect(normalizeEvent(complete)).toBe(complete);
+  });
+
+  it("communication: fills defaults on events nested in tool and subtask events", () => {
+    const nested = { ...communication, kind: "read", channel: "c" };
+    const filled = { event: "communication", record_ids: [], data: {} };
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "tool",
+        id: "call1",
+        function: "agent",
+        arguments: {},
+        result: "",
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+    expect(
+      normalizeEvent({
+        ...base,
+        event: "subtask",
+        name: "calc",
+        input: {},
+        result: null,
+        events: [nested],
+      })
+    ).toMatchObject({ events: [filled] });
+  });
+
   it("span_begin / span_end: fill ids and names", () => {
     expect(normalizeEvent({ ...base, event: "span_begin" })).toMatchObject({
       id: "",
@@ -571,6 +1035,129 @@ describe("normalizeEvalSpec remaining defaults", () => {
     const spec = normalizeEvalSpec({ task: "t" });
     expect(spec.solver_args_passed).toBeNull();
     expect(spec.task_version).toBe(0);
+  });
+});
+
+describe("normalizeEvalSpec viewer config", () => {
+  it("leaves an absent viewer absent", () => {
+    expect(normalizeEvalSpec({ task: "t" }).viewer).toBeUndefined();
+  });
+
+  it("defaults scanner_result_view to an empty map", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: { trust_content: false },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({});
+  });
+
+  it("defaults sort dir to asc and column visibility to true", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        sample_score_view: { sort: { column: "value" } },
+        task_samples_view: [
+          {
+            name: "default",
+            columns: [{ id: "input" }, { id: "target", visible: false }],
+            sort: [{ column: "epoch" }, { column: "input", dir: "desc" }],
+          },
+        ],
+      },
+    }).viewer;
+    expect(viewer?.sample_score_view?.sort?.dir).toBe("asc");
+    expect(viewer?.task_samples_view).toEqual([
+      {
+        name: "default",
+        columns: [
+          { id: "input", visible: true },
+          { id: "target", visible: false },
+        ],
+        sort: [
+          { column: "epoch", dir: "asc" },
+          { column: "input", dir: "desc" },
+        ],
+      },
+    ]);
+  });
+
+  it("fills a single task_samples_view the same way", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        task_samples_view: { name: "only", columns: [{ id: "epoch" }] },
+      },
+    }).viewer;
+    expect(viewer?.task_samples_view).toEqual({
+      name: "only",
+      columns: [{ id: "epoch", visible: true }],
+    });
+  });
+
+  it("fills scanner view defaults and drops entries of unknown kind", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: {
+        scanner_result_view: {
+          "audit*": {
+            fields: [
+              { kind: "bogus", name: "value" },
+              { kind: "builtin", name: "value" },
+              { name: "label" },
+              { key: "k2" },
+              { kind: "metadata", key: "k", collapsed: true },
+              "explanation",
+            ],
+          },
+        },
+      },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({
+      "audit*": {
+        fields: [
+          { kind: "builtin", name: "value", collapsed: false },
+          { kind: "builtin", name: "label", collapsed: false },
+          { kind: "metadata", key: "k2", collapsed: false },
+          { kind: "metadata", key: "k", collapsed: true },
+          "explanation",
+        ],
+        exclude_fields: [],
+      },
+    });
+  });
+
+  it("fills a bare scanner view without treating its keys as globs", () => {
+    const viewer = normalizeEvalSpec({
+      viewer: { scanner_result_view: { exclude_fields: ["answer"] } },
+    }).viewer;
+    expect(viewer?.scanner_result_view).toEqual({
+      fields: null,
+      exclude_fields: ["answer"],
+    });
+  });
+});
+
+describe("normalizeEvalSample invalidation", () => {
+  it("fills the provenance fields an invalidation record requires", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      invalidation: { author: "me", reason: "leaked" },
+    });
+    expect(sample.invalidation).toEqual({
+      author: "me",
+      reason: "leaked",
+      timestamp: "",
+      metadata: {},
+    });
+  });
+
+  it("drops an invalidation that isn't an object", () => {
+    expect(
+      normalizeEvalSample({ id: 1, epoch: 1, invalidation: true }).invalidation
+    ).toBeNull();
+  });
+
+  it("leaves an absent invalidation absent", () => {
+    expect(
+      normalizeEvalSample({ id: 1, epoch: 1 }).invalidation
+    ).toBeUndefined();
   });
 });
 

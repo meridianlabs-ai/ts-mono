@@ -5,8 +5,8 @@ reachable from the collection views without leaving the current route family.
 
 ## Sub-features
 
-- `flow-discovery` shows the Flow button when the current directory exposes an
-  evaluation flow.
+- `flow-discovery` shows the Flow icon link when the current directory exposes
+  an evaluation flow.
 - `flow-render` loads `.yaml`/`.yml` as text and highlights it as YAML.
 - `flow-navigation` keeps breadcrumbs and back/home behavior consistent in
   Logs and Samples route families.
@@ -23,7 +23,8 @@ reachable from the collection views without leaving the current route family.
 - Preconditions: serve a directory whose eval-set response names a real flow
   file. The default rich-log fixtures may not provide one; skip with that
   explicit fixture gap rather than inventing a route.
-- Click the visible Flow action and assert a known YAML key/value from the
+- Click `getByRole("link", { name: "View Flow configuration for this directory" })`
+  (a button inside VS Code) and assert a known YAML key/value from the
   fixture inside `code.language-yml`.
 - Assert the breadcrumb path and use back once. Repeat from the Samples route
   when both entry points are reachable.

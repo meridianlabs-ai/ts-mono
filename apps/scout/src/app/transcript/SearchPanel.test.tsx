@@ -10,7 +10,7 @@ import {
 import { http, HttpResponse } from "msw";
 import { type PropsWithChildren } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createInitialSearchPanelState,
@@ -18,15 +18,18 @@ import {
   type LlmSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
-import { ComponentIconProvider } from "@tsmono/react/components";
-import { testIcons } from "@tsmono/react/testing";
+import {
+  ExtendedFindProvider,
+  FindBand,
+  FindTargetProvider,
+} from "@tsmono/react/components";
+import { stubFindHighlightApi } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { server } from "../../test/setup-msw";
-import { innerTextarea, onlyElement } from "../../test/webComponents";
 import type {
   ProjectConfig,
   Result,
@@ -96,16 +99,14 @@ const renderSearchPanel = ({
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={testIcons}>
-            <MemoryRouter initialEntries={[route]}>
-              <Routes>
-                <Route
-                  path="/transcripts/:transcriptsDir/:transcriptId"
-                  element={children}
-                />
-              </Routes>
-            </MemoryRouter>
-          </ComponentIconProvider>
+          <MemoryRouter initialEntries={[route]}>
+            <Routes>
+              <Route
+                path="/transcripts/:transcriptsDir/:transcriptId"
+                element={children}
+              />
+            </Routes>
+          </MemoryRouter>
         </StoreProvider>
       </ApiProvider>
     </QueryClientProvider>
@@ -185,6 +186,7 @@ const getRunButton = (): HTMLButtonElement =>
 describe("SearchPanel", () => {
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   it("submits a grep search with the right scope and renders the match count", async () => {
@@ -452,8 +454,8 @@ describe("SearchPanel", () => {
 
     await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
 
-    const textarea = innerTextarea(onlyElement("vscode-textarea"));
-    fireEvent.input(textarea, { target: { value: "needles" } });
+    const textarea = screen.getByPlaceholderText("Search for text...");
+    fireEvent.change(textarea, { target: { value: "needles" } });
 
     expect(screen.queryByText("5 matches")).not.toBeNull();
   });
@@ -571,5 +573,28 @@ describe("SearchPanel", () => {
         getSearchPanelStateKey({ scope: "events", transcriptDir })
       ];
     expect(stored).toEqual(createInitialSearchPanelState());
+  });
+
+  it("keeps the panel's own text out of in-page Find", async () => {
+    stubFindHighlightApi(vi.stubGlobal);
+    renderSearchPanel();
+    await screen.findByText("Search: events");
+    // The same text outside the panel, standing in for the transcript.
+    render(
+      <ExtendedFindProvider>
+        <FindTargetProvider>
+          <FindBand onClose={() => {}} />
+          <p>Search: events</p>
+        </FindTargetProvider>
+      </ExtendedFindProvider>
+    );
+
+    const input = screen.getByPlaceholderText("Find");
+    fireEvent.change(input, { target: { value: "Search: events" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(screen.getByTestId("find-band-match-count").textContent).toBe(
+      "1 of 1"
+    );
   });
 });

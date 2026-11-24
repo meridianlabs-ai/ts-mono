@@ -3,6 +3,7 @@ import type {
   ApprovalEvent,
   BranchEvent,
   CheckpointEvent,
+  CommunicationEvent,
   CompactionEvent,
   ErrorEvent,
   InfoEvent,
@@ -17,12 +18,14 @@ import type {
   SandboxEvent,
   ScoreEditEvent,
   ScoreEvent,
+  SentinelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   StateEvent,
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -31,6 +34,8 @@ import type {
   ToolAnnotation,
 } from "../chat/tools/browserActionUtils";
 
+import type { MakeCiteUrl } from "./citeReferences";
+import type { SentinelStep, ToolSentinels } from "./transform/toolSentinels";
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
 export interface StateManager {
@@ -85,6 +90,9 @@ export type EventType =
   | AnchorEvent
   | ApprovalEvent
   | ReviewEvent
+  | SentinelEvent
+  | CommunicationEvent
+  | SwarmEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -112,6 +120,9 @@ export const eventTypeValues = [
   "anchor",
   "approval",
   "review",
+  "sentinel",
+  "communication",
+  "swarm",
   "branch",
   "checkpoint",
   "compaction",
@@ -147,7 +158,7 @@ export interface EventNodeSpan {
 export class EventNode<T extends EventType = EventType> {
   id: string;
   event: T;
-  children: EventNode<EventType>[] = [];
+  children: EventNode[] = [];
   depth: number;
   /** Timeline span info, attached by app-level processing. */
   sourceSpan?: EventNodeSpan;
@@ -265,6 +276,23 @@ export type TranscriptState = Record<string, TranscriptEventState>;
  */
 export interface EventNodeContext {
   hasToolEvents?: boolean;
+  /** Ids of the tool events at this node's level. When set, a model event
+   *  leaves out (from its summary) only the tool calls and tool messages
+   *  these events show; when unset, `hasToolEvents` and the next node
+   *  decide for all of them. */
+  toolEventIds?: ReadonlySet<string>;
+  /** The model's ids (`proposalIdOf`) for the calls of the tool events at
+   *  this node's level, which a model event's output names them by; its
+   *  input names them by `toolEventIds`. Unset, `toolEventIds` covers both. */
+  toolProposalIds?: ReadonlySet<string>;
+  /** Whether the sample's log records `execution_id` (`recordsExecutionIds`):
+   *  only then do tools pair with checks and approvals by execution and model
+   *  outputs name calls by `proposalIdOf`. Unset, the rendered nodes decide. */
+  recordsExecutionIds?: boolean;
+  /** The events that showed a model event's input tool messages are not in
+   *  this list (a focused turn starts at its model event), so the summary
+   *  hides them all and `toolEventIds` applies to the model's own calls only. */
+  inputShownElsewhere?: boolean;
   turnInfo?: { turnNumber: number; totalTurns: number };
   /** True for the turn's first flattened event (its "capstone"). Only the
    *  capstone's header shows the turn-nav cluster while unstuck; other headers
@@ -278,8 +306,14 @@ export interface EventNodeContext {
   eventLabels?: Record<string, string>;
   /** Per-tool labels rendered in tool event gutters. Keyed by `ToolEvent.id`. */
   toolLabels?: Record<string, string>;
-  /** Approval events paired to their tool event via `call.id == ToolEvent.id`. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
-  toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
+  /** Approval events (every approver in an escalation chain) paired to their tool event via `executionIdOf(approval) == runIdOf(tool)` (see `pairToolApprovals`), keyed by the tool's node id. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
+  toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
+  /** Sentinel steps paired to their tool event via `executionIdOf(event) == runIdOf(tool)` (see `pairToolSentinels`), rendered as rows at the bottom of the tool panel beside the approval. */
+  toolSentinels?: Map<string, ToolSentinels>;
+  /** Links the cites in a sentinel check's explanation (e.g. `[M22]`) to the messages and events its references name. */
+  makeCiteUrl?: MakeCiteUrl;
+  /** Sentinel steps with no tool to render in, keyed by the node that hosts the step's row. */
+  standaloneSentinels?: Map<string, SentinelStep>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */
   retryAttempts?: Map<string, ModelEvent[]>;
   selfAnnotation?: ToolAnnotation;

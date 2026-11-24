@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { ReactElement } from "react";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import {
   testEvalMetric,
@@ -10,14 +11,15 @@ import {
   testModelConfig,
 } from "@tsmono/inspect-common/testing";
 
+import { startTestApp, stopTestApp, TestApp } from "../../../test/testApp";
+
 import { CollapsedTitleBar } from "./CollapsedTitleBar";
 
-// The collapsed bar reads the folded config only to decide whether an errored
-// run still shows metrics; a successful run shows them regardless. Stub it so
-// rendering doesn't require the store and a QueryClientProvider.
-vi.mock("../../../state/hooks", () => ({
-  useEffectiveEvalConfig: () => undefined,
-}));
+// The collapsed bar reads the selected log's folded config only to decide
+// whether an errored run still shows metrics; a successful run shows them
+// regardless. Render it in the app with no log selected.
+const renderBar = (ui: ReactElement) =>
+  render(<TestApp path="/logs">{ui}</TestApp>);
 
 const scoreWith = (scorer: string, metric: string, value: number) =>
   testEvalScore({
@@ -32,11 +34,17 @@ const renderedLabels = (container: HTMLElement) =>
   );
 
 describe("CollapsedTitleBar", () => {
+  beforeEach(() => {
+    startTestApp();
+  });
   // Auto-cleanup needs vitest `globals: true`, which this config doesn't set.
-  afterEach(cleanup);
+  afterEach(async () => {
+    cleanup();
+    await stopTestApp();
+  });
 
   test("shows the primary model before parenthesized custom roles", () => {
-    const { getByText } = render(
+    const { getByText } = renderBar(
       <CollapsedTitleBar
         evalSpec={testEvalSpec({
           model: "openai/gpt-6-astra",
@@ -56,7 +64,7 @@ describe("CollapsedTitleBar", () => {
   });
 
   test("leads with the headline metric rather than the first score", () => {
-    const { container } = render(
+    const { container } = renderBar(
       <CollapsedTitleBar
         evalSpec={testEvalSpec()}
         status="success"
@@ -78,7 +86,7 @@ describe("CollapsedTitleBar", () => {
   });
 
   test("keeps score order when no headline is recorded", () => {
-    const { container } = render(
+    const { container } = renderBar(
       <CollapsedTitleBar
         evalSpec={testEvalSpec()}
         status="success"

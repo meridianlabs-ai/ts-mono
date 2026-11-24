@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import {
@@ -9,11 +13,7 @@ import {
 } from "./conversation";
 import { sequenceReaderOver, testChunkedSample } from "./testFixtures";
 
-const message = (id: string): ChatMessage => ({
-  id,
-  role: "user",
-  content: id,
-});
+const message = (id: string) => testUserMessage({ id, content: id });
 
 const messages = ["m-0", "m-1", "m-2", "m-3", "m-4"].map(message);
 
@@ -53,8 +53,8 @@ describe("inMemoryConversation", () => {
 
 describe("chunkedConversation raw reads", () => {
   const withAttachment: ChatMessage[] = [
-    { id: "m-0", role: "user", content: "attachment://0" },
-    { id: "m-1", role: "assistant", content: "plain" },
+    testUserMessage({ id: "m-0", content: "attachment://0" }),
+    testAssistantMessage({ id: "m-1", content: "plain" }),
   ];
 
   it("serves unresolved refs without touching the attachments sequence", async () => {

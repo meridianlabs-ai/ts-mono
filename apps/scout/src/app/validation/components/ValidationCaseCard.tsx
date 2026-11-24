@@ -3,8 +3,8 @@ import React, { CSSProperties, FC, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
-import { ApplicationIcons } from "../../../icons";
 import { transcriptRoute } from "../../../router/url";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
 import { eventChecked } from "../../utils/formEvents";
@@ -194,7 +194,6 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   const handleNavigateToTranscript = () => {
     const singleId = Array.isArray(id) ? id[0] : id;
     if (transcriptsDir && singleId) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(
         transcriptRoute(transcriptsDir, singleId, undefined, validationSetUri)
       );
@@ -208,13 +207,16 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
 
   // Handle row click to toggle selection
   const handleRowClick = (e: React.MouseEvent) => {
-    // Don't toggle if clicking on interactive elements
     const target = e.target;
+    // React bubbles clicks from this card's modals, which portal to <body>.
+    if (!(target instanceof Node) || !e.currentTarget.contains(target)) return;
+    // Don't toggle if clicking on interactive elements
     if (
       target instanceof Element &&
       (target.closest("button") ||
         target.closest("vscode-checkbox") ||
-        target.closest("vscode-single-select"))
+        target.closest('[role="combobox"]') ||
+        target.closest('[role="listbox"]'))
     ) {
       return;
     }
@@ -262,7 +264,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
           </div>
         ) : (
           <div className={styles.notFoundRow}>
-            <i className={ApplicationIcons.logging.warning} />
+            <Icon name="logWarning" />
             <span>Not found in project transcripts</span>
           </div>
         )}
@@ -297,7 +299,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
           disabled={!transcriptsDir}
           title="View transcript"
         >
-          <i className={ApplicationIcons.edit} />
+          <Icon name="edit" />
         </button>
         {onDelete && (
           <button
@@ -307,7 +309,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
             disabled={isDeleting}
             title="Delete case"
           >
-            <i className={ApplicationIcons.trash} />
+            <Icon name="trash" />
           </button>
         )}
       </div>

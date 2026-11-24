@@ -160,6 +160,21 @@ describe("resolveEventTurnAnchor", () => {
     expect(resolveEventTurnAnchor(nodes, "t-sub")).toBe("m3");
   });
 
+  it("skips the model calls inside a sentinel span", () => {
+    const sentinelSpan = flatNode(
+      "sen",
+      testSpanBeginEvent({ type: "sentinel", name: "sentinel" }),
+      0
+    );
+    const flat = [
+      model("m1", 0),
+      sentinelSpan,
+      model("monitor", 1),
+      tool("t1", 0),
+    ];
+    expect(resolveEventTurnAnchor(flat, "t1")).toBe("m1");
+  });
+
   it("resolves a model to itself and unknown/pre-turn ids to undefined", () => {
     expect(resolveEventTurnAnchor(nodes, "m3")).toBe("m3");
     expect(resolveEventTurnAnchor(nodes, "nope")).toBeUndefined();
@@ -198,6 +213,31 @@ describe("computeTranscriptTurns", () => {
     expect(anchorIdByTurn.get(2)).toBe("m3");
     expect(anchorIdByTurn.get(3)).toBe("m4");
     expect(anchorIdByTurn.size).toBe(3);
+  });
+});
+
+describe("computeTranscriptTurns with sentinel spans", () => {
+  it("does not count a sentinel's model calls as turns", () => {
+    const span = new EventNode(
+      "sen",
+      testSpanBeginEvent({ type: "sentinel", name: "sentinel" }),
+      0
+    );
+    span.children = [treeNode("monitor", "model", 1)];
+    const eventNodes = [
+      treeNode("m1", "model", 0),
+      span,
+      treeNode("t1", "tool", 0),
+      treeNode("m2", "model", 0),
+    ];
+    const { turnMap, anchorIds } = computeTranscriptTurns(
+      eventNodes,
+      flatTree(eventNodes, null),
+      null
+    );
+    expect(anchorIds).toEqual(["m1", "m2"]);
+    expect(turnMap.get("t1")?.turnNumber).toBe(1);
+    expect(turnMap.get("m2")).toEqual({ turnNumber: 2, totalTurns: 2 });
   });
 });
 

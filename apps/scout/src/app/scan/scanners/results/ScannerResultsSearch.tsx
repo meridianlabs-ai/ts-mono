@@ -2,7 +2,6 @@ import { FC, useCallback } from "react";
 
 import { TextInput, type TextInputChange } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsSearch.module.css";
@@ -11,15 +10,16 @@ export const ScannerResultsSearch: FC = () => {
   const scansSearchText = useStore((state) => state.scansSearchText);
   const setScansSearchText = useStore((state) => state.setScansSearchText);
 
-  const handleChange = useCallback((e: TextInputChange) => {
-    setScansSearchText(e.target.value);
-    // TODO: lint react-hooks/exhaustive-deps - refactor to avoid the lint
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleChange = useCallback(
+    (e: TextInputChange) => {
+      setScansSearchText(e.target.value);
+    },
+    [setScansSearchText]
+  );
 
   return (
     <TextInput
-      icon={ApplicationIcons.search}
+      icon="search"
       value={scansSearchText ?? ""}
       onChange={handleChange}
       placeholder={"Search"}

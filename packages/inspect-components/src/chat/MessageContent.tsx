@@ -13,7 +13,11 @@ import type {
   ContentToolUse,
   ContentVideo,
 } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import {
+  ContentCode,
+  ExpandablePanel,
+  RequireMedia,
+} from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isRenderableImageSource, parseJsonRecord } from "@tsmono/util";
@@ -32,6 +36,7 @@ import {
 } from "../media/mediaSource";
 
 import { ContentDataView } from "./content-data/ContentDataView";
+import { reasoningText } from "./contentText";
 import { ContentDocumentView } from "./documents/ContentDocumentView";
 import { JsonMessageContent } from "./JsonMessageContent";
 import { MessageCitations } from "./MessageCitations";
@@ -169,21 +174,13 @@ const renderContent = (
     }
     case "reasoning": {
       const r = content;
-
-      // Possible titles
-      let title = "Reasoning";
-      let text = r.reasoning;
-      if (r.redacted) {
-        text = r.summary || "Reasoning encrypted by model provider.";
-        if (r.summary) {
-          title = "Reasoning (Summary)";
-        }
-      } else if (!text) {
-        text = r.summary || "Reasoning text not provided.";
-        if (r.summary) {
-          title = "Reasoning (Summary)";
-        }
-      }
+      const shown = reasoningText(r);
+      const title = shown?.summary ? "Reasoning (Summary)" : "Reasoning";
+      const text =
+        shown?.text ??
+        (r.redacted
+          ? "Reasoning encrypted by model provider."
+          : "Reasoning text not provided.");
 
       const openRouterCode = formatOpenRouterReasoning(text);
       const renderReasoningCode = openRouterCode !== undefined;
@@ -217,12 +214,13 @@ const renderContent = (
       const c = content;
       if (isRenderableImageSource(c.image)) {
         return (
-          <img
-            src={c.image}
-            alt="Message attachment"
-            className={styles.contentImage}
-            key={key}
-          />
+          <RequireMedia kind="image" key={key}>
+            <img
+              src={c.image}
+              alt="Message attachment"
+              className={styles.contentImage}
+            />
+          </RequireMedia>
         );
       } else {
         return <MediaReference source={c.image} key={key} />;
@@ -234,12 +232,12 @@ const renderContent = (
         return <MediaReference source={c.audio} key={key} />;
       }
       return (
-        // Log content carries no caption track and none can be synthesised
-        // here; the audio is model input being replayed, not authored media.
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio controls key={key}>
-          <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
-        </audio>
+        <RequireMedia kind="audio" key={key}>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- replayed model input from the log, which carries no caption track to attach */}
+          <audio controls>
+            <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
+          </audio>
+        </RequireMedia>
       );
     }
     case "video": {
@@ -248,10 +246,12 @@ const renderContent = (
         return <MediaReference source={c.video} key={key} />;
       }
       return (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above
-        <video width="500" height="375" controls key={key}>
-          <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
-        </video>
+        <RequireMedia kind="video" key={key}>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above */}
+          <video width="500" height="375" controls>
+            <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
+          </video>
+        </RequireMedia>
       );
     }
     case "tool": {
@@ -433,7 +433,7 @@ const CodePanel: FC<{ code: string; language?: string }> = ({
   return (
     <div ref={codeContainerRef} className={clsx(styles.codePanel)}>
       <pre className={clsx(styles.codePanelPre)}>
-        <code className={clsx(`language-${language}`)}>{code}</code>
+        <ContentCode className={clsx(`language-${language}`)} text={code} />
       </pre>
     </div>
   );

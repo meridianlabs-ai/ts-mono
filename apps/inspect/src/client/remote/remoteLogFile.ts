@@ -35,11 +35,6 @@ import {
 
 const OPEN_RETRY_LIMIT = 5;
 
-// Maximum uncompressed sample size (512MB). Files larger than this will
-// fail to allocate memory in the browser, so we reject them early with a
-// clear error rather than crashing with "Array buffer allocation failed".
-const MAX_SAMPLE_SIZE_BYTES = 2048 * 1024 * 1024;
-
 interface SampleEntry {
   sampleId: string;
   epoch: number;
@@ -249,7 +244,7 @@ export const openRemoteLogFile = async (
 
       // Send bytes directly to the worker pool, avoiding a redundant
       // TextDecoder.decode + TextEncoder.encode round-trip on the main thread.
-      return asyncJsonParseBytes(data);
+      return await asyncJsonParseBytes(data);
     } catch (error) {
       if (error instanceof FileSizeLimitError) {
         throw error;
@@ -271,7 +266,6 @@ export const openRemoteLogFile = async (
    * Lists all samples in the zip file.
    */
   const listSamples = (): Promise<SampleEntry[]> => {
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     return Promise.resolve(
       Array.from(remoteZipFile.centralDirectory.keys())
         .filter(
@@ -279,13 +273,14 @@ export const openRemoteLogFile = async (
             filename.startsWith("samples/") && filename.endsWith(".json")
         )
         .map((filename) => {
-          // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-          const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
-          return {
-            sampleId,
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            epoch: parseInt(epochStr.split(".")[0], 10),
-          };
+          const [sampleId, epochStr] = filename
+            .slice("samples/".length)
+            .split("_epoch_");
+          if (sampleId === undefined || epochStr === undefined) {
+            throw new Error(`Unexpected sample file name: ${filename}`);
+          }
+          // parseInt stops at the ".json" suffix.
+          return { sampleId, epoch: parseInt(epochStr, 10) };
         })
     );
   };
@@ -304,13 +299,6 @@ export const openRemoteLogFile = async (
       throw new SampleNotFoundError(
         `Unable to read sample file ${sampleFile} - it is not present in the manifest.`
       );
-    }
-
-    // Check the uncompressed size before attempting to read – this avoids
-    // crashing the browser with "Array buffer allocation failed".
-    const entry = remoteZipFile.centralDirectory.get(sampleFile)!;
-    if (entry.uncompressedSize > MAX_SAMPLE_SIZE_BYTES) {
-      throw new FileSizeLimitError(sampleFile, MAX_SAMPLE_SIZE_BYTES);
     }
 
     // Use a preprocessor to clear large events arrays

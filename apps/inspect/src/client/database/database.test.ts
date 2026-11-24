@@ -12,9 +12,13 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
-import { testEvalSpec } from "@tsmono/inspect-common/testing";
+import { testEvalSpec, testScore } from "@tsmono/inspect-common/testing";
 
-import { testSampleSummary } from "../api/testClientApi";
+import {
+  testLogDetails,
+  testLogPreview,
+  testSampleSummary,
+} from "../api/testClientApi";
 import {
   LogDetails,
   LogFetchState,
@@ -24,11 +28,11 @@ import {
 import { prepareLogDetails } from "../utils/type-utils";
 
 import { DB_NAME } from "./schema";
-import { createDatabaseService, DatabaseService } from "./service";
+import { OpenDatabase } from "./service";
 
 // Helper function to create test LogSummary
 function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
-  return {
+  return testLogPreview({
     eval_id: "eval-1",
     run_id: "run-1",
     task: "test-task",
@@ -41,12 +45,12 @@ function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
     started_at: "2024-01-01T00:00:00Z",
     completed_at: "2024-01-01T01:00:00Z",
     ...overrides,
-  };
+  });
 }
 
 // Helper function to create test LogInfo
 function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
-  return {
+  return testLogDetails({
     version: 1,
     status: "success",
     eval: testEvalSpec({
@@ -74,13 +78,10 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
       model: "gpt-4",
       model_base_url: null,
     }),
-    plan: undefined,
     results: null,
-    stats: undefined,
     error: null,
-    sampleSummaries: [],
     ...overrides,
-  };
+  });
 }
 
 // Helper function to create test SampleSummary
@@ -93,20 +94,19 @@ function createTestSampleSummary(
     input: "test input",
     target: "test target",
     scores: {
-      accuracy: {
+      accuracy: testScore({
         value: 0.9,
         answer: null,
         explanation: null,
         metadata: {},
-        history: [],
-      },
+      }),
     },
     ...overrides,
   });
 }
 
 describe("Database Service", () => {
-  let databaseService: DatabaseService;
+  let databaseService: OpenDatabase;
 
   // The service ingests seam-prepared payloads; tests write raw LogDetails
   // through the same normalization.
@@ -121,20 +121,14 @@ describe("Database Service", () => {
     );
 
   beforeEach(async () => {
-    // Create a new database service for each test
-    databaseService = createDatabaseService();
-    await databaseService.openDatabase();
+    databaseService = await OpenDatabase.open();
   });
 
   afterEach(async () => {
-    // Clean up after each test (only if database is still open). The
-    // database name is a constant, so cross-test isolation comes from
-    // deleting it outright.
-    try {
-      await databaseService.closeDatabase();
-    } catch {
-      // Database might already be closed in error handling tests
-    }
+    // The database name is a constant, so cross-test isolation comes from
+    // deleting it outright. close() is idempotent — the error-handling
+    // test's early close is fine.
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
@@ -596,6 +590,49 @@ describe("Database Service", () => {
     });
   });
 
+  describe("Concurrent writes", () => {
+    const file = "/test/logs/eval1.json";
+
+    // Each writer starts before the details write, so an unfenced
+    // read-then-put reads the pre-details row and puts it back afterwards.
+    test.each<[string, () => Promise<void>]>([
+      [
+        "writeLogPreviews",
+        () =>
+          databaseService.writeLogPreviews({ [file]: createTestLogSummary() }),
+      ],
+      [
+        "writeFetchStates",
+        () =>
+          databaseService.writeFetchStates({
+            [file]: {
+              preview_attempts: 1,
+              details_attempts: 0,
+              details_settled_seq: 0,
+            },
+          }),
+      ],
+      [
+        "writeLogs",
+        () => databaseService.writeLogs([{ name: file, mtime: 2 }]),
+      ],
+    ])(
+      "%s racing a details write keeps the details columns",
+      async (_, write) => {
+        await databaseService.writeLogs([{ name: file, mtime: 1 }]);
+
+        await Promise.all([
+          write(),
+          writeLogDetails({ [file]: createTestLogInfo() }),
+        ]);
+
+        const row = await databaseService.readLogRow(file);
+        expect(row?.depth).toBe("detailed");
+        expect(row?.header).toBeDefined();
+      }
+    );
+  });
+
   describe("Unified Database Scoping", () => {
     test("reads and clears are isolated per scope", async () => {
       await databaseService.writeLogs([
@@ -723,10 +760,10 @@ describe("Database Service", () => {
 
   describe("Error Handling", () => {
     test("should handle cache retrieval errors gracefully", async () => {
-      // Close database to simulate error
-      await databaseService.closeDatabase();
+      // Close the underlying connection to make reads fail (Dexie rejects
+      // on a closed connection)
+      databaseService.close();
 
-      // Should return null when database is closed (graceful error handling)
       const result = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(result).toBeNull();
     });

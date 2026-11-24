@@ -35,6 +35,11 @@ export function useDocumentTitle(
   const title =
     filtered.length > 0 ? `${filtered.join(" - ")} - ${APP_NAME}` : APP_NAME;
 
+  useDocumentTitleText(title);
+}
+
+/** Sets the document title to `title` verbatim, for apps that build their own. */
+export function useDocumentTitleText(title: string): void {
   useEffect(() => {
     document.title = title;
   }, [title]);

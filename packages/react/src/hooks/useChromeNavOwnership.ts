@@ -153,6 +153,7 @@ export function useChromeNavOwnership(
   const [initialOwned] = useState(ownedForKey);
   const localNavOwnsRef = useRef(initialOwned);
   const navOwnsRef = options.navOwnsRef ?? localNavOwnsRef;
+  /* eslint-disable react-hooks/todo, react-hooks/memo-dependencies -- a ref-shaped view over two refs, one possibly host-owned, rebuilt when either ref object is swapped; the compiler can't lower the getter, so it never sees the refs the deps list, and this hook bails anyway on its deliberate render-phase ref writes below */
   const suppressRef = useMemo(
     () => ({
       get current() {
@@ -161,6 +162,7 @@ export function useChromeNavOwnership(
     }),
     [findActiveRef, navOwnsRef]
   );
+  /* eslint-enable react-hooks/todo, react-hooks/memo-dependencies */
 
   const { hidden, resetAnchor, setHidden } = useScrollDirection(scrollRef, {
     ...options.scrollDirection,

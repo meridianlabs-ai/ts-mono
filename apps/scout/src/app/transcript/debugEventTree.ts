@@ -95,6 +95,15 @@ function label(ev: Event): string {
     case "review":
       return `review ${ev.decision} reviewer=${ev.reviewer}`;
 
+    case "sentinel":
+      return `sentinel ${ev.action ?? ev.kind} ${ev.status} path=${ev.path}`;
+
+    case "communication":
+      return `communication ${ev.kind} agent=${ev.agent}${ev.channel ? ` channel=${ev.channel}` : ""}`;
+
+    case "swarm":
+      return `swarm ${ev.kind}${ev.member ? ` member=${ev.member}` : ""}`;
+
     case "compaction":
       return `compaction${ev.source ? ` source=${ev.source}` : ""}`;
 

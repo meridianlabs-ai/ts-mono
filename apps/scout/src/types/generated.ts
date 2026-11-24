@@ -755,6 +755,9 @@ export interface components {
         /**
          * AppConfig
          * @description Application configuration returned by GET /config.
+         *
+         *     `trust_content` is the viewer-wide cap: the lowest of the `scout view`
+         *     option (or `SCOUT_VIEW_TRUST_CONTENT`) and the project's setting.
          */
         AppConfig: {
             /** Filter */
@@ -804,6 +807,8 @@ export interface components {
             /** Tags */
             tags?: string[] | null;
             transcripts?: components["schemas"]["AppDir"] | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -843,6 +848,8 @@ export interface components {
              * @constant
              */
             event: "approval";
+            /** Execution Id */
+            execution_id?: string | null;
             /** Explanation */
             explanation?: string | null;
             /** Message */
@@ -1186,6 +1193,125 @@ export interface components {
             trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
         };
         /**
+         * CommunicationDelivery
+         * @description For `delivered`, whom a record reached and in what order.
+         */
+        CommunicationDelivery: {
+            /** Recipients */
+            recipients: string[];
+            /** Seq */
+            seq?: number | null;
+        };
+        /**
+         * CommunicationEvent
+         * @description Communication between agents: a record sent or delivered, a read of what others communicated, or a wait for others.
+         *
+         *     Experimental: not yet a stable API.
+         */
+        CommunicationEvent: {
+            /** Agent */
+            agent: string;
+            /** Agent Span Id */
+            agent_span_id?: string | null;
+            /** Channel */
+            channel?: string | null;
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            delivery?: components["schemas"]["CommunicationDelivery"] | null;
+            /**
+             * Event
+             * @default communication
+             * @constant
+             */
+            event: "communication";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "sent" | "delivered" | "read" | "waited";
+            /** Loop Span Id */
+            loop_span_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Nested
+             * @default false
+             */
+            nested: boolean;
+            /** Pending */
+            pending?: boolean | null;
+            /** Record Ids */
+            record_ids: string[];
+            send?: components["schemas"]["CommunicationSend"] | null;
+            /** Source */
+            source: string;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            wait?: components["schemas"]["CommunicationWait"] | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
+         * CommunicationRecord
+         * @description For `sent`, what one agent communicated: a message, or a change to state other agents read.
+         */
+        CommunicationRecord: {
+            /** Content */
+            content?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Kind */
+            kind: string;
+            /** Recipients */
+            recipients: string[];
+            /** Reply To */
+            reply_to?: string | null;
+            /** Sender */
+            sender: string;
+            /** To */
+            to: string[];
+        };
+        /**
+         * CommunicationRejection
+         * @description For `sent`, why a record that was sent was not delivered.
+         */
+        CommunicationRejection: {
+            /** Control */
+            control: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * CommunicationSend
+         * @description For `sent`, the record an agent sent, and why it was refused if it was.
+         */
+        CommunicationSend: {
+            record: components["schemas"]["CommunicationRecord"];
+            rejected?: components["schemas"]["CommunicationRejection"] | null;
+        };
+        /**
+         * CommunicationWait
+         * @description For `waited`, an agent waiting for other agents.
+         */
+        CommunicationWait: {
+            /** Channels */
+            channels: string[];
+            /** Duration */
+            duration: number;
+            /** Id */
+            id?: string | null;
+            /** Outcome */
+            outcome: string;
+        };
+        /**
          * CompactionEvent
          * @description Compaction of conversation history.
          */
@@ -1350,7 +1476,7 @@ export interface components {
          * ContentReasoning
          * @description Reasoning content.
          *
-         *     See the specification for [thinking blocks](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#understanding-thinking-blocks) for Claude models.
+         *     See the specification for [thinking blocks](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) for Claude models.
          */
         ContentReasoning: {
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1377,6 +1503,8 @@ export interface components {
          * @description Text content.
          */
         ContentText: {
+            /** Cache Breakpoint */
+            cache_breakpoint?: boolean | null;
             /** Citations */
             citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1794,7 +1922,7 @@ export interface components {
          */
         GrepSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /**
              * Ignore Case
              * @default true
@@ -2119,7 +2247,7 @@ export interface components {
          */
         LlmSearchRequest: {
             /** Events */
-            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
+            events?: "all" | (("model" | "tool" | "compaction" | "branch" | "approval" | "sentinel" | "sandbox" | "info" | "store" | "logger" | "error" | "span_begin" | "span_end") | string)[] | null;
             /** Messages */
             messages?: "all" | ("system" | "user" | "assistant" | "tool")[] | null;
             /** Model */
@@ -2261,7 +2389,7 @@ export interface components {
                 [key: string]: string;
             } | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
@@ -2357,9 +2485,15 @@ export interface components {
             } | null;
             /** Model */
             model: string;
+            /** Origin */
+            origin?: string | null;
             output: components["schemas"]["ModelOutput"];
             /** Pending */
             pending?: boolean | null;
+            /** Request Ids */
+            request_ids?: components["schemas"]["ModelRequestId"][] | null;
+            /** Requested Model */
+            requested_model?: string | null;
             /** Retries */
             retries?: number | null;
             /** Role */
@@ -2420,15 +2554,31 @@ export interface components {
             /** Error */
             error?: string | null;
             fallback?: components["schemas"]["ModelFallback"] | null;
+            /** Input Context Tokens */
+            input_context_tokens?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
             /** Model */
             model: string;
+            /** Response Id */
+            response_id?: string | null;
             /** Time */
             time?: number | null;
             usage?: components["schemas"]["ModelUsage"] | null;
+        };
+        /**
+         * ModelRequestId
+         * @description Provider request id from an HTTP response.
+         */
+        ModelRequestId: {
+            /** Header */
+            header: string;
+            /** Id */
+            id: string;
+            /** Status */
+            status: number;
         };
         /**
          * ModelUsage
@@ -2560,6 +2710,8 @@ export interface components {
             tags?: string[] | null;
             /** Transcripts */
             transcripts?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -2620,6 +2772,8 @@ export interface components {
             tags?: string[] | null;
             /** Transcripts */
             transcripts?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
             /** Validation */
             validation?: {
                 [key: string]: string | components["schemas"]["ValidationSet"];
@@ -2814,6 +2968,8 @@ export interface components {
             checkpoint?: components["schemas"]["CheckpointSampleConfig"] | null;
             /** Choices */
             choices?: string[] | null;
+            /** Description */
+            description?: string | null;
             /** Files */
             files?: {
                 [key: string]: string;
@@ -3279,7 +3435,7 @@ export interface components {
          */
         ScannerInputResponse: {
             /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
             input_data?: components["schemas"]["EventsData"] | null;
             /**
              * Input Type
@@ -3359,6 +3515,11 @@ export interface components {
              * @default 0
              */
             tokens: number;
+            /**
+             * Unscored
+             * @default 0
+             */
+            unscored: number;
             validation?: components["schemas"]["ValidationResults"] | null;
         };
         /**
@@ -3409,7 +3570,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3442,7 +3603,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed" | "excluded" | "zeroed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3548,6 +3709,83 @@ export interface components {
             /** Id */
             id: string;
             result: components["schemas"]["Result"];
+        };
+        /**
+         * SentinelEvent
+         * @description Report from a sentinel monitor or protocol about one step.
+         *
+         *     A report's metadata is recorded in the event's `metadata` field.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelEvent: {
+            /** Action */
+            action?: ("proceed" | "modify" | "reject" | "terminate" | "escalate") | null;
+            /**
+             * Audit
+             * @default false
+             */
+            audit: boolean;
+            /** Conversation */
+            conversation: string;
+            /** Error */
+            error?: string | null;
+            /**
+             * Event
+             * @default sentinel
+             * @constant
+             */
+            event: "sentinel";
+            /** Execution Id */
+            execution_id?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /** Factory */
+            factory: string;
+            /** Function */
+            function?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "observation" | "decision";
+            /** Message */
+            message?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            modified?: components["schemas"]["ToolCall"] | null;
+            /** Path */
+            path: string;
+            /** Pending */
+            pending?: boolean | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Span Id */
+            span_id?: string | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "model_input" | "model_output" | "tool_call" | "tool_result";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            /** Step Id */
+            step_id: string;
+            /** Suspicion */
+            suspicion?: number | {
+                [key: string]: number;
+            } | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
         };
         /**
          * SnapshotDetails
@@ -3825,6 +4063,42 @@ export interface components {
             };
         };
         /**
+         * SwarmEvent
+         * @description Evidence from an agent swarm (inspect_swarm) other than communication: a member's result, the final answer's selection, the swarm's ledger or its metrics.
+         *
+         *     The swarm defines `kind` and the format of `data`. Experimental: not yet a stable API.
+         */
+        SwarmEvent: {
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Event
+             * @default swarm
+             * @constant
+             */
+            event: "swarm";
+            /** Kind */
+            kind: string;
+            /** Member */
+            member?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
+        };
+        /**
          * TimeInterval
          * @description Fire after a wall-clock interval.
          *
@@ -3981,6 +4255,16 @@ export interface components {
         /**
          * ToolEvent
          * @description Call to a tool.
+         *
+         *     A host tool that `sandbox_agent_bridge(bridged_tools=...)` runs for a
+         *     sandboxed agent is recorded with `metadata["bridge"]`: `server` and `tool`
+         *     (the bridged server and the tool name within it, also the event's
+         *     `function`), `function` (the name the model called it by, or `None`),
+         *     `proposal_id` (the id of the model's proposing tool call, or `None`) and
+         *     `grant` (`"consumed"` when a proposal matched, `"denied"` when the call
+         *     was refused for lack of one, `"exempt"` when a server registered with
+         *     `require_proposal=False` ran it without one, or `None` when the request
+         *     was rejected before that check).
          */
         ToolEvent: {
             /** Agent */
@@ -3991,6 +4275,8 @@ export interface components {
             arguments: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Call Message Id */
+            call_message_id?: string | null;
             /** Completed */
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
@@ -4138,13 +4424,15 @@ export interface components {
             /** Error */
             error?: string | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["CommunicationEvent"] | components["schemas"]["SwarmEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             /** Limit */
             limit?: string | null;
             /** Message Count */
             message_count?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -4180,6 +4468,8 @@ export interface components {
             total_tokens?: number | null;
             /** Transcript Id */
             transcript_id: string;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * TranscriptField
@@ -4212,6 +4502,8 @@ export interface components {
             limit?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Messages From */
+            messages_from?: string[] | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -4245,6 +4537,8 @@ export interface components {
             total_tokens?: number | null;
             /** Transcript Id */
             transcript_id: string;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * TranscriptsRequest

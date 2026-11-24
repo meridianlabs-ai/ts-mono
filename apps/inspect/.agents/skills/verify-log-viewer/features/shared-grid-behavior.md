@@ -8,8 +8,14 @@ reordering, virtualization, keyboard selection, and persisted view state.
 
 - `grid-sort-filter` sorts by a header and filters from per-column controls.
 - `grid-find` opens the Cmd/Ctrl-F band, counts matches, and steps selection.
-- `grid-columns` shows/hides, resizes, reorders, and auto-sizes columns.
-- `grid-keyboard` moves selection with arrows and activates with Enter.
+- `grid-columns` shows/hides, resizes, reorders, and auto-sizes columns. A
+  focused divider resizes with ArrowLeft/ArrowRight (10px steps) and
+  auto-sizes with Enter, like a double-click.
+- `grid-keyboard` moves selection with arrows and activates with Enter;
+  Cmd/Ctrl/Shift+Enter opens the selected row in a new tab.
+- `grid-row-links` renders rows as links from the grid's `getRowHref` (in
+  `packages/inspect-components/src/dataGrid/DataGrid.tsx`), so native new-tab
+  gestures work anywhere on a row.
 - `grid-state` restores sort/filter/order/widths for the same scope without
   leaking them into another folder, route family, or grid kind.
 - `grid-virtualization` renders a window while footer counts describe the full
@@ -34,6 +40,9 @@ reordering, virtualization, keyboard selection, and persisted view state.
 - Resize a divider with Playwright pointer input, record the header width,
   navigate into a detail and back, and assert the width is retained within a
   small rendering tolerance.
+- Tab to a divider (`role="separator"`, named `Resize <column id>`), press
+  ArrowRight, and assert the header and its cells widen by 10px and the row
+  selection doesn't move.
 - Use ArrowUp/ArrowDown and Enter from a focused cell. Assert the selected row
   and destination URL.
 - Switch Tasks ↔ Folders ↔ Samples and nested folders. Each scope restores its
@@ -41,7 +50,7 @@ reordering, virtualization, keyboard selection, and persisted view state.
 
 ## Code landmarks
 
-- Shared mechanics: `apps/inspect/src/app/shared/data-grid/DataGrid.tsx` plus
+- Shared mechanics: `packages/inspect-components/src/dataGrid/DataGrid.tsx` plus
   `keyboardNav.ts`, `autoSize.ts`, `columnFit.ts`, `columnReorder.ts`, and
   `findMatches.ts` in the same directory.
 - Log-specific columns/state: `apps/inspect/src/app/log-list/grid/` and
@@ -51,7 +60,7 @@ reordering, virtualization, keyboard selection, and persisted view state.
   `apps/inspect/src/app/samples/list/useSamplesView.ts`, and
   `apps/inspect/src/app/shared/samples-grid/useSampleGridState.ts`.
 - Shared filter UI and evaluation: `packages/inspect-components/src/columnFilter/`.
-- Regression coverage: `apps/inspect/src/app/shared/data-grid/*.test.tsx`,
+- Regression coverage: `packages/inspect-components/src/dataGrid/*.test.tsx`,
   `apps/inspect/e2e/log-list-filters.spec.ts`,
   `log-list-find.spec.ts`, and `top-level-views.spec.ts`.
 

@@ -52,7 +52,10 @@ export interface RunningSampleData {
   /** The initial event backlog is still draining (latched from the
    *  transport's `has_more`): true means the events shown are history still
    *  loading, not a live tail. Once caught up it stays live — a transient
-   *  `has_more` won't flip it back. */
+   *  `has_more` won't flip it back. Running/generating indicators are wrong
+   *  while this is true, because events arrive oldest first. Pending S3
+   *  segments are written one per flush, so backfill length grows with how
+   *  long the sample has run, not with its event count. */
   backfilling: boolean;
   /** This tick advanced AND reported more backlog — re-poll at catch-up
    *  cadence instead of the live interval. */

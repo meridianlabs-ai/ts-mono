@@ -9,7 +9,7 @@ import {
   LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { OpenDatabase } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
 import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
 
@@ -84,18 +84,25 @@ interface ClaimStamp {
  * The cache write surface the engine writes results through — the
  * `logsContent` seam bound to a log dir (and its database) at the composition
  * root. `write*`/`clear*`/`reset*` persist to the database and mirror into
- * the cache; `seed*`/`set*`/`merge*` are cache-only (for data that is
+ * the cache; `replace*`/`set*`/`merge*` are cache-only (for data that is
  * transient or already persisted). `writeDetails` takes transport payloads —
  * the sink normalizes them into the entity stores; the engine never learns
- * about the split.
+ * about the split, only which payloads could not be ingested.
  */
 export interface LogsContentSink {
-  seedRows(rows: Log[]): void;
+  /** Replaces the directory's full row list — `rows` must be the complete
+   *  current set, not one row or a delta. */
+  replaceRows(rows: Log[]): void;
+  /** Upserts by name into the row list — known names are patched in place,
+   *  unknown names are appended. */
+  mergeRows(patches: Record<string, Partial<Log>>): void;
   setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
   writeListing(handles: LogHandle[]): Promise<Log[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
-  writeDetails(details: Record<string, LogDetails>): Promise<void>;
+  writeDetails(
+    details: Record<string, LogDetails>
+  ): Promise<Record<string, Error>>;
   mergeFetchStates(states: Record<string, LogFetchState>): void;
   writeFetchStates(states: Record<string, LogFetchState>): Promise<void>;
   resetDepth(names: string[]): Promise<void>;
@@ -103,11 +110,19 @@ export interface LogsContentSink {
   clearAll(): Promise<void>;
 }
 
+/** The database reads the engine performs; writes go through the sink. */
+export type EngineDatabase = Pick<
+  OpenDatabase,
+  "readLogs" | "readLogRow" | "getCacheStats"
+>;
+
 export interface FetchEngineDeps {
   api: ClientAPI;
-  /** Engine-private persistence; null when unavailable (e.g. single-file
-   *  sessions), in which case every read misses and writes are cache-only. */
-  database: DatabaseService | null;
+  /** Engine-private persistence; null when this session has none (e.g.
+   *  single-file sessions), in which case every read misses and writes are
+   *  cache-only. In production this is an `OpenDatabase`, so holding a value
+   *  proves the database is open. */
+  database: EngineDatabase | null;
   sink: LogsContentSink;
   /** The log dir this session replicates — the query scope for database
    *  reads (the database itself is unified across dirs). */
@@ -123,6 +138,10 @@ export interface DbStats {
 export interface FetchEngineStatus {
   syncing: boolean;
   dbStats: DbStats;
+  /** When a listing sync last landed for the active dir in this session
+   *  (epoch ms). A listing hydrated from the database doesn't count: it may
+   *  be arbitrarily old. Cleared when the dir changes or data is cleared. */
+  lastSyncedAt: number | undefined;
 }
 
 /**
@@ -194,6 +213,28 @@ const emptyFetchState = (): LogFetchState => ({
   details_settled_seq: 0,
 });
 
+const withFailure = (
+  row: LogFetchState | undefined,
+  kind: LogWorkKind,
+  error: Error
+): LogFetchState => {
+  const base = row ?? emptyFetchState();
+  return kind === "preview"
+    ? {
+        ...base,
+        preview_fetch_error: error.message,
+        preview_attempts: base.preview_attempts + 1,
+      }
+    : {
+        ...base,
+        details_fetch_error: error.message,
+        details_attempts: base.details_attempts + 1,
+      };
+};
+
+const toError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
 export class FetchEngine {
   private _deps: FetchEngineDeps | undefined = undefined;
 
@@ -254,6 +295,8 @@ export class FetchEngine {
   // write immediately).
   private _pendingPreviewWrites: Record<string, LogPreview> = {};
   private _pendingDetailWrites: Record<string, LogDetails> = {};
+  // The details claim each staged payload came from (see recordIngestFailures).
+  private _pendingDetailClaims: Record<string, number> = {};
   private _flushingPreviews = false;
   private _flushingDetails = false;
   private readonly _throttledFlushPreviewWrites: () => void;
@@ -263,6 +306,7 @@ export class FetchEngine {
   private _status: FetchEngineStatus = {
     syncing: false,
     dbStats: kInitialStats,
+    lastSyncedAt: undefined,
   };
   private readonly _statusListeners = new Set<() => void>();
 
@@ -307,7 +351,6 @@ export class FetchEngine {
         } else if (head?.kind === "details") {
           this.onDetailsComplete(results, inputs);
         }
-        return Promise.resolve();
       },
     });
   }
@@ -425,18 +468,7 @@ export class FetchEngine {
       const name = work.handle.name;
       const row = this._fetchStates[name];
       if (!result.ok) {
-        const next: LogFetchState = {
-          ...(row ?? emptyFetchState()),
-          ...(kind === "preview"
-            ? {
-                preview_fetch_error: result.error.message,
-                preview_attempts: (row?.preview_attempts ?? 0) + 1,
-              }
-            : {
-                details_fetch_error: result.error.message,
-                details_attempts: (row?.details_attempts ?? 0) + 1,
-              }),
-        };
+        const next = withFailure(row, kind, result.error);
         this._fetchStates[name] = next;
         updates[name] = next;
         return;
@@ -476,6 +508,43 @@ export class FetchEngine {
     }
   }
 
+  /**
+   * Record details that fetched but could not be ingested as failed details
+   * fetches. Ingestion is a pure function of the fetched bytes, so a retry
+   * would fail identically: the file goes straight to the attempt cap, which
+   * leaves it for an invalidation (a changed file) or a restart to retry.
+   * Ingestion resolves after the settle, so a failure is dropped when its
+   * session (`deps`) has ended or a newer read of the log has been claimed
+   * since the payload's own (`claims`) — the newer read owns the outcome.
+   */
+  private recordIngestFailures(
+    deps: FetchEngineDeps,
+    failures: Record<string, Error>,
+    claims: Record<string, number | undefined>
+  ): void {
+    if (this._deps !== deps) {
+      return;
+    }
+    const names = Object.keys(failures).filter(
+      (name) =>
+        claims[name] !== undefined &&
+        claims[name] === this._latestDetailsClaim.get(name)
+    );
+    if (names.length === 0) {
+      return;
+    }
+    const updates: Record<string, LogFetchState> = {};
+    for (const name of names) {
+      const next: LogFetchState = {
+        ...withFailure(this._fetchStates[name], "details", failures[name]!),
+        details_attempts: kMaxFetchAttempts,
+      };
+      this._fetchStates[name] = next;
+      updates[name] = next;
+    }
+    void deps.sink.writeFetchStates(updates).catch(() => {});
+  }
+
   private async detailsWorker(
     handles: LogHandle[]
   ): Promise<WorkResult<LogWorkValue>[]> {
@@ -507,10 +576,7 @@ export class FetchEngine {
               // log over-fetches fresh once, erring safe.
               this._freshDetails.add(log.name);
             }
-            return {
-              ok: false,
-              error: error instanceof Error ? error : new Error(String(error)),
-            };
+            return { ok: false, error: toError(error) };
           }
         })
       );
@@ -557,7 +623,23 @@ export class FetchEngine {
       if (stamp?.seq !== this._latestDetailsClaim.get(name)) {
         return;
       }
+      const claims = { [name]: stamp?.seq };
       const detail = result.value.value;
+      let preview: LogPreview;
+      try {
+        preview = toLogPreview(detail);
+      } catch (caught) {
+        const error = toError(caught);
+        if (deps) {
+          this.recordIngestFailures(deps, { [name]: error }, claims);
+        }
+        if (waiter) {
+          this._pendingFetches.delete(name);
+          this._activeSettles.delete(name);
+          waiter.reject(error);
+        }
+        return;
+      }
       // Cross-kind coalesce: these details already repaint the preview via
       // toLogPreview below, so a queued preview fetch for the same log is
       // now redundant. Persist the derived preview (not just cache it) on
@@ -565,7 +647,7 @@ export class FetchEngine {
       // preview fetch still lands a real, db-backed preview row instead of
       // leaving the file to thrash findMissingPreviews.
       this._queue.removeByIds([workId("preview", name)]);
-      this._pendingPreviewWrites[name] = toLogPreview(detail);
+      this._pendingPreviewWrites[name] = preview;
       this._throttledFlushPreviewWrites();
       if (waiter) {
         this._pendingFetches.delete(name);
@@ -574,9 +656,16 @@ export class FetchEngine {
           // next batched flush; repaint the listing preview from the fresh
           // status (a log cached as "started" may have since finished) —
           // immediate cache-only repaint, ahead of the throttled persist above.
+          // The waiter resolves ahead of ingestion; a payload that then fails
+          // to ingest surfaces as a details fetch error, not a rejection.
           this.ensureListed(name);
-          void deps.sink.writeDetails({ [name]: detail }).catch(() => {});
-          deps.sink.mergePreviews({ [name]: toLogPreview(detail) });
+          void deps.sink
+            .writeDetails({ [name]: detail })
+            .then((failures) =>
+              this.recordIngestFailures(deps, failures, claims)
+            )
+            .catch(() => {});
+          deps.sink.mergePreviews({ [name]: preview });
           // A waitered settle bumps the session-local "landed" counter, but
           // only for ACTIVE demand (someone genuinely wants this log open) —
           // a passive ensure-presence fetch (sample-adjacent mount) must not
@@ -588,6 +677,9 @@ export class FetchEngine {
         waiter.resolve();
       } else {
         this._pendingDetailWrites[name] = detail;
+        if (stamp) {
+          this._pendingDetailClaims[name] = stamp.seq;
+        }
         this._throttledFlushDetailWrites();
       }
     });
@@ -633,7 +725,7 @@ export class FetchEngine {
     if (!rows) {
       return;
     }
-    deps.sink.seedRows(rows);
+    deps.sink.replaceRows(rows);
     this._handles = rows;
 
     // A restart retries every previously-failed file once more — zero the
@@ -682,12 +774,13 @@ export class FetchEngine {
     this._fetchStates = {};
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
+    this._pendingDetailClaims = {};
     const error = new Error("Fetch engine stopped");
     for (const waiter of this._pendingFetches.values()) {
       waiter.reject(error);
     }
     this._pendingFetches.clear();
-    this.setStatus({ dbStats: kInitialStats });
+    this.setStatus({ dbStats: kInitialStats, lastSyncedAt: undefined });
   }
 
   public isStarted(): boolean {
@@ -769,8 +862,15 @@ export class FetchEngine {
     }
     const waiter = deferred<void>();
     this._pendingFetches.set(key, waiter);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false);
+    this.beginFetch(key, opts.priority, waiter, opts.fresh ?? false).catch(
+      (caught: unknown) => {
+        if (this._pendingFetches.get(key) === waiter) {
+          this._pendingFetches.delete(key);
+          this._activeSettles.delete(key);
+        }
+        waiter.reject(toError(caught));
+      }
+    );
     return waiter.promise;
   }
 
@@ -792,7 +892,7 @@ export class FetchEngine {
     }
     if (cached?.header !== undefined && cached.status !== "started") {
       this.ensureListed(key);
-      deps.sink.seedRows([cached]);
+      deps.sink.mergeRows({ [cached.name]: cached });
       this._pendingFetches.delete(key);
       // Consult `_activeSettles` live (not a `passive` flag captured at call
       // start) so an active fetch that joined this same pending fetch while
@@ -899,6 +999,7 @@ export class FetchEngine {
       full = update.listing;
     }
     this._handles = full;
+    this.setStatus({ lastSyncedAt: Date.now() });
 
     const invalidatedSet = new Set(update.invalidated);
     const invalidated = full.filter((handle) =>
@@ -921,6 +1022,7 @@ export class FetchEngine {
     void deps.sink.clearAll().catch(() => {});
     this._handles = [];
     this._fetchStates = {};
+    this.setStatus({ lastSyncedAt: undefined });
     this._throttledUpdateDbStats();
   }
 
@@ -1122,7 +1224,9 @@ export class FetchEngine {
       return;
     }
     const updates = this._pendingDetailWrites;
+    const claims = this._pendingDetailClaims;
     this._pendingDetailWrites = {};
+    this._pendingDetailClaims = {};
     const deps = this._deps;
     if (!deps || Object.keys(updates).length === 0) {
       return;
@@ -1130,6 +1234,7 @@ export class FetchEngine {
     this._flushingDetails = true;
     deps.sink
       .writeDetails(updates)
+      .then((failures) => this.recordIngestFailures(deps, failures, claims))
       .catch(() => {})
       .finally(() => {
         this._throttledUpdateDbStats();
@@ -1146,7 +1251,7 @@ export class FetchEngine {
   private async updateDbStats(): Promise<void> {
     const deps = this._deps;
     const database = deps?.database;
-    if (deps === undefined || !database?.opened()) {
+    if (!deps || !database) {
       return;
     }
     try {

@@ -11,18 +11,20 @@
  * expandResultsetRows → parseScanResultSummaries / parseScanResultData.
  *
  * When an old scan breaks in production, its dataframe joins this corpus.
+ *
+ * @no-unsafe-eval: hosts may serve Scout under a CSP without it.
  */
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { ColumnTable } from "arquero";
+import type { ColumnTable } from "arquero";
 import { describe, expect, it } from "vitest";
 
 import { decodeArrowBytes, isRecord } from "@tsmono/util";
 
 import { expandResultsetRows } from "./arrow";
-import { stringColumn } from "./arrowCells";
+import { rowsWhere, stringColumn } from "./arrowCells";
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
 const fixturesDir = join(process.cwd(), "src/app/utils/fixtures");
@@ -32,18 +34,8 @@ const loadFixture = async (name: string): Promise<ColumnTable> =>
     decodeArrowBytes(new Uint8Array(readFileSync(join(fixturesDir, name))))
   );
 
-const filterToRow = (table: ColumnTable, identifier: string): ColumnTable => {
-  // params(values) returns the table; the `Params` half of its return type is
-  // the no-argument getter form.
-  const scoped = table.params({ targetIdentifier: identifier });
-  if (!(scoped instanceof ColumnTable)) {
-    throw new Error("arquero params() did not return the table");
-  }
-  return scoped.filter(
-    (d: { identifier: string }, $: { targetIdentifier: string }) =>
-      d.identifier === $.targetIdentifier
-  );
-};
+const filterToRow = (table: ColumnTable, identifier: string): ColumnTable =>
+  rowsWhere(table, "identifier", (id) => id === identifier);
 
 const assertNormalizedEvents = (events: unknown[], context: string) => {
   for (const event of events) {
@@ -74,7 +66,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     const table = await loadFixture(name);
     expect(table.numRows()).toBeGreaterThan(0);
 
-    const summaries = await parseScanResultSummaries(table.objects());
+    const summaries = await parseScanResultSummaries(table);
     expect(summaries.length).toBe(table.numRows());
 
     for (const summary of summaries) {
@@ -109,7 +101,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     // doubles the row count (synthetic missing-label rows may add more).
     expect(table.numRows()).toBeGreaterThanOrEqual(8);
 
-    const summaries = await parseScanResultSummaries(table.objects());
+    const summaries = await parseScanResultSummaries(table);
     const labeled = summaries.filter((s) => s.label !== undefined);
     expect(labeled.length).toBeGreaterThan(0);
     for (const summary of labeled) {

@@ -201,34 +201,22 @@ async function openTranscriptWithTimeline(
 // Timeline acceptance tests
 // ---------------------------------------------------------------------------
 
-test("sample with timelines shows swimlane grid", async ({ page, network }) => {
-  await openTranscriptWithTimeline(page, network);
-
-  // Swimlane grid should be visible
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-
-  // Child agent rows should be visible
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Build" })
-  ).toBeVisible();
-});
-
-test("sample with timelines shows event list", async ({ page, network }) => {
+test("returning to the root via the breadcrumb restores the full event list", async ({
+  page,
+  network,
+}) => {
   await openTranscriptWithTimeline(page, network);
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore");
+  await expect(exploreCard).toBeVisible();
 
-  // Click the root "Transcript" row to show all events
-  const rootRow = swimlane.getByRole("row").filter({ hasText: "Transcript" });
-  await rootRow.click();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
+  await expect(exploreCard).toBeHidden();
 
-  // Root event and sub-agent entries should be visible in the event list
-  await expect(page.getByText("sub-agent: explore").first()).toBeVisible();
+  // Selecting an agent can collapse the swimlane behind its breadcrumb.
+  await page.getByRole("button", { name: "Transcript", exact: true }).click();
+  await expect(exploreCard).toBeVisible();
   await expect(page.getByText("sub-agent: build").first()).toBeVisible();
 });
 
@@ -236,17 +224,64 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
   await openTranscriptWithTimeline(page, network);
 
   const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
+  const exploreCard = page.getByText("sub-agent: explore");
+  await expect(exploreCard).toBeVisible();
 
-  // Click the "Build" row
-  const buildRow = swimlane.getByRole("row").filter({ hasText: "Build" });
-  await buildRow.click();
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
 
-  // The event list should now show only the Build agent's content
+  // The event list now shows only the Build agent's content.
   await expect(page.getByText("Building the feature").first()).toBeVisible();
+  await expect(exploreCard).toBeHidden();
+});
 
-  // The Explore agent's content should no longer be visible
-  await expect(page.getByText("Exploring the code")).not.toBeVisible();
+test("Escape in the swimlane closes its options popover before clearing the row selection", async ({
+  page,
+  network,
+}) => {
+  await openTranscriptWithTimeline(page, network);
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  const exploreCard = page.getByText("sub-agent: explore");
+  await swimlane.getByRole("row").filter({ hasText: "Build" }).click();
+  await expect(exploreCard).toBeHidden();
+
+  const options = page.getByRole("button", { name: "Timeline options" });
+  await options.click();
+  const showBranches = page.getByText("Show branches");
+  await expect(showBranches).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(showBranches).toBeHidden();
+  await expect(options).toBeFocused();
+  await expect(exploreCard).toBeHidden();
+
+  await page.keyboard.press("Escape");
+  await expect(exploreCard).toBeVisible();
+});
+
+test("Escape in focus mode closes an open menu before leaving focus mode", async ({
+  page,
+  network,
+}) => {
+  await openTranscriptWithTimeline(page, network);
+  await expect(page.getByText("sub-agent: explore")).toBeVisible();
+  await page.keyboard.press("f");
+  const exit = page.getByRole("link", { name: "Exit focus mode" });
+  await expect(exit).toBeVisible();
+
+  for (const name of [/^Select agent/, /^Choose theme$/]) {
+    const trigger = page.getByRole("button", { name });
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+    await expect(exit).toBeVisible();
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(exit).toBeHidden();
 });
 
 for (const deepLink of [
@@ -302,7 +337,7 @@ for (const deepLink of [
     await expect(target).toBeVisible();
     await expect(target).toBeInViewport();
     await expect(page.getByText("Deep-link target").first()).toBeVisible();
-    await expect(page.getByText("Root event")).not.toBeVisible();
+    await expect(page.getByText("Root event")).toBeHidden();
   });
 }
 
@@ -357,9 +392,7 @@ test("scrubbing the minimap scrolls the event list", async ({
   await expect(
     page.getByText("Step 0 of the long transcript").first()
   ).toBeVisible();
-  await expect(
-    page.getByText("Step 28 of the long transcript")
-  ).not.toBeVisible();
+  await expect(page.getByText("Step 28 of the long transcript")).toBeHidden();
 
   // Click near the right edge of the minimap's selection region: onScrub
   // receives ~1.0 and the main scroller jumps to the end of the list.

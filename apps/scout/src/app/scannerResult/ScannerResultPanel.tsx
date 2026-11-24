@@ -4,7 +4,9 @@ import { clsx } from "clsx";
 import { FC, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
+  ContentTrustProvider,
   JSONPanel,
   LoadingBar,
   TabPanel,
@@ -12,11 +14,10 @@ import {
   ToolButton,
 } from "@tsmono/react/components";
 import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
+import { openRouteInNewTab } from "@tsmono/react/routing";
 
-import { ApplicationIcons } from "../../icons";
 import {
   getValidationParam,
-  openRouteInNewTab,
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
@@ -146,18 +147,11 @@ export const ScannerResultPanel: FC = () => {
     useScansDir(true);
   useScannerParam();
 
-  // The viewed result drives both selectedScanResult (list highlighting)
-  // and displayedScanResult (route restoration).
+  // Keep the last highlighted row when returning to the list.
   const setSelectedScanResult = useStore(
     (state) => state.setSelectedScanResult
   );
-  const setDisplayedScanResult = useStore(
-    (state) => state.setDisplayedScanResult
-  );
-  useMirrorToStore(scanResultUuid, (uuid) => {
-    setSelectedScanResult(uuid);
-    setDisplayedScanResult(uuid);
-  });
+  useMirrorToStore(scanResultUuid, setSelectedScanResult);
 
   const appConfig = useAppConfig();
 
@@ -252,7 +246,6 @@ export const ScannerResultPanel: FC = () => {
       if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(route);
       }
     },
@@ -270,7 +263,7 @@ export const ScannerResultPanel: FC = () => {
     ) {
       toolButtons.push(
         <ToolButton
-          icon={ApplicationIcons.highlight}
+          icon="highlight"
           key="highlight-labeled"
           latched={!!highlightLabeled}
           onClick={toggleHighlightLabeled}
@@ -289,7 +282,7 @@ export const ScannerResultPanel: FC = () => {
         <ToolButton
           key="transcript-navigate"
           label="Transcript"
-          icon={ApplicationIcons.transcript}
+          icon="transcript"
           onClick={handleNavigateToTranscript}
           title="View complete transcript (Cmd/Ctrl+click to open in new tab)"
           subtle={true}
@@ -303,7 +296,7 @@ export const ScannerResultPanel: FC = () => {
         <ToolButton
           key="validation-sidebar-toggle"
           label="Validation"
-          icon={ApplicationIcons.edit}
+          icon="edit"
           onClick={toggleValidationSidebar}
           title={
             validationSidebarCollapsed
@@ -434,61 +427,70 @@ export const ScannerResultPanel: FC = () => {
           scanLoading || resultLoading || detailLoading || hasTranscriptLoading
         }
       />
-      <ScannerResultHeader
-        inputData={inputData}
-        resultData={selectedResult}
-        scan={selectedScan}
-        appConfig={appConfig}
-        collapsed={headerCollapsed}
-        onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
-      />
-      {selectedResult && (
-        <div
-          ref={contentRef}
-          className={clsx(
-            styles.contentArea,
-            !validationSidebarCollapsed && styles.withValidation
-          )}
-        >
-          {validationSidebarCollapsed || !selectedResult.transcriptId ? (
-            <div className={styles.tabSetWrapper}>
-              {renderTabSet(selectedResult)}
-            </div>
-          ) : (
-            <VscodeSplitLayout
-              className={styles.splitLayout}
-              fixedPane="end"
-              initialHandlePosition="80%"
-              minEnd="180px"
-              minStart="200px"
-            >
-              <div slot="start" className={styles.splitStart}>
+      {/* Untrusted until the result (and so its transcript's trust) loads. */}
+      <ContentTrustProvider
+        value={
+          selectedResult
+            ? trustContentSetting(selectedResult.transcriptTrustContent)
+            : "untrusted"
+        }
+      >
+        <ScannerResultHeader
+          inputData={inputData}
+          resultData={selectedResult}
+          scan={selectedScan}
+          appConfig={appConfig}
+          collapsed={headerCollapsed}
+          onShowAllScores={() => setScoresDialogResultId(scanResultUuid)}
+        />
+        {selectedResult && (
+          <div
+            ref={contentRef}
+            className={clsx(
+              styles.contentArea,
+              !validationSidebarCollapsed && styles.withValidation
+            )}
+          >
+            {validationSidebarCollapsed || !selectedResult.transcriptId ? (
+              <div className={styles.tabSetWrapper}>
                 {renderTabSet(selectedResult)}
               </div>
-              <div slot="end" className={styles.validationSidebar}>
-                <ValidationCaseEditor
-                  transcriptId={selectedResult.transcriptId}
-                  taskId={
-                    selectedResult.transcriptTaskId != null
-                      ? String(selectedResult.transcriptTaskId)
-                      : undefined
-                  }
-                  taskRepeat={selectedResult.transcriptTaskRepeat}
-                />
-              </div>
-            </VscodeSplitLayout>
-          )}
-        </div>
-      )}
-      {selectedResult?.transcriptScore != null && (
-        <AllScoresDialog
-          showing={scoresDialogResultId === scanResultUuid}
-          setShowing={(show) =>
-            setScoresDialogResultId(show ? scanResultUuid : undefined)
-          }
-          score={selectedResult.transcriptScore}
-        />
-      )}
+            ) : (
+              <VscodeSplitLayout
+                className={styles.splitLayout}
+                fixedPane="end"
+                initialHandlePosition="80%"
+                minEnd="180px"
+                minStart="200px"
+              >
+                <div slot="start" className={styles.splitStart}>
+                  {renderTabSet(selectedResult)}
+                </div>
+                <div slot="end" className={styles.validationSidebar}>
+                  <ValidationCaseEditor
+                    transcriptId={selectedResult.transcriptId}
+                    taskId={
+                      selectedResult.transcriptTaskId != null
+                        ? String(selectedResult.transcriptTaskId)
+                        : undefined
+                    }
+                    taskRepeat={selectedResult.transcriptTaskRepeat}
+                  />
+                </div>
+              </VscodeSplitLayout>
+            )}
+          </div>
+        )}
+        {selectedResult?.transcriptScore != null && (
+          <AllScoresDialog
+            showing={scoresDialogResultId === scanResultUuid}
+            setShowing={(show) =>
+              setScoresDialogResultId(show ? scanResultUuid : undefined)
+            }
+            score={selectedResult.transcriptScore}
+          />
+        )}
+      </ContentTrustProvider>
     </div>
   );
 };

@@ -1,0 +1,2528 @@
+import type {
+  ApprovalEvent,
+  Event,
+  ModelEvent,
+  ScoreEvent,
+  SentinelEvent,
+  ToolCall,
+  ToolEvent,
+} from "@tsmono/inspect-common/types";
+import { isoToEpoch } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
+
+// Direct file imports keep this module React-free (the usage barrel pulls
+// in component modules).
+import {
+  addProposal,
+  agreedCall,
+  approvalStopped,
+  buildSentinelSteps,
+  findProposal,
+  instanceLabel,
+  isBridgeTool,
+  kBridgeCheckSpan,
+  proposalIdOf,
+  recordedProposalId,
+  recordsExecutionIds,
+  stopsCall,
+  toolFailed,
+} from "../transcript/transform/toolSentinels";
+import type {
+  ProposalIndex,
+  SentinelNode,
+  SentinelStep,
+} from "../transcript/transform/toolSentinels";
+import { TYPE_SENTINEL } from "../transcript/transform/utils";
+import { fmtCompactDuration } from "../usage/timeFormat";
+import { usageTotal } from "../usage/tokenTotals";
+
+/** Epoch seconds; same convention as the task timeline. */
+export interface TimeWindow {
+  start: number;
+  end: number;
+}
+
+// ── marker / history categories ─────────────────────────────────────────
+
+export type ActivityCategory =
+  | "error"
+  | "limit"
+  | "approval"
+  | "input"
+  | "interrupt"
+  | "compaction"
+  | "score";
+
+export const kActivityCategories: ActivityCategory[] = [
+  "error",
+  "limit",
+  "approval",
+  "input",
+  "interrupt",
+  "compaction",
+  "score",
+];
+
+/** One hue per category — glyphs, stems, pills, and row washes all share it
+ *  (handoff design tokens). */
+export const kCategoryColor: Record<ActivityCategory, string> = {
+  error: "#b04a3c",
+  limit: "#8a6d1a",
+  approval: "#6b4fa8",
+  input: "#1d4f7c",
+  interrupt: "#6c757d",
+  compaction: "#2b6a94",
+  score: "#2f8a52",
+};
+
+/** Filter-pill captions (long) and Kind-cell captions (short). */
+export const kCategoryLong: Record<ActivityCategory, string> = {
+  error: "Errors",
+  limit: "Limits",
+  approval: "Rejections",
+  input: "Inputs",
+  interrupt: "Interrupts",
+  compaction: "Compactions",
+  score: "Scores",
+};
+
+export const kCategoryShort: Record<ActivityCategory, string> = {
+  error: "error",
+  limit: "limit",
+  approval: "rejected",
+  input: "input",
+  interrupt: "interrupt",
+  compaction: "compact",
+  score: "score",
+};
+
+/** Conversation hues, assigned in row order and cycled (handoff 10a);
+ *  grader/scorer rows always take kScorerHue. */
+export const kAgentHues = ["#3a7bd5", "#d9822b", "#b5537f", "#2f8a52"];
+export const kScorerHue = "#6c757d";
+
+// ── derived shapes ───────────────────────────────────────────────────────
+
+export interface WorkingSegment {
+  start: number;
+  end: number;
+}
+
+export interface StallRegion {
+  start: number;
+  end: number;
+  /** Seconds of wall clock with no working-time advance. */
+  duration: number;
+  /** Adjacent ModelEvent.retries when the stall is retry-attributable. */
+  retries?: number;
+  /** The attributed model event — the stall row's click-through target. */
+  uuid?: string;
+}
+
+export interface StepPoint {
+  time: number;
+  value: number;
+}
+
+/** One model call's burn, attributed to its conversation row. */
+export interface TokenPoint {
+  time: number;
+  burned: number;
+  rowId: string;
+  uuid?: string;
+  /** 1-based interleaved turn index (set after the pass). */
+  turn?: number;
+}
+
+export interface ContextPoint {
+  time: number;
+  /** The call's completion — parallel-call grouping reads it. */
+  end: number;
+  value: number;
+  rowId: string;
+  uuid?: string;
+  /** Change versus the previous point on the same row. */
+  delta?: number;
+  /** Messages in the call's input — the tooltip's "messages" row. */
+  messages?: number;
+  turn?: number;
+}
+
+export interface CompactionDrop {
+  time: number;
+  /** The conversation whose context was compacted. */
+  rowId: string;
+  /** tokens_before, falling back to the context value at the drop. */
+  before?: number;
+  after?: number;
+  /** CompactionEvent.type — the tooltip's "strategy" row. */
+  strategy?: string;
+  key: string;
+  uuid?: string;
+  /** 1-based interleaved index of the turn whose call this compacted —
+   *  the conversation's current turn when the event landed (set after the
+   *  pass; undefined before the row's first model call). */
+  turn?: number;
+}
+
+export interface ActivitySpan {
+  start: number;
+  end: number;
+  kind: "model" | "tool";
+  /** Model name or tool function. */
+  label: string;
+  rowId: string;
+  failed: boolean;
+  /** Open-ended span on a running sample — end extends to "now". */
+  pending: boolean;
+  /** Working seconds inside the span (wall duration when the log has no
+   *  working clock). Turns mode splits a column by these, never by wall
+   *  time: waiting has no extent there. */
+  working: number;
+  retries?: number;
+  uuid?: string;
+  /** 1-based interleaved turn index. */
+  turn?: number;
+  /** The concurrent-tool burst this span belongs to (identity, shared by
+   *  every member) — independent of whether it got a visible lane. */
+  burst?: ToolBurst;
+  /** Sub-lane index within the burst; undefined = full row (no burst) or
+   *  folded. */
+  subLane?: number;
+  /** Sub-lane count of the burst this span belongs to (≤ kMaxSubLanes). */
+  subLaneCount?: number;
+  /** Burst member beyond the lane cap: drawn only through the burst's +N
+   *  fold, never as its own rect (it would paint over the lanes). */
+  folded?: boolean;
+  /** Tool call that spawned a sub-agent conversation: the row id it handed
+   *  off to. The span renders only until that child starts; the blocked
+   *  interval takes over as the dotted "awaiting" thread. */
+  handoffTo?: string;
+  // Tooltip detail (handoff 11b) — model turns:
+  inputTokens?: number;
+  /** Cache reads of every request the call billed: set only when
+   *  inputTokens also comes from usage (input_context_tokens null or absent),
+   *  since input_context_tokens counts one request. */
+  cachedTokens?: number;
+  outputTokens?: number;
+  stopReason?: string;
+  toolCalls?: string[];
+  // — tool calls:
+  resultBytes?: number;
+  /** First argument (url / cmd / path …) as `key` and ellipsized value. */
+  firstArgKey?: string;
+  firstArg?: string;
+  errorMessage?: string;
+}
+
+/** A run of concurrently-overlapping tool spans on one agent row. */
+export interface ToolBurst {
+  start: number;
+  end: number;
+  count: number;
+  failed: number;
+  /** Dominant tool name for the "bash ×3 · 1 failed" label. */
+  label: string;
+  /** Spans beyond the sub-lane cap folded into the "+N" count. */
+  folded: number;
+  /** Tool names, for the tooltip's mini list. */
+  names: string[];
+}
+
+/** A parent conversation waiting on a spawned child: from the child's
+ *  span start to its span end (handoff 10a "awaiting researcher"). */
+export interface BlockedInterval {
+  start: number;
+  end: number;
+  childId: string;
+  childName: string;
+}
+
+/** One row per conversation (agent, subtask or solver span); grader and
+ *  other role/scorer calls get their own rows (handoff 10a). */
+export interface AgentRow {
+  /** Conversation key: span id, `role:<role>`, `scorer:<name>` or `root`. */
+  id: string;
+  /** Display name: span name, role, or the model for the root fallback. */
+  name: string;
+  /** Latest model seen on the row (a swap inside one span stays here). */
+  model: string;
+  /** Every model seen on the row, first-appearance order. */
+  models: string[];
+  /** Secondary role (e.g. "grader") — rendered muted at 0.7 opacity. */
+  role?: string;
+  hue: string;
+  isSubAgent: boolean;
+  blockedOn: BlockedInterval[];
+  spans: ActivitySpan[];
+  bursts: ToolBurst[];
+  modelCount: number;
+  toolCount: number;
+  failedCount: number;
+}
+
+/** One model turn and the tool calls it issued — the Turns-axis column
+ *  (handoff 8b). Turns from every conversation interleave chronologically. */
+export interface TurnColumn {
+  /** 1-based. */
+  index: number;
+  rowId: string;
+  start: number;
+  end: number;
+  model?: ActivitySpan;
+  tools: ActivitySpan[];
+  /** Working seconds spent on the model call. Derived data for consumers
+   *  and the derivation tests: nothing in the chart reads it (the Turns
+   *  grid is fixed-width; tooltips read the span's own durations). */
+  modelWork: number;
+  /** Working seconds spent in tool calls (likewise unread by the chart). */
+  toolWork: number;
+  /** Calls from the turn that an approval or sentinel decision acted on
+   *  (ghost slots). */
+  rejected: number;
+}
+
+export interface ActivityMarker {
+  time: number;
+  category: ActivityCategory;
+  /** History-row link (uuid when present, synthetic otherwise). */
+  key: string;
+  /** Event uuid — the transcript click-through target. */
+  uuid?: string;
+  /** Tooltip / aria text. */
+  label: string;
+}
+
+/** One sentence per row: lead text, optional mono value, optional tail
+ *  after the value, muted parenthetical detail. */
+export interface ActivityHistoryRow {
+  time: number;
+  category: ActivityCategory;
+  /** Kind-cell caption when it differs from the category's default — the
+   *  approval decision word (rejected / escalated / terminated / modified). */
+  kind?: string;
+  key: string;
+  uuid?: string;
+  lead: string;
+  mono?: string;
+  tail?: string;
+  detail?: string;
+  /** Right-aligned By column ("system", approver, sentinel path, "user"). */
+  by: string;
+  /** Muted suffix after `by` ("approver" or "sentinel"). */
+  byRole?: string;
+}
+
+/** Kind-cell caption for a history row. */
+export const rowKind = (row: ActivityHistoryRow): string =>
+  row.kind ?? kCategoryShort[row.category];
+
+export interface ActivityData {
+  /** Wall-clock window; undefined when no event carries a timestamp. */
+  window?: TimeWindow;
+  workingSegments: WorkingSegment[];
+  /** Chronological; the chart labels only the N longest. */
+  stalls: StallRegion[];
+  /** Seconds — sample scalar when present, else summed segments. */
+  workingTime: number;
+  totalTime: number;
+  /** Time-sorted raw burns, one per model call with usage. */
+  tokenPoints: TokenPoint[];
+  /** Cumulative total-token step curve across every conversation. */
+  tokenSeries: StepPoint[];
+  totalTokens: number;
+  /** Per-conversation cumulative burn (the chart stacks these). */
+  tokensByRow: Record<string, StepPoint[]>;
+  tokenTotalsByRow: Record<string, number>;
+  /** Per-call input-side tokens at event time, every conversation. */
+  contextSeries: ContextPoint[];
+  contextPeak: number;
+  /** One line per conversation; a sub-agent's starts at its first call. */
+  contextByRow: Record<string, ContextPoint[]>;
+  contextPeakByRow: Record<string, number>;
+  compactions: CompactionDrop[];
+  agentRows: AgentRow[];
+  turns: TurnColumn[];
+  markers: ActivityMarker[];
+  rows: ActivityHistoryRow[];
+  /** Non-approve approval decisions plus sentinel steps that acted (the
+   *  activity headline's "N rejected"). */
+  rejectedCount: number;
+  /** Any open-ended span (running sample). */
+  pending: boolean;
+  /** False for mid-vintage logs whose events carry timestamps but no real
+   *  working clock (normalizer-filled working_start 0, no working_time) —
+   *  the working/waiting band would read as all-waiting, so it hides. */
+  hasWorkingSignal: boolean;
+}
+
+// ── formatting (handoff style: "2m 15s", "183k") ─────────────────────────
+
+/** fmtCompactDuration with a guard: negative/NaN input is corrupt data. */
+export const fmtDurationWords = (seconds: number): string =>
+  !Number.isFinite(seconds) || seconds < 0 ? "—" : fmtCompactDuration(seconds);
+
+export const fmtTime = (sec: number): string =>
+  new Date(sec * 1000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+export const fmtTimeSec = (sec: number): string =>
+  new Date(sec * 1000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+export const fmtDay = (sec: number): string =>
+  new Date(sec * 1000).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+export const fmtTokens = (value: number): string => {
+  if (!Number.isFinite(value)) return "—";
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1000) return `${Math.round(value / 1000)}k`;
+  return String(Math.round(value));
+};
+
+/** Seconds with one decimal for short spans ("49.2s"), words above 1m. */
+export const fmtSeconds = (seconds: number): string => {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  return fmtCompactDuration(seconds);
+};
+
+export const fmtBytes = (bytes: number): string => {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+};
+
+// ── search haystack ──────────────────────────────────────────────────────
+
+export const rowHaystack = (row: ActivityHistoryRow): string =>
+  [
+    kCategoryLong[row.category],
+    rowKind(row),
+    row.lead,
+    row.mono ?? "",
+    row.tail ?? "",
+    row.detail ?? "",
+    row.by,
+  ].join(" ");
+
+// ── turn lookup ──────────────────────────────────────────────────────────
+
+/** The turn whose wall extent contains `t`, if any. Turns are sorted by
+ *  start; a parent's turn can contain a spawned child's turns, so the
+ *  latest-starting match wins (the innermost). */
+export const turnAt = (
+  turns: TurnColumn[],
+  t: number
+): TurnColumn | undefined => {
+  let match: TurnColumn | undefined;
+  for (const turn of turns) {
+    if (turn.start > t) break;
+    if (t <= turn.end) match = turn;
+  }
+  return match;
+};
+
+/** The first turn starting after `t` (markers between turns snap to it). */
+export const turnAfter = (
+  turns: TurnColumn[],
+  t: number
+): TurnColumn | undefined => turns.find((turn) => turn.start > t);
+
+// ── internals ────────────────────────────────────────────────────────────
+
+/** Wall/working checkpoint (epoch seconds, working seconds). */
+interface Checkpoint {
+  wall: number;
+  work: number;
+}
+
+/** Gaps shorter than this are timing noise, not waiting. */
+const kMinGapSeconds = 1;
+
+/** Sub-lane cap for concurrent tool bursts (handoff decision 4). */
+/** Calls issued within this many seconds of each other, all still running,
+ *  are one fan-out (a `gather` of parallel calls lands microseconds apart;
+ *  the log's timestamps keep sub-millisecond precision only until parsed). */
+export const kParallelStartSec = 1;
+
+/** A row's context points grouped into fan-outs: consecutive points whose
+ *  calls started within `kParallelStartSec` of the group's first and
+ *  before any member completed. Sequential calls, however close, and a
+ *  follow-up issued later into a running call stay their own group. A
+ *  group never straddles one of `boundaries` (the row's compaction
+ *  times): a call issued after the compaction saw a different context, so
+ *  it starts the next group — on the line, the next run. The Wall clock
+ *  draws one vertex per group at the largest context; Turns mode keeps a
+ *  column per call and names the fan-out on the card. */
+export const parallelContextGroups = (
+  points: ContextPoint[],
+  boundaries: number[] = []
+): ContextPoint[][] => {
+  const groups: ContextPoint[][] = [];
+  let group: ContextPoint[] = [];
+  let earliestEnd = Infinity;
+  for (const point of points) {
+    const first = group[0];
+    if (
+      first &&
+      point.time - first.time <= kParallelStartSec &&
+      point.time < earliestEnd &&
+      !boundaries.some((b) => b > first.time && b <= point.time)
+    ) {
+      group.push(point);
+    } else {
+      if (group.length > 0) groups.push(group);
+      group = [point];
+      earliestEnd = Infinity;
+    }
+    earliestEnd = Math.min(earliestEnd, point.end);
+  }
+  if (group.length > 0) groups.push(group);
+  return groups;
+};
+
+export const kMaxSubLanes = 4;
+
+/** span_begin types that open a conversation (inspect_ai: AGENT_SPAN_TYPE
+ *  "agent", subtask(), solver spans). */
+const kConversationSpanTypes = new Set(["agent", "subtask", "solver"]);
+/** span_begin types under which model calls are scorer/grader work. */
+const kScorerSpanTypes = new Set(["scorer", "scorers"]);
+/** span_begin types that mean "spawned from a tool call". */
+const kSpawnSpanTypes = new Set(["tool", "handoff"]);
+
+const kRootRowId = "root";
+
+const truncate = (text: string, max = 120): string =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+/** Past-tense caption per non-approve decision (approve is never shown:
+ *  with a policy active every tool call produces one — pure noise). */
+const kDecisionWord = new Map<string, string>([
+  ["approve", "approved"],
+  ["reject", "rejected"],
+  ["escalate", "escalated"],
+  ["terminate", "terminated"],
+  ["modify", "modified"],
+]);
+
+/** The decision's caption. The decision is log-authored and the enum is
+ *  not validated at parse time: a Map lookup (never a plain-object index)
+ *  so "__proto__" or "constructor" can't resolve to a builtin, and an
+ *  unknown future decision keeps its own word rather than rendering
+ *  nothing. Takes `unknown` because the wire value may not be a string. */
+const decisionWord = (decision: unknown): string => {
+  if (typeof decision !== "string") return "decided";
+  return (
+    kDecisionWord.get(decision) ?? (decision !== "" ? decision : "decided")
+  );
+};
+
+/** What a sentinel step acted on, by stage. The stage is log-authored, so
+ *  a Map lookup with a fallback, as for decision words. */
+const kSentinelStageLead = new Map<string, string>([
+  ["tool_call", "Tool call"],
+  ["tool_result", "Tool result"],
+  ["model_input", "Model input"],
+  ["model_output", "Model output"],
+]);
+
+const valueText = (value: unknown): string =>
+  typeof value === "string" ? value : JSON.stringify(value);
+
+/** The call's arguments as a short mono string: a lone argument shows its
+ *  value ("rm -rf build/"), several show `key: value` pairs. */
+const callArgsText = (args: Record<string, unknown>): string => {
+  const entries = Object.entries(args);
+  const text =
+    entries.length === 1
+      ? valueText(entries[0]![1])
+      : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
+  return truncate(text.replace(/\s+/g, " ").trim(), 60);
+};
+
+/** The first argument (url / cmd / path) for the tool tooltip. */
+const firstArg = (
+  args: Record<string, unknown>
+): { key: string; value: string } | undefined => {
+  const first = Object.entries(args)[0];
+  if (!first) return undefined;
+  const text = valueText(first[1]).replace(/\s+/g, " ").trim();
+  return text ? { key: first[0], value: truncate(text, 80) } : undefined;
+};
+
+/** Byte-ish size of a tool result (string length; content parts summed). */
+const resultSize = (result: ToolEvent["result"]): number => {
+  if (typeof result === "string") return result.length;
+  if (typeof result === "number" || typeof result === "boolean") {
+    return String(result).length;
+  }
+  const parts = Array.isArray(result) ? result : [result];
+  let size = 0;
+  for (const part of parts) {
+    if (part.type === "text") size += part.text.length;
+  }
+  return size;
+};
+
+/** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
+const completedEpoch = (event: Event): number | undefined =>
+  "completed" in event && typeof event.completed === "string"
+    ? isoToEpoch(event.completed)
+    : undefined;
+
+const scoreText = (score: ScoreEvent["score"]): string => {
+  const value = score.value;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
+/** Largest token count this surface accepts per field. The normalizer only
+ *  checks that token fields are numbers: a crafted or corrupt log can carry
+ *  1e308 (two of which sum to Infinity), Infinity or NaN, and any of those
+ *  would poison the cumulative totals and the SVG scale divisions. Above
+ *  this bound (or non-finite / negative) a count is corrupt and reads as
+ *  missing — the call renders without curves, like one with no usage. */
+const kMaxTokenCount = Number.MAX_SAFE_INTEGER;
+
+/** A token count that is safe to accumulate and divide by, else undefined. */
+const tokenCount = (value: number | null | undefined): number | undefined =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= kMaxTokenCount
+    ? value
+    : undefined;
+
+/** The call's recorded input_context_tokens, when it is a valid count. Zero
+ *  reads as unknown: no request has an empty input, so it only reports a
+ *  usage that said 0. */
+const recordedContextTokens = (event: ModelEvent): number | undefined => {
+  const context = tokenCount(event.output.input_context_tokens);
+  return context === 0 ? undefined : context;
+};
+
+/** Input-side tokens for one model call (context occupancy). Prefers the
+ *  recorded input_context_tokens: usage is billed, and for a call that made
+ *  several requests it sums them. When it is null, absent, zero or invalid
+ *  (not known, or a log from before the field) this falls back to the
+ *  shared total minus the output side: summing
+ *  input + cache categories directly would double-count on providers whose
+ *  input_tokens already includes cached reads (OpenAI), and deriving from
+ *  usageTotal keeps this surface consistent with the Usage tab. */
+const inputSideTokens = (event: ModelEvent): number | undefined => {
+  const context = recordedContextTokens(event);
+  if (context !== undefined) return context;
+  const usage = event.output.usage;
+  if (!usage) return undefined;
+  const total = tokenCount(usageTotal(usage));
+  const output = tokenCount(usage.output_tokens);
+  if (total === undefined || output === undefined) return undefined;
+  return Math.max(0, total - output);
+};
+
+/** All tokens for one model call — the burn curve's increment. Shares
+ *  usageTotal with the Usage tab so the two surfaces always agree. */
+const allTokens = (event: ModelEvent): number | undefined => {
+  const usage = event.output.usage;
+  if (!usage) return undefined;
+  return tokenCount(usageTotal(usage));
+};
+
+/** The model turn's stop reason and issued tool calls (tooltip "stop"). */
+const modelStop = (
+  event: ModelEvent
+): { stopReason?: string; toolCalls: string[] } => {
+  const choice = event.output.choices[0];
+  const toolCalls = (choice?.message.tool_calls ?? []).map(
+    (call) => call.function
+  );
+  return { stopReason: choice?.stop_reason, toolCalls };
+};
+
+/** span_begin bookkeeping for conversation keying. */
+interface SpanInfo {
+  id: string;
+  parentId?: string;
+  name: string;
+  type?: string;
+  start: number;
+  end?: number;
+}
+
+/** What a span_id resolves to: the conversation row it belongs to. */
+interface Conversation {
+  id: string;
+  name: string;
+  /** "role"/"scorer" rows sort last and take the scorer hue. */
+  role?: string;
+  /** The conversation's own span (agent/subtask/solver), when keyed by one. */
+  span?: SpanInfo;
+}
+
+/** A sentinel step whose decision took effect. */
+interface SentinelDecision {
+  step: SentinelStep;
+  /** The check that made the decision: it names the row and links it. */
+  decider: SentinelNode;
+  /** The call a tool-stage step judged, as the model proposed it. */
+  call?: Pick<ToolCall, "function" | "arguments">;
+  /** The agent's model call whose output the step judged (for a tool stage,
+   *  the one that proposed the call): the decision belongs to its turn. */
+  producer?: ModelEvent;
+  /** The call never ran, so it takes a ghost slot in its turn. */
+  ghost: boolean;
+  /** The span whose conversation the step belongs to. */
+  spanId: string | null | undefined;
+}
+
+interface SentinelDecisions {
+  /** Keyed by the step's returned decision, where the pass emits the row. */
+  byOutcome: Map<SentinelEvent, SentinelDecision>;
+  /** Approvals of calls a sentinel then acted on; they would count the call
+   *  twice. */
+  overruledApprovals: Set<ApprovalEvent>;
+  /** Inspect still records a ToolEvent, failed, for each call a sentinel
+   *  stopped; the decision's ghost and row stand in for it. */
+  blockedTools: Set<ToolEvent>;
+}
+
+/** The decisions that count as rejections. An action a newer or odd log
+ *  records is left out rather than guessed at. */
+const kCountedVerdicts = new Set<SentinelStep["verdict"]>([
+  "reject",
+  "modify",
+  "terminate",
+  "escalate",
+]);
+
+/** One run of a call under an id and the events recorded for it. */
+interface CallSlot {
+  /** The key of its chain, under which its conversation's outputs proposed
+   *  the calls it may have run (`findProposal`). */
+  key: string;
+  /** A bridge generation's output made the slot, whose scaffold may run its
+   *  call itself. */
+  bridged?: boolean;
+  /** Position of the slot's ToolEvent, else of its first record. */
+  order?: number;
+  /** In recording order. A run's approvals are one chain, or one per
+   *  bridged tool its call could denote (`findProposal`). */
+  approvals: ApprovalEvent[];
+  tool?: ToolEvent;
+  /** An approval or a `tool_call` decision stopped the call before it ran. */
+  stopped?: boolean;
+  /** The id of the run an event in the slot names: the `execution_id` its
+   *  approvals and checks record (`runIdOf`), and otherwise the model's id. */
+  execution?: string;
+  /** The `execution_id` a bridge's `tool_call` check of the run records. */
+  checkedAs?: string;
+}
+
+/** The runs under one id in one conversation, a slot per call the latest
+ *  model output proposed under it. Ids can repeat across turns, so each
+ *  stage takes the slots in order, passing slots another run holds
+ *  (`CallSlot.execution`). Slots pair a run's records; which call a run ran
+ *  as proposed is named only when nothing could be confused
+ *  (`findProposal`). */
+interface CallChain {
+  key: string;
+  slots: CallSlot[];
+  /** The bridge generation whose output made the chain, which a rejection
+   *  of any of its calls discards whole (`BridgeOutputs`). */
+  output?: ModelEvent;
+  approvals: number;
+  checks: number;
+  /** Native and host ToolEvents keep separate cursors: a native check holds
+   *  its slot for the native run, which a host run under another id must
+   *  not push past. */
+  tools: number;
+  hostTools: number;
+  results: number;
+}
+
+type ChainStage = "approvals" | "checks" | "tools" | "hostTools" | "results";
+
+/** The next slot `stage` has not taken, past those `skip` says never reached
+ *  it; a stage with no proposal left takes a fresh slot. */
+const takeSlot = (
+  chain: CallChain,
+  stage: ChainStage,
+  skip?: (slot: CallSlot) => boolean
+): CallSlot => {
+  let slot = chain.slots[chain[stage]];
+  while (slot && skip?.(slot)) slot = chain.slots[++chain[stage]];
+  if (!slot) chain.slots.push((slot = { key: chain.key, approvals: [] }));
+  chain[stage] += 1;
+  return slot;
+};
+
+const approvalsStopped = (slot: CallSlot): boolean =>
+  slot.approvals.some(approvalStopped);
+
+/** Records an event of the slot at `at`, which places a slot with no
+ *  ToolEvent. */
+const place = (slot: CallSlot, at: number) => {
+  if (!slot.tool) slot.order = Math.min(slot.order ?? at, at);
+};
+
+/** A call stopped before it ran, or whose arguments never parsed, has no
+ *  result; an escalation older builds let through ran despite its step. */
+const didNotRun = (slot: Pick<CallSlot, "tool" | "stopped">): boolean =>
+  !slot.tool ||
+  (toolFailed(slot.tool) &&
+    (slot.stopped === true || slot.tool.error?.type === "parsing"));
+
+/** A call a bridge ran on the host, which only the bridge's checks judge. */
+const ranOnHost = (slot: Pick<CallSlot, "tool">): boolean =>
+  !!slot.tool && isBridgeTool(slot.tool);
+
+/** The span an agent bridge's check belongs to. The conversation it records
+ *  is the nearest agent span, while rows key on the nearest agent, subtask
+ *  or solver span, so it only settles which agent the check belongs to when
+ *  the check's own span is outside that agent: a model event sink's
+ *  `on_start` can run the bridged generation in a sub-agent while the
+ *  check's span stays under the outer agent. Inside it (a subtask under the
+ *  agent), or when the conversation names no span (the sample's uuid), the
+ *  check's span decides. */
+const bridgeConversationSpan = (
+  event: SentinelEvent,
+  spans: Map<string, SpanInfo>
+): string | null | undefined => {
+  if (!spans.has(event.conversation)) return event.span_id;
+  const visited = new Set<string>();
+  for (let id = event.span_id; id && !visited.has(id);) {
+    if (id === event.conversation) return event.span_id;
+    visited.add(id);
+    id = spans.get(id)?.parentId;
+  }
+  return event.conversation;
+};
+
+/** Each sentinel step counts once, by the decision that took effect —
+ *  nested configurations record a decision per layer. Pairing runs in
+ *  recording order within each conversation: `conversationOf` keys an
+ *  event's span, or for an agent bridge's check the conversation it
+ *  recorded (`bridgeConversationSpan`). Only a sample whose log records
+ *  `execution_id` (`recordsExecutionIds`) pairs here; any other pairs in
+ *  `collectSentinelDecisionsLegacy`, as before the field.
+ *
+ *  This pairs separately from `pairToolSentinels`, which works on the event
+ *  tree; this pass also needs approvals and each call's proposing model
+ *  call, in one pass over a flat list. Both name a run's proposal with
+ *  `findProposal`, given every approval joined to the run. Keep the rules
+ *  in sync: a run under its `proposalIdOf` names the call proposed under it
+ *  only when nothing could be confused (`findProposal`); an approval or
+ *  step that records its `execution_id` judges the execution under that id
+ *  (`runIdOf`) and nothing else, each run of one handout in turn;
+ *  otherwise a `tool_call` step judges the next tool with
+ *  its id, a `tool_result` step one that ran before it; an agent bridge's
+ *  check judges only a call the bridge ran on the host, and a native check
+ *  never does; a bridge's check with no host run in the chain it took
+ *  judges, in a log that records `execution_id`, the one host run under the
+ *  model's id, else takes a slot of the latest output proposing its id
+ *  before it, which a retry after a rejection replaces, and names its call
+ *  the same way; a `tool_call` check with none of an output the bridge
+ *  discarded judges no run (`BridgeOutputs`). Calls made inside a sentinel span (a monitor's or
+ *  approver's own) pair only with events in that span. */
+const collectSentinelDecisions = (
+  events: Event[],
+  spans: Map<string, SpanInfo>,
+  conversationOf: (spanId: string | null | undefined) => string
+): SentinelDecisions => {
+  const steps = buildSentinelSteps(events);
+  const chains = new Map<string, CallChain>();
+  /** The nearest sentinel span enclosing a span, or "" outside any. */
+  const scopeOf = (spanId: string | null | undefined): string => {
+    const visited = new Set<string>();
+    for (let id = spanId; id && !visited.has(id);) {
+      visited.add(id);
+      const span = spans.get(id);
+      if (span?.type === TYPE_SENTINEL) return id;
+      id = span?.parentId;
+    }
+    return "";
+  };
+  /** The scope of the calls a step judges: the one its own span is in. */
+  const scopeOfStep = (event: SentinelEvent): string => {
+    const span = spans.get(event.span_id ?? "");
+    return scopeOf(
+      span?.type === TYPE_SENTINEL ? span.parentId : event.span_id
+    );
+  };
+  const chainKey = (spanId: string | null | undefined, id: string) =>
+    `${conversationOf(spanId)}\u0000${id}`;
+  const newChain = (
+    key: string,
+    slots: CallSlot[],
+    output?: ModelEvent
+  ): CallChain => ({
+    key,
+    slots,
+    output,
+    approvals: 0,
+    checks: 0,
+    tools: 0,
+    hostTools: 0,
+    results: 0,
+  });
+  const chainFor = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string
+  ) => {
+    const key = chainKey(spanId, `${scope}\u0000${id}`);
+    let chain = chains.get(key);
+    if (!chain) chains.set(key, (chain = newChain(key, [])));
+    return chain;
+  };
+  /** Whether the slot is free for, or held by, the run under `id`. */
+  const openTo = (slot: CallSlot, id: string): boolean =>
+    slot.execution === undefined || slot.execution === id;
+  /** The next slot `stage` has not taken that no other run holds, which the
+   *  run under `id` then holds. */
+  const takeRun = (
+    chain: CallChain,
+    stage: ChainStage,
+    id: string,
+    skip: (slot: CallSlot) => boolean = () => false
+  ): CallSlot => {
+    const slot = takeSlot(chain, stage, (s) => !openTo(s, id) || skip(s));
+    slot.execution ??= id;
+    return slot;
+  };
+  /** Slots of runs under an id other than the model's, by that id: one per
+   *  run, as a bridged call's handout runs once per bridged tool it denotes. */
+  const executions = new Map<string, CallSlot[]>();
+  /** The slot of the run under `id`, which is not the model's id in
+   *  `chain`: the one an earlier event naming it took, else a new one. */
+  const executionSlot = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string,
+    chain: CallChain,
+    stage: ChainStage,
+    skip?: (slot: CallSlot) => boolean
+  ): CallSlot => {
+    const key = chainKey(spanId, `${scope}\u0000${id}`);
+    const slots = executions.get(key);
+    if (slots) return slots[0]!;
+    const slot = takeRun(chain, stage, id, skip);
+    executions.set(key, [slot]);
+    return slot;
+  };
+  /** The slot of a ToolEvent that records `execution_id`: the execution's
+   *  until a run fills it, then one of its own for each further run. */
+  const executionRun = (
+    spanId: string | null | undefined,
+    scope: string,
+    id: string,
+    chain: CallChain,
+    stage: ChainStage,
+    tool: ToolEvent
+  ): CallSlot => {
+    const filled = (s: CallSlot) => s.tool !== undefined;
+    const slots = executions.get(chainKey(spanId, `${scope}\u0000${id}`));
+    if (!slots) return executionSlot(spanId, scope, id, chain, stage, filled);
+    const open = slots.find((s) => !filled(s));
+    if (open) return open;
+    const slot = takeRun(chain, stage, id, filled);
+    // A handout is approved once per bridged tool, before any run, so every
+    // approval joined the first run's slot. A further run takes those of its
+    // own tool, as the transcript pairs them (`pairToolApprovals`).
+    for (const other of slots) {
+      if (other.tool?.function === tool.function) continue;
+      const own = (approval: ApprovalEvent) =>
+        approval.call.function === tool.function;
+      slot.approvals.push(...other.approvals.filter(own));
+      other.approvals = other.approvals.filter((approval) => !own(approval));
+    }
+    slots.push(slot);
+    return slot;
+  };
+  /** By chain key, the host runs whose bridge recorded the model's id as
+   *  both their id and their proposal's (`recordedProposalId`). */
+  const modelIdRuns = new Map<string, CallSlot[]>();
+  /** By chain key, the calls the conversation's outputs proposed: all of
+   *  them, those of bridge generations, whose calls only a scaffold runs,
+   *  and the rest, whose calls a native run may have run. */
+  const proposals: ProposalIndex<ModelEvent> = new Map();
+  const bridgedProposals: ProposalIndex<ModelEvent> = new Map();
+  const nativeProposals: ProposalIndex<ModelEvent> = new Map();
+  const latestModel = new Map<string, ModelEvent>();
+  const slotOfStep = new Map<SentinelStep, CallSlot>();
+  const producerOfStep = new Map<SentinelStep, ModelEvent>();
+  const overruledApprovals = new Set<ApprovalEvent>();
+  const blockedTools = new Set<ToolEvent>();
+  const discardedOutputs = new Set<ModelEvent>();
+  const discard = (chain: CallChain) => {
+    if (chain.output) discardedOutputs.add(chain.output);
+  };
+  const bridgeChecks: {
+    step: SentinelStep;
+    chain: CallChain;
+    /** The `executions` key of the execution the step names. */
+    execution?: string;
+    order: number;
+  }[] = [];
+  const spanOfBridgeStep = new Map<SentinelStep, string | null | undefined>();
+  const nativeCalls: { step: SentinelStep; chain: CallChain; order: number }[] =
+    [];
+  /** Steps that judged a call with no slot of their own: the bridge's own
+   *  call it never ran on the host, or a native call no native run holds. */
+  const unslotted = new Map<
+    SentinelStep,
+    { slot: CallSlot; bridgedOnly: boolean }
+  >();
+  const holdNativeCall = (step: SentinelStep, slot: CallSlot, at: number) => {
+    place(slot, at);
+    slotOfStep.set(step, slot);
+    if (stopsCall(step)) slot.stopped = true;
+  };
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
+
+  for (const [index, event] of events.entries()) {
+    if (event.event === "model") {
+      // Monitors' own calls run inside the sentinel span.
+      if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
+      latestModel.set(conversationOf(event.span_id), event);
+      const fresh = new Map<string, ToolCall[]>();
+      for (const choice of event.output.choices) {
+        for (const call of choice.message.tool_calls ?? []) {
+          let calls = fresh.get(call.id);
+          if (!calls) fresh.set(call.id, (calls = []));
+          calls.push(call);
+        }
+      }
+      for (const [id, calls] of fresh) {
+        const key = chainKey(
+          event.span_id,
+          `${scopeOf(event.span_id)}\u0000${id}`
+        );
+        const bridged = !!event.requested_model;
+        chains.set(
+          key,
+          newChain(
+            key,
+            calls.map(() => ({ key, bridged, approvals: [] })),
+            bridged ? event : undefined
+          )
+        );
+        for (const call of calls) {
+          addProposal(proposals, key, call, event, index);
+          addProposal(
+            bridged ? bridgedProposals : nativeProposals,
+            key,
+            call,
+            event,
+            index
+          );
+        }
+      }
+    } else if (event.event === "approval") {
+      const scope = scopeOf(event.span_id);
+      const chain = chainFor(event.span_id, scope, event.call.id);
+      const slot =
+        event.execution_id != null
+          ? executionSlot(
+              event.span_id,
+              scope,
+              event.execution_id,
+              chain,
+              "approvals"
+            )
+          : takeRun(chain, "approvals", event.call.id);
+      place(slot, index);
+      slot.approvals.push(event);
+      if (approvalStopped(event)) slot.stopped = true;
+    } else if (event.event === "tool") {
+      const scope = scopeOf(event.span_id);
+      const proposalId = proposalIdOf(event);
+      const chain = chainFor(event.span_id, scope, proposalId);
+      const stage = isBridgeTool(event) ? "hostTools" : "tools";
+      // With two cursors, a slot ahead of this one may already hold a run.
+      const filled = (s: CallSlot) => s.tool !== undefined;
+      const slot =
+        event.execution_id != null
+          ? executionRun(
+              event.span_id,
+              scope,
+              event.execution_id,
+              chain,
+              stage,
+              event
+            )
+          : proposalId !== event.id
+            ? executionSlot(
+                event.span_id,
+                scope,
+                event.id,
+                chain,
+                stage,
+                filled
+              )
+            : takeRun(chain, stage, event.id, filled);
+      slot.tool = event;
+      slot.order = index;
+      if (recordedProposalId(event) === event.id) {
+        const runs = modelIdRuns.get(chain.key);
+        if (runs) runs.push(slot);
+        else modelIdRuns.set(chain.key, [slot]);
+      }
+    } else if (event.event === "sentinel") {
+      const step = steps.get(event);
+      if (!step) continue;
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      const scope = scopeOfStep(event);
+      if (toolStage && isBridgeCheck(event)) {
+        const spanId = bridgeConversationSpan(event, spans);
+        spanOfBridgeStep.set(step, spanId);
+        bridgeChecks.push({
+          step,
+          chain: chainFor(spanId, scope, step.stepId),
+          execution:
+            step.executionId === undefined
+              ? undefined
+              : chainKey(spanId, `${scope}\u0000${step.executionId}`),
+          order: index,
+        });
+      } else if (step.stage === "tool_call") {
+        // A call its approval stopped never reached the sentinel.
+        const chain = chainFor(event.span_id, scope, step.stepId);
+        const skip = (slot: CallSlot) =>
+          slot.stopped === true || ranOnHost(slot);
+        const slot =
+          step.executionId !== undefined
+            ? executionSlot(
+                event.span_id,
+                scope,
+                step.executionId,
+                chain,
+                "checks",
+                skip
+              )
+            : takeRun(chain, "checks", step.stepId, skip);
+        holdNativeCall(step, slot, index);
+        nativeCalls.push({ step, chain, order: index });
+      } else if (step.stage === "tool_result") {
+        // Only a call that ran has a result to judge, though the run may
+        // have failed.
+        const chain = chainFor(event.span_id, scope, step.stepId);
+        const skip = (slot: CallSlot) => didNotRun(slot) || ranOnHost(slot);
+        slotOfStep.set(
+          step,
+          step.executionId !== undefined
+            ? executionSlot(
+                event.span_id,
+                scope,
+                step.executionId,
+                chain,
+                "results",
+                skip
+              )
+            : takeRun(chain, "results", step.stepId, skip)
+        );
+      } else {
+        const producer = latestModel.get(conversationOf(event.span_id));
+        if (producer) producerOfStep.set(step, producer);
+      }
+    }
+  }
+
+  // A native call check takes its slot before the call runs, so a host run
+  // of another proposal under its id can fill that slot later. Such a check
+  // moves to a native run it can still judge, else pairs with nothing.
+  const nativeHeld = new Set(
+    nativeCalls.map(({ step }) => slotOfStep.get(step))
+  );
+  for (const { step, chain, order } of nativeCalls) {
+    const held = slotOfStep.get(step);
+    if (!held || !ranOnHost(held)) continue;
+    nativeHeld.delete(held);
+    slotOfStep.delete(step);
+    held.stopped = approvalsStopped(held);
+    const slot = chain.slots.find(
+      (s) =>
+        !!s.tool &&
+        !ranOnHost(s) &&
+        !nativeHeld.has(s) &&
+        s.stopped !== true &&
+        openTo(s, step.stepId)
+    );
+    if (slot) {
+      nativeHeld.add(slot);
+      holdNativeCall(step, slot, order);
+    } else {
+      unslotted.set(step, {
+        slot: { key: chain.key, order, approvals: [] },
+        bridgedOnly: false,
+      });
+    }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<CallSlot>>();
+  const takenFor = (stage: SentinelStep["stage"]) => {
+    let taken = bridgeTaken.get(stage);
+    if (!taken) bridgeTaken.set(stage, (taken = new Set()));
+    return taken;
+  };
+  const judges = (step: SentinelStep, s: CallSlot) =>
+    ranOnHost(s) &&
+    !takenFor(step.stage).has(s) &&
+    (step.stage === "tool_call" || !didNotRun(s));
+  const pairBridgeCheck = (step: SentinelStep, slot: CallSlot, at: number) => {
+    takenFor(step.stage).add(slot);
+    place(slot, at);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && step.executionId !== undefined) {
+      slot.checkedAs = step.executionId;
+    }
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
+  };
+  for (const { step, chain, execution } of bridgeChecks) {
+    if (
+      step.stage === "tool_call" &&
+      execution === undefined &&
+      stopsCall(step)
+    ) {
+      discard(chain);
+    }
+  }
+  /** A `tool_call` check of an output the bridge discarded, which judged a
+   *  call that never ran: it never takes the run under the model's id. Only
+   *  the check that stopped its own call still pairs with a host run in its
+   *  output's chain, as it always has. */
+  const ofDiscarded = ({ step, chain, execution }: (typeof bridgeChecks)[0]) =>
+    step.stage === "tool_call" &&
+    execution === undefined &&
+    !!chain.output &&
+    discardedOutputs.has(chain.output);
+  const unpairedBridgeChecks: typeof bridgeChecks = [];
+  for (const check of bridgeChecks) {
+    const { step, chain, execution, order } = check;
+    if (ofDiscarded(check) && !stopsCall(step)) {
+      unpairedBridgeChecks.push(check);
+      continue;
+    }
+    const slot =
+      execution === undefined
+        ? chain.slots.find((s) => openTo(s, step.stepId) && judges(step, s))
+        : executions.get(execution)?.find((s) => judges(step, s));
+    if (slot) pairBridgeCheck(step, slot, order);
+    else unpairedBridgeChecks.push(check);
+  }
+  // A later output proposing the id replaces the chain a check took, though
+  // the run it judged may land in the replacement. From a bridge that
+  // records `execution_id`, a check with none judged the run under its own
+  // id, so once the chains have paired, it takes that run when exactly one
+  // ran under the model's id (`modelIdRuns`) and no check of its stage holds
+  // it.
+  for (const check of unpairedBridgeChecks) {
+    const { step, chain, execution, order } = check;
+    const taken = takenFor(step.stage);
+    const named =
+      execution === undefined ? undefined : executions.get(execution);
+    const [only, other] =
+      execution === undefined && !ofDiscarded(check)
+        ? (modelIdRuns.get(chain.key) ?? [])
+        : [];
+    if (only && !other && judges(step, only)) {
+      pairBridgeCheck(step, only, order);
+      continue;
+    }
+    // A bridge's own call runs in its scaffold, with no ToolEvent, under an
+    // id the bridge issued. Only bridge generations set `requested_model`,
+    // so a native proposal under the id never names it.
+    const ownCall = (s: CallSlot) =>
+      !s.tool && s.bridged === true && !taken.has(s);
+    const proposal =
+      step.stage !== "tool_call"
+        ? undefined
+        : named
+          ? named.find(ownCall)
+          : chain.slots.find((s) => openTo(s, step.stepId) && ownCall(s));
+    if (proposal) {
+      taken.add(proposal);
+      place(proposal, order);
+      unslotted.set(step, { slot: proposal, bridgedOnly: true });
+    }
+  }
+
+  const proposalOf = (slot: CallSlot, index: ProposalIndex<ModelEvent>) =>
+    slot.order === undefined
+      ? undefined
+      : findProposal(index.get(slot.key), {
+          order: slot.order,
+          tool: slot.tool,
+          approvals: slot.approvals,
+        });
+
+  const byOutcome = new Map<SentinelEvent, SentinelDecision>();
+  for (const step of steps.values()) {
+    const { effective: decider, outcome } = step;
+    if (!decider || !outcome || !kCountedVerdicts.has(step.verdict)) continue;
+    const slot = slotOfStep.get(step);
+    const tool = slot?.tool;
+    // A modified call ran (as its replacement) and draws its own span.
+    const ghost =
+      step.stage === "tool_call" &&
+      step.verdict !== "modify" &&
+      (!tool || toolFailed(tool));
+    for (const approval of slot?.approvals ?? []) {
+      overruledApprovals.add(approval);
+    }
+    if (ghost && tool) blockedTools.add(tool);
+    const other = unslotted.get(step);
+    // A slot with no host run holds a native step's call.
+    const proposal = slot
+      ? proposalOf(
+          slot,
+          tool && isBridgeTool(tool) ? proposals : nativeProposals
+        )
+      : other &&
+        proposalOf(
+          other.slot,
+          other.bridgedOnly ? bridgedProposals : nativeProposals
+        );
+    byOutcome.set(outcome.event, {
+      step,
+      decider,
+      // A run whose records cannot tell which call it ran as proposed is
+      // named as it ran.
+      call:
+        proposal?.call ??
+        slot?.tool ??
+        agreedCall(
+          (slot ?? other?.slot)?.approvals.map((approval) => approval.call) ??
+            []
+        ),
+      producer: proposal?.output ?? producerOfStep.get(step),
+      ghost,
+      spanId: spanOfBridgeStep.has(step)
+        ? spanOfBridgeStep.get(step)
+        : outcome.event.span_id,
+    });
+  }
+  return { byOutcome, overruledApprovals, blockedTools };
+};
+
+// Logs that record no `execution_id` pair with origin/main's rules, kept
+// verbatim below (renamed) so their Activity renders as it always has.
+
+/** One proposed call and the events recorded for it. */
+interface LegacyCallSlot {
+  call?: ToolCall;
+  producer?: ModelEvent;
+  approval?: ApprovalEvent;
+  tool?: ToolEvent;
+  /** An approval or a `tool_call` decision stopped the call before it ran. */
+  stopped?: boolean;
+}
+
+/** The calls under one id in one conversation, from the latest model output
+ *  that proposed it. Ids can repeat across turns, so each stage takes the
+ *  slots in order, as `pairToolSentinels` hands tools their proposals. */
+interface LegacyCallChain {
+  slots: LegacyCallSlot[];
+  approvals: number;
+  checks: number;
+  tools: number;
+  results: number;
+}
+
+type LegacyChainStage = "approvals" | "checks" | "tools" | "results";
+
+/** The next slot `stage` has not taken, past those `skip` says never reached
+ *  it; a stage with no proposal left takes a fresh slot. */
+const takeLegacySlot = (
+  chain: LegacyCallChain,
+  stage: LegacyChainStage,
+  skip?: (slot: LegacyCallSlot) => boolean
+): LegacyCallSlot => {
+  let slot = chain.slots[chain[stage]];
+  while (slot && skip?.(slot)) slot = chain.slots[++chain[stage]];
+  if (!slot) chain.slots.push((slot = {}));
+  chain[stage] += 1;
+  return slot;
+};
+
+/** Each sentinel step counts once, by the decision that took effect —
+ *  nested configurations record a decision per layer. Pairing runs in
+ *  recording order within each conversation: `conversationOf` keys an
+ *  event's span, or for an agent bridge's check the conversation it
+ *  recorded (`bridgeConversationSpan`).
+ *
+ *  This pairs separately from `pairToolSentinels`, which works on the event
+ *  tree and scans tools per step; this pass also needs approvals and each
+ *  call's proposing model call, in one pass over a flat list. Keep the rules
+ *  in sync: the latest output proposing an id owns its proposals, which its
+ *  tools take in order; a `tool_call` step judges the next tool with its id,
+ *  a `tool_result` step one that ran before it; an agent bridge's check
+ *  judges only a call the bridge ran on the host, and a native check never
+ *  does; a bridge's check judges the call of the latest output proposing
+ *  its id before it, which a retry after a rejection replaces. */
+const collectSentinelDecisionsLegacy = (
+  events: Event[],
+  spans: Map<string, SpanInfo>,
+  conversationOf: (spanId: string | null | undefined) => string
+): SentinelDecisions => {
+  const steps = buildSentinelSteps(events);
+  const chains = new Map<string, LegacyCallChain>();
+  const chainKey = (spanId: string | null | undefined, id: string) =>
+    `${conversationOf(spanId)}\u0000${id}`;
+  const newChain = (slots: LegacyCallSlot[]): LegacyCallChain => ({
+    slots,
+    approvals: 0,
+    checks: 0,
+    tools: 0,
+    results: 0,
+  });
+  const chainFor = (spanId: string | null | undefined, id: string) => {
+    const key = chainKey(spanId, id);
+    let chain = chains.get(key);
+    if (!chain) chains.set(key, (chain = newChain([])));
+    return chain;
+  };
+  const latestModel = new Map<string, ModelEvent>();
+  const slotOfStep = new Map<SentinelStep, LegacyCallSlot>();
+  const producerOfStep = new Map<SentinelStep, ModelEvent>();
+  const overruledApprovals = new Set<ApprovalEvent>();
+  const blockedTools = new Set<ToolEvent>();
+  const bridgeChecks: { step: SentinelStep; chain: LegacyCallChain }[] = [];
+  const spanOfBridgeStep = new Map<SentinelStep, string | null | undefined>();
+  const isBridgeCheck = (event: SentinelEvent): boolean => {
+    const span = spans.get(event.span_id ?? "");
+    return span?.type === TYPE_SENTINEL && span.name === kBridgeCheckSpan;
+  };
+
+  for (const event of events) {
+    if (event.event === "model") {
+      // Monitors' own calls run inside the sentinel span.
+      if (spans.get(event.span_id ?? "")?.type === TYPE_SENTINEL) continue;
+      latestModel.set(conversationOf(event.span_id), event);
+      const fresh = new Map<string, LegacyCallSlot[]>();
+      for (const choice of event.output.choices) {
+        for (const call of choice.message.tool_calls ?? []) {
+          let slots = fresh.get(call.id);
+          if (!slots) fresh.set(call.id, (slots = []));
+          slots.push({ call, producer: event });
+        }
+      }
+      for (const [id, slots] of fresh) {
+        chains.set(chainKey(event.span_id, id), newChain(slots));
+      }
+    } else if (event.event === "approval") {
+      const slot = takeLegacySlot(
+        chainFor(event.span_id, event.call.id),
+        "approvals"
+      );
+      slot.approval = event;
+      if (approvalStopped(event)) slot.stopped = true;
+    } else if (event.event === "tool") {
+      takeLegacySlot(chainFor(event.span_id, event.id), "tools").tool = event;
+    } else if (event.event === "sentinel") {
+      const step = steps.get(event);
+      if (!step) continue;
+      const toolStage =
+        step.stage === "tool_call" || step.stage === "tool_result";
+      if (toolStage && isBridgeCheck(event)) {
+        const spanId = bridgeConversationSpan(event, spans);
+        spanOfBridgeStep.set(step, spanId);
+        bridgeChecks.push({ step, chain: chainFor(spanId, step.stepId) });
+      } else if (step.stage === "tool_call") {
+        // A call its approval stopped never reached the sentinel.
+        const chain = chainFor(event.span_id, step.stepId);
+        const slot = takeLegacySlot(
+          chain,
+          "checks",
+          (slot) => slot.stopped === true || ranOnHost(slot)
+        );
+        slotOfStep.set(step, slot);
+        if (stopsCall(step)) slot.stopped = true;
+      } else if (step.stage === "tool_result") {
+        // Only a call that ran has a result to judge, though the run may
+        // have failed.
+        const chain = chainFor(event.span_id, step.stepId);
+        slotOfStep.set(
+          step,
+          takeLegacySlot(
+            chain,
+            "results",
+            (slot) => didNotRun(slot) || ranOnHost(slot)
+          )
+        );
+      } else {
+        const producer = latestModel.get(conversationOf(event.span_id));
+        if (producer) producerOfStep.set(step, producer);
+      }
+    }
+  }
+
+  // A bridge's check may record after the ToolEvent of the call it judged,
+  // so these pair once every tool has its slot. Without a host call under
+  // its id, the step pairs with nothing rather than with a native call.
+  const bridgeTaken = new Map<SentinelStep["stage"], Set<LegacyCallSlot>>();
+  const callOfStep = new Map<SentinelStep, ToolCall>();
+  for (const { step, chain } of bridgeChecks) {
+    const taken = bridgeTaken.get(step.stage) ?? new Set<LegacyCallSlot>();
+    bridgeTaken.set(step.stage, taken);
+    const slot = chain.slots.find(
+      (s) =>
+        ranOnHost(s) &&
+        !taken.has(s) &&
+        (step.stage === "tool_call" || !didNotRun(s))
+    );
+    if (!slot) {
+      // A bridge's own call runs in its scaffold, with no ToolEvent, under
+      // an id the bridge issued. Only bridge generations set
+      // `requested_model`, so a native proposal under the id never names it.
+      const proposal =
+        step.stage === "tool_call"
+          ? chain.slots.find(
+              (s) => !s.tool && !!s.producer?.requested_model && !taken.has(s)
+            )
+          : undefined;
+      if (proposal?.call) {
+        taken.add(proposal);
+        callOfStep.set(step, proposal.call);
+        if (proposal.producer) producerOfStep.set(step, proposal.producer);
+      }
+      continue;
+    }
+    taken.add(slot);
+    slotOfStep.set(step, slot);
+    if (step.stage === "tool_call" && stopsCall(step)) slot.stopped = true;
+  }
+
+  const byOutcome = new Map<SentinelEvent, SentinelDecision>();
+  for (const step of steps.values()) {
+    const { effective: decider, outcome } = step;
+    if (!decider || !outcome || !kCountedVerdicts.has(step.verdict)) continue;
+    const slot = slotOfStep.get(step);
+    const tool = slot?.tool;
+    // A modified call ran (as its replacement) and draws its own span.
+    const ghost =
+      step.stage === "tool_call" &&
+      step.verdict !== "modify" &&
+      (!tool || toolFailed(tool));
+    if (slot?.approval) overruledApprovals.add(slot.approval);
+    if (ghost && tool) blockedTools.add(tool);
+    byOutcome.set(outcome.event, {
+      step,
+      decider,
+      call: slot ? (slot.call ?? tool) : callOfStep.get(step),
+      producer: slot ? slot.producer : producerOfStep.get(step),
+      ghost,
+      spanId: spanOfBridgeStep.has(step)
+        ? spanOfBridgeStep.get(step)
+        : outcome.event.span_id,
+    });
+  }
+  return { byOutcome, overruledApprovals, blockedTools };
+};
+
+export interface ActivityInputs {
+  events: Event[];
+  startedAt?: string | null;
+  completedAt?: string | null;
+  workingTime?: number | null;
+  totalTime?: number | null;
+  /** Live sample — pending spans render open-ended to `now`. */
+  running?: boolean;
+  /** Epoch seconds for the open edge; defaults to the latest event time. */
+  now?: number;
+}
+
+/** True when any event carries a usable timestamp — old logs without them
+ *  hide the Activity tab entirely. */
+export const hasEventTimestamps = (events: Event[]): boolean =>
+  events.some((event) => isoToEpoch(event.timestamp) !== undefined);
+
+const inertData = (inputs: ActivityInputs): ActivityData => ({
+  window: undefined,
+  workingSegments: [],
+  stalls: [],
+  workingTime: inputs.workingTime ?? 0,
+  totalTime: inputs.totalTime ?? 0,
+  tokenPoints: [],
+  tokenSeries: [],
+  totalTokens: 0,
+  tokensByRow: nullProtoRecord(new Map()),
+  tokenTotalsByRow: nullProtoRecord(new Map()),
+  contextSeries: [],
+  contextPeak: 0,
+  contextByRow: nullProtoRecord(new Map()),
+  contextPeakByRow: nullProtoRecord(new Map()),
+  compactions: [],
+  agentRows: [],
+  turns: [],
+  markers: [],
+  rows: [],
+  rejectedCount: 0,
+  pending: false,
+  hasWorkingSignal: false,
+});
+
+/**
+ * The single O(n) pass over sample.events producing every band series,
+ * stall region, marker, and history row (spec: Architecture).
+ */
+export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
+  const { events, running = false } = inputs;
+
+  const checkpoints: Checkpoint[] = [];
+  /** Raw per-call burns — sorted by time then accumulated AFTER the pass:
+   *  overlapping calls (parallel subagents, concurrent scorers) complete
+   *  out of event order, and the step path/hover both consume the series
+   *  as time-ordered. */
+  const tokenPoints: TokenPoint[] = [];
+  const contextSeries: ContextPoint[] = [];
+  const compactions: CompactionDrop[] = [];
+  const markers: ActivityMarker[] = [];
+  const rows: ActivityHistoryRow[] = [];
+  const turns: TurnColumn[] = [];
+  /** Retry-bearing model-call windows for stall attribution. */
+  const retryWindows: {
+    start: number;
+    end: number;
+    retries: number;
+    uuid?: string;
+  }[] = [];
+  const rowsById = new Map<string, AgentRow>();
+  const agentRows: AgentRow[] = [];
+  /** The latest turn per row — tool calls attribute to it. */
+  const currentTurnByRow = new Map<string, TurnColumn>();
+  /** The turn that produced each burn/context point. Turns are numbered
+   *  after the pass (they interleave across conversations), so the link is
+   *  by identity — pre-uuid logs have no other handle. */
+  const turnOfPoint = new Map<TokenPoint | ContextPoint, TurnColumn>();
+  const turnOfDrop = new Map<CompactionDrop, TurnColumn>();
+  const turnOfModel = new Map<ModelEvent, TurnColumn>();
+
+  let minTime = Infinity;
+  let maxTime = -Infinity;
+  let contextPeak = 0;
+  /** Latest context size per conversation — the compaction fallback when
+   *  tokens_before is absent (older logs). */
+  const lastContextByRow = new Map<string, number>();
+  let pending = false;
+  let rejectedCount = 0;
+  // Mid-vintage logs carry timestamps but predate working_start/working_time
+  // (the normalizer fills working_start with 0) — without a real working
+  // signal the working/waiting band would render the whole run as waiting.
+  const hasWorkingSignal = events.some(
+    (event) =>
+      ("working_time" in event && typeof event.working_time === "number") ||
+      event.working_start > 0
+  );
+
+  // ── pre-scan: time extent + span tree ─────────────────────────────────
+  // `now` needs a fallback before the main pass reaches open-ended spans,
+  // and conversation keying walks span parents that may begin after the
+  // events they enclose are logged (tool span_begin follows the ToolEvent
+  // in real logs).
+  const spans = new Map<string, SpanInfo>();
+  for (const event of events) {
+    const t = isoToEpoch(event.timestamp);
+    if (t !== undefined) {
+      if (t < minTime) minTime = t;
+      if (t > maxTime) maxTime = t;
+    }
+    const completed = completedEpoch(event);
+    if (completed !== undefined && completed > maxTime) maxTime = completed;
+    if (event.event === "span_begin" && t !== undefined) {
+      spans.set(event.id, {
+        id: event.id,
+        parentId: event.parent_id ?? undefined,
+        name: event.name,
+        type: event.type ?? undefined,
+        start: t,
+      });
+    }
+  }
+  for (const event of events) {
+    if (event.event !== "span_end") continue;
+    const span = spans.get(event.id);
+    const t = isoToEpoch(event.timestamp);
+    if (span && t !== undefined) span.end = t;
+  }
+  if (minTime > maxTime) {
+    // No event timestamps at all — the caller hides the tab; still return
+    // an inert shape so downstream code never branches on undefined arrays.
+    return inertData(inputs);
+  }
+
+  const startEpoch = isoToEpoch(inputs.startedAt);
+  const endEpoch = isoToEpoch(inputs.completedAt);
+  const now = inputs.now ?? maxTime;
+  const windowStart =
+    startEpoch !== undefined ? Math.min(startEpoch, minTime) : minTime;
+  const windowEnd =
+    running && now > maxTime
+      ? now
+      : endEpoch !== undefined
+        ? Math.max(endEpoch, maxTime)
+        : maxTime;
+  const window: TimeWindow = { start: windowStart, end: windowEnd };
+
+  // ── conversation keying (handoff 10a) ─────────────────────────────────
+  // Nearest enclosing agent/subtask/solver span keys the row; scorer spans
+  // met first make a scorer row; no span context → the root conversation.
+  const conversationCache = new Map<string, Conversation>();
+  const rootConversation: Conversation = { id: kRootRowId, name: "" };
+  const conversationForSpan = (
+    spanId: string | null | undefined
+  ): Conversation => {
+    if (!spanId) return rootConversation;
+    const cached = conversationCache.get(spanId);
+    if (cached) return cached;
+    let resolved: Conversation = rootConversation;
+    let cursor: SpanInfo | undefined = spans.get(spanId);
+    const visited = new Set<string>();
+    while (cursor && !visited.has(cursor.id)) {
+      visited.add(cursor.id);
+      if (
+        cursor.type !== undefined &&
+        kConversationSpanTypes.has(cursor.type)
+      ) {
+        resolved = { id: cursor.id, name: cursor.name, span: cursor };
+        break;
+      }
+      if (cursor.type !== undefined && kScorerSpanTypes.has(cursor.type)) {
+        resolved = {
+          id: `scorer:${cursor.name}`,
+          name: cursor.name,
+          role: "scorer",
+        };
+        break;
+      }
+      cursor = cursor.parentId ? spans.get(cursor.parentId) : undefined;
+    }
+    conversationCache.set(spanId, resolved);
+    return resolved;
+  };
+  /** Role-bearing model calls (grader etc.) get their own row regardless
+   *  of span context (handoff: scorer-role ModelEvents key on the role). */
+  const conversationFor = (
+    spanId: string | null | undefined,
+    role: string | null | undefined
+  ): Conversation =>
+    role
+      ? { id: `role:${role}`, name: role, role }
+      : conversationForSpan(spanId);
+  /** The conversation the latest model call under each span key resolved
+   *  to. Tool, approval and compaction events carry no role, so they
+   *  attribute through here: a grader's tools stay on the grader row
+   *  instead of splitting off to the scorer span (or root without span
+   *  context). */
+  const currentConversationBySpan = new Map<string, Conversation>();
+  const spanKey = (spanId: string | null | undefined): string => spanId ?? "";
+  const conversationForEvent = (
+    spanId: string | null | undefined
+  ): Conversation =>
+    currentConversationBySpan.get(spanKey(spanId)) ??
+    conversationForSpan(spanId);
+  /** The span a sentinel's dispatch ran under. Its own span also holds its
+   *  monitors' model calls, and a role-keyed one would claim the span key
+   *  for a stray row. */
+  const outsideSentinelSpans = (
+    spanId: string | null | undefined
+  ): string | null | undefined => {
+    let id = spanId;
+    let span = id ? spans.get(id) : undefined;
+    const visited = new Set<string>();
+    while (span?.type === TYPE_SENTINEL && !visited.has(span.id)) {
+      visited.add(span.id);
+      id = span.parentId;
+      span = id ? spans.get(id) : undefined;
+    }
+    return id;
+  };
+  const collect = recordsExecutionIds(events)
+    ? collectSentinelDecisions
+    : collectSentinelDecisionsLegacy;
+  const sentinelDecisions = collect(
+    events,
+    spans,
+    (spanId) => conversationForSpan(outsideSentinelSpans(spanId)).id
+  );
+
+  const rowFor = (conversation: Conversation): AgentRow => {
+    let row = rowsById.get(conversation.id);
+    if (!row) {
+      row = {
+        id: conversation.id,
+        name: conversation.name,
+        model: "",
+        models: [],
+        role: conversation.role,
+        hue: kScorerHue,
+        isSubAgent: false,
+        blockedOn: [],
+        spans: [],
+        bursts: [],
+        modelCount: 0,
+        toolCount: 0,
+        failedCount: 0,
+      };
+      rowsById.set(conversation.id, row);
+      agentRows.push(row);
+    }
+    return row;
+  };
+  /** Conversation span per row id, for parent/child resolution after the pass. */
+  const spanByRowId = new Map<string, SpanInfo>();
+
+  const newTurn = (rowId: string, start: number, end: number): TurnColumn => {
+    const turn: TurnColumn = {
+      index: 0,
+      rowId,
+      start,
+      end,
+      tools: [],
+      modelWork: 0,
+      toolWork: 0,
+      rejected: 0,
+    };
+    turns.push(turn);
+    currentTurnByRow.set(rowId, turn);
+    return turn;
+  };
+
+  // The main pass runs in timestamp order, not array order: a tool call
+  // whose event lands late in the array (parallel subagents, buffered
+  // writers) must attach to the model turn that issued it, not to a later
+  // one. Ties keep array order; synthetic keys keep the original index so
+  // history-row keys stay stable regardless of the sort.
+  const ordered: { event: Event; index: number; t: number }[] = [];
+  events.forEach((event, index) => {
+    const t = isoToEpoch(event.timestamp);
+    if (t !== undefined) ordered.push({ event, index, t });
+  });
+  ordered.sort((a, b) => a.t - b.t || a.index - b.index);
+
+  for (const { event, index, t } of ordered) {
+    const key = event.uuid ?? `evt:${index}`;
+    const uuid = event.uuid ?? undefined;
+
+    checkpoints.push({ wall: t, work: event.working_start });
+    const completed = completedEpoch(event);
+    const workingTime =
+      "working_time" in event &&
+      typeof event.working_time === "number" &&
+      Number.isFinite(event.working_time)
+        ? event.working_time
+        : undefined;
+    if (completed !== undefined && workingTime !== undefined) {
+      checkpoints.push({
+        wall: completed,
+        work: event.working_start + workingTime,
+      });
+    }
+
+    switch (event.event) {
+      case "model": {
+        const isPending = event.pending === true && completed === undefined;
+        const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
+        if (isPending) pending = true;
+        const conversation = conversationFor(event.span_id, event.role);
+        currentConversationBySpan.set(spanKey(event.span_id), conversation);
+        const row = rowFor(conversation);
+        if (conversation.span) spanByRowId.set(row.id, conversation.span);
+        row.modelCount += 1;
+        row.model = event.model;
+        if (!row.models.includes(event.model)) row.models.push(event.model);
+        const usage = event.output.usage ?? undefined;
+        const { stopReason, toolCalls } = modelStop(event);
+        const span: ActivitySpan = {
+          start: t,
+          end,
+          kind: "model",
+          label: event.model,
+          rowId: row.id,
+          failed: false,
+          pending: isPending,
+          working: Math.min(workingTime ?? end - t, end - t),
+          retries: event.retries ?? undefined,
+          uuid,
+          inputTokens: inputSideTokens(event),
+          cachedTokens:
+            recordedContextTokens(event) !== undefined
+              ? undefined
+              : tokenCount(usage?.input_tokens_cache_read),
+          outputTokens: tokenCount(usage?.output_tokens),
+          stopReason,
+          toolCalls,
+        };
+        row.spans.push(span);
+        const turn = newTurn(row.id, t, end);
+        turnOfModel.set(event, turn);
+        turn.model = span;
+        turn.modelWork = span.working;
+        if ((event.retries ?? 0) > 0) {
+          retryWindows.push({
+            start: t,
+            end,
+            retries: event.retries ?? 0,
+            uuid,
+          });
+        }
+        const burned = allTokens(event);
+        if (burned !== undefined && burned > 0) {
+          const point: TokenPoint = {
+            time: completed ?? t,
+            burned,
+            rowId: row.id,
+            uuid,
+          };
+          tokenPoints.push(point);
+          turnOfPoint.set(point, turn);
+        }
+        const context = inputSideTokens(event);
+        if (context !== undefined && context > 0) {
+          const point: ContextPoint = {
+            time: t,
+            end,
+            value: context,
+            rowId: row.id,
+            uuid,
+            messages: event.input.length,
+          };
+          contextSeries.push(point);
+          turnOfPoint.set(point, turn);
+          lastContextByRow.set(row.id, context);
+          if (context > contextPeak) contextPeak = context;
+        }
+        break;
+      }
+      case "tool": {
+        const failed = toolFailed(event);
+        if (sentinelDecisions.blockedTools.has(event)) break;
+        const isPending = event.pending === true && completed === undefined;
+        const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
+        if (isPending) pending = true;
+        const conversation = conversationForEvent(event.span_id);
+        const row = rowFor(conversation);
+        if (conversation.span) spanByRowId.set(row.id, conversation.span);
+        row.toolCount += 1;
+        if (failed) row.failedCount += 1;
+        const span: ActivitySpan = {
+          start: t,
+          end,
+          kind: "tool",
+          label: event.function,
+          rowId: row.id,
+          failed,
+          pending: isPending,
+          working: Math.min(workingTime ?? end - t, end - t),
+          uuid,
+          resultBytes: resultSize(event.result),
+          firstArgKey: firstArg(event.arguments)?.key,
+          firstArg: firstArg(event.arguments)?.value,
+          errorMessage: event.error?.message
+            ? truncate(event.error.message, 160)
+            : undefined,
+        };
+        row.spans.push(span);
+        // Attribute to the row's latest model turn (a tool before any model
+        // call on its row — odd but possible — opens a tool-only turn).
+        const turn = currentTurnByRow.get(row.id) ?? newTurn(row.id, t, end);
+        turn.tools.push(span);
+        turn.end = Math.max(turn.end, end);
+        turn.toolWork += span.working;
+        if (failed) {
+          const at = completed ?? t;
+          markers.push({
+            time: at,
+            category: "error",
+            key,
+            uuid,
+            label: `Tool ${event.function} errored`,
+          });
+          rows.push({
+            time: at,
+            category: "error",
+            key,
+            uuid,
+            lead: "Tool",
+            mono: event.function,
+            tail: "errored",
+            detail: event.error?.message
+              ? truncate(event.error.message)
+              : undefined,
+            by: "system",
+          });
+        }
+        break;
+      }
+      case "error": {
+        markers.push({
+          time: t,
+          category: "error",
+          key,
+          uuid,
+          label: `Error · ${truncate(event.error.message, 80)}`,
+        });
+        rows.push({
+          time: t,
+          category: "error",
+          key,
+          uuid,
+          lead: "Error",
+          detail: truncate(event.error.message),
+          by: "system",
+        });
+        break;
+      }
+      case "sample_limit": {
+        markers.push({
+          time: t,
+          category: "limit",
+          key,
+          uuid,
+          label: `Sample hit ${event.type} limit`,
+        });
+        rows.push({
+          time: t,
+          category: "limit",
+          key,
+          uuid,
+          lead: "Sample hit",
+          mono: `${event.type} limit`,
+          detail: event.message ? truncate(event.message) : undefined,
+          by: "system",
+        });
+        break;
+      }
+      case "approval": {
+        if (event.decision === "approve") break;
+        // The sentinel runs after approval, so its decision is the call's last.
+        if (sentinelDecisions.overruledApprovals.has(event)) break;
+        rejectedCount += 1;
+        const word = decisionWord(event.decision);
+        const args = callArgsText(event.call.arguments);
+        // The rejected call belongs to the conversation's current turn —
+        // its ghost slot draws there in Turns mode.
+        const conversation = conversationForEvent(event.span_id);
+        const turn = currentTurnByRow.get(conversation.id);
+        if (turn) {
+          turn.rejected += 1;
+          turn.end = Math.max(turn.end, t);
+        }
+        markers.push({
+          time: t,
+          category: "approval",
+          key,
+          uuid,
+          label: `Tool call ${event.call.function} ${word}`,
+        });
+        rows.push({
+          time: t,
+          category: "approval",
+          kind: word,
+          key,
+          uuid,
+          lead: "Tool call",
+          mono: args ? `${event.call.function}: ${args}` : event.call.function,
+          tail: word,
+          detail: event.explanation
+            ? `“${truncate(event.explanation)}”`
+            : undefined,
+          by: event.approver,
+          byRole: "approver",
+        });
+        break;
+      }
+      case "sentinel": {
+        const decision = sentinelDecisions.byOutcome.get(event);
+        if (!decision) break;
+        const { step, decider, call, producer, ghost, spanId } = decision;
+        rejectedCount += 1;
+        const word = decisionWord(step.verdict);
+        const lead = kSentinelStageLead.get(step.stage) ?? "Sentinel step";
+        const args = call ? callArgsText(call.arguments) : "";
+        // A model_input step judged the next turn's request, which the
+        // marker snaps forward to; every other stage judged what an earlier
+        // turn produced. A monitor's call since may be the row's latest turn.
+        if (step.stage !== "model_input") {
+          const turn =
+            (producer && turnOfModel.get(producer)) ??
+            currentTurnByRow.get(
+              conversationForEvent(outsideSentinelSpans(spanId)).id
+            );
+          if (turn) {
+            if (ghost) turn.rejected += 1;
+            turn.end = Math.max(turn.end, t);
+          }
+        }
+        const reason =
+          step.reason ?? (decider.event.message?.trim() || undefined);
+        markers.push({
+          time: t,
+          category: "approval",
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          label: `${lead}${call ? ` ${call.function}` : ""} ${word}`,
+        });
+        rows.push({
+          time: t,
+          category: "approval",
+          kind: word,
+          key: decider.id,
+          uuid: decider.event.uuid ?? undefined,
+          lead,
+          mono: call
+            ? args
+              ? `${call.function}: ${args}`
+              : call.function
+            : undefined,
+          tail: word,
+          detail: reason ? `“${truncate(reason)}”` : undefined,
+          by: instanceLabel(decider.event),
+          byRole: "sentinel",
+        });
+        break;
+      }
+      case "input": {
+        markers.push({
+          time: t,
+          category: "input",
+          key,
+          uuid,
+          label: "Input provided",
+        });
+        rows.push({
+          time: t,
+          category: "input",
+          key,
+          uuid,
+          lead: "Input provided",
+          detail: event.input
+            ? `“${truncate(event.input.replace(/\s+/g, " ").trim(), 80)}”`
+            : undefined,
+          by: "user",
+        });
+        break;
+      }
+      case "interrupt": {
+        markers.push({
+          time: t,
+          category: "interrupt",
+          key,
+          uuid,
+          label: `Interrupted (${event.interrupted})`,
+        });
+        rows.push({
+          time: t,
+          category: "interrupt",
+          key,
+          uuid,
+          lead: "Interrupted",
+          detail: `${event.interrupted} · ${event.source}`,
+          by: event.source === "user_cancel" ? "user" : "system",
+        });
+        break;
+      }
+      case "compaction": {
+        const rowId = conversationForEvent(event.span_id).id;
+        const lastContext = lastContextByRow.get(rowId) ?? 0;
+        const before =
+          tokenCount(event.tokens_before) ??
+          (lastContext > 0 ? lastContext : undefined);
+        const after = tokenCount(event.tokens_after);
+        const drop: CompactionDrop = {
+          time: t,
+          rowId,
+          before,
+          after,
+          strategy: event.type,
+          key,
+          uuid,
+        };
+        compactions.push(drop);
+        const turn = currentTurnByRow.get(rowId);
+        if (turn) turnOfDrop.set(drop, turn);
+        markers.push({
+          time: t,
+          category: "compaction",
+          key,
+          uuid,
+          label:
+            before !== undefined && after !== undefined
+              ? `Context compacted ${fmtTokens(before)} → ${fmtTokens(after)}`
+              : "Context compacted",
+        });
+        rows.push({
+          time: t,
+          category: "compaction",
+          key,
+          uuid,
+          lead: "Context compacted",
+          mono:
+            before !== undefined && after !== undefined
+              ? `${fmtTokens(before)} → ${fmtTokens(after)}`
+              : undefined,
+          detail: "tokens",
+          by: "system",
+        });
+        if (after !== undefined) lastContextByRow.set(rowId, after);
+        break;
+      }
+      case "score": {
+        const value = scoreText(event.score);
+        markers.push({
+          time: t,
+          category: "score",
+          key,
+          uuid,
+          label: `Scored ${value}${event.intermediate ? " (intermediate)" : ""}`,
+        });
+        rows.push({
+          time: t,
+          category: "score",
+          key,
+          uuid,
+          lead: event.intermediate ? "Scored (intermediate)" : "Scored",
+          mono: truncate(value, 40),
+          detail: event.scorer ? `scorer ${event.scorer}` : undefined,
+          by: "system",
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // ── working segments + stalls from the checkpoint stream ─────────────
+  // Skipped entirely without a working signal: mid-vintage logs carry
+  // timestamps but no working_start/working_time (the normalizer fills 0),
+  // and an all-zero work clock would read as "the whole run was waiting".
+  checkpoints.sort((a, b) => a.wall - b.wall || a.work - b.work);
+  const workingSegments: WorkingSegment[] = [];
+  const stalls: StallRegion[] = [];
+  if (!hasWorkingSignal) checkpoints.length = 0;
+  const pushWorking = (start: number, end: number) => {
+    if (end <= start) return;
+    const last = workingSegments[workingSegments.length - 1];
+    // Merge blocks that touch (within noise) so the band reads as blocks.
+    if (last && start - last.end < kMinGapSeconds) {
+      last.end = Math.max(last.end, end);
+    } else {
+      workingSegments.push({ start, end });
+    }
+  };
+
+  let prev: Checkpoint | undefined;
+  for (const point of checkpoints) {
+    const work = point.work;
+    if (prev) {
+      const wallDelta = point.wall - prev.wall;
+      if (wallDelta > 0) {
+        // Work-first convention: the worked share of the interval renders
+        // from its left edge, waiting fills the remainder as a true gap.
+        // The per-pair clamp also absorbs working-clock resets: init-scope
+        // events can carry a working_start from a different base (observed
+        // in real logs), so a negative or over-wide delta degrades to 0 /
+        // wallDelta instead of poisoning a global monotone floor.
+        const workDelta = Math.min(Math.max(work - prev.work, 0), wallDelta);
+        if (workDelta > 0) pushWorking(prev.wall, prev.wall + workDelta);
+        const gap = wallDelta - workDelta;
+        if (gap >= kMinGapSeconds) {
+          const gapStart = prev.wall + workDelta;
+          const attributed = retryWindows.find(
+            (w) => gapStart < w.end && point.wall > w.start
+          );
+          stalls.push({
+            start: gapStart,
+            end: point.wall,
+            duration: gap,
+            retries: attributed?.retries,
+            uuid: attributed?.uuid,
+          });
+        }
+      }
+    } else if (
+      point.wall > windowStart &&
+      point.work >= point.wall - windowStart
+    ) {
+      // Work before the first checkpoint is real (working_start covers it).
+      pushWorking(windowStart, point.wall);
+    }
+    prev = { wall: point.wall, work };
+  }
+  // A running sample keeps working past its last checkpoint — open-ended.
+  if (running && prev && windowEnd > prev.wall) {
+    pushWorking(prev.wall, windowEnd);
+  }
+
+  // Attributable stalls become history rows (handoff mock: the rate-limit
+  // stall reads as an error row; unattributed waits stay chart-only).
+  for (const stall of stalls) {
+    if (stall.retries === undefined || stall.retries <= 0) continue;
+    rows.push({
+      time: stall.start,
+      category: "error",
+      key: `stall:${stall.start}`,
+      uuid: stall.uuid,
+      lead: `Model request rate-limited, retried ×${stall.retries}`,
+      detail: `resumed after ${fmtDurationWords(stall.duration)}`,
+      by: "system",
+    });
+  }
+
+  // ── rows: names, order, hues, parent/child ────────────────────────────
+  for (const row of agentRows) {
+    if (!row.name) row.name = row.model || "tools";
+    row.spans.sort((a, b) => a.start - b.start || a.end - b.end);
+    assignSubLanes(row);
+  }
+  // Primary rows first (in first-appearance order), role/scorer rows after.
+  const firstStart = (row: AgentRow) => row.spans[0]?.start ?? Infinity;
+  agentRows.sort((a, b) => {
+    const roleRank = (row: AgentRow) => (row.role ? 1 : 0);
+    if (roleRank(a) !== roleRank(b)) return roleRank(a) - roleRank(b);
+    return firstStart(a) - firstStart(b);
+  });
+  let hueIndex = 0;
+  for (const row of agentRows) {
+    row.hue = row.role
+      ? kScorerHue
+      : kAgentHues[hueIndex++ % kAgentHues.length]!;
+  }
+  // A conversation nested inside another conversation that has its own row
+  // is a sub-agent; its parent waits on it for the child span's extent.
+  for (const row of agentRows) {
+    const own = spanByRowId.get(row.id);
+    if (!own) continue;
+    let spawned = false;
+    let parentRow: AgentRow | undefined;
+    let cursor: SpanInfo | undefined = own.parentId
+      ? spans.get(own.parentId)
+      : undefined;
+    const visited = new Set<string>([own.id]);
+    while (cursor && !visited.has(cursor.id)) {
+      visited.add(cursor.id);
+      if (cursor.type !== undefined && kSpawnSpanTypes.has(cursor.type)) {
+        spawned = true;
+      }
+      const candidate = rowsById.get(cursor.id);
+      if (candidate && candidate !== row) {
+        parentRow = candidate;
+        break;
+      }
+      cursor = cursor.parentId ? spans.get(cursor.parentId) : undefined;
+    }
+    if (!parentRow) continue;
+    row.isSubAgent = true;
+    const childStart = own.start;
+    const childEnd =
+      own.end ??
+      (running
+        ? windowEnd
+        : Math.max(childStart, ...row.spans.map((span) => span.end)));
+    // The parent's tool call covering the child's start is the hand-off:
+    // it renders up to the child's start, the dotted thread takes over.
+    const spawnSpan = spawned
+      ? parentRow.spans.find(
+          (span) =>
+            span.kind === "tool" &&
+            span.start <= childStart &&
+            span.end >= childStart
+        )
+      : undefined;
+    if (spawnSpan) spawnSpan.handoffTo = row.id;
+    if (childEnd > childStart) {
+      parentRow.blockedOn.push({
+        start: childStart,
+        end: childEnd,
+        childId: row.id,
+        childName: row.name,
+      });
+    }
+  }
+  for (const row of agentRows) {
+    row.blockedOn.sort((a, b) => a.start - b.start);
+  }
+
+  // ── turns: interleave every conversation chronologically ─────────────
+  turns.sort((a, b) => a.start - b.start || a.end - b.end);
+  turns.forEach((turn, i) => {
+    turn.index = i + 1;
+    if (turn.model) turn.model.turn = turn.index;
+    for (const tool of turn.tools) tool.turn = turn.index;
+    // A hand-off tool's working time is the child's run, not the parent's
+    // own work — its share stops where the child starts. The turn's tool
+    // work is the sum of its spans' so the chart's slot weights add up.
+    for (const tool of turn.tools) {
+      if (!tool.handoffTo) continue;
+      const blocked = rowsById
+        .get(turn.rowId)
+        ?.blockedOn.find((b) => b.childId === tool.handoffTo);
+      if (blocked) {
+        tool.working = Math.min(
+          tool.working,
+          Math.max(0, blocked.start - tool.start)
+        );
+      }
+    }
+    turn.toolWork = turn.tools.reduce((sum, tool) => sum + tool.working, 0);
+  });
+  for (const drop of compactions) {
+    drop.turn = turnOfDrop.get(drop)?.index;
+  }
+
+  // ── token burn: total + per-row cumulative ────────────────────────────
+  // Overlapping calls complete out of event order — sort the raw burns by
+  // time, then accumulate.
+  // Row ids are log-authored span ids: built through Maps and exposed as
+  // null-prototype records so an id such as "constructor" or "__proto__"
+  // never resolves to an inherited builtin (#621).
+  tokenPoints.sort((a, b) => a.time - b.time);
+  let cumulativeTokens = 0;
+  const tokenSeries: StepPoint[] = [];
+  const tokensByRow = new Map<string, StepPoint[]>();
+  const tokenTotalsByRow = new Map<string, number>();
+  for (const point of tokenPoints) {
+    point.turn = turnOfPoint.get(point)?.index;
+    cumulativeTokens += point.burned;
+    tokenSeries.push({ time: point.time, value: cumulativeTokens });
+    const rowTotal = (tokenTotalsByRow.get(point.rowId) ?? 0) + point.burned;
+    tokenTotalsByRow.set(point.rowId, rowTotal);
+    let rowPoints = tokensByRow.get(point.rowId);
+    if (!rowPoints) tokensByRow.set(point.rowId, (rowPoints = []));
+    rowPoints.push({ time: point.time, value: rowTotal });
+  }
+
+  // ── context: per-row lines, deltas, peaks ─────────────────────────────
+  // Calls issued together share a start; their turns sort by completion,
+  // so the series follows the turn index within a start — the order Turns
+  // mode emits the line's vertices in. A time-only sort left a fan-out's
+  // points in event order and the line stepping back across its columns.
+  for (const point of contextSeries) {
+    point.turn = turnOfPoint.get(point)?.index;
+  }
+  contextSeries.sort(
+    (a, b) => a.time - b.time || (a.turn ?? 0) - (b.turn ?? 0)
+  );
+  const contextByRow = new Map<string, ContextPoint[]>();
+  const contextPeakByRow = new Map<string, number>();
+  for (const point of contextSeries) {
+    let rowPoints = contextByRow.get(point.rowId);
+    if (!rowPoints) contextByRow.set(point.rowId, (rowPoints = []));
+    const previous = rowPoints[rowPoints.length - 1];
+    if (previous) point.delta = point.value - previous.value;
+    rowPoints.push(point);
+    contextPeakByRow.set(
+      point.rowId,
+      Math.max(contextPeakByRow.get(point.rowId) ?? 0, point.value)
+    );
+  }
+
+  markers.sort((a, b) => a.time - b.time);
+  rows.sort((a, b) => a.time - b.time);
+
+  const totalTime = inputs.totalTime ?? Math.max(0, windowEnd - windowStart);
+  const workingTime =
+    inputs.workingTime ??
+    workingSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
+
+  return {
+    window,
+    workingSegments,
+    stalls,
+    workingTime,
+    totalTime,
+    tokenPoints,
+    tokenSeries,
+    totalTokens: cumulativeTokens,
+    tokensByRow: nullProtoRecord(tokensByRow),
+    tokenTotalsByRow: nullProtoRecord(tokenTotalsByRow),
+    contextSeries,
+    contextPeak,
+    contextByRow: nullProtoRecord(contextByRow),
+    contextPeakByRow: nullProtoRecord(contextPeakByRow),
+    compactions,
+    agentRows,
+    turns,
+    markers,
+    rows,
+    rejectedCount,
+    pending,
+    hasWorkingSignal,
+  };
+};
+
+/** Splits overlapping tool spans into thin sub-lanes for the overlap
+ *  duration only (handoff 5a), capping at kMaxSubLanes with a "+N" fold. */
+const assignSubLanes = (row: AgentRow): void => {
+  const tools = row.spans.filter((span) => span.kind === "tool");
+  let burst: ActivitySpan[] = [];
+  let burstEnd = -Infinity;
+
+  const flush = () => {
+    if (burst.length > 1) {
+      const names = new Map<string, number>();
+      let failed = 0;
+      for (const span of burst) {
+        names.set(span.label, (names.get(span.label) ?? 0) + 1);
+        if (span.failed) failed += 1;
+      }
+      const dominant =
+        [...names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "tools";
+      const record: ToolBurst = {
+        start: burst[0]?.start ?? 0,
+        end: burstEnd,
+        count: burst.length,
+        failed,
+        label: dominant,
+        folded: Math.max(0, burst.length - kMaxSubLanes),
+        names: burst.map((span) => span.label),
+      };
+      row.bursts.push(record);
+      // Every member knows its burst; only the first kMaxSubLanes get a
+      // lane. Folded spans render nothing individually — the burst label's
+      // +N counts them so nothing silently disappears.
+      const shown = Math.min(burst.length, kMaxSubLanes);
+      burst.forEach((span, lane) => {
+        span.burst = record;
+        if (lane < shown) {
+          span.subLane = lane;
+          span.subLaneCount = shown;
+        } else {
+          span.folded = true;
+        }
+      });
+    }
+    burst = [];
+    burstEnd = -Infinity;
+  };
+
+  for (const span of tools) {
+    if (burst.length > 0 && span.start < burstEnd) {
+      burst.push(span);
+      burstEnd = Math.max(burstEnd, span.end);
+    } else {
+      flush();
+      burst = [span];
+      burstEnd = span.end;
+    }
+  }
+  flush();
+};

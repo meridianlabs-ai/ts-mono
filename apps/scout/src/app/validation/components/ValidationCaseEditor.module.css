@@ -18,12 +18,12 @@
 }
 
 /* Make all form controls full width within the panel */
-.panel :global(vscode-single-select),
+.panel [role="combobox"],
 .panel :global(vscode-textfield),
 .panel :global(button) {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .idLabel {

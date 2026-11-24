@@ -2,14 +2,15 @@ import clsx from "clsx";
 import { FC } from "react";
 import { Link } from "react-router";
 
+import { Icon, IconName } from "@tsmono/react/icons";
+
 import styles from "./NavButtons.module.css";
 
 export interface NavButton {
   // The title of the navigation button
   title: string;
 
-  // The icon class for the navigation button
-  icon: string;
+  icon: IconName;
 
   // The route URL for the navigation button
   route: string;
@@ -34,14 +35,14 @@ export const NavButtons: FC<NavButtonsProps> = ({ buttons }) => {
             title={button.title}
             aria-label={button.title}
           >
-            <i className={clsx(button.icon)} />
+            <Icon name={button.icon} />
           </Link>
         ) : (
           <span
             key={index}
             className={clsx(styles.toolbarButton, styles.disabled)}
           >
-            <i className={clsx(button.icon)} />
+            <Icon name={button.icon} />
           </span>
         )
       )}

@@ -2,8 +2,7 @@ import clsx from "clsx";
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
-
-import { ApplicationIcons } from "../appearance/icons";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./NavbarButton.module.css";
 
@@ -13,7 +12,7 @@ interface NavbarButtonProps extends Omit<
 > {
   label: string | ReactNode;
   className?: string | string[];
-  icon?: string;
+  icon?: IconName;
   latched?: boolean;
   subtle?: boolean;
   /**
@@ -29,12 +28,7 @@ export const NavbarButton = forwardRef<HTMLButtonElement, NavbarButtonProps>(
     const resolvedLabel = dropdown ? (
       <>
         {label}
-        <i
-          className={clsx(
-            ApplicationIcons.chevron.down,
-            styles.dropdownChevron
-          )}
-        />
+        <Icon name="chevronDown" className={styles.dropdownChevron} />
       </>
     ) : (
       label

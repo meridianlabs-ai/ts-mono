@@ -50,25 +50,29 @@ test("clicking a scan row opens the scan detail panel", async ({
   );
 
   await page.goto("/#/scans");
+  await expect(page.locator("#scan-job-footer")).toContainText(/\b1 item\b/);
   await page.getByText("eval-safety").first().click();
 
   await expect(page.locator("h1")).toContainText("eval-safety");
   await expect(page.getByText("Complete")).toBeVisible();
 });
 
-test("scan panel shows error state when scan API fails", async ({
-  page,
-  network,
-  disableRetries: _,
-}) => {
-  network.use(
-    http.get("*/api/v2/scans/:dir/:scanPath", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 })
-    )
-  );
+test.describe("with React Query retries disabled", () => {
+  test.use({ disableRetries: true });
 
-  const encodedDir = encodeBase64Url(SCANS_DIR);
-  await page.goto(`/#/scan/${encodedDir}/${SCAN_RELATIVE_PATH}`);
+  test("scan panel shows error state when scan API fails", async ({
+    page,
+    network,
+  }) => {
+    network.use(
+      http.get("*/api/v2/scans/:dir/:scanPath", () =>
+        HttpResponse.text("Internal Server Error", { status: 500 })
+      )
+    );
 
-  await expect(page.getByText("Error Loading Scan")).toBeVisible();
+    const encodedDir = encodeBase64Url(SCANS_DIR);
+    await page.goto(`/#/scan/${encodedDir}/${SCAN_RELATIVE_PATH}`);
+
+    await expect(page.getByText("Error Loading Scan")).toBeVisible();
+  });
 });

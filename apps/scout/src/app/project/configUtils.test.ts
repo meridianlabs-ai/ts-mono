@@ -206,3 +206,26 @@ describe("mergeInFlightEdits", () => {
     expect(mergeInFlightEdits(persisted, current, snapshot)).toEqual(persisted);
   });
 });
+
+describe("computeConfigToSave trust_content", () => {
+  const base: ProjectConfigInput = { filter: "kind == 'eval'" };
+
+  it.each<[string, boolean | null | undefined, boolean | null, unknown]>([
+    ["leaves an unset value out", undefined, null, undefined],
+    ["saves turning trust off", undefined, false, false],
+    ["keeps an existing false", false, false, false],
+    ["removes the key when trust is turned back on", false, null, null],
+  ])("%s", (_desc, server, edit, expected) => {
+    const serverConfig: ProjectConfigInput =
+      server === undefined ? base : { ...base, trust_content: server };
+    const original = initializeEditedConfig(serverConfig);
+    const edited = { ...structuredClone(original), trust_content: edit };
+
+    const result = computeConfigToSave(edited, original, serverConfig);
+
+    expect(Object.hasOwn(result, "trust_content")).toBe(expected !== undefined);
+    if (expected !== undefined) {
+      expect(result.trust_content).toBe(expected);
+    }
+  });
+});

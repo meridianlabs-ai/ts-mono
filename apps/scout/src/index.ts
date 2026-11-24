@@ -1,3 +1,5 @@
+import "./api/jsonParseWorker";
+
 // Main React App Component
 export { App } from "./App";
 

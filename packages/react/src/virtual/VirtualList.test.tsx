@@ -3,7 +3,11 @@ import { render } from "@testing-library/react";
 import { createRef, type ReactNode, type RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExtendedFindProvider } from "../components/ExtendedFindContext";
+import {
+  ExtendedFindProvider,
+  useExtendedFind,
+  type FindSource,
+} from "../components/ExtendedFindContext";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
@@ -14,6 +18,7 @@ import {
   makeStateHooks,
 } from "../test/component-state-hooks";
 
+import type { VirtualListHandle } from "./types";
 import { VirtualList } from "./VirtualList";
 
 const Wrapper: React.FC<{
@@ -47,6 +52,7 @@ describe("VirtualList live-finish scroll-to-top", () => {
       scrollRef,
       data: ["a", "b", "c"],
       renderRow: (_index: number, item: string) => <div>{item}</div>,
+      itemSearchText: null,
       scrollToTopOnFinish: true,
     };
     const hooks = makeHooks();
@@ -184,6 +190,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
             scrollRef={scrollRef}
             data={["a", "b", "c"]}
             renderRow={(_i, item) => <div>{item}</div>}
+            itemSearchText={null}
             {...props}
           />
         </div>
@@ -258,6 +265,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
       scrollRef,
       data: ["a", "b", "c"],
       renderRow: (_i: number, item: string) => <div>{item}</div>,
+      itemSearchText: null,
     };
     const view = render(
       <Wrapper hooks={hooks}>
@@ -334,6 +342,7 @@ describe("VirtualList persist flush on unmount", () => {
             scrollRef={scrollRef}
             data={["a", "b", "c"]}
             renderRow={(_index: number, item: string) => <div>{item}</div>}
+            itemSearchText={null}
             live={false}
           />
         </div>
@@ -415,6 +424,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
           scrollRef={scrollRef}
           data={["a", "b", "c"]}
           renderRow={(_index: number, item: string) => <div>{item}</div>}
+          itemSearchText={null}
           live={false}
           embedded={true}
           {...props}
@@ -467,6 +477,8 @@ describe("VirtualList embedded in a shared scroll container", () => {
         return new DOMRect();
       }
     );
+    // TanStack sizes the viewport from clientHeight, and rows from offsetHeight.
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
 
@@ -499,6 +511,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
         return new DOMRect();
       }
     );
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
 
@@ -510,6 +523,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
           id="own-scroller"
           data={data}
           renderRow={(_index: number, item: string) => <div>{item}</div>}
+          itemSearchText={null}
           live={false}
           embedded={true}
         />
@@ -528,6 +542,149 @@ describe("VirtualList embedded in a shared scroll container", () => {
       el.querySelectorAll<HTMLElement>("[data-item-index]")
     ).map((row) => Number(row.dataset.itemIndex));
     expect(Math.min(...indices)).toBeGreaterThan(0);
+    unmount();
+  });
+});
+
+describe("VirtualList scroll settling", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const mount = (hooks: ComponentStateHooks = makeStateHooks()) => {
+    const scrollRef = createRef<HTMLDivElement>();
+    const listRef = createRef<VirtualListHandle>();
+    let sources: (() => ReadonlyMap<string, FindSource>) | undefined;
+    const Probe = ({
+      onSources,
+    }: {
+      onSources: (get: () => ReadonlyMap<string, FindSource>) => void;
+    }) => {
+      onSources(useExtendedFind().getFindSources);
+      return null;
+    };
+    const view = render(
+      <Wrapper hooks={hooks}>
+        <Probe onSources={(get) => (sources = get)} />
+        <div ref={scrollRef}>
+          <VirtualList<string>
+            ref={listRef}
+            persistenceKey="settle-list"
+            scrollRef={scrollRef}
+            data={["a", "b", "c"]}
+            renderRow={(_index: number, item: string) => <div>{item}</div>}
+            itemSearchText={(item: string) => item}
+          />
+        </div>
+      </Wrapper>
+    );
+    const source = () => sources?.().get("settle-list");
+    const settle = () => vi.advanceTimersByTime(50);
+    return { ...view, listRef, source, settle };
+  };
+
+  it("reports done only for the settle that lands", () => {
+    const { listRef, unmount, settle } = mount();
+    settle();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    listRef.current?.scrollToIndex({
+      index: 1,
+      behavior: "auto",
+      onDone: first,
+    });
+    listRef.current?.scrollToIndex({
+      index: 2,
+      behavior: "auto",
+      onDone: second,
+    });
+    vi.advanceTimersByTime(200);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it("lets a scroll requested at mount win over restoring the saved position", () => {
+    const store = new Map<string, unknown>([
+      [
+        "settle-list::snapshot",
+        { version: 1, scrollOffset: 200, totalCount: 3 },
+      ],
+    ]);
+    const key = (id: string, prop: string) => `${id}::${prop}`;
+    const hooks: ComponentStateHooks = {
+      useValue: (id, prop, defaultValue) =>
+        store.has(key(id, prop)) ? store.get(key(id, prop)) : defaultValue,
+      useSetValue: () => (id, prop, value) => {
+        store.set(key(id, prop), value);
+      },
+      useRemoveValue: () => (id, prop) => {
+        store.delete(key(id, prop));
+      },
+      useEntries: () => undefined,
+      useRemoveAll: () => () => {},
+      useRemoveByPrefix: () => () => {},
+    };
+    const { listRef, unmount } = mount(hooks);
+    const onDone = vi.fn();
+    const onAbandon = vi.fn();
+
+    listRef.current?.scrollToIndex({
+      index: 2,
+      behavior: "auto",
+      onDone,
+      onAbandon,
+    });
+    vi.advanceTimersByTime(200);
+
+    expect(onAbandon).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it("rejects a find reveal when another scroll takes over", async () => {
+    const { listRef, source, unmount, settle } = mount();
+    settle();
+    const revealed = source()?.reveal(
+      2,
+      "forward",
+      new AbortController().signal
+    );
+
+    listRef.current?.scrollToIndex({ index: 0, behavior: "auto" });
+
+    await expect(revealed).rejects.toThrow();
+    unmount();
+  });
+
+  it("rejects a find reveal when the list unmounts", async () => {
+    const { source, unmount, settle } = mount();
+    settle();
+    const revealed = source()?.reveal(
+      2,
+      "forward",
+      new AbortController().signal
+    );
+
+    unmount();
+
+    await expect(revealed).rejects.toThrow();
+  });
+
+  it("ends a find reveal when its navigation is aborted", async () => {
+    const { source, unmount, settle } = mount();
+    settle();
+    const controller = new AbortController();
+    const revealed = source()?.reveal(2, "forward", controller.signal);
+
+    controller.abort();
+
+    await expect(revealed).rejects.toThrow();
     unmount();
   });
 });

@@ -1,6 +1,6 @@
 import { ApiError } from "@tsmono/util";
 
-// Shared mapper used by both edit dialogs.
+// Maps an edit_log failure to the message EditAnnotationsDialog shows.
 //
 // Assumes `ApiError.message` is already the bare server detail (no
 // `"API Error N: ..."` prefix, no `{"detail": "..."}` envelope) — the

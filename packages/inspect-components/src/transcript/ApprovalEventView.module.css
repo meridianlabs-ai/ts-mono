@@ -10,3 +10,46 @@
 .rejected {
   color: var(--bs-danger);
 }
+
+.chain {
+  display: grid;
+  grid-template-columns: 18px max-content max-content minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bs-light-border-subtle);
+  line-height: 1.7;
+}
+
+.chainIndex {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  text-align: right;
+  color: rgba(var(--bs-body-color-rgb), 0.5);
+}
+
+.chainApprover {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.chainDecision {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.chainExplanation {
+  min-width: 0;
+  margin: 0;
+  color: var(--bs-secondary-color);
+  overflow-wrap: anywhere;
+}
+
+.chainExplanation :global(p),
+.chainExplanation > :last-child {
+  margin-bottom: 0;
+}

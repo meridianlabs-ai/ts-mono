@@ -55,7 +55,6 @@ function makeModelEvent(opts: {
   inputToolMessages?: Array<{
     id: string;
     tool_call_id: string;
-    role: "tool";
   }>;
 }): Event {
   const input = [
@@ -286,9 +285,7 @@ describe("resolveMessageToEvent", () => {
       });
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-bridge-result", tool_call_id: "tc123", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-bridge-result", tool_call_id: "tc123" }],
       });
       const root = makeRoot([agentSpan, makeTimelineEvent(model)]);
 
@@ -310,9 +307,7 @@ describe("resolveMessageToEvent", () => {
       });
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-result", tool_call_id: "tc456", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-result", tool_call_id: "tc456" }],
         inputIds: [],
       });
       const root = makeRoot([agentSpan, makeTimelineEvent(model)]);
@@ -435,7 +430,7 @@ describe("resolveMessageToEvent", () => {
       const model = makeModelEvent({
         uuid: "model-after",
         inputToolMessages: [
-          { id: "msg-tool-result", tool_call_id: "tc-bash-123", role: "tool" },
+          { id: "msg-tool-result", tool_call_id: "tc-bash-123" },
         ],
       });
       const root = makeRoot([
@@ -448,6 +443,42 @@ describe("resolveMessageToEvent", () => {
       expect(result).toEqual({
         eventId: "tool-bash",
         agentSpanId: null,
+      });
+    });
+
+    it("redirects a host tool result inside an agent span to the host tool event", () => {
+      // The sandbox bridge records a host tool call in the span of the model
+      // event that proposed it, so it is a sibling of the model event whose
+      // input carries its result; the agent's own call has no tool event.
+      const host = testToolEvent({
+        uuid: "host-event",
+        id: "tc-host",
+        span_id: "agent-sub",
+        metadata: { bridge: { proposal_id: "tc-host", grant: "consumed" } },
+        timestamp: kBaseDate.toISOString(),
+      });
+      const model = makeModelEvent({
+        uuid: "model-after",
+        inputToolMessages: [
+          { id: "msg-host-result", tool_call_id: "tc-host" },
+          { id: "msg-agent-result", tool_call_id: "tc-agent" },
+        ],
+      });
+      const root = makeRoot([
+        makeSpan({
+          id: "agent-sub",
+          spanType: "agent",
+          content: [makeTimelineEvent(host), makeTimelineEvent(model)],
+        }),
+      ]);
+
+      expect(resolveMessageToEvent("msg-host-result", root)).toEqual({
+        eventId: "host-event",
+        agentSpanId: "agent-sub",
+      });
+      expect(resolveMessageToEvent("msg-agent-result", root)).toEqual({
+        eventId: "model-after",
+        agentSpanId: "agent-sub",
       });
     });
 
@@ -464,9 +495,7 @@ describe("resolveMessageToEvent", () => {
 
       const model = makeModelEvent({
         uuid: "model-after",
-        inputToolMessages: [
-          { id: "msg-result", tool_call_id: "tc456", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-result", tool_call_id: "tc456" }],
       });
       const root = makeRoot([
         agentSpan,
@@ -490,9 +519,7 @@ describe("resolveMessageToEvent", () => {
 
       const model1 = makeModelEvent({
         uuid: "model-1",
-        inputToolMessages: [
-          { id: "msg-bridge", tool_call_id: "tc-xyz", role: "tool" },
-        ],
+        inputToolMessages: [{ id: "msg-bridge", tool_call_id: "tc-xyz" }],
       });
       // A second model event also has the same message in its input
       const model2 = makeModelEvent({

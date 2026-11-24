@@ -17,16 +17,17 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
-
-import { useLogsListing } from "../../../state/hooks";
-import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
   buildSearchIndex,
+  DataGrid,
   findMatches,
   rowSearchText,
-} from "../../shared/data-grid/findMatches";
+} from "@tsmono/inspect-components/dataGrid";
+import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
+import { useProperty, useUnmount } from "@tsmono/react/hooks";
+
+import { useLogsListing } from "../../../state/hooks";
+import { toFullUrlMaybe } from "../../routing/url";
 import gridStyles from "../../shared/gridCells.module.css";
 import {
   useLogsListingMatches,
@@ -109,7 +110,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleRowActivate = useCallback(
     (row: LogListRow) => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       if (row.url) navigate(row.url);
     },
     [navigate]
@@ -305,14 +305,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
   useEffect(() => {
     openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
   }, [showFind, activeMatchId]);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(
-    () => () => {
-      const id = openBandMatchIdRef.current;
-      if (id !== undefined) persistSelectedId(id);
-    },
-    [persistSelectedId]
-  );
+  useUnmount(() => {
+    const id = openBandMatchIdRef.current;
+    if (id !== undefined) persistSelectedId(id);
+  });
 
   const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -374,6 +370,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           selectedRowId={activeMatchId ?? persistedSelectedId}
           onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
+          getRowHref={(row) => toFullUrlMaybe(row.url)}
           autoFocus
           ariaLabel="Evaluation logs"
           loading={totalRowCount === 0 && busy}

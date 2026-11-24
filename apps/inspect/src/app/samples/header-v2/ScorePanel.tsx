@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { CSSProperties, FC, useMemo } from "react";
 
 import { ToolDropdownButton } from "@tsmono/react/components";
+import { IconName } from "@tsmono/react/icons";
 import { valueAsString } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
@@ -168,11 +169,11 @@ export const ScorePanel: FC<ScorePanelProps> = ({
   // Reflect the active sort direction in the trigger icon so users can
   // see at a glance whether the panel is currently sorted, and which
   // way. `arrow-down-up` for unsorted; up/down for asc/desc.
-  const sortIcon = !sort.column
-    ? "bi bi-arrow-down-up"
+  const sortIcon: IconName = !sort.column
+    ? "arrowDownUp"
     : sort.dir === "asc"
-      ? "bi bi-sort-up"
-      : "bi bi-sort-down";
+      ? "sortUp"
+      : "sortDown";
 
   return (
     <div className={clsx(styles.panel, tight && styles.tight)}>

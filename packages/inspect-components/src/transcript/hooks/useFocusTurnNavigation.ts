@@ -4,13 +4,18 @@ import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import type { TurnInfo } from "../outline/tree-visitors";
 import { flatTree } from "../transform/flatten";
+import { pairToolApprovals } from "../transform/toolApprovals";
+import {
+  pairToolSentinels,
+  treeRecordsExecutionIds,
+} from "../transform/toolSentinels";
 import {
   anchorIndexForTurn,
   computeTranscriptTurns,
   focusedTurnNodes,
   resolveEventTurnAnchor,
 } from "../turnNavigation";
-import type { EventNode } from "../types";
+import type { EventNode, EventNodeContext } from "../types";
 
 import type { FocusLane, FocusLaneScope } from "./useFocusLaneScope";
 import { useTranscriptKeyboardNavigation } from "./useTranscriptKeyboardNavigation";
@@ -73,6 +78,14 @@ export interface FocusTurnNavigation {
   listHandle: RefObject<VirtualListHandle | null>;
   /** The focused turn's events (model + its tools), fully expanded. */
   slice: EventNode[];
+  /** The slice's approvals and sentinel steps, which render inside their tools rather than as rows of the slice, and how they paired. */
+  checks: Pick<
+    EventNodeContext,
+    | "toolApprovals"
+    | "toolSentinels"
+    | "standaloneSentinels"
+    | "recordsExecutionIds"
+  >;
   /** The focused event id resolved to its turn anchor (see hook docs). Use for
    *  exit-focus navigation so leaving lands on the turn actually shown. */
   resolvedEventId: string | null;
@@ -127,6 +140,9 @@ export function useFocusTurnNavigation(
     /** Follow-latest is armed (URL `follow=1`): each newly arrived turn
      *  auto-advances the focus; any explicit navigation disarms. */
     following?: boolean;
+    /** The sample's log records `execution_id` (`useEventNodes`); unset,
+     *  the lane's nodes decide. */
+    recordsExecutionIds?: boolean;
   }
 ): FocusTurnNavigation {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -155,10 +171,42 @@ export function useFocusTurnNavigation(
     return resolveEventTurnAnchor(flat, eventId) ?? eventId;
   }, [eventId, anchorIds, flat, options?.following]);
 
-  const slice = useMemo(
-    () => (resolvedEventId ? focusedTurnNodes(flat, resolvedEventId) : []),
-    [flat, resolvedEventId]
+  // Paired over the whole lane: the slice drops span markers, and with them
+  // the sentinel spans that tie monitor model calls to their step.
+  const recordsExecutions =
+    options?.recordsExecutionIds ?? treeRecordsExecutionIds(flat);
+  const pairing = useMemo(
+    () => ({
+      ...pairToolApprovals(flat, recordsExecutions),
+      ...pairToolSentinels(flat, recordsExecutions),
+    }),
+    [flat, recordsExecutions]
   );
+  const { slice, checks } = useMemo(() => {
+    const {
+      toolApprovals,
+      hiddenApprovalIds,
+      toolSentinels,
+      standaloneSentinels,
+      hiddenSentinelIds,
+    } = pairing;
+    const nodes = resolvedEventId
+      ? focusedTurnNodes(flat, resolvedEventId, (n) =>
+          standaloneSentinels.has(n.id)
+        )
+      : [];
+    return {
+      slice: nodes.filter(
+        (n) => !hiddenSentinelIds.has(n.id) && !hiddenApprovalIds.has(n.id)
+      ),
+      checks: {
+        toolApprovals,
+        toolSentinels,
+        standaloneSentinels,
+        recordsExecutionIds: recordsExecutions,
+      },
+    };
+  }, [flat, resolvedEventId, pairing, recordsExecutions]);
 
   const turnInfo: TurnInfo | undefined = resolvedEventId
     ? turnMap.get(resolvedEventId)
@@ -337,6 +385,7 @@ export function useFocusTurnNavigation(
     scrollRef,
     listHandle,
     slice,
+    checks,
     resolvedEventId,
     followingLatest,
     turnInfo,

@@ -3,10 +3,10 @@
 }
 
 .tabs {
-  padding: 0.5em !important;
+  padding: 0.5em;
   border-bottom: solid 1px var(--bs-border-color);
 }
 
 .tabControl {
-  padding: 0.3em 1em !important;
+  padding: 0.3em 1em;
 }

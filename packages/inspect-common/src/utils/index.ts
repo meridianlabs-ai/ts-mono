@@ -9,6 +9,7 @@ export {
 export { expandEvents } from "./expandEvents";
 export { formatConfigValue } from "./formatConfigValue";
 export { inputString } from "./inputString";
+export { costSummary, type CostedUsage, type CostSummary } from "./modelCost";
 export { modelFallbackLines, totalModelFallbacks } from "./modelFallbacks";
 export {
   modelRoleConfigs,

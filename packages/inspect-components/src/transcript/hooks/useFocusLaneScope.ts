@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
+import { useMirrorToStore } from "@tsmono/react/hooks";
 
 import { findTimelineIndexForEvent } from "../findTimelineForDeepLink";
 import {
@@ -252,17 +253,15 @@ export function useFocusLaneScope(
 
   // Flipping the toggle recomputes `selected` (and downstream `laneEvents`),
   // completing resolution on the next render — no separate retrigger needed.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (
-      !includeUtility &&
+  useMirrorToStore(
+    !includeUtility &&
       resolved?.agentSpanId &&
       !resolved.branchRowKey &&
       selected === null
-    ) {
-      setIncludeUtility(true);
-    }
-  }, [includeUtility, resolved, selected, setIncludeUtility]);
+      ? true
+      : undefined,
+    setIncludeUtility
+  );
 
   const {
     timeline,

@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
+import { FC, ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-import { useProperty } from "../hooks";
+import { useProperty, useShowModal } from "../hooks";
+import { Icon } from "../icons";
 
-import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
 
 interface Slide {
@@ -17,155 +18,123 @@ interface LightboxCarouselProps {
 }
 
 /**
- * LightboxCarousel component provides a carousel with lightbox functionality.
+ * Thumbnails that open their slides full screen in a modal `<dialog>`.
+ * Escape and the close button close it; the arrow keys and the side buttons
+ * step between slides.
  */
 export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
-  const icons = useComponentIcons();
-
   const [isOpen, setIsOpen] = useProperty(id, "isOpen", {
     defaultValue: false,
   });
-
   const [currentIndex, setCurrentIndex] = useProperty(id, "currentIndex", {
     defaultValue: 0,
   });
 
-  const [showOverlay, setShowOverlay] = useProperty(id, "showOverlay", {
-    defaultValue: false,
-  });
-
-  const openLightbox = useCallback(
-    (index: number) => {
-      setCurrentIndex(index);
-      setShowOverlay(true);
-
-      // Slight delay before setting isOpen so the fade-in starts from opacity: 0
-      setTimeout(() => setIsOpen(true), 10);
-    },
-    [setCurrentIndex, setIsOpen, setShowOverlay]
-  );
-
-  const closeLightbox = useCallback(() => {
-    setIsOpen(false);
-  }, [setIsOpen]);
-
-  // Remove the overlay from the DOM after fade-out completes
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen && showOverlay) {
-      const timer = setTimeout(() => {
-        setShowOverlay(false);
-      }, 300); // match your transition duration
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, showOverlay, setShowOverlay]);
-
-  const showNext = useCallback(() => {
-    setCurrentIndex((currentIndex + 1) % slides.length);
-  }, [setCurrentIndex, currentIndex, slides.length]);
-
-  const showPrev = useCallback(() => {
-    setCurrentIndex((currentIndex - 1 + slides.length) % slides.length);
-  }, [setCurrentIndex, currentIndex, slides.length]);
-
-  // Keyboard Navigation
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeLightbox();
-      } else if (e.key === "ArrowRight") {
-        showNext();
-      } else if (e.key === "ArrowLeft") {
-        showPrev();
-      }
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    window.addEventListener("keyup", handleKeyUp, true);
-    return () => window.removeEventListener("keyup", handleKeyUp, true);
-  }, [closeLightbox, isOpen, showNext, showPrev]);
-
-  const handleThumbClick = useCallback(
-    (e: MouseEvent<HTMLButtonElement>) => {
-      const index = Number(e.currentTarget.dataset.index);
-      openLightbox(index);
-    },
-    [openLightbox]
-  );
   return (
     <div className={clsx("lightbox-carousel-container")}>
       <div className={clsx(styles.carouselThumbs)}>
-        {slides.map((slide, index) => {
-          return (
-            <button
-              key={index}
-              type="button"
-              data-index={index}
-              className={clsx(styles.carouselThumb)}
-              onClick={handleThumbClick}
-            >
-              <div>{slide.label}</div>
-              <div>
-                <i
-                  className={clsx(icons.play, styles.carouselPlayIcon)}
-                  aria-hidden="true"
-                />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      {showOverlay && (
-        <div
-          className={clsx(
-            styles.lightboxOverlay,
-            isOpen ? styles.open : styles.closed
-          )}
-        >
-          <div className={clsx(styles.lightboxButtonCloseWrapper)}>
-            <button
-              type="button"
-              className={styles.lightboxButtonClose}
-              onClick={closeLightbox}
-            >
-              <i className={icons.close}></i>
-            </button>
-          </div>
-          {slides.length > 1 ? (
-            <button
-              type="button"
-              className={clsx(styles.lightboxPreviewButton, styles.prev)}
-              onClick={showPrev}
-            >
-              <i className={icons.previous}></i>
-            </button>
-          ) : (
-            ""
-          )}
-          {slides.length > 1 ? (
-            <button
-              type="button"
-              className={clsx(styles.lightboxPreviewButton, styles.next)}
-              onClick={showNext}
-            >
-              <i className={icons.next} />
-            </button>
-          ) : (
-            ""
-          )}
-          <div
-            key={`carousel-slide-${currentIndex}`}
-            className={clsx(
-              styles.lightboxContent,
-              isOpen ? styles.open : styles.closed
-            )}
+        {slides.map((slide, index) => (
+          <button
+            key={index}
+            type="button"
+            className={clsx(styles.carouselThumb)}
+            onClick={() => {
+              setCurrentIndex(index);
+              setIsOpen(true);
+            }}
           >
-            {slides[currentIndex]?.render()}
-          </div>
-        </div>
+            <div>{slide.label}</div>
+            <div>
+              <Icon name="play" className={styles.carouselPlayIcon} />
+            </div>
+          </button>
+        ))}
+      </div>
+      {isOpen && (
+        <Lightbox
+          slides={slides}
+          index={currentIndex}
+          onIndexChange={setCurrentIndex}
+          onClose={() => setIsOpen(false)}
+        />
       )}
     </div>
+  );
+};
+
+interface LightboxProps {
+  slides: Slide[];
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}
+
+const Lightbox: FC<LightboxProps> = ({
+  slides,
+  index,
+  onIndexChange,
+  onClose,
+}) => {
+  const { ref, dialog } = useShowModal();
+  const step = (delta: number) =>
+    onIndexChange((index + delta + slides.length) % slides.length);
+
+  return createPortal(
+    <dialog
+      ref={ref}
+      aria-label={slides[index]?.label}
+      className={styles.lightbox}
+      // Handled here rather than left to the dialog: the terminal player
+      // cancels the Escape keydown when it has focus, which would keep the
+      // dialog open.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onClose();
+        } else if (e.key === "ArrowRight") step(1);
+        else if (e.key === "ArrowLeft") step(-1);
+      }}
+      // An Escape this handler didn't see (focus on <body>) closes the dialog
+      // natively. The event is queued: skip it if the dialog is open again
+      // already (React re-runs the ref that opens it in StrictMode).
+      onClose={(e) => {
+        if (!e.currentTarget.open) onClose();
+      }}
+    >
+      <button
+        type="button"
+        className={styles.lightboxButtonClose}
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <Icon name="close" />
+      </button>
+      {slides.length > 1 && (
+        <>
+          <button
+            type="button"
+            className={clsx(styles.lightboxPreviewButton, styles.prev)}
+            onClick={() => step(-1)}
+            aria-label="Previous"
+          >
+            <Icon name="previous" />
+          </button>
+          <button
+            type="button"
+            className={clsx(styles.lightboxPreviewButton, styles.next)}
+            onClick={() => step(1)}
+            aria-label="Next"
+          >
+            <Icon name="next" />
+          </button>
+        </>
+      )}
+      {dialog && (
+        <div key={index} className={styles.lightboxContent}>
+          {slides[index]?.render()}
+        </div>
+      )}
+    </dialog>,
+    document.body
   );
 };

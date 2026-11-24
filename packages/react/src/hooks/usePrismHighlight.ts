@@ -1,10 +1,21 @@
-import { highlightElement } from "prismjs";
-import { RefObject, useEffect } from "react";
+import { RefObject, useLayoutEffect } from "react";
+
+import { useContentPolicy } from "../components/ContentTrustContext";
+
+import { onDemandModule } from "./onDemandModule";
 
 // Syntax highlighting strings larger than this is too slow
 const kPrismRenderMaxSize = 250000;
 
-const highlightCodeBlocks = (container: HTMLElement) => {
+type Highlighter = typeof import("./prismHighlighter");
+
+// Prism loads on first use, so it's never fetched for untrusted content.
+const prism = onDemandModule(() => import("./prismHighlighter"));
+
+const highlightCodeBlocks = (
+  container: HTMLElement,
+  highlightElement: Highlighter["highlightElement"]
+) => {
   const codeBlocks = container.querySelectorAll("pre code");
   codeBlocks.forEach((block) => {
     // Skip already highlighted blocks
@@ -23,8 +34,13 @@ export const usePrismHighlight = (
   containerRef: RefObject<HTMLDivElement | null>,
   contentLength: number
 ) => {
-  useEffect(() => {
+  const trusted = useContentPolicy().syntaxHighlighting;
+  // A layout effect, so a trust change disconnects the observer in the same
+  // commit that inserts the untrusted content; a passive effect's cleanup can
+  // run after the observer has already seen (and highlighted) it.
+  useLayoutEffect(() => {
     if (
+      !trusted ||
       contentLength <= 0 ||
       containerRef.current === null ||
       contentLength > kPrismRenderMaxSize
@@ -33,39 +49,57 @@ export const usePrismHighlight = (
     }
 
     const container = containerRef.current;
+    let cancelled = false;
+    let observer: MutationObserver | undefined;
 
-    // Immediate highlight attempt
-    requestAnimationFrame(() => {
-      highlightCodeBlocks(container);
-    });
+    prism
+      .load()
+      .then(({ highlightElement }) => {
+        if (cancelled) {
+          return;
+        }
 
-    // MutationObserver for async-rendered content (e.g., MarkdownDiv)
-    const observer = new MutationObserver((mutations) => {
-      // Check if any mutation added code blocks
-      const hasNewCodeBlocks = mutations.some((mutation) => {
-        if (mutation.type === "childList") {
-          return Array.from(mutation.addedNodes).some((node) => {
-            if (node instanceof Element) {
-              return node.querySelector("pre code") || node.matches("pre code");
+        // Immediate highlight attempt
+        requestAnimationFrame(() => {
+          if (!cancelled) {
+            highlightCodeBlocks(container, highlightElement);
+          }
+        });
+
+        // MutationObserver for async-rendered content (e.g., MarkdownDiv)
+        observer = new MutationObserver((mutations) => {
+          // Check if any mutation added code blocks
+          const hasNewCodeBlocks = mutations.some((mutation) => {
+            if (mutation.type === "childList") {
+              return Array.from(mutation.addedNodes).some((node) => {
+                if (node instanceof Element) {
+                  return (
+                    node.querySelector("pre code") || node.matches("pre code")
+                  );
+                }
+                return false;
+              });
             }
             return false;
           });
-        }
-        return false;
+
+          if (hasNewCodeBlocks) {
+            highlightCodeBlocks(container, highlightElement);
+          }
+        });
+
+        observer.observe(container, {
+          childList: true,
+          subtree: true,
+        });
+      })
+      .catch((error: unknown) => {
+        console.error("Unable to load syntax highlighting", error);
       });
 
-      if (hasNewCodeBlocks) {
-        highlightCodeBlocks(container);
-      }
-    });
-
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-    });
-
     return () => {
-      observer.disconnect();
+      cancelled = true;
+      observer?.disconnect();
     };
-  }, [contentLength, containerRef]);
+  }, [contentLength, containerRef, trusted]);
 };

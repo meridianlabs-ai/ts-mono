@@ -1,6 +1,10 @@
 import { RefObject, useEffect } from "react";
 
-import { deepActiveElement, isEditableTarget } from "@tsmono/util";
+import {
+  deepActiveElement,
+  isEditableTarget,
+  isElementShown,
+} from "@tsmono/util";
 
 import type { VirtualListHandle } from "../virtual/types";
 
@@ -35,11 +39,7 @@ export function useListKeyboardNavigation({
       // Only the visible list may claim these window-capture keys, so a
       // hidden/offscreen instance mounted elsewhere doesn't swallow them.
       const container = scrollRef?.current;
-      if (
-        container &&
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
-        (!container.isConnected || container.checkVisibility?.() === false)
-      ) {
+      if (container && !isElementShown(container)) {
         return;
       }
       // Meta/Ctrl only — Alt+Arrow chords belong to the browser/OS.

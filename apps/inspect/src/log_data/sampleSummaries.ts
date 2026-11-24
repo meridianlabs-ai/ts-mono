@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { AsyncData, compose, map as mapAsyncData } from "@tsmono/util";
+import { AsyncData, compose, loading, map as mapAsyncData } from "@tsmono/util";
 
 import { SampleSummary } from "../client/api/types";
 
@@ -51,23 +51,24 @@ export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
 ): AsyncData<SampleSummary[]> => {
-  const rows = useSamplesListing({
-    logDir,
-    // "" matches no stored file; the row set stays empty until a log is given.
-    scope: {
-      file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
-    },
-  });
+  // "" matches no stored file; the row set stays empty until a log is given.
+  const logKey = logFile === undefined ? "" : resolveLogKey(logDir, logFile);
+  const rows = useSamplesListing({ logDir, scope: { file: logKey } });
   const pending = usePendingSamples(logDir, logFile);
   return useMemo(
     () =>
-      mapAsyncData(compose({ rows, pending }), (settled) =>
-        mergeSampleSummaries(
-          settled.rows.map((row) => row.summary),
-          settled.pending?.samples ?? []
-        )
-      ),
-    [rows, pending]
+      // A log switch keeps the previous log's rows as placeholder data; they
+      // must never be shown as (or with the trust of) this log's, so the
+      // list is still loading until this log's rows arrive.
+      rows.data?.some((row) => row.logFile !== logKey)
+        ? loading
+        : mapAsyncData(compose({ rows, pending }), (settled) =>
+            mergeSampleSummaries(
+              settled.rows.map((row) => row.summary),
+              settled.pending?.samples ?? []
+            )
+          ),
+    [rows, pending, logKey]
   );
 };
 

@@ -15,6 +15,7 @@ import {
 import { Explanation } from "./Explanation";
 import { Metadata, MetadataValue } from "./Metadata";
 import styles from "./ScannerResultDetailView.module.css";
+import { isTranscriptExcerpts } from "./transcriptExcerpts";
 import { ScanResultInput } from "./types";
 import { ValidationResult } from "./ValidationResult";
 import { Value } from "./Value";
@@ -214,11 +215,7 @@ function renderField(
       );
 
     case "validation":
-      if (
-        data.validationResult === undefined ||
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        data.validationResult === null
-      ) {
+      if (data.validationResult === undefined) {
         return null;
       }
       return (
@@ -258,11 +255,17 @@ function renderField(
           open={open}
           onToggle={onToggle}
         >
-          <Explanation
-            explanation={data.explanation}
-            references={references}
-            options={options}
-          />
+          <div
+            data-unsearchable={
+              isTranscriptExcerpts(data.explanation) || undefined
+            }
+          >
+            <Explanation
+              explanation={data.explanation}
+              references={references}
+              options={options}
+            />
+          </div>
         </Section>
       );
 

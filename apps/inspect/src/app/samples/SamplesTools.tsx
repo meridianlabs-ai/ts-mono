@@ -2,7 +2,6 @@ import { FC, Fragment, useState } from "react";
 
 import { useScores, useSelectedScores } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { ApplicationIcons } from "../appearance/icons";
 import { NavbarButton } from "../navbar/NavbarButton";
 
 import { SamplesViewOptionsPopover } from "./list/SamplesViewOptionsPopover";
@@ -23,7 +22,7 @@ export const SampleTools: FC = () => {
       <NavbarButton
         ref={setViewButtonEl}
         label="View"
-        icon={ApplicationIcons.options}
+        icon="options"
         dropdown
         subtle
         onClick={(e) => {

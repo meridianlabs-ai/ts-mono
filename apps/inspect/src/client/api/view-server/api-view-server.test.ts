@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { requestUrl } from "@tsmono/util";
+
 import { viewServerApi } from "./api-view-server";
 import { VIEW_REQUEST_HEADER, VIEW_REQUEST_HEADER_VALUE } from "./request";
 
@@ -13,9 +15,7 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
 
   test("preserves complete from pending-sample URL responses", async () => {
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
-      // The test only ever calls fetch with a string URL.
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      const url = String(input);
+      const url = requestUrl(input);
       expect(url).toContain("/pending-sample-data-urls?");
       return Promise.resolve(
         new Response(
@@ -63,7 +63,7 @@ describe("viewServerApi mutation requests", () => {
   });
 
   test("posts client messages with the viewer request header", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+    const fetchMock = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         new Response(null, { status: 204, statusText: "No Content" })
       )
@@ -90,7 +90,7 @@ describe("viewServerApi mutation requests", () => {
   });
 
   test("adds the viewer request header to log edits", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+    const fetchMock = vi.fn<typeof fetch>(() =>
       Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }))
     );
     globalThis.fetch = fetchMock;
@@ -133,9 +133,7 @@ describe("viewServerApi.get_eval_set", () => {
     Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }));
 
   test("sends the construction log_dir with no dir param at the listing root", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const api = viewServerApi({
@@ -144,18 +142,14 @@ describe("viewServerApi.get_eval_set", () => {
     });
     await api.get_eval_set("");
 
-    // The test only ever calls fetch with a string URL.
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    const url = String(fetchMock.mock.calls[0]?.[0]);
+    const url = requestUrl(fetchMock.mock.calls[0]?.[0] ?? "");
     expect(url).toBe(
       "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fx%2Flogs"
     );
   });
 
   test("sends the subdir as dir alongside the construction log_dir", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const api = viewServerApi({
@@ -164,9 +158,7 @@ describe("viewServerApi.get_eval_set", () => {
     });
     await api.get_eval_set("sub/inner");
 
-    // The test only ever calls fetch with a string URL.
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    const url = String(fetchMock.mock.calls[0]?.[0]);
+    const url = requestUrl(fetchMock.mock.calls[0]?.[0] ?? "");
     expect(url).toBe(
       "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fx%2Flogs&dir=sub%2Finner"
     );
@@ -189,9 +181,7 @@ describe("viewServerApi dir independence", () => {
     // The LogViewAPI contract: an instance is bound to its construction dir.
     // Every dir-scoped request carries that dir explicitly, so nothing the
     // server (or host) considers "current" can leak into the answers.
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson()
-    );
+    const fetchMock = vi.fn<typeof fetch>(() => okJson());
     globalThis.fetch = fetchMock;
 
     const a = viewServerApi({
@@ -208,8 +198,7 @@ describe("viewServerApi dir independence", () => {
     await a.get_eval_set("");
     await b.get_flow("");
 
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    const urls = fetchMock.mock.calls.map((call) => requestUrl(call[0]));
     expect(urls).toEqual([
       "https://viewer.test/log-files?log_dir=file%3A%2F%2F%2Fdir%2Fa",
       "https://viewer.test/log-files?log_dir=file%3A%2F%2F%2Fdir%2Fb",
@@ -249,8 +238,7 @@ describe("viewServerApi boundary normalization", () => {
 
   test("get_log_contents normalizes an old server's /logs response", async () => {
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      expect(String(input)).toContain("/logs/");
+      expect(requestUrl(input)).toContain("/logs/");
       return Promise.resolve(
         new Response(
           JSON.stringify({
@@ -293,8 +281,7 @@ describe("viewServerApi boundary normalization", () => {
 
   test("get_log_summaries normalizes old /log-headers responses into previews", async () => {
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      expect(String(input)).toContain("/log-headers?");
+      expect(requestUrl(input)).toContain("/log-headers?");
       return Promise.resolve(
         new Response(
           JSON.stringify([
@@ -324,8 +311,7 @@ describe("viewServerApi boundary normalization", () => {
 
   test("eval_pending_samples normalizes old-shaped pending summaries", async () => {
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      expect(String(input)).toContain("/pending-samples?");
+      expect(requestUrl(input)).toContain("/pending-samples?");
       return Promise.resolve(
         new Response(
           JSON.stringify({

@@ -2,7 +2,6 @@ import { FC } from "react";
 
 import { ToolButton } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../../../../icons";
 import { GRID_STATE_NAME } from "../../../../state/dataframeState";
 import { useStore } from "../../../../state/store";
 
@@ -18,7 +17,7 @@ export const ScannerDataframeClearFiltersButton: FC = () => {
 
   return (
     <ToolButton
-      icon={ApplicationIcons.filter}
+      icon="filter"
       label="Clear Filters"
       onClick={clearState}
       subtle={true}

@@ -1,4 +1,5 @@
 import { kSandboxSignalName } from "../transform/fixups";
+import { isSentinelSpan } from "../transform/toolSentinels";
 import { TYPE_SCORER, TYPE_SCORERS } from "../transform/utils";
 import { EventNode, eventNodeOf } from "../types";
 
@@ -17,6 +18,11 @@ export const removeNodeVisitor = (event: string) => {
     },
   };
 };
+
+/** Drops a sentinel's span with its contents; the monitor model calls in it are not agent turns. */
+export const removeSentinelSpanVisitor = () => ({
+  visit: (node: EventNode): EventNode[] => (isSentinelSpan(node) ? [] : [node]),
+});
 
 export const removeStepSpanNameVisitor = (name: string) => {
   return {
@@ -41,10 +47,14 @@ export const removeStepSpanNameVisitor = (name: string) => {
 export const outlineFilterVisitors = () => [
   removeNodeVisitor("logger"),
   removeNodeVisitor("info"),
+  removeNodeVisitor("communication"),
+  removeNodeVisitor("swarm"),
   removeNodeVisitor("state"),
   removeNodeVisitor("store"),
   removeNodeVisitor("approval"),
   removeNodeVisitor("review"),
+  removeNodeVisitor("sentinel"),
+  removeSentinelSpanVisitor(),
   removeNodeVisitor("input"),
   removeNodeVisitor("sandbox"),
   removeStepSpanNameVisitor(kSandboxSignalName),
@@ -119,7 +129,12 @@ export const makeTurns = (eventNodes: EventNode[]): EventNode[] => {
 
   // Events that can appear between model and tool events without
   // breaking the turn (e.g. logging, informational events).
-  const kTurnPassthroughEvents = new Set(["logger", "info"]);
+  const kTurnPassthroughEvents = new Set([
+    "logger",
+    "info",
+    "communication",
+    "swarm",
+  ]);
 
   for (const node of eventNodes) {
     if (node.event.event === "model") {

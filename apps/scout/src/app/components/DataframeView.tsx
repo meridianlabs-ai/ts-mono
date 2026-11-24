@@ -1,9 +1,15 @@
 import {
+  columnOrderingFeature,
   columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
   constructSortFn,
   createSortedRowModel,
   flexRender,
   functionalUpdate,
+  rowSelectionFeature,
+  rowSortingFeature,
   tableFeatures,
   useTable,
   type ColumnDef,
@@ -17,6 +23,7 @@ import {
   useLatestRef,
   useMountEffect,
 } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { VirtualList, type VirtualListHandle } from "@tsmono/react/virtual";
 import { valueAsString } from "@tsmono/util";
 
@@ -28,11 +35,9 @@ import {
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
 
-import { fitContentStrategy } from "./columnSizing/fitContentStrategy";
-import {
-  getColumnConstraints,
-  type ColumnSizingDefinition,
-} from "./columnSizing/types";
+import { ColumnResizeHandle } from "./ColumnResizeHandle";
+import { fitColumnSizes } from "./columnSizing/fitColumnSizes";
+import type { ColumnSizingDefinition } from "./columnSizing/types";
 import {
   compareDataframeValues,
   dataframeCsv,
@@ -43,12 +48,15 @@ import {
   type DataframeRow,
 } from "./dataframeModel";
 import styles from "./DataframeView.module.css";
-import { ColumnResizeHandle } from "./dataGrid/ColumnResizeHandle";
-import { dataGridFeatures } from "./dataGrid/tableFeatures";
 import type { DataframeData } from "./useDataframeData";
 
 const features = tableFeatures({
-  ...dataGridFeatures,
+  columnOrderingFeature,
+  columnSizingFeature,
+  columnResizingFeature,
+  columnVisibilityFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
   columnPinningFeature,
   sortedRowModel: createSortedRowModel(),
 });
@@ -66,6 +74,11 @@ export const DataframeView: FC<DataframeViewProps> = ({
   onRowDoubleClicked,
   wrapText = false,
 }) => {
+  // Rows read column widths, order and pinning through TanStack's row and
+  // cell objects, which keep their identity when those change. Compiled, the
+  // cached row list skipped such changes and cells drifted from their headers
+  // (e2e/dataframe.spec.ts).
+  "use no memo";
   const state =
     useStore((store) => store.gridStates[GRID_STATE_NAME]) ??
     emptyDataframeState;
@@ -136,13 +149,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
     Math.min(selectedRow ?? 0, rows.length - 1)
   );
 
-  const autoSize = (columnId?: string, element = tableRef.current): void => {
-    const sizes = fitContentStrategy.computeSizes({
-      tableElement: element,
-      columns,
-      data: allRows,
-      constraints: getColumnConstraints(columns),
-    });
+  const autoSize = (columnId?: string, element?: HTMLTableElement): void => {
+    const sizes = fitColumnSizes(element ?? tableRef.current, columns, allRows);
     updateGridState((previous) => ({
       columnSizing: columnId
         ? { ...previous.columnSizing, [columnId]: sizes[columnId] ?? 150 }
@@ -188,7 +196,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
     if (
       target instanceof HTMLElement &&
       target.closest(
-        "input, textarea, select, [contenteditable=true], [role=dialog], [role=slider]"
+        "input, textarea, select, [contenteditable=true], dialog, [role=dialog], [role=slider]"
       )
     )
       return;
@@ -358,13 +366,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
                     >
                       <span>{id}</span>
                       {sorted && (
-                        <i
-                          aria-hidden="true"
-                          className={
-                            sorted === "asc"
-                              ? "bi bi-arrow-up"
-                              : "bi bi-arrow-down"
-                          }
+                        <Icon
+                          name={sorted === "asc" ? "arrowUp" : "arrowDown"}
                         />
                       )}
                     </button>
@@ -425,7 +428,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
           overscan={10}
           useFlushSync={false}
           scrollPaddingStart={32}
-          findScope="none"
+          itemSearchText={null}
           renderRow={(index, row) => (
             <div
               role="row"

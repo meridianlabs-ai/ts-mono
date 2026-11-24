@@ -1,10 +1,15 @@
 import type { Event } from "@tsmono/inspect-common/types";
-import { prepareSearchTerm } from "@tsmono/react/components";
+import {
+  findVariantHits,
+  normalizeFindText,
+  searchVariants,
+} from "@tsmono/react/components";
 
-import { extractEventFields } from "../eventText";
+import { extractEventFields, type ToolEventIds } from "../eventText";
 import { TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import { getAgents } from "../timeline/swimlaneRows";
+import { proposalIdOf, recordsExecutionIds } from "../transform/toolSentinels";
 
 /**
  * Build a map from event ID to the swimlane row key that contains it.
@@ -72,36 +77,36 @@ export interface SampleMatch {
 /**
  * Find every occurrence of `term` across the sample's events.
  *
- * Reuses `extractEventFields` so the searchable text exactly matches what
- * `eventSearchText` (the per-row counter) would extract. Events whose uuid
- * isn't in `eventToRow` are skipped (they're not addressable by row switch).
+ * Reuses `extractEventFields`, given the sample's tool events so a model call
+ * counts what its panel draws. Events whose uuid isn't in `eventToRow` are
+ * skipped (they're not addressable by row switch).
  *
  * Order: events in input order, fields in `extractEventFields` order,
  * occurrences left-to-right. Stable across calls with the same inputs.
+ *
+ * `recordsExecutions` is `recordsExecutionIds` of the sample's unfiltered
+ * events: a type filter on `events` can hide the ones that record them.
  */
 export function findAllMatches(
   events: Event[],
   term: string,
-  eventToRow: Map<string, string>
+  eventToRow: Map<string, string>,
+  recordsExecutions: boolean = recordsExecutionIds(events)
 ): SampleMatch[] {
   if (!term) return [];
-  const prepared = prepareSearchTerm(term);
-  const variants = [
-    prepared.simple,
-    ...(prepared.unquoted ? [prepared.unquoted] : []),
-    ...(prepared.jsonEscaped ? [prepared.jsonEscaped] : []),
-  ];
+  const variants = searchVariants(term);
   const out: SampleMatch[] = [];
+  const toolEvents = toolEventIdsOf(events, recordsExecutions);
   for (const event of events) {
     const uuid = event.uuid;
     if (!uuid) continue;
     const rowKey = eventToRow.get(uuid);
     if (rowKey === undefined) continue;
-    const fields = extractEventFields(event);
+    const fields = extractEventFields(event, toolEvents);
     let fieldIndex = 0;
     for (const [fieldKey, text] of fields) {
-      const positions = findVariantPositions(text.toLowerCase(), variants);
-      for (let i = 0; i < positions.length; i++) {
+      const hits = findVariantHits(normalizeFindText(text), variants);
+      for (let i = 0; i < hits.length; i++) {
         out.push({
           rowKey,
           eventId: uuid,
@@ -116,32 +121,18 @@ export function findAllMatches(
   return out;
 }
 
-/**
- * Find every occurrence of any `variants` substring in `lowered`, deduped by
- * range so a JSON-quoted form `"foo"` matched by both `simple` and `unquoted`
- * counts as one occurrence (the longer variant wins). Mirrors the variant
- * matching `LiveVirtualList.searchInText` does for the chat counter so the
- * two counters agree on the total.
- */
-function findVariantPositions(lowered: string, variants: string[]): number[] {
-  const hits: { pos: number; len: number }[] = [];
-  for (const v of variants) {
-    if (!v) continue;
-    let from = 0;
-    let p: number;
-    while ((p = lowered.indexOf(v, from)) !== -1) {
-      hits.push({ pos: p, len: v.length });
-      from = p + v.length;
-    }
+// Sample-wide, where the panel's ids are per nesting level: an id reused
+// across levels reads as shown here until its row renders.
+function toolEventIdsOf(
+  events: Event[],
+  recordsExecutions: boolean
+): ToolEventIds {
+  const ids = new Set<string>();
+  const proposals = new Set<string>();
+  for (const event of events) {
+    if (event.event !== "tool") continue;
+    ids.add(event.id);
+    proposals.add(proposalIdOf(event));
   }
-  hits.sort((a, b) => a.pos - b.pos || b.len - a.len);
-  const out: number[] = [];
-  let endOfLast = -1;
-  for (const h of hits) {
-    if (h.pos >= endOfLast) {
-      out.push(h.pos);
-      endOfLast = h.pos + h.len;
-    }
-  }
-  return out;
+  return { events: ids, proposals: recordsExecutions ? proposals : ids };
 }

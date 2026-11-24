@@ -1,7 +1,6 @@
 import { FC } from "react";
 
 import { SidebarHeader } from "@tsmono/react/components";
-import { baseApplicationIcons } from "@tsmono/react/icons";
 
 import styles from "./SearchScoutUnavailable.module.css";
 
@@ -15,12 +14,7 @@ export const SearchScoutUnavailable: FC<{ onClose: () => void }> = ({
   onClose,
 }) => (
   <div className={styles.container}>
-    <SidebarHeader
-      icon={baseApplicationIcons.search}
-      title="Search"
-      onClose={onClose}
-      closeIcon={baseApplicationIcons.close}
-    />
+    <SidebarHeader icon="search" title="Search" onClose={onClose} />
     <div className={styles.body}>
       <p>Please install Inspect Scout to enable search</p>
       <p>

@@ -5,7 +5,7 @@ import { ScanResultData, ScanResultSummary } from "../types";
 
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
-// Typical row data as it would come from arquero .objects()
+// Typical scan dataframe row
 const typicalSummaryRow = {
   identifier: "test-uuid-123",
   uuid: "test-uuid-123",
@@ -132,24 +132,21 @@ const nullMetadataExpectedSummary: Partial<ScanResultSummary> = {
 };
 
 describe("parseScanResultSummaries", () => {
-  it.each<[object[], Partial<ScanResultSummary>[], string]>([
-    [[], [], "empty array"],
-    [[typicalSummaryRow], [expectedSummary], "typical row"],
+  it.each<[string, object[], Partial<ScanResultSummary>[]]>([
+    ["empty array", [], []],
+    ["typical row", [typicalSummaryRow], [expectedSummary]],
     [
+      "row with null transcript_metadata",
       [nullMetadataSummaryRow],
       [nullMetadataExpectedSummary],
-      "row with null transcript_metadata",
     ],
-  ])(
-    "returns expected output for %s",
-    async (input, expected, _desc: string) => {
-      const result = await parseScanResultSummaries(input);
-      expect(result).toHaveLength(expected.length);
-      for (const [i, r] of result.entries()) {
-        expect(r).toMatchObject(expected[i]!);
-      }
+  ])("returns expected output for %s", async (_label, input, expected) => {
+    const result = await parseScanResultSummaries(from(input));
+    expect(result).toHaveLength(expected.length);
+    for (const [i, r] of result.entries()) {
+      expect(r).toMatchObject(expected[i]!);
     }
-  );
+  });
 
   it("normalizes a legacy-shaped row at the parse boundary", async () => {
     const legacyRow = {
@@ -164,7 +161,7 @@ describe("parseScanResultSummaries", () => {
       transcript_task_repeat: undefined,
       transcript_model: undefined,
     };
-    const [result] = await parseScanResultSummaries([legacyRow]);
+    const [result] = await parseScanResultSummaries(from([legacyRow]));
     expect(result).toBeDefined();
     expect(result?.validationResult).toBe(false);
     expect(result?.validationTarget).toBe(true);
@@ -187,7 +184,7 @@ describe("parseScanResultSummaries", () => {
       validation_result: null,
       validation_target: undefined,
     };
-    const [result] = await parseScanResultSummaries([row]);
+    const [result] = await parseScanResultSummaries(from([row]));
     expect(result?.validationResult).toBeUndefined();
     expect(result?.validationTarget).toBeUndefined();
   });
@@ -205,21 +202,18 @@ const nullMetadataExpectedData: Partial<ScanResultData> = {
 };
 
 describe("parseScanResultData", () => {
-  it.each<[Record<string, unknown>, Partial<ScanResultData>, string]>([
-    [typicalColumnData, expectedData, "typical data"],
+  it.each<[string, Record<string, unknown>, Partial<ScanResultData>]>([
+    ["typical data", typicalColumnData, expectedData],
     [
+      "data with null transcript_metadata",
       nullMetadataColumnData,
       nullMetadataExpectedData,
-      "data with null transcript_metadata",
     ],
-  ])(
-    "returns expected output for %s",
-    async (input, expected, _desc: string) => {
-      const table = from([input]);
-      const result = await parseScanResultData(table);
-      expect(result).toMatchObject(expected);
-    }
-  );
+  ])("returns expected output for %s", async (_label, input, expected) => {
+    const table = from([input]);
+    const result = await parseScanResultData(table);
+    expect(result).toMatchObject(expected);
+  });
 
   it("handles missing scan_events column gracefully", async () => {
     const { scan_events: _, ...dataWithoutEvents } = typicalColumnData;
@@ -256,5 +250,28 @@ describe("parseScanResultData", () => {
     expect(result.scanModelUsage).toEqual({
       "openai/gpt-4": { input_tokens: 10, output_tokens: 0, total_tokens: 0 },
     });
+  });
+});
+
+describe("transcript_trust_content", () => {
+  // Absent means the scan predates the column (trusted); any present value
+  // other than true is untrusted.
+  it.each<[unknown, boolean | undefined]>([
+    [true, true],
+    [false, false],
+    [null, undefined],
+    [undefined, undefined],
+    ["true", false],
+    [0, false],
+  ])("parses %s as %s", async (cell, expected) => {
+    const [summary] = await parseScanResultSummaries(
+      from([{ ...typicalSummaryRow, transcript_trust_content: cell }])
+    );
+    const data = await parseScanResultData(
+      from([{ ...typicalColumnData, transcript_trust_content: cell }])
+    );
+
+    expect(summary?.transcriptTrustContent).toBe(expected);
+    expect(data.transcriptTrustContent).toBe(expected);
   });
 });

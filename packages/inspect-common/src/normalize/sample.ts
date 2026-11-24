@@ -2,8 +2,15 @@ import { isRecord } from "@tsmono/util";
 
 import type { EvalSample } from "../types";
 
+import { normalizeMessagesContent } from "./content";
 import { normalizeEvents, normalizeModelOutput } from "./events";
-import { normalizeModelUsageMap } from "./summary";
+import { normalizeProvenance } from "./log";
+import { normalizeSampleScores } from "./scores";
+import {
+  normalizeModelFallbacks,
+  normalizeModelUsageMap,
+  normalizeSampleInput,
+} from "./summary";
 import { isWireTimeline, normalizeTimelines } from "./timeline";
 
 /**
@@ -37,18 +44,20 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  if (typeof sample["input"] !== "string" && !Array.isArray(sample["input"])) {
-    sample["input"] = "";
-  }
+  sample["input"] = normalizeMessagesContent(
+    normalizeSampleInput(sample["input"])
+  );
   if (
     typeof sample["target"] !== "string" &&
     !Array.isArray(sample["target"])
   ) {
     sample["target"] = "";
   }
-  if (!Array.isArray(sample["messages"])) sample["messages"] = [];
+  sample["messages"] = Array.isArray(sample["messages"])
+    ? normalizeMessagesContent(sample["messages"])
+    : [];
   sample["output"] = normalizeModelOutput(sample["output"]);
-  if (!isRecord(sample["scores"])) sample["scores"] = null;
+  sample["scores"] = normalizeSampleScores(sample["scores"]);
   for (const field of ["metadata", "store", "attachments"]) {
     if (!isRecord(sample[field])) sample[field] = {};
   }
@@ -70,13 +79,16 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
 
   // `count` on fallbacks and the traceback pair on retry errors default
   // upstream; fill them so their renderers can read them unguarded.
-  if (Array.isArray(sample["model_fallbacks"])) {
-    sample["model_fallbacks"] = sample["model_fallbacks"].map(
-      (fallback: unknown) =>
-        isRecord(fallback) && typeof fallback["count"] !== "number"
-          ? { ...fallback, count: 1 }
-          : fallback
+  if ("model_fallbacks" in sample) {
+    sample["model_fallbacks"] = normalizeModelFallbacks(
+      sample["model_fallbacks"]
     );
+  }
+  const invalidation = sample["invalidation"];
+  if (isRecord(invalidation)) {
+    sample["invalidation"] = normalizeProvenance(invalidation);
+  } else if (invalidation !== undefined) {
+    sample["invalidation"] = null;
   }
   if (Array.isArray(sample["error_retries"])) {
     sample["error_retries"] = sample["error_retries"].map((retry: unknown) => {

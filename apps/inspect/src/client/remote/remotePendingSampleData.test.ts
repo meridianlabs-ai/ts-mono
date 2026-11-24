@@ -1,45 +1,31 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { strToU8, zipSync } from "fflate";
+import { delay, http, HttpResponse } from "msw";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { ApiError, logFetchInit } from "@tsmono/util";
+
+import { setupMswServer } from "../../test/mswServer";
 
 import {
   fetchPendingSampleDataDirect,
   SEGMENT_CAP_PER_CALL,
 } from "./remotePendingSampleData";
 
-vi.mock("./remoteZipFile", () => ({
-  openZipFileFromBuffer: vi.fn((bytes: Uint8Array) =>
-    Promise.resolve({
-      readFile: (_member: string) => Promise.resolve(bytes),
-    })
-  ),
-}));
+const server = setupMswServer();
 
-// jsdom has no Worker, so replace the worker-backed parse with a direct one
-vi.mock("@tsmono/util", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@tsmono/util")>()),
-  asyncJsonParseBytes: vi.fn((bytes: Uint8Array) =>
-    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)))
-  ),
-}));
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("fetchPendingSampleDataDirect", () => {
   describe("segment-order preservation", () => {
-    const realFetch = globalThis.fetch;
-
-    beforeEach(() => {
-      globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-        // The test only ever calls fetch with a string URL.
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string
-        const url = String(input);
-        // Segment N encodes one event with id=N*10. Delay is inverse to N so
-        // higher-id segments resolve first, stressing arrival-order merging.
-        const match = url.match(/seg-(\d+)/);
-        const idx = match ? Number(match[1]) : 0;
-        const eventId = idx * 10;
-        const delay = (3 - idx) * 20;
-        await new Promise((r) => setTimeout(r, delay));
-        const body = new TextEncoder().encode(
+    // Segment N is a real zip whose one member `mN` holds one event with
+    // id=N*10. The delay is inverse to N so higher-id segments resolve
+    // first, stressing arrival-order merging.
+    const segmentZip = (idx: number): Uint8Array => {
+      const eventId = idx * 10;
+      return zipSync({
+        [`m${idx}`]: strToU8(
           JSON.stringify({
             events: [
               {
@@ -54,17 +40,19 @@ describe("fetchPendingSampleDataDirect", () => {
             message_pool: [],
             call_pool: [],
           })
-        );
-        return new Response(body, { status: 200, statusText: "OK" });
+        ),
       });
-    });
-
-    afterEach(() => {
-      globalThis.fetch = realFetch;
-      vi.restoreAllMocks();
-    });
+    };
 
     test("merges events in segment order even when fetches resolve out of order", async () => {
+      server.use(
+        http.get("https://example/:segment", async ({ params }) => {
+          const idx = Number(String(params.segment).replace("seg-", ""));
+          await delay((3 - idx) * 20);
+          // A fresh ArrayBuffer: the body must not alias the zip's buffer.
+          return HttpResponse.arrayBuffer(segmentZip(idx).slice().buffer);
+        })
+      );
       const getUrls = vi.fn().mockResolvedValue({
         segments: [
           { id: 0, member_name: "m0", direct_url: "https://example/seg-0" },
@@ -75,6 +63,9 @@ describe("fetchPendingSampleDataDirect", () => {
         complete: true,
         has_more: true,
       });
+      // Pass-through spy: the browser-only init options (credentials,
+      // referrer, redirect) don't survive node's request interception.
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
 
       const result = await fetchPendingSampleDataDirect(
         getUrls,
@@ -90,7 +81,8 @@ describe("fetchPendingSampleDataDirect", () => {
       expect(result!.sampleData.events.map((e) => e.id)).toEqual([
         0, 10, 20, 30,
       ]);
-      for (const [, init] of vi.mocked(globalThis.fetch).mock.calls) {
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      for (const [, init] of fetchSpy.mock.calls) {
         expect(init).toMatchObject(logFetchInit);
       }
     });

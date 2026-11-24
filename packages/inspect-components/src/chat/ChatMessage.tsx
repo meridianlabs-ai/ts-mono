@@ -40,6 +40,9 @@ interface ChatMessageProps {
   references?: MarkdownReference[];
   /** Optional position-label chip, rendered at the far right of the role line. */
   label?: ReactNode;
+  /** Optional leading element rendered before the role text (e.g. a
+   *  selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
@@ -49,13 +52,13 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   linking,
   references,
   label,
+  headerLeading,
 }) {
   const indented = display?.indented ?? false;
   const unlabeledRoles = display?.unlabeledRoles;
   const formatDateTime = display?.formatDateTime;
   const linkingEnabled = linking?.enabled ?? false;
   const getMessageUrl = linking?.getMessageUrl;
-  const linkIcon = linking?.icon ?? "bi bi-link-45deg";
   const displayMode = useDisplayMode();
 
   const messageUrl = getMessageUrl?.(message.id || "");
@@ -117,6 +120,9 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
       )}
     >
       <div>
+        {headerLeading ? (
+          <span className={styles.headerLeading}>{headerLeading}</span>
+        ) : null}
         {message.role}
         {message.role === "tool"
           ? message.function
@@ -125,7 +131,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
           : ""}
         {linkingEnabled && messageUrl ? (
           <CopyButton
-            icon={linkIcon}
+            icon="link"
             value={messageUrl}
             className={clsx(styles.copyLink)}
           />

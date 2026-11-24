@@ -10,7 +10,6 @@ import { isChatMessage } from "../chat/types";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
-import { TranscriptIcons } from "./icons";
 import styles from "./SampleInitEventView.module.css";
 import { EventNode } from "./types";
 
@@ -61,7 +60,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
       eventNodeId={eventNode.id}
       className={className}
       title="Sample"
-      icon={TranscriptIcons.sample}
+      icon="sample"
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }

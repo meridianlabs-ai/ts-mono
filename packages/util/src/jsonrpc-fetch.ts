@@ -45,6 +45,18 @@ function isHttpProxyResponse(value: unknown): value is HttpProxyResponse {
   return true;
 }
 
+function toBodyText(body: BodyInit): string {
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body instanceof ArrayBuffer) {
+    return new TextDecoder().decode(body);
+  }
+  throw new Error(
+    `Unsupported request body: ${Object.prototype.toString.call(body)}`
+  );
+}
+
 function toHttpMethod(method: string): HttpProxyRequest["method"] {
   const upper = method.toUpperCase();
   if (
@@ -58,6 +70,14 @@ function toHttpMethod(method: string): HttpProxyRequest["method"] {
   throw new Error(`Unsupported HTTP method: ${method}`);
 }
 
+/** The URL a `fetch` input refers to. */
+export const requestUrl = (input: RequestInfo | URL): string =>
+  typeof input === "string"
+    ? input
+    : input instanceof Request
+      ? input.url
+      : input.toString();
+
 /**
  * Creates a fetch function that proxies requests through JSON-RPC.
  * Used in VS Code webview to route HTTP requests through the extension host.
@@ -67,13 +87,7 @@ export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> => {
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof Request
-          ? input.url
-          : input.toString();
-    const urlObj = new URL(url, window.location.origin);
+    const urlObj = new URL(requestUrl(input), window.location.origin);
     const path = urlObj.pathname + urlObj.search;
 
     const method = toHttpMethod(init?.method ?? "GET");
@@ -92,19 +106,7 @@ export function createJsonRpcFetch(rpcClient: JsonRpcClient): typeof fetch {
       }
     }
 
-    // Get body as string
-    let body: string | undefined;
-    if (init?.body) {
-      body =
-        typeof init.body === "string"
-          ? init.body
-          : init.body instanceof ArrayBuffer
-            ? new TextDecoder().decode(init.body)
-            : // Last-resort fallback for other BodyInit kinds (Blob, FormData,
-              // streams) which aren't used on this JSON-RPC path; String() is a
-              // reasonable degenerate stringification here.
-              String(init.body);
-    }
+    const body = init?.body ? toBodyText(init.body) : undefined;
 
     const request: HttpProxyRequest = { method, path, headers, body };
     const response = await rpcClient(kMethodHttpRequest, [request]);

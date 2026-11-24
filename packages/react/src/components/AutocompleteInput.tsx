@@ -9,10 +9,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
+import { useEventListener } from "../hooks/useEventListener";
+import { Icon } from "../icons";
+
+import { AnchoredPopover } from "./AnchoredPopover";
 import styles from "./AutocompleteInput.module.css";
-import { useComponentIcons } from "./ComponentIconContext";
 
 export interface AutocompleteInputProps {
   id: string;
@@ -56,20 +58,14 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   allowBrowse = false,
   required = false,
 }) => {
-  const icons = useComponentIcons();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   // Start with no selection (-1) so Enter submits the typed value, not a suggestion
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   // Track whether dropdown was opened via browse icon (shows all options)
   const [isBrowseMode, setIsBrowseMode] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   // Track whether user has typed in the input (to avoid showing suggestions on initial focus)
   const hasTypedRef = useRef(false);
 
@@ -104,27 +100,13 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   // Determine if dropdown should be shown
   const showDropdown = isOpen && filteredSuggestions.length > 0;
 
-  // Update dropdown position when showing
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (showDropdown && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      // Use viewport coordinates since we're using position: fixed
-      setDropdownPosition({
-        top: rect.bottom + 2,
-        left: rect.left,
-        width: rect.width,
-      });
-    }
-  }, [showDropdown]);
-
-  // Reset highlight when suggestions change (no selection by default)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Reset highlight when suggestions change (no selection by default).
+  // Uses the "adjust state during render" pattern to avoid an effect cycle.
+  const [prevSuggestions, setPrevSuggestions] = useState(filteredSuggestions);
+  if (prevSuggestions !== filteredSuggestions) {
+    setPrevSuggestions(filteredSuggestions);
     setHighlightedIndex(-1);
-  }, [filteredSuggestions]);
+  }
 
   // Select all text when autoFocus is enabled (show start of text, not end)
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -142,18 +124,14 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
     }
   }, [filteredSuggestions.length]);
 
-  // Close dropdown when clicking outside
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target instanceof Node ? e.target : null;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Close dropdown when clicking outside (the list renders inside the
+  // container, so clicks on it count as inside)
+  useEventListener(isOpen ? document : null, "mousedown", (e) => {
+    const target = e.target instanceof Node ? e.target : null;
+    if (container && !container.contains(target)) {
+      setIsOpen(false);
+    }
+  });
 
   const handleInputChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -191,11 +169,14 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (!showDropdown) {
-        // Pass through to parent handlers when dropdown is not shown
+        // Pass through to parent handlers when dropdown is not shown. Without
+        // an onCancel, Escape is left to close an enclosing popover.
         if (e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          onCancel?.();
+          if (onCancel) {
+            e.preventDefault();
+            e.stopPropagation();
+            onCancel();
+          }
         } else if (e.key === "Enter") {
           e.preventDefault();
           e.stopPropagation();
@@ -257,6 +238,8 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           break;
 
         case "Escape":
+          // preventDefault also stops the browser from treating this Escape
+          // as a close request for an enclosing popover or dialog.
           e.preventDefault();
           e.stopPropagation();
           // First escape closes dropdown, second cancels
@@ -288,7 +271,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   }, [highlightedIndex, showDropdown]);
 
   return (
-    <div ref={containerRef} className={styles.container}>
+    <div ref={setContainer} className={styles.container}>
       <input
         id={id}
         ref={inputRef}
@@ -333,54 +316,48 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
           aria-expanded={isOpen && isBrowseMode}
           aria-controls={showDropdown ? `${id}-listbox` : undefined}
         >
-          <i
-            className={
-              isOpen && isBrowseMode ? icons.chevronUp : icons.chevronDown
-            }
-          />
+          <Icon name={isOpen && isBrowseMode ? "chevronUp" : "chevronDown"} />
         </button>
       )}
 
-      {showDropdown &&
-        dropdownPosition &&
-        createPortal(
-          <ul
-            id={`${id}-listbox`}
-            ref={listRef}
-            className={styles.suggestionsList}
-            role="listbox"
-            style={{
-              position: "fixed",
-              top: dropdownPosition.top,
-              left: dropdownPosition.left,
-              minWidth: dropdownPosition.width,
-              maxWidth: maxSuggestionWidth,
-            }}
-          >
-            {filteredSuggestions.map((suggestion, index) => (
-              <li
-                key={String(suggestion)}
-                id={`${id}-option-${index}`}
-                className={clsx(
-                  styles.suggestionItem,
-                  index === highlightedIndex && styles.highlighted
-                )}
-                role="option"
-                aria-selected={index === highlightedIndex}
-                onMouseDown={(e) => {
-                  // Prevent mousedown from triggering outside click handlers (including PopOver)
-                  e.preventDefault();
-                  e.stopPropagation();
-                  selectSuggestion(suggestion);
-                }}
-                onMouseEnter={() => setHighlightedIndex(index)}
-              >
-                {String(suggestion ?? "(null)")}
-              </li>
-            ))}
-          </ul>,
-          document.body
-        )}
+      <AnchoredPopover
+        open={showDropdown}
+        onClose={() => setIsOpen(false)}
+        anchor={container}
+        mode="manual"
+        placement="bottom-start"
+        offset={2}
+        className={styles.suggestionsPopover}
+        style={{ maxWidth: maxSuggestionWidth }}
+      >
+        <ul
+          id={`${id}-listbox`}
+          ref={listRef}
+          className={styles.suggestionsList}
+          role="listbox"
+        >
+          {filteredSuggestions.map((suggestion, index) => (
+            <li
+              key={String(suggestion)}
+              id={`${id}-option-${index}`}
+              className={clsx(
+                styles.suggestionItem,
+                index === highlightedIndex && styles.highlighted
+              )}
+              role="option"
+              aria-selected={index === highlightedIndex}
+              onMouseDown={(e) => {
+                // Keep focus in the input.
+                e.preventDefault();
+                selectSuggestion(suggestion);
+              }}
+              onMouseEnter={() => setHighlightedIndex(index)}
+            >
+              {String(suggestion ?? "(null)")}
+            </li>
+          ))}
+        </ul>
+      </AnchoredPopover>
     </div>
   );
 };

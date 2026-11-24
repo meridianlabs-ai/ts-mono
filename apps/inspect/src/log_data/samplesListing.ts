@@ -15,15 +15,14 @@ import { SampleSummariesScope } from "../client/database";
 import { PreparedSampleSummary } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import { currentDatabase } from "./databaseInstance";
 
 /**
  * The scoped samples read: sample summaries under a scope — one log file
  * (the log view's sample list) or a path prefix (samples mode) — each row
  * carrying its log's display context, joined here so consumers never join by
  * name. Db-backed queryFns, invalidation-driven (the ingestion sink pushes
- * observed file scopes and invalidates the rest — see
- * design/migration/log-data-summaries-entity.md), `keepPreviousData` across
+ * observed file scopes and invalidates the rest), `keepPreviousData` across
  * refetches, GC-able when unobserved.
  *
  * Paged queryFn shape from day one: `limit`/`cursor` participate in the query
@@ -118,8 +117,8 @@ const pageOf = (
 const readSamplesListing = async (
   params: SamplesListingParams
 ): Promise<SamplesListingRow[]> => {
-  const db = getDatabaseService();
-  if (!db.opened()) {
+  const db = currentDatabase();
+  if (!db) {
     // Db-less sessions: the sink's pushes are the only source — behave as a
     // passive cache container (returning the current value, not []) so a
     // mount-time fetch settling after a push can't clobber it.
@@ -170,8 +169,8 @@ export const readSettledSummaries = async (
   logFile: string
 ): Promise<SampleSummary[]> => {
   const scope: SamplesScope = { file: logFile };
-  const db = getDatabaseService();
-  if (db.opened()) {
+  const db = currentDatabase();
+  if (db) {
     const records = await db.readSampleSummaries(scope);
     return records.map((record) => record.summary);
   }
@@ -189,8 +188,8 @@ export const hasCompletedSettledSummary = async (
   id: string | number,
   epoch: number
 ): Promise<boolean> => {
-  const db = getDatabaseService();
-  if (db.opened()) {
+  const db = currentDatabase();
+  if (db) {
     return db.hasCompletedSampleSummary(logFile, id, epoch);
   }
   const summaries = await readSettledSummaries(logDir, logFile);
@@ -214,6 +213,9 @@ export const hasCompletedSettledSummary = async (
  * only in the pending buffer never vanishes while an invalidation refetch is
  * in flight. In db-less sessions this push is the only source of settled
  * rows.
+ *
+ * `rows` replaces the entry outright — it must be every row for the file,
+ * not a delta; use `mergeSampleSummaries` for partial/incremental updates.
  */
 export const pushFileSamples = async (
   logDir: string,
@@ -233,7 +235,6 @@ export const pushFileSamples = async (
 /** Mark every samples listing under the dir stale and refetch the observed
  *  ones (Dexie-backed, so a refetch is a local read). */
 export const invalidateSamplesListings = (logDir: string): void => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   queryClient.invalidateQueries({
     queryKey: samplesListingDirKey(logDir),
   });

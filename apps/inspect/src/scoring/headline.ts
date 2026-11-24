@@ -4,6 +4,7 @@ import {
   EvalScore,
   HeadlineMetric,
 } from "@tsmono/inspect-common/types";
+import { getOwn } from "@tsmono/util";
 
 export interface ResolvedHeadlineMetric {
   score: EvalScore;
@@ -55,9 +56,9 @@ const matchDeclared = (
   // combining plain and per-key metrics emits several scores of identical
   // identity, and only some of them carry the metric
   const score = candidates.find(
-    (candidate) => candidate.metrics[name] !== undefined
+    (candidate) => getOwn(candidate.metrics, name) !== undefined
   );
-  const metric = score?.metrics[name];
+  const metric = getOwn(score?.metrics, name);
   return score && metric ? { score, name, metric } : undefined;
 };
 

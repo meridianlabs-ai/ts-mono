@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 
 import { defineConfig } from "vitest/config";
 
+import { splitTestEnvironments } from "@tsmono/vitest-config";
+
 // @lit/react publishes a `node` export for SSR whose property and event
 // wiring is compiled out. Vitest hands node_modules to Node's resolver, which
 // picks that build, so the vscode-elements React wrappers silently drop
@@ -20,11 +22,14 @@ const litReactBrowserEntry = (): string => {
   return browserEntry;
 };
 
-export default defineConfig({
-  resolve: { alias: { "@lit/react": litReactBrowserEntry() } },
-  test: {
-    include: ["src/**/*.test.{ts,tsx}"],
-    setupFiles: ["src/test/setup-msw.ts", "src/test/setup-web-components.ts"],
-    server: { deps: { inline: [/@vscode-elements\/react-elements/] } },
-  },
-});
+export default splitTestEnvironments(
+  defineConfig({
+    resolve: { alias: { "@lit/react": litReactBrowserEntry() } },
+    test: {
+      include: ["src/**/*.test.{ts,tsx}"],
+      setupFiles: ["src/test/setup-msw.ts", "src/test/setup-web-components.ts"],
+      server: { deps: { inline: [/@vscode-elements\/react-elements/] } },
+    },
+  }),
+  import.meta.dirname
+);

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUi, waitFor } from "@testing-library/react";
 import { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,20 +9,21 @@ import type {
   ContentText,
   ContentToolUse,
 } from "@tsmono/inspect-common/types";
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
   makeStateHooks,
   ResizeObserverStub,
-  testIcons,
+  TrustedContentWrapper,
 } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
 import { MessageContent } from "./MessageContent";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
@@ -34,13 +35,11 @@ const renderMessage = (
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <DisplayModeContext.Provider value={{ displayMode }}>
-            <MessageContent contents={contents} />
-          </DisplayModeContext.Provider>
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        <DisplayModeContext.Provider value={{ displayMode }}>
+          <MessageContent contents={contents} />
+        </DisplayModeContext.Provider>
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 
@@ -189,6 +188,27 @@ describe("MessageContent log-supplied link hrefs", () => {
   });
 });
 
+describe("MessageContent server tool data", () => {
+  it("shows a web_search server_tool_use block's query", async () => {
+    const { container } = renderMessage([
+      {
+        type: "data",
+        data: {
+          type: "server_tool_use",
+          name: "web_search",
+          input: { query: "TypeScript monorepo best practices" },
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(
+        "Web Search:TypeScript monorepo best practices"
+      );
+    });
+  });
+});
+
 // Text and reasoning blocks come from the log; a block that merely looks like
 // JSON must never throw out of render (that unmounts the whole viewer).
 describe("MessageContent JSON-looking blocks", () => {
@@ -258,5 +278,44 @@ describe("MessageContent JSON-looking blocks", () => {
       expect(container.textContent).toContain("[{'format' oops");
     });
     expect(container.querySelector("code.language-json")).toBeNull();
+  });
+});
+
+describe("MessageContent reasoning title", () => {
+  const block = (overrides: Partial<ContentReasoning>): ContentReasoning => ({
+    type: "reasoning",
+    reasoning: "",
+    redacted: false,
+    ...overrides,
+  });
+
+  it.each([
+    [{ reasoning: "chain" }, "Reasoning", "chain"],
+    [{ reasoning: "", summary: "short" }, "Reasoning (Summary)", "short"],
+    [
+      { reasoning: "", summary: null },
+      "Reasoning",
+      "Reasoning text not provided.",
+    ],
+    [
+      { reasoning: "OPAQUE", summary: "short", redacted: true },
+      "Reasoning (Summary)",
+      "short",
+    ],
+    [
+      { reasoning: "OPAQUE", summary: null, redacted: true },
+      "Reasoning",
+      "Reasoning encrypted by model provider.",
+    ],
+  ])("titles %j as %s and shows %s", async (overrides, title, text) => {
+    const { container } = renderMessage([block(overrides)]);
+    const reasoning = container.querySelector(
+      '[data-content-kind="reasoning"]'
+    );
+    await waitFor(() => {
+      expect(reasoning?.textContent).toContain(text);
+    });
+    expect(reasoning?.firstElementChild?.textContent).toBe(title);
+    expect(container.textContent).not.toContain("OPAQUE");
   });
 });

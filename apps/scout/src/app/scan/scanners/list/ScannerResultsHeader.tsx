@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback } from "react";
 
-import { ApplicationIcons } from "../../../../icons";
+import { Icon } from "@tsmono/react/icons";
+
 import { useStore } from "../../../../state/store";
 
 import styles from "./ScannerResultsHeader.module.css";
@@ -88,9 +89,7 @@ const ColumnHeader: FC<{
         }
       }
     },
-    // TODO: lint react-hooks/exhaustive-deps Fix this
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sort, sortResults, setSortResults]
+    [sort, sortResults, setSortResults, label]
   );
 
   return (
@@ -101,14 +100,7 @@ const ColumnHeader: FC<{
     >
       {label}
       {sort && (
-        <i
-          className={clsx(
-            sort.direction === "asc"
-              ? ApplicationIcons.arrows.up
-              : ApplicationIcons.arrows.down
-          )}
-          aria-hidden="true"
-        />
+        <Icon name={sort.direction === "asc" ? "arrowUp" : "arrowDown"} />
       )}
     </button>
   );

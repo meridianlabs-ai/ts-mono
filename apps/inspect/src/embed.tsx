@@ -1,8 +1,14 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useSyncExternalStore } from "react";
 
-import { useAppConfigAsync } from "./app_config";
+import { useAppConfigAsync, useLogDir } from "./app_config";
+import { getAppRouter } from "./app/routing/AppRouter";
+import { useRouteSelection } from "./app/routing/currentSelection";
+import { sampleIdsEqual } from "./app/shared/sample";
+import { useLogHeader } from "./log_data";
 import { queryClient } from "./state/queryClient";
+import { getAvailableScorers } from "./state/scoring";
+import { useStore } from "./state/store";
 
 /**
  * Supplies the viewer's react-query client to a subtree.
@@ -32,3 +38,60 @@ export const InspectQueryClientProvider: FC<{ children: ReactNode }> = ({
  */
 export const useViewerReady = (): boolean =>
   useAppConfigAsync().data !== undefined;
+
+// External chrome is outside RouterProvider. Subscribe to the actual router
+// rather than publishing another writable navigation snapshot for embedders.
+const subscribeToRoute = (notify: () => void) =>
+  getAppRouter().subscribe(notify);
+const currentLocation = () => getAppRouter().state.location;
+
+function useEmbeddedRouteSelection() {
+  const location = useSyncExternalStore(subscribeToRoute, currentLocation);
+  return useRouteSelection(location.pathname);
+}
+
+function useEmbeddedSelection() {
+  const selection = useEmbeddedRouteSelection();
+  const highlighted = useStore((state) => state.log.highlightedSample);
+  // On a log's sample list, embedders may preview the highlighted row without
+  // opening detail. A remembered row from a different log cannot take over.
+  const handle =
+    selection.sample ??
+    (!selection.hasExplicitSample && highlighted?.logFile === selection.logFile
+      ? highlighted
+      : undefined);
+  const sample = selection.summaries.find(
+    (summary) =>
+      sampleIdsEqual(summary.id, handle?.id) && summary.epoch === handle?.epoch
+  );
+  return { logFile: selection.logFile, sample };
+}
+
+export function useSelectedSampleSummary() {
+  return useEmbeddedSelection().sample;
+}
+
+export function useLogSelection() {
+  const selection = useEmbeddedSelection();
+  const detail = useLogHeader(useLogDir(), selection.logFile, {
+    demand: "passive",
+  });
+  return {
+    ...selection,
+    loadedLog: detail.data ? selection.logFile : undefined,
+  };
+}
+
+export function useSelectedScores() {
+  const selection = useEmbeddedRouteSelection();
+  const detail = useLogHeader(useLogDir(), selection.logFile, {
+    demand: "passive",
+  });
+  const selected = useStore((state) => state.log.selectedScores);
+  return (
+    selected ??
+    (detail.data
+      ? (getAvailableScorers(detail.data, selection.summaries) ?? [])
+      : [])
+  );
+}

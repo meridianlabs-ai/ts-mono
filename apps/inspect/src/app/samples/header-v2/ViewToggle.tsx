@@ -26,8 +26,8 @@ export const ViewToggle: FC<ViewToggleProps> = ({ view, setView }) => {
       selectedId={view}
       onSegmentChange={handleChange}
       segments={[
-        { id: "grid", label: "Grid view", icon: "bi bi-list-ul" },
-        { id: "chips", label: "Chips view", icon: "bi bi-grid-3x3-gap" },
+        { id: "grid", label: "Grid view", icon: "listView" },
+        { id: "chips", label: "Chips view", icon: "gridView" },
       ]}
     />
   );

@@ -2,11 +2,12 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { Icon, IconName } from "@tsmono/react/icons";
 
 import styles from "./DetailStep.module.css";
 
 interface DetailStepProps {
-  icon?: string;
+  icon?: IconName;
   name: string;
   params?: Record<string, unknown>;
   className?: string | string[];
@@ -18,7 +19,7 @@ export const DetailStep: FC<DetailStepProps> = ({
   params,
   className,
 }) => {
-  const iconHtml = icon ? <i className={clsx(icon, styles.icon)} /> : "";
+  const iconHtml = icon ? <Icon name={icon} className={styles.icon} /> : "";
   return (
     <div className={clsx(className)}>
       {iconHtml} {name}

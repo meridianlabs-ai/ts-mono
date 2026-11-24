@@ -11,7 +11,9 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
+import { ContentCode, CopyButton } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 import { formatTime } from "@tsmono/util";
 
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
@@ -23,7 +25,6 @@ import { EventSection } from "./event/EventSection";
 import { RetryChip } from "./event/RetryChip";
 import { StopReasonBadge } from "./event/StopReasonBadge";
 import { formatTiming, formatTitle, isCancelError } from "./event/utils";
-import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
 import { recentInputMessages } from "./recentInputMessages";
 import { retryAttemptKey } from "./timeline/retryGrouping";
@@ -92,12 +93,24 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     return recentInputMessages(event.input, {
       agentResultsFiltered,
       hasToolEvents: context?.hasToolEvents,
+      toolEventIds: context?.inputShownElsewhere
+        ? undefined
+        : context?.toolEventIds,
     });
-  }, [event, context?.hasToolEvents]);
+  }, [
+    event,
+    context?.hasToolEvents,
+    context?.toolEventIds,
+    context?.inputShownElsewhere,
+  ]);
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);
 
+  const toolEventIds = context?.toolEventIds;
+  // The output names a call by the model's id; a bridge's scaffold may name
+  // it by the new id the bridge handed it over under.
+  const toolProposalIds = context?.toolProposalIds ?? toolEventIds;
   const summaryMessages = useMemo(() => {
     // Filter the synthetic empty-assistant placeholder while the event is in
     // flight, or when it was cancelled (the interrupted generation produced no
@@ -108,9 +121,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       event.pending || isCancelled
         ? outputMessages.filter((m) => !isLivePlaceholderMessage(m))
         : outputMessages;
-    return showAllMessages
-      ? [...event.input, ...outputs]
-      : [...userMessages, ...outputs];
+    const inputs = showAllMessages ? event.input : userMessages;
+    if (!toolEventIds || !toolProposalIds) return [...inputs, ...outputs];
+    return [
+      ...inputs.map((m) => withoutToolCallsIn(m, toolEventIds)),
+      ...outputs.map((m) => withoutToolCallsIn(m, toolProposalIds)),
+    ];
   }, [
     showAllMessages,
     event.input,
@@ -118,7 +134,14 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     isCancelled,
     outputMessages,
     userMessages,
+    toolEventIds,
+    toolProposalIds,
   ]);
+
+  // Folded under their calls, results the summary shows would vanish with calls it omits.
+  const collapseSummaryToolMessages =
+    context?.hasToolEvents !== false &&
+    !userMessages.some((m) => m.role === "tool");
 
   const summaryLabels = useMemo(() => {
     const map = context?.messageLabels;
@@ -170,7 +193,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           ? formatTiming(event.timestamp, event.working_start)
           : undefined
       }
-      icon={TranscriptIcons.model}
+      icon="model"
       turnNav={turnNav}
       headerExtra={
         fallbackBadge || retryChip ? (
@@ -194,10 +217,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
                   setShowAllMessages(true);
                 }}
               >
-                <i
-                  className={clsx(TranscriptIcons.expand, styles.showAllIcon)}
-                  aria-hidden="true"
-                />
+                <Icon name="chevronUp" className={styles.showAllIcon} />
                 Show all messages
               </button>
             </div>
@@ -206,14 +226,15 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           id={`${eventNode.id}-model-output`}
           messages={summaryMessages}
           tools={{
-            callStyle: showToolCalls ? "complete" : "omit",
-            collapseToolMessages: context?.hasToolEvents !== false,
+            callStyle:
+              context?.toolEventIds || showToolCalls ? "complete" : "omit",
+            collapseToolMessages: collapseSummaryToolMessages,
           }}
           labels={summaryLabels}
         />
         {isCancelled ? (
           <div className={styles.cancelled}>
-            <i className={TranscriptIcons.cancel} />
+            <Icon name="cancel" />
             <span>{event.error}</span>
           </div>
         ) : event.error ? (
@@ -254,6 +275,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
               <MetaDataGrid entries={entries} options={{ plain: true }} />
             </EventSection>
           )}
+
+          <ProviderIds event={event} />
         </div>
       </div>
 
@@ -288,6 +311,57 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </EventPanel>
   );
 };
+
+const ProviderIds: FC<{ event: ModelEvent }> = ({ event }) => {
+  const responseId = event.output.response_id;
+  const requestIds = event.request_ids ?? [];
+  if (!responseId && requestIds.length === 0) {
+    return null;
+  }
+
+  return (
+    <EventSection
+      title="Provider IDs"
+      className={clsx(styles.tableSelection, styles.config)}
+    >
+      <div className={clsx(styles.providerIds, "text-size-small")}>
+        {responseId ? (
+          <ProviderIdRow label="response" id={responseId} />
+        ) : undefined}
+        {requestIds.map((requestId, index) => (
+          <ProviderIdRow
+            key={`${requestId.header}-${requestId.id}-${index}`}
+            label={requestId.header}
+            id={requestId.id}
+            status={requestId.status}
+          />
+        ))}
+      </div>
+    </EventSection>
+  );
+};
+
+interface ProviderIdRowProps {
+  label: string;
+  id: string;
+  status?: number;
+}
+
+const ProviderIdRow: FC<ProviderIdRowProps> = ({ label, id, status }) => (
+  <div className={styles.providerIdRow}>
+    <div className={styles.providerIdLabel}>{label}</div>
+    <div className={styles.providerIdValue}>{id}</div>
+    <div
+      className={clsx(
+        styles.providerIdStatus,
+        status !== undefined && status >= 400 && styles.providerIdFailed
+      )}
+    >
+      {status}
+    </div>
+    <CopyButton value={id} ariaLabel={`Copy ${label}`} />
+  </div>
+);
 
 function formatFailureTime(event: ModelEvent): string {
   const sec = attemptDurationSec(event);
@@ -339,12 +413,11 @@ export const APICodeCell: FC<APICodeCellProps> = ({ id, sourceCode }) => {
   return (
     <div ref={sourceCodeRef} className={clsx("model-call")}>
       <pre className={clsx(styles.codePre)}>
-        <code
+        <ContentCode
           id={id}
           className={clsx("language-json", styles.code, "text-size-small")}
-        >
-          {sourceCode}
-        </code>
+          text={sourceCode}
+        />
       </pre>
     </div>
   );
@@ -396,4 +469,20 @@ const ToolChoiceView: FC<ToolChoiceViewProps> = ({ toolChoice }) => {
   } else {
     return <code>`${toolChoice.name}()`</code>;
   }
+};
+
+// A bridged agent's own calls have no tool event, so they stay inline.
+const withoutToolCallsIn = (
+  message: ChatMessage,
+  toolEventIds: ReadonlySet<string>
+): ChatMessage => {
+  if (message.role !== "assistant" || !message.tool_calls?.length) {
+    return message;
+  }
+  const toolCalls = message.tool_calls.filter(
+    (call) => !toolEventIds.has(call.id)
+  );
+  return toolCalls.length === message.tool_calls.length
+    ? message
+    : { ...message, tool_calls: toolCalls };
 };

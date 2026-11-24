@@ -1,5 +1,8 @@
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useState } from "react";
+
+import { AnchoredPopover } from "@tsmono/react/components";
+import { Icon } from "@tsmono/react/icons";
 
 import type { Timeline } from "../core";
 
@@ -28,8 +31,7 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
   onSelect,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
 
   const handleSelect = useCallback(
     (index: number) => {
@@ -39,35 +41,15 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
     [onSelect]
   );
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // This Escape closes the menu and nothing else: stop it here (the
-      // capture-phase registration below runs first) so an enclosing
-      // surface's own Escape handler — e.g. Modal's, on document bubble —
-      // doesn't also fire and close both layers at once.
-      e.stopPropagation();
-      // Only pull focus back to the trigger when it was inside the menu.
-      const refocus =
-        containerRef.current?.contains(document.activeElement) ?? false;
-      setIsOpen(false);
-      if (refocus) triggerRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [isOpen]);
-
   if (timelines.length <= 1) return null;
 
   const active = timelines[activeIndex];
   if (!active) return null;
 
   return (
-    <div ref={containerRef} className={styles.selectorContainer}>
+    <div className={styles.selectorContainer}>
       <button
-        ref={triggerRef}
+        ref={setTrigger}
         type="button"
         className={styles.selectorButton}
         onClick={() => setIsOpen((prev) => !prev)}
@@ -76,38 +58,33 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
         aria-expanded={isOpen}
       >
         {active.name}
-        <i
-          className={clsx("bi-chevron-down", styles.chevron)}
-          aria-hidden="true"
-        />
+        <Icon name="chevronDown" className={styles.chevron} />
       </button>
-      {isOpen && (
-        <>
-          {/* Mouse-only dismissal; Escape closes the menu. */}
-          <div
-            className={styles.backdrop}
-            role="presentation"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className={styles.dropdownMenu} role="listbox">
-            {timelines.map((tl, i) => (
-              <button
-                key={tl.name}
-                type="button"
-                className={clsx(
-                  styles.dropdownItem,
-                  i === activeIndex && styles.dropdownItemActive
-                )}
-                role="option"
-                aria-selected={i === activeIndex}
-                onClick={() => handleSelect(i)}
-              >
-                {tl.name}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <AnchoredPopover
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        anchor={trigger}
+        placement="bottom-start"
+        offset={2}
+        role="listbox"
+        className={styles.dropdownMenu}
+      >
+        {timelines.map((tl, i) => (
+          <button
+            key={tl.name}
+            type="button"
+            className={clsx(
+              styles.dropdownItem,
+              i === activeIndex && styles.dropdownItemActive
+            )}
+            role="option"
+            aria-selected={i === activeIndex}
+            onClick={() => handleSelect(i)}
+          >
+            {tl.name}
+          </button>
+        ))}
+      </AnchoredPopover>
     </div>
   );
 };

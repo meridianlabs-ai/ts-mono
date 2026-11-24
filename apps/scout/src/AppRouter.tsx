@@ -1,14 +1,20 @@
-import { FC, useCallback, useMemo } from "react";
-import { createHashRouter, Outlet, useLocation, useParams } from "react-router";
+import { useCallback, useMemo } from "react";
+import { Outlet, useParams } from "react-router";
 
 import {
   ComponentNavigationProvider,
   FindBand,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { createRestorableHashRouter } from "@tsmono/react/routing";
+import { createWebviewStorage, getVscodeApi } from "@tsmono/util";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
-import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
+import {
+  embeddedRoute,
+  getEmbeddedAppMessage,
+  useWindowMessaging,
+} from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
 import { ScanPanel } from "./app/scan/ScanPanel";
@@ -37,7 +43,6 @@ import {
   parseScanParams,
   scansRoute,
 } from "./router/url";
-import { useRestoreLastRoute } from "./router/useRestoreLastRoute";
 import { useStore } from "./state/store";
 import { AppConfig } from "./types/api-types";
 
@@ -46,7 +51,6 @@ export interface AppRouterConfig {
   config: AppConfig;
 }
 
-// Creates a layout component that handles embedded state and tracks route changes
 const createAppLayout = (routerConfig: AppRouterConfig) => {
   const AppLayout = () => {
     const showFind = useStore((state) => state.showFind);
@@ -63,7 +67,6 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     // closes via its own input's Escape or the close button.
     useFindBandShortcut(openFind);
     useWindowMessaging();
-    useRestoreLastRoute(config.scans.dir);
 
     const content = <Outlet />;
     return (
@@ -116,7 +119,13 @@ export const createAppRouter = (config: AppRouterConfig) => {
   const AppLayout = createAppLayout(config);
   const transcriptsDir = config.config.transcripts;
 
-  return createHashRouter(
+  const vscode = getVscodeApi();
+  const storage = vscode ? createWebviewStorage(vscode) : undefined;
+  const initialPath = embeddedRoute(
+    getEmbeddedAppMessage(),
+    config.config.scans.dir
+  );
+  return createRestorableHashRouter(
     [
       {
         path: "/",
@@ -124,7 +133,13 @@ export const createAppRouter = (config: AppRouterConfig) => {
         children: [
           {
             index: true,
-            element: <RootIndexRedirect transcriptsDir={transcriptsDir} />,
+            element: (
+              <LoggingNavigate
+                to={transcriptsDir ? "/transcripts" : "/scans"}
+                replace
+                reason="Root index redirect"
+              />
+            ),
           },
           {
             path: kScansRootRouteUrlPattern,
@@ -173,24 +188,11 @@ export const createAppRouter = (config: AppRouterConfig) => {
         element: <LoggingNavigate to="/scans" replace reason="catch-all" />,
       },
     ],
+    {
+      storage,
+      key: "scout-route-v1",
+      initialPath,
+    },
     { basename: "" }
   );
-};
-
-// Guard against redirecting when a navigation is already in-flight
-// (window.location updated but router state hasn't reconciled yet)
-const RootIndexRedirect: FC<{
-  transcriptsDir: AppConfig["transcripts"];
-}> = ({ transcriptsDir }) => {
-  const { pathname, search, hash } = useLocation();
-  const routerPath = pathname + search + hash;
-  const hashPath = window.location.hash.slice(1) || "/";
-
-  return hashPath === routerPath ? (
-    <LoggingNavigate
-      to={transcriptsDir ? "/transcripts" : "/scans"}
-      replace
-      reason="Root index redirect"
-    />
-  ) : null;
 };

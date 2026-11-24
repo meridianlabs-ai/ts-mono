@@ -1,14 +1,5 @@
 import clsx from "clsx";
-import {
-  createElement,
-  FC,
-  Fragment,
-  MouseEvent,
-  RefObject,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { FC, Fragment, MouseEvent, useRef } from "react";
 
 import {
   EmptyPanel,
@@ -26,7 +17,9 @@ import {
 } from "../../state/hooks";
 import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import { useLogNavigationAction } from "../routing/logNavigation";
+import { toFullUrlMaybe } from "../routing/url";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -43,6 +36,7 @@ export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
   const navigation = useLogNavigationAction();
+  const logFile = useCurrentLogFile();
 
   const selectedLogDetails = useSelectedLogDetails();
   const logLoading = useSelectedLogLoading();
@@ -52,15 +46,13 @@ export const LogView: FC = () => {
   const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
-  const samplesTabConfig = useSamplesTabConfig(
-    selectedLogDetails?.status,
-    refreshLog
+  const samplesTabConfig = useSamplesTabConfig(selectedLogDetails?.status, () =>
+    refreshLog(logFile)
   );
 
   const intoTabConfig = useInfoTabConfig(
     evalSpec,
     selectedLogDetails?.plan,
-    selectedLogDetails?.error,
     selectedLogDetails?.results,
     selectedLogDetails?.status,
     selectedLogDetails?.metadata
@@ -94,13 +86,8 @@ export const LogView: FC = () => {
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
 
-  // Heterogeneous tab configs each bind their own props type; `unknown`
-  // can't unify them because TabDescriptor's `component` puts the prop type
-  // in a contravariant position.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tabs: Record<string, TabDescriptor<any>> = {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
+  const tabs: Record<string, TabDescriptor> = {
+    samples: samplesTabConfig,
     task: taskTabConfig,
     model: modelsTabConfig,
     timeline: timelineTabConfig,
@@ -109,36 +96,28 @@ export const LogView: FC = () => {
     json: jsonTabConfig,
   };
 
-  const tabKeys = Object.keys(tabs).join(",");
-  const scrollRefs = useMemo(() => {
-    const refs: RefObject<HTMLElement | null>[] = [];
-    for (const key of Object.keys(tabs)) {
-      const ref = tabs[key]?.scrollRef;
-      if (ref) refs.push(ref);
-    }
-    return refs;
-    // The set of tab refs is stable within a session — recompute only when
-    // the tab keys change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKeys]);
+  const scrollRefs = Object.values(tabs).flatMap((tab) =>
+    tab.scrollRef ? [tab.scrollRef] : []
+  );
 
   const { hidden: titleCollapsed } = useScrollDirection(scrollRefs, {
     stayHiddenOnUpScroll: true,
   });
 
   const selectedTab = useStore((state) => state.app.tabs.workspace);
+  // A sample's terminals view wants the height: the title shows collapsed
+  // while one is mounted (derived, so leaving it shows the scroll state
+  // again).
+  const onSampleTerminals = useStore((state) => state.sample.terminalsViewOpen);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const onSelected = useCallback(
-    (e: MouseEvent<HTMLElement>) => {
-      const id = e.currentTarget.id;
-      if (id) {
-        setSelectedTab(id);
-        navigation.selectTab(id);
-      }
-    },
-    [setSelectedTab, navigation]
-  );
+  const onSelected = (e: MouseEvent<HTMLElement>) => {
+    const id = e.currentTarget.id;
+    if (id) {
+      setSelectedTab(id);
+      navigation.selectTab(id);
+    }
+  };
 
   if (evalSpec === undefined) {
     return (
@@ -148,8 +127,6 @@ export const LogView: FC = () => {
     );
   } else {
     const tabTools = Object.values(tabs)
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;
       })
@@ -172,7 +149,7 @@ export const LogView: FC = () => {
           evalStats={selectedLogDetails?.stats}
           status={selectedLogDetails?.status}
           tags={selectedLogDetails?.tags}
-          collapsed={titleCollapsed}
+          collapsed={titleCollapsed || onSampleTerminals}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>
           <div className={clsx("log-detail", styles.tabContainer)}>
@@ -193,13 +170,14 @@ export const LogView: FC = () => {
                     id={tab.id}
                     title={tab.label}
                     onSelected={onSelected}
+                    href={toFullUrlMaybe(navigation.getTabUrl(tab.id))}
                     selected={selectedTab === tab.id}
                     scrollable={!!tab.scrollable}
                     scrollRef={tab.scrollable ? tab.scrollRef : undefined}
                     className={clsx(tab.className)}
                     style={{ height: tab.scrollable ? "100%" : undefined }}
                   >
-                    {createElement(tab.component, tab.componentProps)}
+                    {tab.content}
                   </TabPanel>
                 );
               })}

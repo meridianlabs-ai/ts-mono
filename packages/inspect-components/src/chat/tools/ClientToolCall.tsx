@@ -7,12 +7,12 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
 
-import { useDisplayMode } from "../../content/DisplayModeContext";
+import { useCustomContent } from "../../content/DisplayModeContext";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
 import { getDefaultCustomToolView } from "./customToolRendering";
-import { iconForTool } from "./tool";
+import { fullArgs, iconForTool } from "./tool";
 import { ToolBlock, ToolBlockInput, ToolBlockOutput } from "./ToolBlock";
 import { ToolCallErrorView } from "./ToolCallErrorView";
 import { ToolCallView, ToolCallViewProps } from "./ToolCallView";
@@ -34,6 +34,15 @@ export interface ClientToolCallProps {
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
+  /** Rendered between the input zone and the output. */
+  afterInput?: ReactNode;
+  /** Rendered after the output. */
+  afterOutput?: ReactNode;
+  /** Rendered in place of the output, for a call that never ran. */
+  outputReplacement?: ReactNode;
+  /** Optional leading element rendered before the tool icon in the header
+   *  (e.g. a selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
 }
 
 /**
@@ -56,8 +65,12 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   error,
   className,
   getCustomToolView,
+  afterInput,
+  afterOutput,
+  outputReplacement,
+  headerLeading,
 }) => {
-  const displayMode = useDisplayMode();
+  const customContent = useCustomContent();
 
   // Custom views render the call and its result as one self-contained UI —
   // give them the block frame without the header.
@@ -73,12 +86,19 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     selfAnnotation,
     inputScreenshot,
   };
-  const customView =
-    displayMode === "rendered"
-      ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
-      : undefined;
+  const customView = customContent
+    ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
+    : undefined;
   if (customView) {
-    return <div className={clsx(styles.custom, className)}>{customView}</div>;
+    return (
+      <div className={clsx(styles.custom, className)}>
+        {headerLeading}
+        {customView}
+        {afterInput}
+        {outputReplacement}
+        {afterOutput}
+      </div>
+    );
   }
 
   const hasInput =
@@ -103,6 +123,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
       className={className}
+      headerLeading={headerLeading}
     >
       {hasInput || argsInInputZone ? (
         <ToolBlockInput>
@@ -121,7 +142,10 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           </ExpandablePanel>
         </ToolBlockInput>
       ) : null}
-      {showError ? (
+      {afterInput}
+      {outputReplacement ? (
+        outputReplacement
+      ) : showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
           {/* A failed action is when seeing where the agent tried to act
@@ -139,6 +163,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           <ToolCallView {...viewProps} section="output" />
         </ToolBlockOutput>
       ) : null}
+      {afterOutput}
     </ToolBlock>
   );
 };
@@ -146,16 +171,6 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
 /** Args longer than this can't meaningfully summarize on the single header
  * line; they render in the input zone instead. */
 const kMaxSummaryArgs = 120;
-
-/** The args portion of the rendered function call with formatting preserved;
- * collapse whitespace for the single-line header summary. */
-const fullArgs = (functionCall: string, tool: string): string | undefined => {
-  if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
-    const inner = functionCall.slice(tool.length + 1, -1).trim();
-    return inner.length > 0 ? inner : undefined;
-  }
-  return functionCall !== tool ? functionCall : undefined;
-};
 
 /** Whether the tool output has anything worth an output well. */
 const hasOutputContent = (output: ToolCallViewProps["output"]): boolean => {

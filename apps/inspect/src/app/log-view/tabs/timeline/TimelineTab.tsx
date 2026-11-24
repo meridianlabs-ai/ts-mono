@@ -1,20 +1,11 @@
 import clsx from "clsx";
-import {
-  FC,
-  MouseEvent as ReactMouseEvent,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useMemo, useRef, useState } from "react";
 
+import type { NormalizedEvalStats } from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EarlyStoppingSummary,
   EvalSpec,
-  EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
@@ -24,7 +15,9 @@ import {
   buildConnectionLanes,
   poolRetunes,
 } from "@tsmono/inspect-components/usage";
-import { useProperty } from "@tsmono/react/hooks";
+import { ErrorPanel } from "@tsmono/react/components";
+import { useMirrorToStore, useProperty } from "@tsmono/react/hooks";
+import { Icon } from "@tsmono/react/icons";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import type { SampleSummary } from "../../../../client/api/types";
@@ -34,15 +27,17 @@ import {
   useSelectedSampleSummaries,
 } from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
-import { openInNewTab } from "../../../shared/openInNewTab";
+import { routeFromFullUrl, toFullUrl } from "../../../routing/url";
 import {
   kTimelineBag,
   timelineBandId,
   useTimelineBandsKey,
   useTimelineLogKey,
-} from "../../useShowTimeline";
+} from "../../useTimelineNavigation";
 
 import { HistoryList } from "./HistoryList";
+import type { SampleOpener } from "./OpenSampleLink";
+import { connectionHistoryError } from "./timelineAxis";
 import { TimelineChart } from "./TimelineChart";
 import {
   activeSamplesSeries,
@@ -64,7 +59,7 @@ import styles from "./TimelineTab.module.css";
 
 export const useTimelineTab = (
   evalSpec: EvalSpec | undefined,
-  evalStats: EvalStats | undefined,
+  evalStats: NormalizedEvalStats | undefined,
   evalStatus?: EvalLogStatus,
   configUpdates?: ConfigUpdate[] | null,
   logUpdates?: LogUpdate[] | null,
@@ -75,20 +70,23 @@ export const useTimelineTab = (
   const scrollRef = useRef<HTMLDivElement | null>(null);
   return useMemo(() => {
     return {
+      // Label-only rename (sample Activity's companion) — the internal tab
+      // id and persisted store keys deliberately stay "timeline".
       id: kLogViewTimelineTabId,
-      label: "Timeline",
+      label: "Activity",
       scrollable: true,
       scrollRef,
-      component: TimelineTab,
-      componentProps: {
-        evalSpec,
-        evalStats,
-        evalStatus,
-        configUpdates,
-        logUpdates,
-        earlyStopping,
-        scrollRef,
-      },
+      content: (
+        <TimelineTab
+          evalSpec={evalSpec}
+          evalStats={evalStats}
+          evalStatus={evalStatus}
+          configUpdates={configUpdates}
+          logUpdates={logUpdates}
+          earlyStopping={earlyStopping}
+          scrollRef={scrollRef}
+        />
+      ),
     };
   }, [
     evalSpec,
@@ -102,7 +100,7 @@ export const useTimelineTab = (
 
 interface TimelineTabProps {
   evalSpec?: EvalSpec;
-  evalStats?: EvalStats;
+  evalStats?: NormalizedEvalStats;
   evalStatus?: EvalLogStatus;
   configUpdates?: ConfigUpdate[] | null;
   logUpdates?: LogUpdate[] | null;
@@ -131,6 +129,17 @@ const kNoCategories: HistoryCategory[] = [];
 // links, chart popovers) when the log in view changes.
 export const TimelineTab: FC<TimelineTabProps> = (props) => {
   const logKey = useTimelineLogKey("tab");
+  const error =
+    props.evalStats?.connectionHistoryError ??
+    connectionHistoryError(props.evalStats?.connection_limit_history ?? []);
+  if (error) {
+    return (
+      <ErrorPanel
+        title="Unable to display timeline"
+        error={{ message: error }}
+      />
+    );
+  }
   return <TimelineTabBody key={logKey} {...props} />;
 };
 
@@ -362,12 +371,10 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
   const timeDescending = timeSort
     ? timeSort === "desc"
     : evalStatus === "started";
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (timeSort === undefined) {
-      setTimeSort(evalStatus === "started" ? "desc" : "asc");
-    }
-  }, [timeSort, setTimeSort, evalStatus]);
+  useMirrorToStore(
+    timeSort === undefined ? (timeDescending ? "desc" : "asc") : undefined,
+    setTimeSort
+  );
 
   const [selectedEventKey, setSelectedEventKey] = useProperty<string | null>(
     kTimelineBag,
@@ -446,20 +453,13 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
     [markers]
   );
 
-  // Plain click navigates in place; cmd/ctrl/shift click opens a new tab.
-  const openSample = useCallback(
-    (id: string | number, epoch: number, event?: ReactMouseEvent) => {
-      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = getSampleUrl(id, epoch);
-        if (url) {
-          openInNewTab(url);
-          return;
-        }
-      }
-      showSample(id, epoch);
+  const sampleOpener: SampleOpener = {
+    href: (id, epoch) => {
+      const url = getSampleUrl(id, epoch);
+      return url ? toFullUrl(routeFromFullUrl(url)) : undefined;
     },
-    [showSample, getSampleUrl]
-  );
+    open: (id, epoch) => showSample(id, epoch),
+  };
 
   const showRateLimitLegend = enabledModels.some(
     (model) => (lanes[model]?.rateLimitCount ?? 0) > 0
@@ -579,7 +579,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
             }
             evalDescriptor={evalDescriptor}
             limitCrossReference={limitCrossReference}
-            onOpenSample={openSample}
+            sampleOpener={sampleOpener}
           />
         )}
         <HistoryList
@@ -598,7 +598,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
           onHoverRow={(key) =>
             setHoverLink(key !== null ? { source: "row", keys: [key] } : null)
           }
-          onOpenSample={openSample}
+          sampleOpener={sampleOpener}
         />
       </div>
     </div>
@@ -621,7 +621,7 @@ const BandChip: FC<BandChipProps> = ({ label, note, title, on, onToggle }) => (
     onClick={onToggle}
     title={title}
   >
-    {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
+    {on ? <Icon name="confirm" /> : null}
     {label}
     {note && <span className={styles.bandChipNote}>· {note}</span>}
   </button>

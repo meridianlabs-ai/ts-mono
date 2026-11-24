@@ -2,8 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
-import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 
 import { ExternalLink } from "../../content/ExternalLink";
 import { RecordTree } from "../../content/RecordTree";
@@ -14,6 +13,12 @@ import { ToolCallErrorView } from "../tools/ToolCallErrorView";
 import { ToolInput } from "../tools/ToolInput";
 
 import styles from "./ServerToolCall.module.css";
+import {
+  serverToolView,
+  type CodeExecutionOutput,
+  type ToolInfo,
+  type WebResult,
+} from "./serverToolView";
 
 interface ServerToolCallProps {
   id?: string;
@@ -36,38 +41,7 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
   flush = true,
   className,
 }) => {
-  const args = resolveArgs(content);
-  const title = content.context
-    ? `${content.context} — ${content.name}`
-    : content.name;
-
-  // Multi-line string args (code bodies) get a real input zone; only short
-  // args (the query for web_search, the URL for web_fetch) summarize on the
-  // header line.
-  const summaryArgs: Record<string, unknown> = {};
-  const inputArgs: Array<[string, string]> = [];
-  for (const [key, value] of Object.entries(args)) {
-    if (typeof value === "string" && value.includes("\n")) {
-      inputArgs.push([key, value]);
-    } else {
-      summaryArgs[key] = value;
-    }
-  }
-
-  const listToolsResult = maybeListTools(content);
-  const webSearchResult = maybeWebSearchResult(content);
-  const codeExecutionResult = maybeCodeExecution(content);
-  const execHasOutput =
-    !!codeExecutionResult &&
-    (!!codeExecutionResult.stdout ||
-      !!codeExecutionResult.stderr ||
-      codeExecutionResult.encrypted ||
-      (codeExecutionResult.returnCode ?? 0) !== 0);
-  const hasResult =
-    !!content.error ||
-    !!listToolsResult ||
-    !!webSearchResult ||
-    (codeExecutionResult ? execHasOutput : hasResultContent(content.result));
+  const { title, summary, inputArgs, output } = serverToolView(content);
 
   return (
     <ToolBlock
@@ -75,7 +49,7 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
       flush={flush}
       icon={iconForTool(content.name, { server: true })}
       title={title}
-      summary={argsSummary(summaryArgs)}
+      summary={summary}
       pill="server"
       className={className}
     >
@@ -100,18 +74,18 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
           </ExpandablePanel>
         </ToolBlockInput>
       ) : null}
-      {hasResult ? (
+      {output ? (
         <ToolBlockOutput>
-          {content.error ? (
+          {output.kind === "error" ? (
             <ToolCallErrorView
-              error={{ type: "unknown", message: content.error }}
+              error={{ type: "unknown", message: output.message }}
             />
-          ) : webSearchResult ? (
-            <WebSearchResults id={id} results={webSearchResult.result} />
-          ) : listToolsResult ? (
-            <ListToolsResult id={id} tools={listToolsResult.result} />
-          ) : codeExecutionResult ? (
-            <CodeExecutionResult id={id} result={codeExecutionResult} />
+          ) : output.kind === "web_search" ? (
+            <WebSearchResults id={id} results={output.results} />
+          ) : output.kind === "list_tools" ? (
+            <ListToolsResult id={id} tools={output.tools} />
+          ) : output.kind === "code_execution" ? (
+            <CodeExecutionResult id={id} result={output.result} />
           ) : (
             <ExpandablePanel
               id={`${id}-output`}
@@ -121,7 +95,7 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
             >
               <RenderedContent
                 id={`${id}-output`}
-                entry={{ name: "Output", value: content.result }}
+                entry={{ name: "Output", value: output.text }}
                 renderOptions={{ renderString: "markdown" }}
               />
             </ExpandablePanel>
@@ -192,11 +166,13 @@ const CodeExecutionResult: FC<{
       lines={15}
     >
       {result.stdout ? (
-        <pre className={styles.execOutput}>{result.stdout}</pre>
+        <pre className={styles.execOutput}>
+          <ContentText text={result.stdout} />
+        </pre>
       ) : null}
       {result.stderr ? (
         <pre className={clsx(styles.execOutput, styles.execError)}>
-          {result.stderr}
+          <ContentText text={result.stderr} />
         </pre>
       ) : null}
       {!result.stdout && !result.stderr && result.encrypted ? (
@@ -212,126 +188,3 @@ const CodeExecutionResult: FC<{
     </ExpandablePanel>
   );
 };
-
-interface CodeExecutionOutput {
-  stdout?: string;
-  stderr?: string;
-  returnCode?: number;
-  encrypted: boolean;
-}
-
-/** Parses a code_execution result payload into stdout/stderr/exit code.
- * Returns undefined when the result isn't the expected JSON shape (the
- * generic markdown rendering applies instead). */
-const maybeCodeExecution = (
-  content: ContentToolUse
-): CodeExecutionOutput | undefined => {
-  if (content.tool_type !== "code_execution" || !isJson(content.result)) {
-    return undefined;
-  }
-  try {
-    const parsed: unknown = JSON.parse(content.result);
-    if (!isRecord(parsed)) {
-      return undefined;
-    }
-    // The execution payload nests under `content` (Anthropic's
-    // code_execution_tool_result shape); fall back to the top level.
-    const payload = isRecord(parsed.content) ? parsed.content : parsed;
-    const str = (value: unknown): string | undefined =>
-      typeof value === "string" && value.length > 0 ? value : undefined;
-    return {
-      stdout: str(payload.stdout),
-      stderr: str(payload.stderr),
-      returnCode:
-        typeof payload.return_code === "number"
-          ? payload.return_code
-          : undefined,
-      encrypted: typeof payload.encrypted_stdout === "string",
-    };
-  } catch {
-    return undefined;
-  }
-};
-
-const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  // See if this looks like a JSON object
-  if (isJson(content.arguments)) {
-    try {
-      const parsed: unknown = JSON.parse(content.arguments);
-      if (isRecord(parsed)) return parsed;
-    } catch (e) {
-      console.warn("Failed to parse arguments as JSON", e);
-    }
-  }
-  return content.arguments ? { arguments: content.arguments } : {};
-};
-
-/** Single-line header summary: the lone arg's value (the query for
- * web_search, the URL for web_fetch), or `key: value` pairs otherwise. */
-const argsSummary = (args: Record<string, unknown>): string => {
-  const entries = Object.entries(args);
-  const single = entries.length === 1 ? entries[0] : undefined;
-  if (single && typeof single[1] === "string") {
-    return single[1];
-  }
-  return entries
-    .map(
-      ([key, value]) =>
-        `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`
-    )
-    .join(", ");
-};
-
-const hasResultContent = (result: ContentToolUse["result"]): boolean =>
-  result.trim().length > 0;
-
-const maybeWebSearchResult = (
-  content: ContentToolUse
-): { result: WebResult[] } | undefined => {
-  if (content.name !== "web_search") {
-    return undefined;
-  }
-  const objArray = asJsonObjArray(content.result);
-  // No recognizable entries (e.g. error results): fall through to the raw
-  // rendering rather than presenting an empty results panel.
-  const results = objArray?.filter(isWebResult);
-  if (results !== undefined && results.length > 0) {
-    return { result: results };
-  }
-};
-
-const maybeListTools = (
-  content: ContentToolUse
-): { result: ToolInfo[] } | undefined => {
-  if (content.name !== "mcp_list_tools") {
-    return undefined;
-  }
-  const objArray = asJsonObjArray(content.result);
-  // Same as web search: an all-filtered-out result reads as unrecognized.
-  const results = objArray?.filter(isToolInfo);
-  if (results !== undefined && results.length > 0) {
-    return { result: results };
-  }
-};
-
-interface WebResult {
-  title: string;
-  url: string;
-  type: string;
-}
-
-/** Shallow: the list below renders title and url, and skips entries lacking them. */
-const isWebResult = (value: unknown): value is WebResult =>
-  isRecord(value) &&
-  typeof value["title"] === "string" &&
-  typeof value["url"] === "string";
-
-interface ToolInfo {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
-
-/** Shallow: the list below keys on name and renders description. */
-const isToolInfo = (value: unknown): value is ToolInfo =>
-  isRecord(value) && typeof value["name"] === "string";

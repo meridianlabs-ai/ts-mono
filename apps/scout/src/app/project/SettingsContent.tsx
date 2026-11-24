@@ -1,16 +1,18 @@
 import {
+  VscodeButton,
   VscodeCheckbox,
   VscodeFormHelper,
   VscodeLabel,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useRef, useState } from "react";
 
 import type {
   BatchConfig,
   CachePolicy,
   GenerateConfig as GenerateConfigInput,
 } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
 import { STABLE_EMPTY_OBJECT } from "@tsmono/react/hooks";
 
 import { ProjectConfigInput } from "../../types/api-types";
@@ -69,11 +71,14 @@ function validateCacheExpiry(value: string | null): string | null {
 export interface SettingsContentProps {
   config: Partial<ProjectConfigInput>;
   onChange: (updates: Partial<ProjectConfigInput>) => void;
+  // The viewer shows plain text because of a setting outside scout.yaml.
+  trustContentOverridden?: boolean;
 }
 
 export const SettingsContent: FC<SettingsContentProps> = ({
   config,
   onChange,
+  trustContentOverridden = false,
 }) => {
   const generateConfig: GenerateConfigInput =
     config.generate_config ?? STABLE_EMPTY_OBJECT;
@@ -163,32 +168,21 @@ export const SettingsContent: FC<SettingsContentProps> = ({
     Array.isArray(config.tags) ? config.tags.join(", ") : ""
   );
 
-  // Sync local state when config changes externally (e.g., after save)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const configValue = Array.isArray(config.tags)
-      ? config.tags.join(", ")
-      : "";
-    // Only sync if the parsed values differ (avoids cursor jump while typing)
-    const currentParsed = tagsText
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+  // Sync local state when config changes externally (e.g., after save).
+  // Only when the parsed tags differ, so the cursor doesn't jump while typing.
+  const [syncedTags, setSyncedTags] = useState(config.tags);
+  if (config.tags !== syncedTags) {
+    setSyncedTags(config.tags);
     const configParsed = Array.isArray(config.tags) ? config.tags : [];
-    if (JSON.stringify(currentParsed) !== JSON.stringify(configParsed)) {
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTagsText(configValue);
+    if (JSON.stringify(parseTags(tagsText)) !== JSON.stringify(configParsed)) {
+      setTagsText(configParsed.join(", "));
     }
-  }, [config.tags, tagsText]);
+  }
 
   const handleTagsInput = (value: string) => {
     setTagsText(value);
     // Also update config immediately so Ctrl+S works
-    const tags = value
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    const tags = parseTags(value);
     onChange({ tags: tags.length > 0 ? tags : null });
   };
 
@@ -289,7 +283,6 @@ export const SettingsContent: FC<SettingsContentProps> = ({
                 value={shuffleSeed?.toString() ?? ""}
                 onInput={(e) => handleShuffleSeedChange(eventValue(e))}
                 placeholder="Seed (optional)"
-                style={{ width: "120px" }}
                 spellCheck={false}
                 autocomplete="off"
               />
@@ -357,6 +350,20 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           options={LOG_LEVELS}
           onChange={(v) => onChange({ log_level: v })}
           defaultLabel="Default (warning)"
+        />
+      </div>
+
+      {/* ===== VIEWER SECTION ===== */}
+      <div id="viewer" className={styles.section}>
+        <div className={styles.sectionHeader}>Viewer</div>
+
+        <TrustContentField
+          trusted={config.trust_content !== false}
+          overridden={trustContentOverridden}
+          onChange={(trusted) =>
+            // Trusted is the default, so it's recorded by removing the key.
+            onChange({ trust_content: trusted ? null : false })
+          }
         />
       </div>
 
@@ -710,3 +717,88 @@ export const SettingsContent: FC<SettingsContentProps> = ({
     </>
   );
 };
+
+interface TrustContentFieldProps {
+  trusted: boolean;
+  overridden: boolean;
+  onChange: (trusted: boolean) => void;
+}
+
+const TrustContentField: FC<TrustContentFieldProps> = ({
+  trusted,
+  overridden,
+  onChange,
+}) => {
+  const [confirming, setConfirming] = useState(false);
+
+  const confirm = () => {
+    setConfirming(false);
+    onChange(true);
+  };
+
+  if (overridden) {
+    return (
+      <div className={fieldStyles.field}>
+        <VscodeLabel>Trust Content</VscodeLabel>
+        <VscodeFormHelper>
+          Scout View is running in untrusted mode, so all model output is shown
+          as plain text.
+        </VscodeFormHelper>
+      </div>
+    );
+  }
+
+  return (
+    <div className={fieldStyles.field}>
+      <VscodeLabel>Trust Content</VscodeLabel>
+      <VscodeFormHelper>
+        Render model output as markdown, with syntax highlighting, media and
+        links. When off, model output is shown as plain text. Untrusted
+        transcripts are always shown as plain text.
+      </VscodeFormHelper>
+      {/* Remounted around the dialog so a cancelled check doesn't stick. */}
+      <VscodeCheckbox
+        key={String(confirming)}
+        id="field-trust-content"
+        checked={trusted}
+        onChange={(e) => {
+          if (eventChecked(e)) {
+            setConfirming(true);
+          } else {
+            onChange(false);
+          }
+        }}
+      >
+        Render model output richly
+      </VscodeCheckbox>
+      <Modal
+        show={confirming}
+        onHide={() => setConfirming(false)}
+        title="Trust Model Output?"
+        footer={
+          <>
+            <VscodeButton secondary onClick={() => setConfirming(false)}>
+              Cancel
+            </VscodeButton>
+            <VscodeButton onClick={confirm}>Trust Content</VscodeButton>
+          </>
+        }
+      >
+        <p>
+          Model output will render as markdown, with media and links. Only
+          enable this for content you trust.
+        </p>
+        <p>
+          This changes <code>scout.yaml</code>, so it applies to everyone using
+          this project.
+        </p>
+      </Modal>
+    </div>
+  );
+};
+
+const parseTags = (text: string): string[] =>
+  text
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);

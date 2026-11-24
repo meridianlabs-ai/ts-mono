@@ -17,7 +17,7 @@ export const useScansInfinite = (
   pageSize: number = 50,
   filter?: Condition,
   sorting?: SortingState
-): UseInfiniteQueryResult<InfiniteData<ScansResponse>, Error> => {
+): UseInfiniteQueryResult<InfiniteData<ScansResponse>> => {
   const api = useApi();
   const orderBy = sorting ? sortingStateToOrderBy(sorting) : undefined;
   return useInfiniteQuery(

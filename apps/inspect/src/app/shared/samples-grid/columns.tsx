@@ -4,8 +4,13 @@ import type { CSSProperties } from "react";
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import {
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "@tsmono/inspect-components/dataGrid";
+import {
   arrayToString,
   filename,
+  formatCurrency,
   formatNumber,
   getOwn,
   valueAsString,
@@ -29,10 +34,6 @@ import {
   SampleStatusIcon,
   statusSortValue,
 } from "../../samples/status/status";
-import {
-  ColumnComparator,
-  ExtendedColumnDef,
-} from "../../shared/data-grid/columnTypes";
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
@@ -345,6 +346,25 @@ export function buildSampleColumns(
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
+      );
+    },
+  });
+
+  // cost (hidden by default; undefined when any model went unpriced)
+  cols.push({
+    id: "cost",
+    header: "Cost",
+    size: 100,
+    minSize: 60,
+    maxSize: 140,
+    meta: { sortComparator: numberCompare },
+    accessorFn: (row) => row.cost,
+    cell: ({ getValue }) => {
+      const value = getValue<number | undefined>();
+      return value === undefined ? (
+        <EmptyCell />
+      ) : (
+        <div>{formatCurrency(value)}</div>
       );
     },
   });

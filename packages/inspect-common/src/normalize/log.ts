@@ -1,6 +1,15 @@
-import { isRecord } from "@tsmono/util";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
-import type { ConfigUpdate, EvalPlan, EvalResults, EvalSpec } from "../types";
+import type {
+  ConfigUpdate,
+  EvalMetric,
+  EvalPlan,
+  EvalResults,
+  EvalScore,
+  EvalSpec,
+} from "../types";
+
+import { normalizeViewerConfig } from "./viewer";
 
 /**
  * Normalize a raw EvalSpec: apply the same legacy migrations as pydantic's
@@ -44,6 +53,8 @@ export const normalizeEvalSpec = (raw: unknown): EvalSpec => {
   ]) {
     if (!isRecord(spec[field])) spec[field] = {};
   }
+  const viewer = spec["viewer"];
+  if (isRecord(viewer)) spec["viewer"] = normalizeViewerConfig(viewer);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return spec as unknown as EvalSpec;
 };
@@ -56,6 +67,58 @@ export const normalizeEvalPlan = (raw: unknown): EvalPlan => {
   if (!isRecord(plan["config"])) plan["config"] = {};
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return plan as unknown as EvalPlan;
+};
+
+const isEvalMetric = (value: unknown): value is EvalMetric =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["value"] === "number" &&
+  isRecord(value["params"]);
+
+// Metrics are keyed by name in the map, so a missing name fills from the key;
+// `params` postdates `options` (the 2024 shape) and defaults to {} upstream.
+const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
+  if (!isRecord(raw)) {
+    return {};
+  }
+  const metrics = new Map<string, EvalMetric>();
+  for (const [name, entry] of Object.entries(raw)) {
+    if (!isRecord(entry)) continue;
+    const filled = {
+      ...entry,
+      name: typeof entry["name"] === "string" ? entry["name"] : name,
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    if (isEvalMetric(filled)) metrics.set(name, filled);
+  }
+  return nullProtoRecord(metrics);
+};
+
+/**
+ * Normalize raw per-scorer results. Entries without a name drop (pydantic
+ * has no default); `scorer` predates multi-scorer logs and backfills from
+ * the name, as the v1 migration does; `metrics`/`params` default to {}.
+ */
+const normalizeEvalScores = (raw: unknown): EvalScore[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const entries = raw as unknown[];
+  const scores: EvalScore[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue;
+    const name = entry["name"];
+    if (typeof name !== "string") continue;
+    const filled: EvalScore = {
+      ...entry,
+      name,
+      scorer: typeof entry["scorer"] === "string" ? entry["scorer"] : name,
+      metrics: normalizeEvalMetrics(entry["metrics"]),
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    scores.push(filled);
+  }
+  return scores;
 };
 
 /**
@@ -71,7 +134,7 @@ export const normalizeEvalResults = (raw: unknown): EvalResults | null => {
     results["total_samples"] = 0;
   if (typeof results["completed_samples"] !== "number")
     results["completed_samples"] = 0;
-  if (!Array.isArray(results["scores"])) results["scores"] = [];
+  results["scores"] = normalizeEvalScores(results["scores"]);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return results as unknown as EvalResults;
 };
@@ -102,21 +165,27 @@ export const normalizeConfigUpdates = (raw: unknown): ConfigUpdate[] => {
       if (fixed["previous"] === undefined) fixed["previous"] = null;
       changes.push(fixed);
     }
-    const provenance: Record<string, unknown> = isRecord(entry["provenance"])
-      ? { ...entry["provenance"] }
-      : {};
-    if (typeof provenance["timestamp"] !== "string")
-      provenance["timestamp"] = "";
-    if (typeof provenance["author"] !== "string") provenance["author"] = "";
-    if (!isRecord(provenance["metadata"])) provenance["metadata"] = {};
     const update = {
       ...entry,
       changes,
-      provenance,
+      provenance: normalizeProvenance(
+        isRecord(entry["provenance"]) ? entry["provenance"] : {}
+      ),
       scope: entry["scope"] === "process" ? "process" : "task",
     };
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
     updates.push(update as unknown as ConfigUpdate);
   }
   return updates;
+};
+
+/** Fill the fields `ProvenanceData` requires (pydantic defaults `metadata`). */
+export const normalizeProvenance = (
+  raw: Record<string, unknown>
+): Record<string, unknown> => {
+  const provenance = { ...raw };
+  if (typeof provenance["timestamp"] !== "string") provenance["timestamp"] = "";
+  if (typeof provenance["author"] !== "string") provenance["author"] = "";
+  if (!isRecord(provenance["metadata"])) provenance["metadata"] = {};
+  return provenance;
 };

@@ -2,12 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   expectEvent,
+  testAssistantMessage,
+  testChatCompletionChoice,
   testInfoEvent,
+  testModelCall,
   testModelEvent,
   testModelOutput,
+  testToolEvent,
 } from "@tsmono/inspect-common/testing";
 
-import { EventData, SampleData, SampleDataResponse } from "../client/api/types";
+import {
+  ClientAPI,
+  EventData,
+  SampleData,
+  SampleDataResponse,
+} from "../client/api/types";
 
 import {
   createSampleStreamSession,
@@ -88,7 +97,9 @@ const chatMessage = (id: string, role: string, content: string) => ({
 
 const mockApi = {
   get_log_sample_data: vi.fn(),
-  log_message: vi.fn(),
+  log_message: vi.fn<NonNullable<ClientAPI["log_message"]>>(() =>
+    Promise.resolve()
+  ),
 };
 const api = testClientAPI(mockApi);
 
@@ -248,7 +259,7 @@ describe("createSampleStreamSession", () => {
     expect(cursorArgs(1)).toEqual([5, 2, 3, 4]);
   });
 
-  it("resolves attachment refs in events, including a post-pool-expansion pass", async () => {
+  it("resolves attachment refs in events and in expanded pool entries", async () => {
     mockApi.get_log_sample_data.mockResolvedValueOnce(
       okResponse({
         attachments: [
@@ -274,10 +285,106 @@ describe("createSampleStreamSession", () => {
 
     expect(expectEvent(events[0], "info").data).toBe("direct content");
     // The pooled message's attachment:// ref is only visible after ref
-    // expansion; the second resolution pass must have caught it.
+    // expansion.
     expect(expectEvent(events[1], "model").input[0]?.content).toBe(
       "pooled content"
     );
+  });
+
+  // inspect_ai stores text that begins with a ref prefix as an attachment of
+  // its own, so resolving once reads it back as written; resolving twice
+  // would turn it into the attachment it names.
+  it.each(["attachment://", "tc://"])(
+    "reads a literal %s string back as written, direct or pooled",
+    async (prefix) => {
+      const literal = `${prefix}sys`;
+      mockApi.get_log_sample_data.mockResolvedValueOnce(
+        okResponse({
+          attachments: [
+            attachment(1, "sys", "system prompt"),
+            attachment(2, "lit", literal),
+          ],
+          message_pool: [
+            messagePoolEntry(
+              1,
+              chatMessage("m1", "system", "attachment://sys")
+            ),
+            messagePoolEntry(
+              2,
+              chatMessage("m2", "assistant", "attachment://lit")
+            ),
+          ],
+          call_pool: [
+            callPoolEntry(1, { role: "system", content: "attachment://sys" }),
+            callPoolEntry(2, {
+              role: "assistant",
+              content: "attachment://lit",
+            }),
+          ],
+          events: [
+            eventData(
+              1,
+              "e1",
+              testModelEvent({
+                input: [],
+                input_refs: [[0, 2]],
+                output: testModelOutput({
+                  choices: [
+                    testChatCompletionChoice({
+                      message: testAssistantMessage({
+                        content: "attachment://lit",
+                      }),
+                    }),
+                  ],
+                }),
+                call: testModelCall({
+                  request: { system: "attachment://sys" },
+                  response: { text: "attachment://lit" },
+                  call_refs: [[0, 2]],
+                  call_key: "messages",
+                }),
+              })
+            ),
+          ],
+        })
+      );
+
+      const session = makeSession();
+      const { events } = await session.tick(false);
+      const model = expectEvent(events[0], "model");
+
+      expect(model.output.choices[0]?.message.content).toBe(literal);
+      expect(model.call?.response).toEqual({ text: literal });
+      expect(model.input.map((m) => m.content)).toEqual([
+        "system prompt",
+        literal,
+      ]);
+      expect(model.call?.request).toEqual({
+        system: "system prompt",
+        messages: [
+          { role: "system", content: "system prompt" },
+          { role: "assistant", content: literal },
+        ],
+      });
+    }
+  );
+
+  it("leaves tool result text as written", async () => {
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        attachments: [attachment(1, "sys", "system prompt")],
+        events: [
+          eventData(1, "e1", testToolEvent({ result: "attachment://sys" })),
+          eventData(2, "e2", testToolEvent({ result: "tc://sys" })),
+        ],
+      })
+    );
+
+    const session = makeSession();
+    const { events } = await session.tick(false);
+
+    expect(expectEvent(events[0], "tool").result).toBe("attachment://sys");
+    expect(expectEvent(events[1], "tool").result).toBe("tc://sys");
   });
 
   it("reports each missing attachment id once per session", async () => {
@@ -351,6 +458,28 @@ describe("createSampleStreamSession", () => {
     warn.mockRestore();
   });
 
+  it("logs a failed attachment-miss report instead of rejecting", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failure = new Error("server unreachable");
+    mockApi.log_message.mockRejectedValueOnce(failure);
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        events: [eventData(1, "e1", infoEvent("attachment://missing"))],
+      })
+    );
+
+    const session = makeSession();
+    await session.tick(false);
+
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        "Unable to report attachment miss",
+        failure
+      );
+    });
+    warn.mockRestore();
+  });
+
   it("does not let duplicate streamed pool rows shift refs", async () => {
     const inputSystem = chatMessage("input-system", "system", "Input system");
     const inputUser = chatMessage("input-user", "user", "Input user");
@@ -388,12 +517,12 @@ describe("createSampleStreamSession", () => {
               input_refs: [[0, 3]],
               model: "test",
               output: testModelOutput({ model: "test" }),
-              call: {
+              call: testModelCall({
                 request: { model: "test" },
                 response: null,
                 call_refs: [[0, 3]],
                 call_key: "messages",
-              },
+              }),
             })
           ),
         ],

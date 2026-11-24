@@ -1,16 +1,19 @@
 // @vitest-environment jsdom
-import { cleanup, render, within } from "@testing-library/react";
+import { cleanup, render as renderUi, within } from "@testing-library/react";
 import { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentNavigationProvider,
-} from "@tsmono/react/components";
+import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import { makeStateHooks, TrustedContentWrapper } from "@tsmono/react/testing";
 
+import { DisplayModeContext } from "./DisplayModeContext";
+import { MetaDataGrid } from "./MetaDataGrid";
 import { RenderedContent } from "./RenderedContent";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 afterEach(() => {
   cleanup();
@@ -21,11 +24,9 @@ afterEach(() => {
 const renderContent = (ui: ReactElement) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentIconProvider icons={testIcons}>
-        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          {ui}
-        </ComponentNavigationProvider>
-      </ComponentIconProvider>
+      <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+        {ui}
+      </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
 
@@ -152,5 +153,93 @@ describe("RenderedContent log-shaped objects", () => {
 
     expect(container.textContent).toContain("nested");
     expect(container.textContent).toContain("text");
+  });
+});
+
+describe("RenderedContent scalars and arrays", () => {
+  it.each([
+    ["a number", 1234.5, "1,234.5"],
+    ["a boolean", true, "true"],
+  ])(
+    "renders %s without rewriting the caller's entry",
+    (_label, value, text) => {
+      const entry = { name: "n", value };
+      const { container } = renderContent(
+        <RenderedContent
+          id="scalar"
+          entry={entry}
+          renderOptions={{ renderString: "pre" }}
+        />
+      );
+
+      expect(container.textContent).toBe(text);
+      expect(entry.value).toBe(value);
+    }
+  );
+
+  it("renders the items of an array that mixes value types", () => {
+    const { container } = renderContent(
+      <RenderedContent
+        id="mixed"
+        entry={{ name: "mixed", value: ["first", 42, { third: "three" }] }}
+      />
+    );
+
+    expect(container.textContent).toContain("first");
+    expect(container.textContent).toContain("42");
+    expect(container.textContent).toContain("three");
+  });
+
+  it("renders the items of a mixed-type array nested in a metadata grid", () => {
+    const { container } = renderContent(
+      <MetaDataGrid
+        id="grid"
+        entries={{ mixed: ["first", 42, { third: "three" }] }}
+      />
+    );
+
+    expect(container.textContent).toContain("first");
+    expect(container.textContent).toContain("42");
+    expect(container.textContent).not.toContain("undefined");
+  });
+
+  it("renders an all-null array nested in a metadata grid", () => {
+    const { container } = renderContent(
+      <MetaDataGrid id="grid" entries={{ empty: [null, null] }} />
+    );
+
+    expect(container.textContent).toContain("[1]");
+    expect(container.textContent).toContain("[null]");
+  });
+
+  it("falls back to a placeholder when a value can't be turned into text", () => {
+    const value = Object.assign(() => {}, {
+      toString: () => {
+        throw new Error("no text");
+      },
+    });
+    const { container } = renderContent(
+      <RenderedContent id="fn" entry={{ name: "fn", value }} />
+    );
+
+    expect(container.textContent).toBe("[Unable to display value]");
+  });
+});
+
+// Raw/Rendered is a display preference: it changes how prose renders, not
+// whether trusted data gets its specialized formatting.
+describe("RenderedContent in raw display mode", () => {
+  const renderRaw = (ui: ReactElement) =>
+    renderContent(
+      <DisplayModeContext.Provider value={{ displayMode: "raw" }}>
+        {ui}
+      </DisplayModeContext.Provider>
+    );
+
+  it("keeps the null marker for trusted content", () => {
+    const { container } = renderRaw(
+      <RenderedContent id="null" entry={{ name: "value", value: null }} />
+    );
+    expect(container.textContent).toBe("[null]");
   });
 });

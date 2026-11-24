@@ -6,11 +6,11 @@ import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { kSandboxSignalName } from "./transform/fixups";
-import { EventNode, EventPanelCallbacks, EventType } from "./types";
+import { EventNode, EventPanelCallbacks } from "./types";
 
 interface SpanEventViewProps {
   eventNode: EventNode<SpanBeginEvent | StepEvent>;
-  childNodes: EventNode<EventType>[];
+  childNodes: EventNode[];
   className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }

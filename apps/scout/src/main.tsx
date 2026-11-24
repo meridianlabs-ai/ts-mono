@@ -6,11 +6,16 @@ import { createRoot } from "react-dom/client";
 import { defaultRetry } from "@tsmono/react";
 import { getVscodeApi } from "@tsmono/util";
 
+import "./api/jsonParseWorker";
+
 import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";
 import { App } from "./App";
-import { getEmbeddedAppMessage } from "./app/hooks/useWindowMessaging";
+import {
+  applyHostDisplayState,
+  getEmbeddedAppMessage,
+} from "./app/hooks/useWindowMessaging";
 import { ApiProvider, createStore, StoreProvider } from "./state/store";
 
 declare global {
@@ -58,6 +63,10 @@ const selectApi = (): ScoutApiV2 => {
 // Create the API, store, and query client
 const api = selectApi();
 const store = createStore(api);
+const embedded = getEmbeddedAppMessage();
+if (embedded) {
+  applyHostDisplayState(embedded, store.getState());
+}
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: defaultRetry } },
 });

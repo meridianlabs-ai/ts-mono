@@ -2,11 +2,17 @@ import clsx from "clsx";
 import { FC, memo } from "react";
 import { useSearchParams } from "react-router";
 
-import { MarkdownReference } from "@tsmono/react/components";
+import { trustContentSetting } from "@tsmono/inspect-components/content";
+import {
+  ContentTrustProvider,
+  MarkdownReference,
+} from "@tsmono/react/components";
 import {
   Explanation,
   ValidationResult,
+  validationSearchText,
   Value,
+  valueSearchText,
 } from "@tsmono/scout-components/scanner-result-detail";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
@@ -14,7 +20,7 @@ import { scanResultRoute } from "../../../../router/url";
 import { useScanRoute } from "../../../../router/useScanRoute";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
-import { TaskName } from "../../../components/TaskName";
+import { TaskName, taskNameText } from "../../../components/TaskName";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
 
@@ -205,5 +211,56 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 };
 
+/** The text a result row renders, one string per block, so Find can count
+ *  matches in rows that aren't mounted. */
+export const scanResultSearchText = (
+  summary: ScanResultSummary,
+  gridDescriptor: GridDescriptor
+): string[] => {
+  const { columns } = gridDescriptor;
+  const texts: string[] = [];
+  if (columns.includes("result")) {
+    texts.push(summary.explanation ?? "");
+    const taskName = taskNameText({
+      taskSet: summary.transcriptTaskSet,
+      taskId: summary.transcriptTaskId,
+      taskRepeat: summary.transcriptTaskRepeat,
+    });
+    texts.push(`${taskName} — ${summary.transcriptModel || ""}`);
+  }
+  if (columns.includes("label")) {
+    texts.push(summary.label || "—");
+  }
+  if (!summary.scanError) {
+    texts.push(...valueSearchText(summary.value, summary.valueType));
+  }
+  if (
+    columns.includes("validations") &&
+    summary.validationResult !== undefined
+  ) {
+    texts.push(
+      ...validationSearchText(
+        summary.validationResult,
+        summary.validationTarget,
+        summary.label
+      )
+    );
+  }
+  if (columns.includes("error") && summary.scanError) {
+    texts.push(summary.scanErrorRefusal ? "Refusal" : summary.scanError);
+  }
+  return texts;
+};
+
+// A row's result derives from its transcript's model output, so it renders
+// with that transcript's trust; rows from different transcripts can differ.
+const ScannerResultsRowWithTrust: FC<ScannerResultsRowProps> = (props) => (
+  <ContentTrustProvider
+    value={trustContentSetting(props.summary.transcriptTrustContent)}
+  >
+    <ScannerResultsRowComponent {...props} />
+  </ContentTrustProvider>
+);
+
 // memoize the component to avoid unnecessary re-renders (esp of things which may involve markdown rendering)
-export const ScannerResultsRow = memo(ScannerResultsRowComponent);
+export const ScannerResultsRow = memo(ScannerResultsRowWithTrust);

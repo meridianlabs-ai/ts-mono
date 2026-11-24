@@ -36,11 +36,6 @@
    panel's bg. The inline-right toggle is a sibling of this wrapper, so it
    stays fully opaque. */
 .expandableTruncated {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 3rem),
-    transparent
-  );
   mask-image: linear-gradient(to bottom, black calc(100% - 3rem), transparent);
 }
 
@@ -58,9 +53,6 @@
   border-top: solid var(--bs-light-border-subtle) 1px;
 }
 
-/* Double class beats Bootstrap's `.btn` regardless of stylesheet order —
-   in scout, Bootstrap loads after this module and its 6px 12px padding
-   overflowed the fixed-height toggle bar. */
 .moreToggle .moreToggleButton {
   font-size: var(--inspect-font-size-smaller);
   border: none;
@@ -84,6 +76,11 @@
   z-index: 2;
 }
 
+/* Sticky tracks the *nearest scroll container*. Any ancestor between the
+   panel and the real scroller with `overflow` other than `visible`/`clip`
+   becomes that container and pins the toggle to the panel's bottom edge —
+   off screen for a panel taller than the viewport. Consumers that round a
+   frame's corners must use `overflow: clip`, not `hidden`. */
 .inlineToggleSticky {
   position: sticky;
   bottom: 0.25em;
@@ -97,4 +94,14 @@
   position: sticky;
   bottom: 0.25em;
   z-index: 2;
+}
+
+/* Inside a collapsed panel, nested inline toggles stay at their own corners.
+   The collapsed wrapper's `overflow: hidden` makes it their scroll container,
+   so a sticky nested toggle would pin to the clipped edge, on top of this
+   panel's own toggle; static, a clipped-away toggle stays out of sight.
+   Block-left toggles stay sticky: they sit on the other side.
+   `static` (not `relative`) so the stacking `bottom` doesn't shift it. */
+.collapsedContent .inlineToggleSticky {
+  position: static;
 }

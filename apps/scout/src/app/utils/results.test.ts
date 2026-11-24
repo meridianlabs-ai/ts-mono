@@ -1,27 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import { createScanResultSummary } from "../../test/objectFactories";
 import { ScanResultSummary } from "../types";
 
 import { sortByColumns, sortValue, stringifyValue } from "./results";
 
-const baseSummary: ScanResultSummary = {
-  identifier: "test-1",
-  inputType: "transcript",
-  eventReferences: [],
-  messageReferences: [],
-  validationResult: false,
-  validationTarget: null,
-  value: null,
-  valueType: "null",
-  transcriptSourceId: "src-1",
-  transcriptMetadata: {},
-};
-
 /** Create a ScanResultSummary with only the fields under test overridden. */
-const make = (overrides: Partial<ScanResultSummary>): ScanResultSummary => ({
-  ...baseSummary,
-  ...overrides,
-});
+const make = (overrides: Partial<ScanResultSummary>): ScanResultSummary =>
+  createScanResultSummary({
+    identifier: "test-1",
+    inputType: "transcript",
+    validationResult: false,
+    transcriptSourceId: "src-1",
+    ...overrides,
+  });
 
 describe("stringifyValue", () => {
   it.each<{ name: string; summary: ScanResultSummary; expected: string }>([

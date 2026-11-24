@@ -5,7 +5,6 @@ import {
   Fragment,
   MouseEvent as ReactMouseEvent,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -18,6 +17,8 @@ import {
   type ConnectionLaneData,
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
+import { ErrorPanel } from "@tsmono/react/components";
+import { useUnmount } from "@tsmono/react/hooks";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
@@ -25,6 +26,8 @@ import { kScoreTypeOther } from "../../../../constants";
 import { EvalDescriptor } from "../../../samples/descriptor/types";
 import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay";
 
+import { OpenSampleLink, type SampleOpener } from "./OpenSampleLink";
+import { timelineAxisTicks, timelineWindowError } from "./timelineAxis";
 import styles from "./TimelineChart.module.css";
 import {
   dotLadderStep,
@@ -170,14 +173,19 @@ export interface TimelineChartProps {
   evalDescriptor?: EvalDescriptor | null;
   /** Amber cross-reference for a hovered limit-terminated dot, if any. */
   limitCrossReference?: (sample: SampleSummary) => string | undefined;
-  onOpenSample?: (
-    id: string | number,
-    epoch: number,
-    event: ReactMouseEvent
-  ) => void;
+  sampleOpener?: SampleOpener;
 }
 
-export const TimelineChart: FC<TimelineChartProps> = ({
+export const TimelineChart: FC<TimelineChartProps> = (props) => {
+  const error = timelineWindowError(props.window);
+  return error ? (
+    <ErrorPanel title="Unable to display timeline" error={{ message: error }} />
+  ) : (
+    <TimelineChartBody {...props} />
+  );
+};
+
+const TimelineChartBody: FC<TimelineChartProps> = ({
   window: timeWindow,
   running = false,
   showActiveSamples,
@@ -195,7 +203,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   onHoverMarker,
   evalDescriptor,
   limitCrossReference,
-  onOpenSample,
+  sampleOpener,
 }) => {
   const [width, setWidth] = useState(0);
   // Callback ref, not useResizeObserver — the chart renders null until
@@ -244,15 +252,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     }
     popoverCloseTimer.current = window.setTimeout(() => setPopover(null), 250);
   };
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(
-    () => () => {
-      if (popoverCloseTimer.current !== null) {
-        window.clearTimeout(popoverCloseTimer.current);
-      }
-    },
-    []
-  );
+  useUnmount(() => {
+    if (popoverCloseTimer.current !== null) {
+      window.clearTimeout(popoverCloseTimer.current);
+    }
+  });
 
   const postRunCount = markers.filter((m) => m.postRun).length;
   const hasPostRun = postRunCount > 0;
@@ -735,22 +739,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       },
       { x: plotRight, label: fmtTime(timeWindow.end), anchor: "end" },
     ];
-    const intervals = [
-      15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400,
-    ];
-    const plotSpan = plotRight - plotLeft;
-    const interval = intervals.find((i) => (i / span) * plotSpan >= 80);
-    if (interval) {
-      const fmt = interval < 60 ? fmtTimeSec : fmtTime;
-      for (
-        let t = Math.ceil(timeWindow.start / interval) * interval;
-        t < timeWindow.end;
-        t += interval
-      ) {
-        const px = x(t);
-        if (px < plotLeft + 110 || px > plotRight - 60) continue;
-        ticks.push({ x: px, label: fmt(t), anchor: "middle" });
-      }
+    for (const tick of timelineAxisTicks(timeWindow, plotRight - plotLeft)) {
+      const px = x(tick.time);
+      if (px < plotLeft + 110 || px > plotRight - 60) continue;
+      const fmt = tick.showSeconds ? fmtTimeSec : fmtTime;
+      ticks.push({ x: px, label: fmt(tick.time), anchor: "middle" });
     }
     return (
       <g key="axis">
@@ -1063,7 +1056,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             : "Config change"
           : `${configMembers.length} config change` +
             `${configMembers.length === 1 ? "" : "s"} · ${logCount} edit` +
-            `${logCount === 1 ? "" : "s"}`;
+            (logCount === 1 ? "" : "s");
     const left = Math.min(
       Math.max(markerHover.x - 24, 0),
       Math.max(width - 300, 0)
@@ -1230,7 +1223,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         crossReference={limitCrossReference?.(popover.sample)}
         onHold={hold}
         onRelease={scheduleClosePopover}
-        onOpenSample={onOpenSample}
+        sampleOpener={sampleOpener}
       />
     );
   };
@@ -1314,11 +1307,7 @@ interface PopoverBaseProps {
   /** Keeps the popover open while the pointer is inside it. */
   onHold: () => void;
   onRelease: () => void;
-  onOpenSample?: (
-    id: string | number,
-    epoch: number,
-    event: ReactMouseEvent
-  ) => void;
+  sampleOpener?: SampleOpener;
 }
 
 interface SamplePopoverProps extends PopoverBaseProps {
@@ -1337,7 +1326,7 @@ const SamplePopover: FC<SamplePopoverProps> = ({
   top,
   onHold,
   onRelease,
-  onOpenSample,
+  sampleOpener,
 }) => {
   const preview = inputString(sample.input).join(" ");
   const tokens = sampleTokens(sample);
@@ -1432,14 +1421,14 @@ const SamplePopover: FC<SamplePopoverProps> = ({
         {crossReference && (
           <div className={styles.popoverCallout}>{crossReference}</div>
         )}
-        {onOpenSample && (
-          <button
-            type="button"
+        {sampleOpener && (
+          <OpenSampleLink
+            opener={sampleOpener}
+            sample={sample}
             className={styles.popoverOpen}
-            onClick={(event) => onOpenSample(sample.id, sample.epoch, event)}
           >
             Open sample →
-          </button>
+          </OpenSampleLink>
         )}
       </div>
     </div>

@@ -98,7 +98,7 @@ export const inMemoryMessageRows = (
         nextCursor: hi < all.length && hi > lo ? { offset: hi } : null,
       });
     },
-    // eslint-disable-next-line @typescript-eslint/require-await
+    // eslint-disable-next-line @typescript-eslint/require-await -- exportText's contract is AsyncIterable; this in-memory source has nothing to await
     exportText: async function* () {
       yield messagesToStr(messages);
     },

@@ -1,57 +1,105 @@
 import clsx from "clsx";
-import { diff } from "jsondiffpatch";
-import { format } from "jsondiffpatch/formatters/html";
 import { FC } from "react";
 
-import { sanitizeRenderedHtml } from "@tsmono/react/components";
-import { isRecord } from "@tsmono/util";
+import type { JsonChange } from "@tsmono/inspect-common/types";
+
+import { DiffChild, DiffEntry, diffFromChanges } from "./changeDiff";
 
 interface StateDiffViewProps {
-  before: object;
-  after: object;
+  changes: JsonChange[];
   className?: string;
 }
 
 /**
- * Renders a view displaying a list of state changes.
+ * Renders a view displaying a list of state changes. The diff is built here,
+ * not by the event row, so it's only computed while this tab is shown.
  */
 export const StateDiffView: FC<StateDiffViewProps> = ({
-  before,
-  after,
+  changes,
   className,
 }) => {
-  // Diff the objects and render the diff
-  const state_diff = diff(sanitizeKeys(before), sanitizeKeys(after));
-
-  const html_result = format(state_diff) || "Unable to render differences";
+  const diff = diffFromChanges(changes);
   return (
-    <div
-      dangerouslySetInnerHTML={{
-        // The formatter's output is a string, so unescaping is a string op —
-        // the old recursive walk here only ever saw this one call.
-        __html: sanitizeRenderedHtml(html_result.replace(/\\n/g, "\n")),
-      }}
-      className={clsx(className)}
-    ></div>
+    <div className={clsx(className)}>
+      {diff?.kind === "node" ? (
+        <div className="jsondiffpatch-delta jsondiffpatch-node jsondiffpatch-child-node-type-object">
+          <DiffChildren entry={diff} />
+        </div>
+      ) : (
+        "Unable to render differences"
+      )}
+    </div>
   );
 };
 
-/**
- * Escapes angle brackets in object keys so jsondiffpatch's HTML formatter
- * renders them as text. Typed unknown -> unknown: it rebuilds the value rather
- * than preserving its type, which is what the old `<T>(obj: T): T` claimed.
- */
-function sanitizeKeys(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item: unknown) => sanitizeKeys(item));
+// Markup and class names follow jsondiffpatch's HTML formatter, which the
+// theme's `.jsondiffpatch-*` styles (brackets, strike-through) are written for.
+const DiffChildren: FC<{
+  entry: Extract<DiffEntry, { kind: "node" }>;
+}> = ({ entry }) => (
+  <ul
+    className={clsx(
+      "jsondiffpatch-node",
+      entry.isArray
+        ? "jsondiffpatch-node-type-array"
+        : "jsondiffpatch-node-type-object"
+    )}
+  >
+    {entry.children.map((child) => (
+      <DiffRow key={child.id} child={child} />
+    ))}
+  </ul>
+);
+
+const DiffRow: FC<{ child: DiffChild }> = ({ child }) => {
+  const { entry, key } = child;
+  const label = <div className="jsondiffpatch-property-name">{key}</div>;
+  switch (entry.kind) {
+    case "node":
+      return (
+        <li
+          className={clsx(
+            "jsondiffpatch-node",
+            entry.isArray
+              ? "jsondiffpatch-child-node-type-array"
+              : "jsondiffpatch-child-node-type-object"
+          )}
+          data-key={key}
+        >
+          {label}
+          <DiffChildren entry={entry} />
+        </li>
+      );
+    case "added":
+    case "deleted":
+      return (
+        <li className={`jsondiffpatch-${entry.kind}`} data-key={key}>
+          {label}
+          <div className="jsondiffpatch-value">
+            <DiffValue value={entry.value} />
+          </div>
+        </li>
+      );
+    case "modified":
+      return (
+        <li className="jsondiffpatch-modified" data-key={key}>
+          {label}
+          <div className="jsondiffpatch-value jsondiffpatch-left-value">
+            <DiffValue value={entry.left} />
+          </div>
+          <div className="jsondiffpatch-value jsondiffpatch-right-value">
+            <DiffValue value={entry.right} />
+          </div>
+        </li>
+      );
   }
-  if (!isRecord(value)) {
-    return value;
-  }
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [
-      key.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-      sanitizeKeys(entry),
-    ])
-  );
-}
+};
+
+// Escaped newlines inside JSON strings are shown as line breaks.
+const DiffValue: FC<{ value: unknown }> = ({ value }) => (
+  <pre>
+    {value === undefined
+      ? "undefined"
+      : JSON.stringify(value, null, 2).replace(/\\n/g, "\n")}
+  </pre>
+);

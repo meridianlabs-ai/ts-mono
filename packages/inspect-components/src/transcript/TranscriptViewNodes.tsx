@@ -19,17 +19,19 @@ import { StickyScrollProvider } from "@tsmono/react/components";
 import { useLatestRef, useProperty, useScrollTrack } from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
+import type { RowSelection } from "../selection/rowSelection";
+import { useListRowSelection } from "../selection/useListRowSelection";
+
 import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
-import {
-  isSelectableEvent,
-  toggleTranscriptSelection,
-  type TranscriptRowSelectionProps,
-  type TranscriptSelection,
-} from "./selection/transcriptSelection";
+import { isSelectableEvent } from "./selection/transcriptSelection";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { findCollapsedAncestors, flatTree } from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
+import {
+  pairToolSentinels,
+  treeRecordsExecutionIds,
+} from "./transform/toolSentinels";
 import {
   anchorIndexForEvent,
   anchorIndexForTurn,
@@ -102,16 +104,25 @@ export interface TranscriptViewNodesProps {
   /** Disable turn/agent keyboard nav while find-in-page owns the keyboard. */
   keyboardNavDisabled?: boolean;
   /** Host-owned evidence selection; present only while selection mode is on. */
-  selection?: TranscriptSelection;
+  selection?: RowSelection;
 }
 
 export interface TranscriptViewNodesHandle {
-  /** Scroll to an event by its ID. Expands collapsed ancestors first if needed. */
-  scrollToEvent: (eventId: string) => void;
+  /** Scroll to an event by its ID. Expands collapsed ancestors first if
+   *  needed. Returns a cancel that stops the scroll if it's still settling.
+   *  `onDone` fires once the scroll ends (landed, or the event couldn't be
+   *  found); `onAbandon` instead if another scroll takes over first. */
+  scrollToEvent: (
+    eventId: string,
+    callbacks?: { onDone?: () => void; onAbandon?: () => void }
+  ) => () => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
-  /** Read-only accessor for the virtual list's currently-rendered visible range. */
-  getVisibleRange: () => { startIndex: number; endIndex: number };
+  /** The element holding the rendered event rows, null until mounted. */
+  getElement: () => HTMLElement | null;
+  /** The event whose row renders this event: itself, or the tool event an
+   *  approval or sentinel is shown inside. */
+  rowEventId: (eventId: string) => string;
 }
 
 // =============================================================================
@@ -122,6 +133,45 @@ const escapeAttr = (id: string): string =>
   typeof CSS !== "undefined" && typeof CSS.escape === "function"
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
+
+// One hop can land on another hidden event: an approver's or monitor's own
+// call pairs its approval with a tool that the enclosing sentinel span hides,
+// and a nested monitor's step with a host the outer span hides. Follow the
+// redirects until an event has none (the first map wins at each hop); the
+// seen set guards against a cycle.
+const followRedirects = (
+  eventId: string,
+  redirects: readonly ReadonlyMap<string, string>[]
+): string => {
+  const seen = new Set<string>();
+  let id = eventId;
+  while (!seen.has(id)) {
+    seen.add(id);
+    const next = redirects.find((m) => m.has(id))?.get(id);
+    if (next === undefined) return id;
+    id = next;
+  }
+  return id;
+};
+
+// Module-level so the self-scheduling closure isn't inside a useCallback,
+// where the React Compiler reads the recursion as a missing dependency.
+const retryEachFrame = (retry: {
+  attempts: number;
+  find: () => number;
+  onFound: (index: number) => void;
+  onGiveUp: () => void;
+  isCancelled: () => boolean;
+}): void => {
+  requestAnimationFrame(() => {
+    if (retry.isCancelled()) return;
+    const index = retry.find();
+    if (index !== -1) retry.onFound(index);
+    else if (retry.attempts > 0)
+      retryEachFrame({ ...retry, attempts: retry.attempts - 1 });
+    else retry.onGiveUp();
+  });
+};
 
 // =============================================================================
 // Component
@@ -191,18 +241,40 @@ export const TranscriptViewNodes = forwardRef<
     [collapsedTranscript, defaultCollapsedIds]
   );
 
+  // Decided once per sample (`useEventNodes`), so a lane pairs as the whole
+  // sample does; the nodes decide only for callers that render no sample.
+  const recordsExecutions =
+    eventNodeContext?.recordsExecutionIds ??
+    treeRecordsExecutionIds(eventNodes);
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
   const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
-    () => pairToolApprovals(eventNodes),
-    [eventNodes]
+    () => pairToolApprovals(eventNodes, recordsExecutions),
+    [eventNodes, recordsExecutions]
+  );
+  const {
+    toolSentinels,
+    standaloneSentinels,
+    hiddenSentinelIds,
+    sentinelScrollRedirects,
+  } = useMemo(
+    () => pairToolSentinels(eventNodes, recordsExecutions),
+    [eventNodes, recordsExecutions]
   );
 
-  // Hidden approvals have no row of their own — retarget deep links at the
-  // tool row that renders them inline.
+  // Hidden approvals and sentinel events have no row of their own — retarget
+  // navigation at the row that renders them inline.
+  const redirectEventId = useCallback(
+    (eventId: string) =>
+      followRedirects(eventId, [
+        approvalScrollRedirects,
+        sentinelScrollRedirects,
+      ]),
+    [approvalScrollRedirects, sentinelScrollRedirects]
+  );
   const scrollEventId = initialEventId
-    ? (approvalScrollRedirects.get(initialEventId) ?? initialEventId)
+    ? redirectEventId(initialEventId)
     : initialEventId;
 
   const flattenedNodes = useMemo(() => {
@@ -210,40 +282,39 @@ export const TranscriptViewNodes = forwardRef<
       eventNodes,
       collapsedTranscript || defaultCollapsedIds
     );
-    return hiddenApprovalIds.size === 0
+    return hiddenApprovalIds.size === 0 && hiddenSentinelIds.size === 0
       ? all
-      : all.filter((n) => !hiddenApprovalIds.has(n.id));
-  }, [eventNodes, collapsedTranscript, defaultCollapsedIds, hiddenApprovalIds]);
+      : all.filter(
+          (n) => !hiddenApprovalIds.has(n.id) && !hiddenSentinelIds.has(n.id)
+        );
+  }, [
+    eventNodes,
+    collapsedTranscript,
+    defaultCollapsedIds,
+    hiddenApprovalIds,
+    hiddenSentinelIds,
+  ]);
 
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
-    () => ({ ...eventNodeContext, toolApprovals }),
-    [eventNodeContext, toolApprovals]
+    () => ({
+      ...eventNodeContext,
+      recordsExecutionIds: recordsExecutions,
+      toolApprovals,
+      toolSentinels,
+      standaloneSentinels,
+    }),
+    [
+      eventNodeContext,
+      recordsExecutions,
+      toolApprovals,
+      toolSentinels,
+      standaloneSentinels,
+    ]
   );
 
-  // Bails out of React Compiler (checked with SWC): the row toggle keeps a
-  // stable identity by hand, reading live state through a ref.
-  const selectionLatest = useLatestRef({ selection, flattenedNodes });
-  const onToggleSelected = useCallback(
-    (eventId: string, extend: boolean) => {
-      const { selection: current, flattenedNodes: rows } =
-        selectionLatest.current;
-      if (!current) return;
-      // Ranges span the VISIBLE rows, as the user sees them.
-      const visibleIds = rows
-        .filter((n) => isSelectableEvent(n.event))
-        .map((n) => n.id);
-      current.onChange(
-        toggleTranscriptSelection(current, visibleIds, eventId, extend)
-      );
-    },
-    [selectionLatest]
-  );
-  const rowSelection = useMemo<TranscriptRowSelectionProps | undefined>(
-    () =>
-      selection
-        ? { selectedIds: selection.selectedIds, onToggle: onToggleSelected }
-        : undefined,
-    [selection, onToggleSelected]
+  // Ranges span the VISIBLE rows, as the user sees them.
+  const rowSelection = useListRowSelection(selection, () =>
+    flattenedNodes.filter((n) => isSelectableEvent(n.event)).map((n) => n.id)
   );
 
   // Turn map + anchors from the shared helper (collapse-independent
@@ -261,45 +332,35 @@ export const TranscriptViewNodes = forwardRef<
     };
   }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
 
-  const flattenedNodesLatest = useRef<EventNode[]>(flattenedNodes);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    flattenedNodesLatest.current = flattenedNodes;
-  }, [flattenedNodes]);
+  const flattenedNodesRef = useLatestRef<EventNode[]>(flattenedNodes);
 
   // Latest turn lookup for scrollRowToTop's stamp: an expansion retry lands
   // after the turn map is recomputed, so closed-over values may be stale.
-  const turnLookupLatest = useRef({ turnAnchorIds, computedTurnMap });
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    turnLookupLatest.current = { turnAnchorIds, computedTurnMap };
-  }, [turnAnchorIds, computedTurnMap]);
+  const turnLookupRef = useLatestRef({ turnAnchorIds, computedTurnMap });
 
   // The turn at the top of the viewport (tracked by useScrollTrack below);
   // seeded from the deep-link target so a keypress can't race the tracker's
   // first report (e.g. the "double f" right after a route transition).
   // Lazily seeded: a useRef initializer expression would re-run the
   // O(#turns) scan on every render just to be discarded.
-  const turnIndexSeededRef = useRef(false);
-  const currentTurnIndexRef = useRef(-1);
-  if (!turnIndexSeededRef.current) {
-    turnIndexSeededRef.current = true;
-    currentTurnIndexRef.current = anchorIndexForEvent(
-      turnAnchorIds,
-      computedTurnMap,
-      scrollEventId
-    );
-  }
+  const [seedTurnIndex] = useState(() =>
+    anchorIndexForEvent(turnAnchorIds, computedTurnMap, scrollEventId)
+  );
+  const currentTurnIndexRef = useRef(seedTurnIndex);
 
   // The one scroll primitive for every programmatic row scroll — and the
   // single choke point stamping the current turn, so a j/k/f fired before
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
-    (index: number, onDone?: () => void) => {
+    (
+      index: number,
+      onDone?: () => void,
+      onAbandon?: () => void
+    ): (() => void) => {
       onProgrammaticScroll?.(true);
-      const rowId = flattenedNodesLatest.current[index]?.id;
+      const rowId = flattenedNodesRef.current[index]?.id;
       if (rowId !== undefined) {
-        const lookup = turnLookupLatest.current;
+        const lookup = turnLookupRef.current;
         currentTurnIndexRef.current = anchorIndexForEvent(
           lookup.turnAnchorIds,
           lookup.computedTurnMap,
@@ -309,40 +370,43 @@ export const TranscriptViewNodes = forwardRef<
       const handle = listHandle.current;
       if (!handle) {
         onDone?.();
-        return;
+        return () => {};
       }
-      handle.scrollToIndex({
+      return handle.scrollToIndex({
         index,
         align: "start",
         behavior: "auto",
         onDone,
+        onAbandon,
       });
     },
-    [onProgrammaticScroll]
+    [onProgrammaticScroll, flattenedNodesRef, turnLookupRef]
   );
 
   const scrollToEvent = useCallback(
-    (eventId: string) => {
+    (
+      targetId: string,
+      callbacks?: { onDone?: () => void; onAbandon?: () => void }
+    ): (() => void) => {
+      const eventId = redirectEventId(targetId);
       // Imperative jumps are navigation too: collapse the chrome even when
       // the URL doesn't change (re-click) and the deep-link effect won't run.
       onHeadroomSetHidden?.(true);
-      const tryScroll = (idx: number) => {
+      const tryScroll = (idx: number): (() => void) => {
         if (listHandle.current) {
-          scrollRowToTop(idx);
-        } else {
-          onProgrammaticScroll?.(true);
-          const el = scrollRef?.current?.querySelector(
-            `[id="${escapeAttr(eventId)}"]`
-          );
-          el?.scrollIntoView({ block: "start", behavior: "auto" });
+          return scrollRowToTop(idx, callbacks?.onDone, callbacks?.onAbandon);
         }
+        onProgrammaticScroll?.(true);
+        const el = scrollRef?.current?.querySelector(
+          `[id="${escapeAttr(eventId)}"]`
+        );
+        el?.scrollIntoView({ block: "start", behavior: "auto" });
+        callbacks?.onDone?.();
+        return () => {};
       };
 
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
-      if (idx !== -1) {
-        tryScroll(idx);
-        return;
-      }
+      if (idx !== -1) return tryScroll(idx);
 
       // Hidden in a collapsed region: expand ancestors in ONE batched update
       // (sequential toggles clobber each other while the store is unseeded),
@@ -356,20 +420,30 @@ export const TranscriptViewNodes = forwardRef<
         onExpandNodes(collapsedAncestors);
         // After the next render, the flat list will include the event.
         // Retry up to 3 frames in case React batching pushes the commit later.
-        const retryScroll = (attemptsLeft: number) => {
-          const newIdx = flattenedNodesLatest.current.findIndex(
-            (e) => e.id === eventId
-          );
-          if (newIdx !== -1) {
-            tryScroll(newIdx);
-            return;
-          }
-          if (attemptsLeft > 0) {
-            requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
-          }
+        let cancelled = false;
+        // Once a scroll starts (or the retries give up), it reports itself.
+        let started = false;
+        let cancelScroll = () => {};
+        retryEachFrame({
+          attempts: 3,
+          find: () =>
+            flattenedNodesRef.current.findIndex((e) => e.id === eventId),
+          onFound: (newIdx) => {
+            started = true;
+            cancelScroll = tryScroll(newIdx);
+          },
+          onGiveUp: () => {
+            started = true;
+            callbacks?.onDone?.();
+          },
+          isCancelled: () => cancelled,
+        });
+        return () => {
+          if (cancelled) return;
+          cancelled = true;
+          cancelScroll();
+          if (!started) callbacks?.onAbandon?.();
         };
-        requestAnimationFrame(() => retryScroll(3));
-        return;
       }
 
       // Fall back to direct DOM scroll.
@@ -378,8 +452,11 @@ export const TranscriptViewNodes = forwardRef<
         `[id="${escapeAttr(eventId)}"]`
       );
       el?.scrollIntoView({ block: "start", behavior: "auto" });
+      callbacks?.onDone?.();
+      return () => {};
     },
     [
+      redirectEventId,
       flattenedNodes,
       eventNodes,
       collapsedTranscript,
@@ -389,22 +466,21 @@ export const TranscriptViewNodes = forwardRef<
       scrollRef,
       onProgrammaticScroll,
       onHeadroomSetHidden,
+      flattenedNodesRef,
     ]
   );
 
-  const visibleRangeRef = useRef<{ startIndex: number; endIndex: number }>({
-    startIndex: 0,
-    endIndex: 0,
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(
     ref,
     () => ({
       scrollToEvent,
-      getFlattenedNodes: () => flattenedNodesLatest.current,
-      getVisibleRange: () => visibleRangeRef.current,
+      getFlattenedNodes: () => flattenedNodesRef.current,
+      getElement: () => rootRef.current,
+      rowEventId: redirectEventId,
     }),
-    [scrollToEvent]
+    [scrollToEvent, flattenedNodesRef, redirectEventId]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a
@@ -532,7 +608,7 @@ export const TranscriptViewNodes = forwardRef<
         return;
       }
       const clamped = Math.max(0, Math.min(turnAnchorIds.length - 1, index));
-      const flatIdx = flattenedNodesLatest.current.findIndex(
+      const flatIdx = flattenedNodesRef.current.findIndex(
         (n) => n.id === turnAnchorIds[clamped]
       );
       if (flatIdx === -1) {
@@ -551,7 +627,13 @@ export const TranscriptViewNodes = forwardRef<
         onNavigatedToEvent(anchorId);
       }
     },
-    [turnAnchorIds, scrollRowToTop, onNavigatedToEvent, onHeadroomSetHidden]
+    [
+      turnAnchorIds,
+      scrollRowToTop,
+      onNavigatedToEvent,
+      onHeadroomSetHidden,
+      flattenedNodesRef,
+    ]
   );
 
   // `k` past turn 1: return to the very top of the transcript (the pre-turn
@@ -645,12 +727,12 @@ export const TranscriptViewNodes = forwardRef<
   // chrome via the same primitive j/k use, so the new tab starts from its top.
   const onTabSelected = useCallback(
     (eventNodeId: string) => {
-      const idx = flattenedNodesLatest.current.findIndex(
+      const idx = flattenedNodesRef.current.findIndex(
         (n) => n.id === eventNodeId
       );
       if (idx !== -1) scrollRowToTop(idx);
     },
-    [scrollRowToTop]
+    [scrollRowToTop, flattenedNodesRef]
   );
 
   // Last-known selected tab per anchor panel, reported by EventPanel, so the
@@ -857,7 +939,7 @@ export const TranscriptViewNodes = forwardRef<
 
   return (
     <StickyScrollProvider value={stickyScroll}>
-      <div>
+      <div ref={rootRef}>
         {turnAnchorIds.length > 0 && (
           <GoToTurnBar
             ref={goToTurnBarRef}
@@ -884,7 +966,6 @@ export const TranscriptViewNodes = forwardRef<
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
           selection={rowSelection}
-          visibleRangeRef={visibleRangeRef}
         />
       </div>
     </StickyScrollProvider>

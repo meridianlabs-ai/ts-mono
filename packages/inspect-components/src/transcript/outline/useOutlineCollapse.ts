@@ -8,7 +8,9 @@
  * first mount so individual toggles preserve the other rows' default state.
  */
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
+
+import { useMirrorToStore } from "@tsmono/react/hooks";
 
 import { type TranscriptCollapseState } from "../types";
 
@@ -50,13 +52,14 @@ export function useOutlineCollapse(
   const collapsedEvents = collapse?.collapsed;
   const onSetCollapsed = collapse?.onSetCollapsed;
 
-  // Initialize collapsed events from defaults
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!collapsedEvents && Object.keys(defaultCollapsedIds).length > 0) {
-      onSetCollapsed?.(defaultCollapsedIds);
-    }
-  }, [defaultCollapsedIds, collapsedEvents, onSetCollapsed]);
+  useMirrorToStore(
+    onSetCollapsed &&
+      !collapsedEvents &&
+      Object.keys(defaultCollapsedIds).length > 0
+      ? defaultCollapsedIds
+      : undefined,
+    (ids) => onSetCollapsed?.(ids)
+  );
 
   const getCollapsed = useMemo(
     () =>

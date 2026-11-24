@@ -23,7 +23,8 @@ interface ArrowStepperOptions {
  * Shift/Alt) — Alt+Arrow is the browser's Back/Forward, and the other chords
  * belong to the browser/OS. A direction only fires (and only then calls
  * `preventDefault`) when it is available and its callback is wired; otherwise
- * the key falls through to the browser untouched.
+ * the key falls through to the browser untouched. It also stands down while
+ * a modal `<dialog>` is open: the page behind it is inert.
  *
  * This is the keyboard binding only — Enter/Space activation of focused
  * controls and all rendering stay with the consumer.
@@ -39,6 +40,7 @@ export function useArrowStepper({
       // Leave modified arrows to the browser (Alt+← is Back, Ctrl/Meta/Shift)
       // and stand down while the user is typing.
       if (
+        document.querySelector("dialog[open]") ||
         isEditableTarget(deepActiveElement()) ||
         e.metaKey ||
         e.ctrlKey ||

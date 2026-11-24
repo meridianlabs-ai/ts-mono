@@ -1,5 +1,7 @@
 import clsx from "clsx";
 
+import type { ExtendedColumnDef } from "@tsmono/inspect-components/dataGrid";
+import { Icon } from "@tsmono/react/icons";
 import {
   formatNumber,
   formatPrettyDecimal,
@@ -9,11 +11,10 @@ import {
   valueAsString,
 } from "@tsmono/util";
 
-import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
+import { cellTitle } from "../components/cellTitle";
 import type { AvailableColumn } from "../components/columnFilter";
-import type { ExtendedColumnDef } from "../components/columnTypes";
 
 import styles from "./columns.module.css";
 
@@ -42,8 +43,10 @@ export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   total_tokens: "Total Tokens",
   total_time: "Total Time",
   message_count: "Messages",
+  messages_from: "Messages From",
   limit: "Limit",
   error: "Error",
+  trust_content: "Trust Content",
 };
 
 // Column header tooltips (matches headerTitle in column definitions)
@@ -72,42 +75,15 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   total_tokens: "Tokens spent in execution of task.",
   total_time: "Time required to execute task (seconds).",
   message_count: "Total messages in conversation.",
+  messages_from: "Model events whose conversation the messages are.",
   limit:
     'Limit that caused the task to exit (e.g. "tokens", "messages", etc.).',
   error: "Error message that terminated the task.",
+  trust_content:
+    "Whether model output may be rendered richly (false shows it as plain text).",
 };
 
-export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo> & {
-  meta?: {
-    align?: "left" | "center" | "right";
-    filterable?: boolean;
-    filterType?: FilterType;
-  };
-  /** Returns string for tooltip display */
-  titleValue?: (value: unknown) => string;
-  /** Returns string representation for column width measurement. Return null to skip content measurement. */
-  textValue?: (value: unknown) => string | null;
-  /** Minimum column width in pixels */
-  minSize?: number;
-  /** Maximum column width in pixels */
-  maxSize?: number;
-  /** Tooltip text for the column header */
-  headerTitle?: string;
-};
-
-/**
- * TanStack hands cell values to a column's callbacks as `unknown`: the value
- * for a column keyed `accessorKey` is that field of the row, but the table
- * types have no way to say so. This is the one place a field-typed callback
- * is adapted to the grid's untyped one.
- */
-function forCellValue<K extends keyof TranscriptInfo, R>(
-  fn: (value: TranscriptInfo[K]) => R
-): (value: unknown) => R {
-  return (value) =>
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- cell value boundary: see above
-    fn(value as TranscriptInfo[K]);
-}
+export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo>;
 
 // Helper to create strongly-typed columns
 function createColumn<K extends keyof TranscriptInfo>(config: {
@@ -124,34 +100,25 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
   };
   cell?: (value: TranscriptInfo[K]) => React.ReactNode;
   titleValue?: (value: TranscriptInfo[K]) => string;
-  textValue?: (value: TranscriptInfo[K]) => string | null;
 }): TranscriptColumn {
-  // Default textValue: convert to string
-  const defaultTextValue = (value: unknown): string => {
-    if (value === undefined || value === null) {
-      return "-";
-    }
-    return valueAsString(value);
-  };
-
+  const valueOf = (row: TranscriptInfo): TranscriptInfo[K] =>
+    row[config.accessorKey];
   return {
-    accessorKey: config.accessorKey as string,
+    id: config.accessorKey,
+    accessorFn: valueOf,
     header: config.header,
     headerTitle: config.headerTitle,
     size: config.size,
     minSize: config.minSize,
     maxSize: config.maxSize,
     meta: config.meta,
-    titleValue: config.titleValue && forCellValue(config.titleValue),
-    textValue: config.textValue
-      ? forCellValue(config.textValue)
-      : defaultTextValue,
+    titleValue: (row) => (config.titleValue ?? cellTitle)(valueOf(row)),
     cell: (info) => {
-      const value = info.getValue();
+      const value = valueOf(info.row.original);
       if (config.cell) {
-        return forCellValue(config.cell)(value);
+        return config.cell(value);
       }
-      if (value === undefined || value === null) {
+      if (value == null) {
         return "-";
       }
       return valueAsString(value);
@@ -186,10 +153,7 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
       }
       return String(value);
     } catch {
-      // printObject already threw on this value, so String() is the
-      // non-throwing last resort here; valueAsString (JSON.stringify) could
-      // throw again on the same object.
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- printObject already threw on this value; String() is the non-throwing last resort, where JSON.stringify could throw again
       return String(value);
     }
   };
@@ -203,7 +167,6 @@ function createObjectColumn<K extends keyof TranscriptInfo>(config: {
     maxSize: config.maxSize,
     meta: config.meta,
     cell: formatObjectValue,
-    textValue: formatObjectValue,
     titleValue: (value) => {
       if (!value) {
         return "";
@@ -235,21 +198,16 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
         return "-";
       }
 
-      const icon = value
-        ? ApplicationIcons.checkbox.checked
-        : ApplicationIcons.checkbox.unchecked;
-
       return (
-        <i
+        <Icon
+          name={value ? "checkboxChecked" : "checkboxUnchecked"}
           className={clsx(
-            icon,
             "text-secondary",
             value ? styles.success : styles.unsuccess
           )}
         />
       );
     },
-    textValue: () => null,
   }),
   date: createColumn({
     accessorKey: "date",
@@ -263,13 +221,6 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       filterType: "date",
     },
     cell: (value) => {
-      if (!value) {
-        return "-";
-      }
-      const date = new Date(value);
-      return date.toLocaleString();
-    },
-    textValue: (value) => {
       if (!value) {
         return "-";
       }
@@ -407,20 +358,6 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
         return String(value);
       }
     },
-    textValue: (value) => {
-      if (!value) {
-        return "-";
-      }
-      if (Array.isArray(value)) {
-        return printArray(value, 1000);
-      } else if (typeof value === "object") {
-        return printObject(value, 1000);
-      } else if (typeof value === "number") {
-        return formatPrettyDecimal(value);
-      } else {
-        return String(value);
-      }
-    },
     titleValue: (value) => {
       if (!value) {
         return "";
@@ -523,12 +460,6 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       }
       return formatNumber(value);
     },
-    textValue: (value) => {
-      if (value == null) {
-        return "-";
-      }
-      return formatNumber(value);
-    },
   }),
   total_time: createColumn({
     accessorKey: "total_time",
@@ -542,12 +473,6 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       filterType: "duration",
     },
     cell: (value) => {
-      if (value == null) {
-        return "-";
-      }
-      return formatTime(value);
-    },
-    textValue: (value) => {
       if (value == null) {
         return "-";
       }
@@ -571,12 +496,15 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       }
       return formatNumber(value);
     },
-    textValue: (value) => {
-      if (value == null) {
-        return "-";
-      }
-      return formatNumber(value);
-    },
+  }),
+  messages_from: createColumn({
+    accessorKey: "messages_from",
+    header: "Messages From",
+    headerTitle: "Model events whose conversation the messages are.",
+    size: 200,
+    minSize: 80,
+    maxSize: 500,
+    cell: (value) => (value?.length ? value.join(", ") : "-"),
   }),
   limit: createColumn({
     accessorKey: "limit",
@@ -609,6 +537,21 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       return value || "-";
     },
   }),
+  trust_content: createColumn({
+    accessorKey: "trust_content",
+    header: "Trust Content",
+    headerTitle:
+      "Whether model output may be rendered richly (false shows it as plain text).",
+    size: 100,
+    minSize: 60,
+    maxSize: 160,
+    meta: {
+      align: "center",
+      filterable: true,
+      filterType: "boolean",
+    },
+    cell: (value) => (value === false ? "untrusted" : "-"),
+  }),
 };
 
 // Default column order (matches current order in TranscriptsGrid)
@@ -634,6 +577,7 @@ export const DEFAULT_COLUMN_ORDER: Array<keyof TranscriptInfo> = [
   "message_count",
   "limit",
   "error",
+  "trust_content",
 ];
 
 // Default visible columns
@@ -651,19 +595,12 @@ export const DEFAULT_VISIBLE_COLUMNS: Array<keyof TranscriptInfo> = [
 ];
 
 /**
- * Get columns for the TranscriptsGrid.
- * @param visibleColumnKeys - Optional list of column keys to display. If not provided, returns all columns in default order.
- * @returns Array of column definitions in the order specified or default order.
+ * Every column in default order. The grid hides the ones the user hasn't
+ * chosen, so a saved column order keeps their places.
  */
-export function getTranscriptColumns(
-  visibleColumnKeys?: Array<keyof TranscriptInfo>
-): TranscriptColumn[] {
-  if (!visibleColumnKeys) {
-    return DEFAULT_COLUMN_ORDER.map((key) => ALL_COLUMNS[key]);
-  }
-
-  return visibleColumnKeys.map((key) => ALL_COLUMNS[key]);
-}
+export const TRANSCRIPT_COLUMNS: TranscriptColumn[] = DEFAULT_COLUMN_ORDER.map(
+  (key) => ALL_COLUMNS[key]
+);
 
 // Columns available for filtering (used by Add Filter popover)
 export const FILTER_COLUMNS: AvailableColumn[] = DEFAULT_COLUMN_ORDER.map(

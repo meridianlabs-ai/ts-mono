@@ -2,16 +2,7 @@
  * Clears the current text selection in the document.
  */
 export const clearDocumentSelection = () => {
-  const sel = window.getSelection();
-  if (sel) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (sel.removeAllRanges) {
-      sel.removeAllRanges();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    } else if (sel.empty) {
-      sel.empty();
-    }
-  }
+  window.getSelection()?.removeAllRanges();
 };
 
 /**
@@ -48,3 +39,26 @@ export function isEditableTarget(el: Element | null): boolean {
   if (active instanceof HTMLElement && active.isContentEditable) return true;
   return false;
 }
+
+/**
+ * True for Enter or Space on a `<button>`: the keypress the browser turns into
+ * the button's click. Container key handlers (a grid's row activation) skip it
+ * so the button still gets pressed.
+ */
+export function isButtonActivation(e: {
+  key: string;
+  target: EventTarget | null;
+}): boolean {
+  return (
+    (e.key === "Enter" || e.key === " ") &&
+    e.target instanceof HTMLButtonElement
+  );
+}
+
+/**
+ * Whether an element is attached and rendered. Where `checkVisibility` is
+ * unavailable (jsdom, Safari before 17.4) an attached element counts as shown.
+ */
+export const isElementShown = (el: Element): boolean =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- checkVisibility is missing in jsdom and pre-17.4 Safari despite lib.dom
+  el.isConnected && el.checkVisibility?.() !== false;

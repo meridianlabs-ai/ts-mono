@@ -15,7 +15,9 @@ import type {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
+  CommunicationEvent,
   CompactionEvent,
+  ConnectionLimitChange,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -31,6 +33,7 @@ import type {
   InputEvent,
   InterruptEvent,
   LoggerEvent,
+  ModelCall,
   ModelConfig,
   ModelEvent,
   ModelOutput,
@@ -43,12 +46,14 @@ import type {
   ScoreEdit,
   ScoreEditEvent,
   ScoreEvent,
+  SentinelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   StateEvent,
   StepEvent,
   StoreEvent,
   SubtaskEvent,
+  SwarmEvent,
   Timeline,
   TimelineEvent,
   TimelineSpan,
@@ -130,6 +135,13 @@ export const testToolCall = (overrides: Partial<ToolCall> = {}): ToolCall => ({
   function: "test_tool",
   arguments: {},
   type: "function",
+  ...overrides,
+});
+
+export const testModelCall = (
+  overrides: Partial<ModelCall> = {}
+): ModelCall => ({
+  request: {},
   ...overrides,
 });
 
@@ -404,6 +416,53 @@ export const testReviewEvent = (
   ...overrides,
 });
 
+export const testCommunicationEvent = (
+  overrides: Partial<CommunicationEvent> = {}
+): CommunicationEvent => ({
+  event: "communication",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  kind: "read",
+  source: "test-source",
+  agent: "test-agent",
+  nested: false,
+  channel: "test-channel",
+  record_ids: [],
+  data: {},
+  ...overrides,
+});
+
+export const testSwarmEvent = (
+  overrides: Partial<SwarmEvent> = {}
+): SwarmEvent => ({
+  event: "swarm",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  kind: "test-kind",
+  data: { version: 1 },
+  ...overrides,
+});
+
+export const testSentinelEvent = (
+  overrides: Partial<SentinelEvent> = {}
+): SentinelEvent => ({
+  event: "sentinel",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  factory: "test-protocol",
+  path: "",
+  function: "test_protocol",
+  step_id: "call_1",
+  conversation: "conversation_1",
+  stage: "tool_call",
+  kind: "decision",
+  status: "reported",
+  action: "proceed",
+  audit: false,
+  references: [],
+  ...overrides,
+});
+
 export const testSandboxEvent = (
   overrides: Partial<SandboxEvent> = {}
 ): SandboxEvent => ({
@@ -515,6 +574,17 @@ export const testEvalPlan = (overrides: Partial<EvalPlan> = {}): EvalPlan => ({
   name: "plan",
   steps: [],
   config: {},
+  ...overrides,
+});
+
+export const testConnectionLimitChange = (
+  overrides?: Partial<ConnectionLimitChange>
+): ConnectionLimitChange => ({
+  model: "test/model",
+  timestamp: Date.parse(TEST_TIMESTAMP) / 1000,
+  old_limit: 1,
+  new_limit: 2,
+  reason: "rate_limit",
   ...overrides,
 });
 

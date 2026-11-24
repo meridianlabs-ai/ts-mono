@@ -2,7 +2,9 @@
   flex: 1;
   border: 1px solid var(--bs-border-color);
   border-radius: 8px;
-  overflow: hidden;
+  /* `clip` rounds the corners without becoming a scroll container, which
+     would trap the sticky "less…" toggle of the error panel inside. */
+  overflow: clip;
   transition:
     background-color 0.12s ease,
     border-color 0.12s ease;
@@ -111,5 +113,5 @@
 
 .ansi {
   margin: 0.5em 0;
-  font-size: clamp(0.3rem, 1.1vw, 0.8rem) !important;
+  font-size: clamp(0.3rem, 1.1vw, 0.8rem);
 }

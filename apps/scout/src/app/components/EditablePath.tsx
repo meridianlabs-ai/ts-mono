@@ -1,5 +1,6 @@
 import { FC } from "react";
 
+import { IconName } from "@tsmono/react/icons";
 import { isUri, prettyDirUri } from "@tsmono/util";
 
 import { EditableText } from "./EditableText";
@@ -9,12 +10,10 @@ interface EditablePathProps {
   secondaryText?: string | null;
   onPathChanged: (path: string) => void;
 
-  mru?: string[];
-
   label?: string;
   title?: string;
 
-  icon?: string;
+  icon?: IconName;
   placeholder?: string;
 
   editable?: boolean;
@@ -26,7 +25,6 @@ export const EditablePath: FC<EditablePathProps> = ({
   path,
   secondaryText,
   onPathChanged,
-  mru,
   label,
   title,
   icon,
@@ -51,7 +49,6 @@ export const EditablePath: FC<EditablePathProps> = ({
       value={displayPath}
       secondaryValue={secondaryText}
       onValueChanged={onValueChanged}
-      mru={mru}
       label={label}
       title={title}
       icon={icon}
