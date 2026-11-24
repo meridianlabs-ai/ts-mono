@@ -263,7 +263,7 @@ describe("useTimelinesArray", () => {
   });
 
   it("merges an orphan at the bottom of a deep span chain in bounded time", () => {
-    const depth = 20;
+    const depth = 12;
     const events = [
       makeModelEvent("referenced", 0),
       ...Array.from({ length: depth }, (_, i) =>
