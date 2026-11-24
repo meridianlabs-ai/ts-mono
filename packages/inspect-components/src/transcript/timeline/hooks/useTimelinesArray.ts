@@ -155,10 +155,8 @@ function buildOrphanContent(
       current = parent;
     }
 
-    let depth = current ? (spanDepths.get(current.id) ?? -1) : -1;
-    for (const id of path.reverse()) {
-      spanDepths.set(id, ++depth);
-    }
+    const base = current ? (spanDepths.get(current.id) ?? -1) : -1;
+    path.forEach((id, i) => spanDepths.set(id, base + path.length - i));
   }
 
   // Build the span tree bottom-up: each needed span goes under its direct
@@ -181,9 +179,11 @@ function buildOrphanContent(
 
   // Register each needed span under its effective parent
   // Process from leaves to roots by sorting by depth
-  const sortedSpanIds = [...spanDepths.keys()].sort(
-    (a, b) => spanDepths.get(b)! - spanDepths.get(a)!
-  );
+  // Same-depth ties keep main's order (spans holding orphans first, then
+  // ancestors as walked) so equal start times keep their lane numbering.
+  const sortedSpanIds = [
+    ...new Set([...neededSpanIds, ...spanDepths.keys()]),
+  ].sort((a, b) => spanDepths.get(b)! - spanDepths.get(a)!);
 
   for (const spanId of sortedSpanIds) {
     const info = spanLookup.get(spanId)!;

@@ -271,17 +271,22 @@ describe("useTimelinesArray", () => {
       ),
       makeModelEvent("orphan", 1, "s0"),
     ];
-    // Each nesting level used to read its single child's start time twice.
+    // Each nesting level used to read its single child's times twice.
     const startTime = vi.spyOn(TimelineEvent.prototype, "startTime");
+    const endTime = vi.spyOn(TimelineEvent.prototype, "endTime");
 
     const { result } = renderHook(() =>
       useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
     );
-    const startTimeCalls = startTime.mock.calls.length;
+    const root = result.current[0]!.root;
+    root.startTime();
+    root.endTime();
+    const timeReads = startTime.mock.calls.length + endTime.mock.calls.length;
     startTime.mockRestore();
+    endTime.mockRestore();
 
     expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
-    expect(startTimeCalls).toBeLessThan(depth * 10);
+    expect(timeReads).toBeLessThan(depth * 10);
   });
 
   it("preserves nested orphan spans and events sharing an ancestor", () => {
@@ -363,6 +368,26 @@ describe("useTimelinesArray", () => {
       "c-event",
       "p-event",
     ]);
+  });
+
+  it("keeps discovery order for orphan spans that start together", () => {
+    const events = [
+      makeModelEvent("referenced", 0),
+      spanBegin("B", "B", "agent"),
+      spanBegin("C", "C", "agent", "B"),
+      spanBegin("A", "A", "agent"),
+      makeModelEvent("c-event", 1, "C"),
+      makeModelEvent("a-event", 1, "A"),
+    ];
+    const { result } = renderHook(() =>
+      useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+    );
+
+    expect(
+      result.current[0]!.root.content.map(
+        (item) => item.type === "span" && item.id
+      )
+    ).toEqual([false, "A", "B"]);
   });
 
   it("preserves server timelines when there are no orphan events", () => {
