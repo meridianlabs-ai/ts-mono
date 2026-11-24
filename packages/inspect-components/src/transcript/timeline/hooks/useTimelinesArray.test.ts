@@ -321,6 +321,33 @@ describe("useTimelinesArray", () => {
     }
   );
 
+  it("does not nest an orphan span inside an ancestor above its represented parent", () => {
+    const events = [
+      spanBegin("P", "P", "agent"),
+      spanBegin("R", "R", "agent", "P"),
+      makeModelEvent("referenced", 0, "R"),
+      spanBegin("C", "C", "agent", "R"),
+      makeModelEvent("c-event", 1, "C"),
+      makeModelEvent("p-event", 2, "P"),
+    ];
+    const server: ServerTimeline = {
+      name: "A",
+      description: "server description",
+      root: makeServerSpan("R", "Server root", ["referenced"]),
+    };
+    const { result } = renderHook(() => useTimelinesArray(events, [server]));
+
+    const root = result.current[0]!.root;
+    expect(root.content.map((item) => item.type === "span" && item.id)).toEqual(
+      [false, "C", "P"]
+    );
+    expect(eventUuids(result.current[0]!)).toEqual([
+      "referenced",
+      "c-event",
+      "p-event",
+    ]);
+  });
+
   it("preserves server timelines when there are no orphan events", () => {
     const events = [makeModelEvent("a-1", 0), makeModelEvent("b-1", 1)];
     const serverTimelines = [
