@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   testAssistantMessage,
@@ -21,6 +21,7 @@ import type {
 
 import { findTimelineIndexForEvent } from "../../findTimelineForDeepLink";
 import type { Timeline, TimelineSpan } from "../core";
+import { TimelineEvent } from "../core";
 
 import { useTimelinesArray } from "./useTimelinesArray";
 
@@ -241,6 +242,30 @@ describe("useTimelinesArray", () => {
       );
     }
   );
+
+  it("recovers a long parent ring around one orphan in bounded time", () => {
+    const ringSize = 20;
+    const events = [
+      makeModelEvent("referenced", 0),
+      ...Array.from({ length: ringSize }, (_, i) =>
+        spanBegin(`s${i}`, `s${i}`, "agent", `s${(i + 1) % ringSize}`)
+      ),
+      makeModelEvent("orphan", 1, "s0"),
+    ];
+    // Each nesting level used to read its single child's start time twice,
+    // doubling the work per level of the recovered ring.
+    const startTime = vi.spyOn(TimelineEvent.prototype, "startTime");
+
+    const { result } = renderHook(() =>
+      useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+    );
+
+    const startTimeCalls = startTime.mock.calls.length;
+    startTime.mockRestore();
+
+    expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
+    expect(startTimeCalls).toBeLessThan(ringSize * 10);
+  });
 
   it("preserves nested orphan spans and events sharing an ancestor", () => {
     const events = [
