@@ -1592,6 +1592,8 @@ export interface components {
             /** Score On Error */
             score_on_error?: boolean | null;
             sentinel?: components["schemas"]["SentinelConfig"] | null;
+            /** Sentinel Proxy */
+            sentinel_proxy?: ("auto" | "required" | "off") | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -1801,6 +1803,15 @@ export interface components {
         /**
          * EvalSample
          * @description Sample from evaluation task.
+         *
+         *     A sample remembers whether its attachment references have been resolved:
+         *     `resolve_sample_attachments()` (and reading a log with
+         *     `resolve_attachments`) marks the sample it returns, and writing a log
+         *     uses the mark to tell literal text that begins with `attachment://` or
+         *     `tc://` from a reference. The mark is not serialized. A sample without
+         *     it (built by hand, or passed through `model_dump()` and
+         *     `model_validate()`) is taken to hold references, as read from a log
+         *     without resolving attachments.
          */
         EvalSample: {
             /** Attachments */
@@ -1852,6 +1863,10 @@ export interface components {
             /** Scores */
             scores?: {
                 [key: string]: components["schemas"]["Score"];
+            } | null;
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelStats"];
             } | null;
             /** Setup */
             setup?: string | null;
@@ -1984,6 +1999,10 @@ export interface components {
             /** Scores */
             scores?: {
                 [key: string]: components["schemas"]["Score"];
+            } | null;
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelStats"];
             } | null;
             /** Started At */
             started_at?: string | null;
@@ -2250,6 +2269,10 @@ export interface components {
             role_usage: {
                 [key: string]: components["schemas"]["ModelUsage"];
             };
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelEvalStats"];
+            } | null;
             /** Started At */
             started_at: string | "";
         };
@@ -3759,6 +3782,43 @@ export interface components {
             [key: string]: components["schemas"]["SentinelConfig"];
         };
         /**
+         * SentinelEvalStats
+         * @description A sentinel's stats added up over an eval's samples whose stats are complete.
+         *
+         *     `complete` is false where any sample was left out.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelEvalStats: {
+            /** Actions */
+            actions?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            human_reviews?: components["schemas"]["SentinelReviewCounts"] | null;
+            /** Incomplete Reason */
+            incomplete_reason?: string | null;
+            /**
+             * Incomplete Samples
+             * @default 0
+             */
+            incomplete_samples: number;
+            /**
+             * Samples
+             * @default 0
+             */
+            samples: number;
+            sidecar?: components["schemas"]["SentinelSidecarStats"] | null;
+            /** Steps */
+            steps?: {
+                [key: string]: components["schemas"]["SentinelStepCounts"];
+            } | null;
+        };
+        /**
          * SentinelEvent
          * @description Report from a sentinel monitor or protocol about one step.
          *
@@ -3774,6 +3834,8 @@ export interface components {
              * @default false
              */
             audit: boolean;
+            /** Completed */
+            completed?: string | null;
             /** Conversation */
             conversation: string;
             /** Error */
@@ -3807,8 +3869,11 @@ export interface components {
             path: string;
             /** Pending */
             pending?: boolean | null;
+            /** Reason */
+            reason?: string | null;
             /** References */
             references: components["schemas"]["Reference"][];
+            sidecar?: components["schemas"]["SentinelSidecar"] | null;
             /** Span Id */
             span_id?: string | null;
             /**
@@ -3820,7 +3885,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged";
             /** Step Id */
             step_id: string;
             /** Suspicion */
@@ -3833,6 +3898,169 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+            /** Working Time */
+            working_time?: number | null;
+        };
+        /**
+         * SentinelReviewCounts
+         * @description Questions a sentinel asked a person, and how they ended.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelReviewCounts: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered: number;
+            /**
+             * Asked
+             * @default 0
+             */
+            asked: number;
+            /**
+             * Cancelled
+             * @default 0
+             */
+            cancelled: number;
+            /**
+             * Timed Out
+             * @default 0
+             */
+            timed_out: number;
+        };
+        /**
+         * SentinelSidecar
+         * @description Where a report a sentinel sidecar made came from: the sidecar behind a model's proxy, and the agent's model call it judged.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecar: {
+            /** Models */
+            models?: components["schemas"]["SentinelSidecarModel"][] | null;
+            /** Proxy */
+            proxy: string;
+            /**
+             * Release
+             * @enum {string}
+             */
+            release: "whole" | "early";
+            /** Reply Received */
+            reply_received?: string | null;
+            /** Request Id */
+            request_id?: string | null;
+            /** Request Received */
+            request_received?: string | null;
+            /** Reviews */
+            reviews?: components["schemas"]["SentinelSidecarReview"][] | null;
+            /**
+             * Trimmed
+             * @default false
+             */
+            trimmed: boolean;
+            /** Version */
+            version: number;
+        };
+        /**
+         * SentinelSidecarModel
+         * @description A model a sentinel sidecar's monitors and protocols called while judging a step.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecarModel: {
+            /** Model */
+            model: string;
+            /** Role */
+            role?: string | null;
+        };
+        /**
+         * SentinelSidecarReview
+         * @description A question a sentinel sidecar asked a person about a step, and how it ended.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecarReview: {
+            /** Answered */
+            answered?: string | null;
+            /** Asked */
+            asked?: string | null;
+            /** Cause */
+            cause?: string | null;
+            /** Decision */
+            decision?: string | null;
+            /** Id */
+            id: string;
+            /** Resolution */
+            resolution?: ("answered" | "timed_out" | "cancelled") | null;
+        };
+        /**
+         * SentinelSidecarStats
+         * @description What only a sentinel sidecar's stats have: the sidecar, and the model calls Inspect sent through it.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelSidecarStats: {
+            /**
+             * Model Calls
+             * @default 0
+             */
+            model_calls: number;
+            /** Proxy */
+            proxy: string;
+            /** Results Withheld */
+            results_withheld?: boolean | null;
+            /**
+             * Unknown Calls
+             * @default 0
+             */
+            unknown_calls: number;
+        };
+        /**
+         * SentinelStats
+         * @description What a sentinel did over a sample, filled the same way whether it ran inside Inspect or in a sidecar.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelStats: {
+            /** Actions */
+            actions?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            human_reviews?: components["schemas"]["SentinelReviewCounts"] | null;
+            /** Incomplete Reason */
+            incomplete_reason?: string | null;
+            sidecar?: components["schemas"]["SentinelSidecarStats"] | null;
+            /** Steps */
+            steps?: {
+                [key: string]: components["schemas"]["SentinelStepCounts"];
+            } | null;
+        };
+        /**
+         * SentinelStepCounts
+         * @description Steps a sentinel saw at one stage, and whether each was judged.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelStepCounts: {
+            /**
+             * Judged
+             * @default 0
+             */
+            judged: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /** Unjudged */
+            unjudged: {
+                [key: string]: number;
+            };
         };
         /**
          * SnapshotDetails
@@ -4459,7 +4687,7 @@ export interface components {
          *     ```python
          *     ChatCompletionToolParam(
          *         type="function",
-         *         function=tool.model_dump(exclude_none=True),
+         *         function=tool.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
          *
@@ -4471,9 +4699,12 @@ export interface components {
          *     ToolParam(
          *         name=tool.name,
          *         description=tool.description,
-         *         input_schema=tool.parameters.model_dump(exclude_none=True),
+         *         input_schema=tool.parameters.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
+         *
+         *     Dump in JSON mode, as shown, so parameter defaults such as an `Enum`
+         *     member are converted to JSON values.
          */
         ToolInfo: {
             /** Description */

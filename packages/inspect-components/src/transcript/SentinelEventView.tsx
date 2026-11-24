@@ -515,6 +515,11 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
     word: "Cancelled",
     tone: "neutral",
   },
+  unjudged: {
+    icon: "sentinel",
+    word: "Not judged",
+    tone: "neutral",
+  },
   superseded: {
     icon: "sentinel",
     word: "Superseded",

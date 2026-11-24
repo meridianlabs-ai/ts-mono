@@ -39,6 +39,7 @@ const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   score_display: true,
   score_on_error: true,
   sentinel: true,
+  sentinel_proxy: true,
   time_limit: true,
   token_limit: true,
   token_limit_type: true,
