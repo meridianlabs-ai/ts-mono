@@ -791,6 +791,23 @@ describe("sentinel checks in a tool card", () => {
     expect(icon(/gate/)).toContain("bi-signpost-split");
   });
 
+  it("shows a check whose status a later Inspect adds by its status", () => {
+    renderTool([
+      node("later", {
+        path: "gate",
+        factory: "gatekeeper",
+        status: "paused",
+        function: null,
+        action: null,
+      }),
+      decision("root", "", "concurrent", "proceed"),
+    ]);
+    fireEvent.click(pill(2));
+    const row = rowButton(/gate/);
+    expect(row.textContent).toContain("paused");
+    expect(row.className).toContain("inactive");
+  });
+
   it("shows a failed monitor as a row whose detail is the error", () => {
     renderTool([
       failure("broken", "broken", "llm_suspicion"),
@@ -927,17 +944,18 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("Escalated")).toBeTruthy();
   });
 
-  it("shows a status a later Inspect adds by its name, as recording no report", () => {
+  it("shows a status a later Inspect adds by its name, never as a decision", () => {
     renderWithState(
       <SentinelEventView
         eventNode={node("later", {
-          status: "paused",
+          status: "reject",
           function: null,
           action: null,
         })}
       />
     );
-    expect(screen.getByText("paused")).toBeTruthy();
+    expect(screen.getByText("reject")).toBeTruthy();
+    expect(screen.queryByText("Rejected")).toBeNull();
     expect(screen.queryByText("Proceeded")).toBeNull();
   });
 

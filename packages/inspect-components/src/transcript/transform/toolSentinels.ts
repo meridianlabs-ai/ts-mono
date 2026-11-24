@@ -358,18 +358,36 @@ export interface SentinelRow {
   tookEffect: boolean;
 }
 
+type KnownInactiveStatus =
+  "cancelled" | "bypassed" | "superseded" | "error" | "unjudged";
+
+const kKnownInactiveStatuses: ReadonlySet<string> =
+  new Set<KnownInactiveStatus>([
+    "cancelled",
+    "bypassed",
+    "superseded",
+    "error",
+    "unjudged",
+  ]);
+
+const isKnownInactiveStatus = (status: string): status is KnownInactiveStatus =>
+  kKnownInactiveStatuses.has(status);
+
 /** The verdicts the viewer knows how to show. */
 export type KnownSentinelVerdict =
-  | "observe"
-  | "cancelled"
-  | "bypassed"
-  | "superseded"
-  | "error"
-  | "unjudged"
-  | NonNullable<SentinelEvent["action"]>;
+  "observe" | KnownInactiveStatus | NonNullable<SentinelEvent["action"]>;
 
-/** A known verdict, or a status a later Inspect adds, which records no report. */
-export type SentinelVerdict = string;
+/** A status a later Inspect adds, which records no report, kept apart so it can't read as a decision. */
+export type UnknownStatusVerdict = `status:${string}`;
+
+export type SentinelVerdict = KnownSentinelVerdict | UnknownStatusVerdict;
+
+export const isUnknownStatusVerdict = (
+  verdict: SentinelVerdict
+): verdict is UnknownStatusVerdict => verdict.startsWith("status:");
+
+const inactiveVerdict = (status: string): SentinelVerdict =>
+  isKnownInactiveStatus(status) ? status : `status:${status}`;
 
 /** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
@@ -579,11 +597,13 @@ const isInactive = (status: SentinelEvent["status"]): boolean =>
  */
 const quietVerdict = (checks: SentinelNode[]): SentinelVerdict => {
   const rootStatus = checks.find((n) => n.event.path === "")?.event.status;
-  if (rootStatus && isInactive(rootStatus)) return rootStatus;
+  if (rootStatus && isInactive(rootStatus)) return inactiveVerdict(rootStatus);
   if (checks.some((n) => reported(n, "decision"))) return "proceed";
   if (checks.some((n) => reported(n, "observation"))) return "observe";
   const firstStatus = checks[0]?.event.status;
-  return firstStatus && isInactive(firstStatus) ? firstStatus : "proceed";
+  return firstStatus && isInactive(firstStatus)
+    ? inactiveVerdict(firstStatus)
+    : "proceed";
 };
 
 /**
