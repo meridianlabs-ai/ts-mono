@@ -246,8 +246,8 @@ export const TranscriptViewNodes = forwardRef<
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
-  // Kept: these memos freeze the pairings for the React Compiler. Unwrapped,
-  // it reads the later `.has()` calls as mutations and bails out or re-pairs.
+  // Kept: the hidden-id sets and redirect maps feed flattenedNodes and
+  // redirectEventId, which effects depend on, so they need stable identity.
   const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
     () => pairToolApprovals(eventNodes, recordsExecutions),
     [eventNodes, recordsExecutions]
