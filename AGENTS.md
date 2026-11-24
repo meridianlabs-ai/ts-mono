@@ -36,7 +36,8 @@ checklist behind. Git history keeps the original.
 Run `pnpm check` from the repo root before every push or PR. It runs the
 deterministic gates CI runs — manypkg, suppressions ledger, lint,
 typecheck, format — so CI doesn't false-start on failures you could have
-caught locally. If you changed code, also run `pnpm test`.
+caught locally. If you changed code, also run `pnpm test`, and run
+`pnpm build` too: lint misses some React Compiler bail-outs that fail it.
 
 ## Code Style — Type Safety
 

@@ -118,6 +118,8 @@ export function copyDistToPythonRepo(packageName) {
         const pythonRoot = findPythonRepoRoot(packageName);
         if (!pythonRoot || !options.dir) return;
         const target = join(pythonRoot, `src/${packageName}/_view/dist`);
+        // Built straight into the viewer (`--outDir`): nothing to copy.
+        if (resolve(options.dir) === resolve(target)) return;
         rmSync(target, { recursive: true, force: true });
         cpSync(options.dir, target, { recursive: true });
         console.log(
