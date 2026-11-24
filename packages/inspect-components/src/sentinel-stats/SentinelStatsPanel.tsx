@@ -53,7 +53,7 @@ const SentinelStatsEntry: FC<{
         <span className={styles.name}>{name}</span>
         {isEvalStats(stats) ? (
           <span className={styles.note}>
-            {plural(stats.samples, "sample")}
+            {plural(stats.samples, "sample")} counted
             {stats.incomplete_samples > 0
               ? ` · ${formatNumber(stats.incomplete_samples)} left out as incomplete`
               : null}
@@ -118,6 +118,9 @@ const SentinelStatsEntry: FC<{
           {sidecar.results_withheld === true
             ? " · results withheld from the eval"
             : null}
+          {sidecar.results_withheld === false
+            ? " · results sent to the eval"
+            : null}
           {sidecar.results_withheld == null
             ? " · results withheld: not reported"
             : null}
@@ -152,7 +155,6 @@ const kActionOrder: readonly string[] = [
   "escalate",
 ];
 
-/** Entries in a known order, then any others as recorded. */
 const ordered = <T,>(
   record: Record<string, T>,
   order: readonly string[]

@@ -645,7 +645,9 @@ export function buildSentinelStep(
   const root = checks.find(
     (n) => n.event.path === "" && n.event.status !== "superseded"
   );
-  const unjudged = root?.event.status === "unjudged" ? root : undefined;
+  const unjudged = checks.find(
+    (n) => n.event.path === "" && n.event.status === "unjudged"
+  );
 
   const outcome = outcomeOf(checks);
   const acted = !!outcome && outcome.event.action !== "proceed";
@@ -683,7 +685,9 @@ export function buildSentinelStep(
     })),
     verdict: outcome
       ? (outcome.event.action ?? "proceed")
-      : quietVerdict(checks),
+      : unjudged
+        ? "unjudged"
+        : quietVerdict(checks),
     outcome,
     returned: !!outcome,
     decider: effective ?? outcome,

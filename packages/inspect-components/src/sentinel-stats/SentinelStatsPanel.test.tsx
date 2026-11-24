@@ -70,23 +70,30 @@ describe("SentinelStatsPanel", () => {
     expect(within(entry).queryByRole("table")).toBeNull();
   });
 
-  it("says when a sidecar didn't report whether it withheld results", () => {
-    render(
-      <SentinelStatsPanel
-        stats={{
-          guard: {
-            ...sampleStats,
-            sidecar: {
-              proxy: "http://127.0.0.1:4000",
-              model_calls: 1,
-              unknown_calls: 0,
+  it.each([
+    [false, /results sent to the eval/],
+    [undefined, /results withheld: not reported/],
+  ])(
+    "says whether a sidecar withheld results when it reports %s",
+    (withheld, text) => {
+      render(
+        <SentinelStatsPanel
+          stats={{
+            guard: {
+              ...sampleStats,
+              sidecar: {
+                proxy: "http://127.0.0.1:4000",
+                model_calls: 1,
+                unknown_calls: 0,
+                results_withheld: withheld,
+              },
             },
-          },
-        }}
-      />
-    );
-    expect(screen.getByText(/results withheld: not reported/)).toBeTruthy();
-  });
+          }}
+        />
+      );
+      expect(screen.getByText(text)).toBeTruthy();
+    }
+  );
 
   it("gives an eval's count of samples, and how many it left out", () => {
     const evalStats: SentinelEvalStats = {
@@ -97,7 +104,9 @@ describe("SentinelStatsPanel", () => {
     };
     render(<SentinelStatsPanel stats={{ guard: evalStats }} />);
     const entry = screen.getByRole("region", { name: "guard" });
-    expect(entry.textContent).toContain("9 samples · 1 left out as incomplete");
+    expect(entry.textContent).toContain(
+      "9 samples counted · 1 left out as incomplete"
+    );
     expect(entry.textContent).toContain("Incomplete");
   });
 

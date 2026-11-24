@@ -64,6 +64,8 @@ interface CheckSummaryProps {
   toggle?: CheckToggle;
   /** Clamps a long reason to two lines while the detail holding it in full is closed. */
   clampReason?: boolean;
+  /** How long the checks took, formatted. */
+  time?: string;
 }
 
 /** One row naming the result that took effect for a stage. */
@@ -83,6 +85,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   failed,
   toggle,
   clampReason,
+  time,
 }) => {
   const [reasonOpen, setReasonOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -138,8 +141,9 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
           ) : null}
         </div>
       ) : null}
-      {flagged || failed || toggle ? (
+      {flagged || failed || toggle || time ? (
         <span className={styles.trailing}>
+          {time ? <span className={styles.time}>{time}</span> : null}
           {flagged ? (
             <span className={styles.chip}>
               <Icon name="flag" />

@@ -48,6 +48,8 @@ interface SentinelInsetProps {
   judged?: ToolCall;
   /** Whether the judged call is an approver's replacement rather than the model's proposal. */
   judgedReplaced?: boolean;
+  /** False where the step's time is already in the title around the inset. */
+  showTime?: boolean;
 }
 
 /**
@@ -60,6 +62,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   context,
   judged,
   judgedReplaced,
+  showTime = true,
 }) => {
   const [collapsed, setCollapsed] = useCollapsedState(
     `${step.id}-sentinel-checks`,
@@ -87,6 +90,11 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         flagged={step.audit}
         failed={single ? 0 : step.failed}
         clampReason={collapsed}
+        time={
+          showTime && step.workingTime != null
+            ? formatTime(step.workingTime)
+            : undefined
+        }
         toggle={{
           label: single ? "details" : `${step.rows.length} checks`,
           open: !collapsed,
@@ -289,7 +297,7 @@ const CheckDetail: FC<CheckDetailProps> = ({
   const reportedBy = showFunction ? event.function : null;
   const timing = [
     event.working_time != null
-      ? `took ${formatTime(event.working_time)}`
+      ? `working time ${formatTime(event.working_time)}`
       : null,
     event.completed
       ? `completed ${formatDateTime(new Date(event.completed))}`
@@ -380,7 +388,6 @@ const CheckDetail: FC<CheckDetailProps> = ({
   );
 };
 
-/** Which call a sentinel sidecar's report is about, and whether it came without its records. */
 const SidecarMeta: FC<{ sidecar: SentinelSidecar }> = ({ sidecar }) => (
   <div className={styles.meta}>
     sidecar
@@ -492,7 +499,14 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
     title={formatTitle("Sentinel", undefined, step.workingTime)}
     icon="sentinel"
     className={className}
-    below={<SentinelInset step={step} region="output" context={context} />}
+    below={
+      <SentinelInset
+        step={step}
+        region="output"
+        context={context}
+        showTime={false}
+      />
+    }
   >
     <span className="text-style-secondary">
       {sentinelStageLabels[step.stage]}
