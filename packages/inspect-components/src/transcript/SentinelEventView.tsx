@@ -239,9 +239,6 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   if (event.status === "error") {
     return <span className={styles.failed}>failed</span>;
   }
-  if (event.status !== "reported" && event.status !== "superseded") {
-    return <span>{event.status}</span>;
-  }
   if (event.status === "superseded") {
     return (
       <span>
