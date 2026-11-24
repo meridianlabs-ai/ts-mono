@@ -1801,6 +1801,15 @@ export interface components {
         /**
          * EvalSample
          * @description Sample from evaluation task.
+         *
+         *     A sample remembers whether its attachment references have been resolved:
+         *     `resolve_sample_attachments()` (and reading a log with
+         *     `resolve_attachments`) marks the sample it returns, and writing a log
+         *     uses the mark to tell literal text that begins with `attachment://` or
+         *     `tc://` from a reference. The mark is not serialized. A sample without
+         *     it (built by hand, or passed through `model_dump()` and
+         *     `model_validate()`) is taken to hold references, as read from a log
+         *     without resolving attachments.
          */
         EvalSample: {
             /** Attachments */
@@ -2111,10 +2120,6 @@ export interface components {
             };
             /** Samples */
             samples: number;
-            /** Selected */
-            selected: number;
-            /** Selection Digest */
-            selection_digest: string;
             /** Shard */
             shard: string;
             /** Size */
@@ -4459,7 +4464,7 @@ export interface components {
          *     ```python
          *     ChatCompletionToolParam(
          *         type="function",
-         *         function=tool.model_dump(exclude_none=True),
+         *         function=tool.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
          *
@@ -4471,9 +4476,12 @@ export interface components {
          *     ToolParam(
          *         name=tool.name,
          *         description=tool.description,
-         *         input_schema=tool.parameters.model_dump(exclude_none=True),
+         *         input_schema=tool.parameters.model_dump(mode="json", exclude_none=True),
          *     )
          *     ```
+         *
+         *     Dump in JSON mode, as shown, so parameter defaults such as an `Enum`
+         *     member are converted to JSON values.
          */
         ToolInfo: {
             /** Description */
