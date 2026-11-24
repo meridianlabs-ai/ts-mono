@@ -1,13 +1,11 @@
 import clsx from "clsx";
 import { FC, MouseEvent as ReactMouseEvent, RefObject, useState } from "react";
 
-import type { Event, SentinelStats } from "@tsmono/inspect-common/types";
+import type { Event } from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 import { isRecord, nullProtoRecord } from "@tsmono/util";
-
-import { SentinelStatsPanel } from "../sentinel-stats";
 
 import { ActivityChart } from "./ActivityChart";
 import {
@@ -90,8 +88,6 @@ export interface SampleActivityPanelProps {
   persistScope: string;
   /** Click-through to the Transcript via event uuid. */
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
-  /** What each sentinel did over the sample, by name. */
-  sentinelStats?: Record<string, SentinelStats> | null;
 }
 
 /** X axis: wall clock, or one equal-width column per model turn (8b). */
@@ -156,7 +152,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   scrollRef,
   persistScope,
   onOpenEvent,
-  sentinelStats,
 }) => {
   // `now` deliberately defaults to the latest event timestamp inside the
   // derivation: live samples re-render as polling delivers new events, so
@@ -344,10 +339,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
           )
         }
         onOpenEvent={onOpenEvent}
-      />
-      <SentinelStatsPanel
-        stats={sentinelStats}
-        className={styles.sentinelStats}
       />
       <ActivityHistoryList
         rows={data.rows}

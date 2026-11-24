@@ -28,6 +28,7 @@ import {
   SampleActivityPanel,
 } from "@tsmono/inspect-components/sample-activity";
 import { SelectTool } from "@tsmono/inspect-components/selection";
+import { SentinelStatsPanel } from "@tsmono/inspect-components/sentinel-stats";
 import {
   dynamicDefaultExcludeEvents,
   eventsToStr,
@@ -1259,7 +1260,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollRef={scrollRef}
                     persistScope={activityPersistScope}
                     onOpenEvent={openEventInTranscript}
-                    sentinelStats={sample?.sentinel_stats}
                   />
                 </div>
               </TabPanel>
@@ -1519,6 +1519,15 @@ const usageViewsForSample = (
         id={id}
         sample={sample}
         evalSpec={evalSpec}
+      />
+    );
+  }
+
+  if (sample.sentinel_stats && Object.keys(sample.sentinel_stats).length > 0) {
+    views.push(
+      <SentinelStatsPanel
+        key={`sample-sentinel-stats-${id}`}
+        stats={sample.sentinel_stats}
       />
     );
   }
