@@ -177,10 +177,8 @@ function buildOrphanContent(
     group.push(...items);
   }
 
-  // Register each needed span under its effective parent
-  // Process from leaves to roots by sorting by depth
-  // Same-depth ties keep main's order (spans holding orphans first, then
-  // ancestors as walked) so equal start times keep their lane numbering.
+  // Leaves first. Ties list spans holding orphans before walked ancestors so
+  // spans that start together keep a stable lane order.
   const sortedSpanIds = [
     ...new Set([...neededSpanIds, ...spanDepths.keys()]),
   ].sort((a, b) => spanDepths.get(b)! - spanDepths.get(a)!);
