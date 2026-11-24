@@ -142,10 +142,12 @@ function buildOrphanContent(
         ? spanLookup.get(current.parentId)
         : undefined;
       if (parent && visiting.has(parent.id)) {
-        // Cut the closing edge so bottom-up attachment cannot recreate the cycle.
-        cycleRoots.add(current.id);
+        // Promote every ring member, not just the closing one, so a ring adds
+        // no nesting; members without orphans of their own are then skipped.
+        const ring = path.slice(path.indexOf(parent.id));
+        for (const id of ring) cycleRoots.add(id);
         console.warn(
-          `Invalid transcript: cyclic span parent chain at "${parent.id}"; promoting "${current.id}" to root.`
+          `Invalid transcript: cyclic span parent chain of ${ring.length} spans at "${parent.id}"; promoting them to root.`
         );
         current = undefined;
         break;
@@ -159,8 +161,8 @@ function buildOrphanContent(
     }
   }
 
-  // Build the span tree bottom-up: for each needed span, determine its
-  // effective parent (the nearest needed ancestor, or null for root)
+  // Build the span tree bottom-up: each needed span goes under its direct
+  // parent when that parent is also rebuilt, otherwise at root.
   const spanChildren = new Map<
     string | null,
     (TimelineEvent | TimelineSpan)[]

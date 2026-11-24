@@ -243,8 +243,8 @@ describe("useTimelinesArray", () => {
     }
   );
 
-  it("recovers a long parent ring around one orphan in bounded time", () => {
-    const ringSize = 20;
+  it("recovers a long parent ring without nesting its members", () => {
+    const ringSize = 10_000;
     const events = [
       makeModelEvent("referenced", 0),
       ...Array.from({ length: ringSize }, (_, i) =>
@@ -252,19 +252,36 @@ describe("useTimelinesArray", () => {
       ),
       makeModelEvent("orphan", 1, "s0"),
     ];
-    // Each nesting level used to read its single child's start time twice,
-    // doubling the work per level of the recovered ring.
-    const startTime = vi.spyOn(TimelineEvent.prototype, "startTime");
 
     const { result } = renderHook(() =>
       useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
     );
 
+    const root = result.current[0]!.root;
+    expect(root.content[1]).toMatchObject({ type: "span", id: "s0" });
+    expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
+  });
+
+  it("merges an orphan at the bottom of a deep span chain in bounded time", () => {
+    const depth = 20;
+    const events = [
+      makeModelEvent("referenced", 0),
+      ...Array.from({ length: depth }, (_, i) =>
+        spanBegin(`s${i}`, `s${i}`, "agent", i + 1 < depth ? `s${i + 1}` : null)
+      ),
+      makeModelEvent("orphan", 1, "s0"),
+    ];
+    // Each nesting level used to read its single child's start time twice.
+    const startTime = vi.spyOn(TimelineEvent.prototype, "startTime");
+
+    const { result } = renderHook(() =>
+      useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+    );
     const startTimeCalls = startTime.mock.calls.length;
     startTime.mockRestore();
 
     expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
-    expect(startTimeCalls).toBeLessThan(ringSize * 10);
+    expect(startTimeCalls).toBeLessThan(depth * 10);
   });
 
   it("preserves nested orphan spans and events sharing an ancestor", () => {
