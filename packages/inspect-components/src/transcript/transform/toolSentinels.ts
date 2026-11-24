@@ -409,7 +409,7 @@ export interface SentinelStep {
   decider?: SentinelNode;
   /** The check that made the step's decision; unset when every check proceeded. */
   effective?: SentinelNode;
-  /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's. */
+  /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's; for a step not judged, why. */
   reason?: string;
   /** The references of the check the reason comes from, which link its cites. */
   reasonReferences: Reference[];
@@ -423,6 +423,8 @@ export interface SentinelStep {
   failed: number;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
+  /** How long the step's root check took, which includes its children; unset when not recorded. */
+  workingTime?: number;
 }
 
 export interface ToolSentinels {
@@ -640,6 +642,10 @@ export function buildSentinelStep(
   }
   const checks = nodes.filter((n) => !replaced.has(n));
   const tree = buildTree(checks);
+  const root = checks.find(
+    (n) => n.event.path === "" && n.event.status !== "superseded"
+  );
+  const unjudged = root?.event.status === "unjudged" ? root : undefined;
 
   const outcome = outcomeOf(checks);
   const acted = !!outcome && outcome.event.action !== "proceed";
@@ -682,17 +688,20 @@ export function buildSentinelStep(
     returned: !!outcome,
     decider: effective ?? outcome,
     effective,
-    reason: credit ? credit.reason : explanationOf(single),
+    reason: credit
+      ? credit.reason
+      : (unjudged?.event.reason ?? explanationOf(single)),
     error: single?.event.error || undefined,
     reasonReferences: credit
       ? (credit.reasonSource?.event.references ?? [])
-      : single && explanationOf(single)
+      : !unjudged && single && explanationOf(single)
         ? single.event.references
         : [],
     scores,
     audit: nodes.some((n) => n.event.audit),
     failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
+    workingTime: (root ?? single)?.event.working_time ?? undefined,
   };
 }
 
@@ -1437,6 +1446,13 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
     sentinelScrollRedirects,
   };
 }
+
+export const sentinelStageLabels: Record<SentinelEvent["stage"], string> = {
+  model_input: "model input",
+  model_output: "model output",
+  tool_call: "before call",
+  tool_result: "after call",
+};
 
 /** The instance path, or the factory's registry name at the root. */
 export const instanceLabel = (event: SentinelEvent): string =>

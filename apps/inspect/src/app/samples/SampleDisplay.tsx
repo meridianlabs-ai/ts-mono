@@ -1259,6 +1259,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollRef={scrollRef}
                     persistScope={activityPersistScope}
                     onOpenEvent={openEventInTranscript}
+                    sentinelStats={sample?.sentinel_stats}
                   />
                 </div>
               </TabPanel>

@@ -835,6 +835,53 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText(/failed$/)).toBeNull();
   });
 
+  it("says why a step was not judged", async () => {
+    renderTool([
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    expect(screen.getByText("Not judged")).toBeTruthy();
+    expect(await screen.findByText("cancelled")).toBeTruthy();
+    expect(screen.queryByText("Proceeded")).toBeNull();
+  });
+
+  it("shows how long each check took in its row, and when it completed in its detail", () => {
+    renderTool([
+      observation("mon", "monitor", "suspicion", 0.2, {
+        working_time: 3,
+        completed: "2026-11-24T10:00:05Z",
+      }),
+      decision("root", "", "threshold", "proceed", { working_time: 7 }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(rowButton(/monitor/).textContent).toContain("3 sec");
+    expect(rowButton(/\(top\)/).textContent).toContain("7 sec");
+    fireEvent.click(rowButton(/monitor/));
+    expect(screen.getByText(/took 3 sec · completed/)).toBeTruthy();
+  });
+
+  it("names the call a sidecar's report is about, and says it was trimmed", () => {
+    renderTool([
+      decision("root", "", "sidecar_guard", "proceed", {
+        function: "",
+        sidecar: {
+          proxy: "http://127.0.0.1:4000",
+          version: 1,
+          release: "whole",
+          request_id: "irid-42",
+          trimmed: true,
+        },
+      }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "details" }));
+    expect(screen.getByText("irid-42")).toBeTruthy();
+    expect(screen.getByText(/trimmed/)).toBeTruthy();
+  });
+
   it("folds the step's monitor model calls into a line at the end", () => {
     const tool = toolNode();
     const span = new EventNode(
@@ -906,6 +953,24 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("Proceeded")).toBeTruthy();
     fireEvent.click(pill(2));
     expect(screen.getByText("(top)")).toBeTruthy();
+  });
+
+  it("gives a standalone step's title the time its root took", () => {
+    const nodes = [
+      decision("m1", "", "threshold", "proceed", {
+        stage: "model_output",
+        step_id: "msg_1",
+        working_time: 12,
+      }),
+    ];
+    const { standaloneSentinels } = pairToolSentinels(nodes);
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={nodes[0]!}
+        step={standaloneSentinels.get("m1")}
+      />
+    );
+    expect(container.textContent).toContain("Sentinel (12 sec)");
   });
 
   it("links the cites of a standalone step's reason through its context", async () => {

@@ -6,6 +6,10 @@
   gap: 0.6rem;
 }
 
+.sentinelStats {
+  margin: 0.4rem 0;
+}
+
 .pickerRow {
   display: flex;
   align-items: center;
