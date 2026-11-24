@@ -6,6 +6,7 @@ import { resolveToolInput } from "@tsmono/inspect-components/chat";
 import { MarkdownDivWithReferences } from "@tsmono/react/components";
 import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
+import { getOwn } from "@tsmono/util";
 
 import { citeReferences, type MakeCiteUrl } from "./citeReferences";
 import { EventRow } from "./event/EventRow";
@@ -24,9 +25,9 @@ import {
   buildLoneSentinelStep,
   sortedScores,
   topScore,
+  type KnownSentinelVerdict,
   type SentinelRow,
   type SentinelStep,
-  type SentinelVerdict,
 } from "./transform/toolSentinels";
 import type { EventNode, EventNodeContext } from "./types";
 
@@ -494,7 +495,7 @@ const rejectLook = {
   reasonClass: checkClasses.rejectReason,
 } as const;
 
-const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
+const verdictLooks: Record<KnownSentinelVerdict, VerdictLook> = {
   proceed: {
     icon: "sentinel",
     word: "Proceeded",
@@ -556,10 +557,17 @@ const unhandledEscalateLook: VerdictLook = {
   tone: "neutral",
 };
 
+/** A status a later Inspect adds records no report, so it reads as one. */
+const unknownStatusLook = (status: string): VerdictLook => ({
+  icon: "sentinel",
+  word: status,
+  tone: "neutral",
+});
+
 const lookOf = (step: SentinelStep): VerdictLook =>
   step.verdict === "escalate" && step.returned
     ? unhandledEscalateLook
-    : verdictLooks[step.verdict];
+    : (getOwn(verdictLooks, step.verdict) ?? unknownStatusLook(step.verdict));
 
 const toneOfDecision = (
   decision: SentinelEvent["action"] | undefined

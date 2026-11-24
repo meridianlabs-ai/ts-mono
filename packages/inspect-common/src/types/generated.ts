@@ -3783,9 +3783,7 @@ export interface components {
         };
         /**
          * SentinelEvalStats
-         * @description A sentinel's stats added up over an eval's samples whose stats are complete.
-         *
-         *     `complete` is false where any sample was left out.
+         * @description A sentinel's stats added up over an eval's samples whose stats are complete: only the fields that add up.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
@@ -3794,29 +3792,31 @@ export interface components {
             actions?: {
                 [key: string]: number;
             } | null;
-            /**
-             * Complete
-             * @default true
-             */
-            complete: boolean;
-            human_reviews?: components["schemas"]["SentinelReviewCounts"] | null;
-            /** Incomplete Reason */
-            incomplete_reason?: string | null;
+            human_reviews?: components["schemas"]["SentinelHumanReviewCounts"] | null;
             /**
              * Incomplete Samples
              * @default 0
              */
             incomplete_samples: number;
             /**
+             * Model Calls
+             * @default 0
+             */
+            model_calls: number;
+            /**
              * Samples
              * @default 0
              */
             samples: number;
-            sidecar?: components["schemas"]["SentinelSidecarStats"] | null;
             /** Steps */
             steps?: {
                 [key: string]: components["schemas"]["SentinelStepCounts"];
             } | null;
+            /**
+             * Unrecorded Calls
+             * @default 0
+             */
+            unrecorded_calls: number;
         };
         /**
          * SentinelEvent
@@ -3873,7 +3873,7 @@ export interface components {
             reason?: string | null;
             /** References */
             references: components["schemas"]["Reference"][];
-            sidecar?: components["schemas"]["SentinelSidecar"] | null;
+            remote?: components["schemas"]["SentinelRemote"] | null;
             /** Span Id */
             span_id?: string | null;
             /**
@@ -3881,11 +3881,8 @@ export interface components {
              * @enum {string}
              */
             stage: "model_input" | "model_output" | "tool_call" | "tool_result";
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged";
+            /** Status */
+            status: ("reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged") | string;
             /** Step Id */
             step_id: string;
             /** Suspicion */
@@ -3902,22 +3899,19 @@ export interface components {
             working_time?: number | null;
         };
         /**
-         * SentinelReviewCounts
-         * @description Questions a sentinel asked a person, and how they ended.
+         * SentinelHumanReviewCounts
+         * @description Questions a sentinel's `human()` asked a person, and how they ended.
+         *
+         *     Only reviews a sentinel's `human()` asked for. Approvals by `inspect_ai.approval` approvers and reviews by `inspect_ai.review` reviewers are not counted here.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelReviewCounts: {
+        SentinelHumanReviewCounts: {
             /**
              * Answered
              * @default 0
              */
             answered: number;
-            /**
-             * Asked
-             * @default 0
-             */
-            asked: number;
             /**
              * Cancelled
              * @default 0
@@ -3928,96 +3922,98 @@ export interface components {
              * @default 0
              */
             timed_out: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
         };
         /**
-         * SentinelSidecar
-         * @description Where a report a sentinel sidecar made came from: the sidecar behind a model's proxy, and the agent's model call it judged.
+         * SentinelRemote
+         * @description Where a report from a sentinel running outside the eval came from: the model's proxy Inspect reached it through, and the agent's model call it judged.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelSidecar: {
+        SentinelRemote: {
+            /** Human Reviews */
+            human_reviews?: components["schemas"]["SentinelRemoteHumanReview"][] | null;
             /** Models */
-            models?: components["schemas"]["SentinelSidecarModel"][] | null;
-            /** Proxy */
-            proxy: string;
-            /**
-             * Release
-             * @enum {string}
-             */
-            release: "whole" | "early";
+            models?: components["schemas"]["SentinelRemoteModel"][] | null;
+            /** Proxy Url */
+            proxy_url: string;
             /** Reply Received */
             reply_received?: string | null;
             /** Request Id */
             request_id?: string | null;
             /** Request Received */
             request_received?: string | null;
-            /** Reviews */
-            reviews?: components["schemas"]["SentinelSidecarReview"][] | null;
             /**
              * Trimmed
              * @default false
              */
             trimmed: boolean;
-            /** Version */
-            version: number;
         };
         /**
-         * SentinelSidecarModel
-         * @description A model a sentinel sidecar's monitors and protocols called while judging a step.
+         * SentinelRemoteHumanReview
+         * @description A question a remote sentinel's `human()` asked a person about a step, and how it ended.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelSidecarModel: {
+        SentinelRemoteHumanReview: {
+            /** Answered */
+            answered?: string | null;
+            /** Asked */
+            asked?: string | null;
+            /** Decision */
+            decision?: string | null;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason?: string | null;
+            /** Resolution */
+            resolution?: ("answered" | "timed_out" | "cancelled") | string | null;
+        };
+        /**
+         * SentinelRemoteModel
+         * @description A model a remote sentinel's monitors and protocols called while judging a step.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemoteModel: {
             /** Model */
             model: string;
             /** Role */
             role?: string | null;
         };
         /**
-         * SentinelSidecarReview
-         * @description A question a sentinel sidecar asked a person about a step, and how it ended.
+         * SentinelRemoteStats
+         * @description What only a remote sentinel's stats have: how Inspect reached it, and the model calls Inspect sent through it.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelSidecarReview: {
-            /** Answered */
-            answered?: string | null;
-            /** Asked */
-            asked?: string | null;
-            /** Cause */
-            cause?: string | null;
-            /** Decision */
-            decision?: string | null;
-            /** Id */
-            id: string;
-            /** Resolution */
-            resolution?: ("answered" | "timed_out" | "cancelled") | null;
-        };
-        /**
-         * SentinelSidecarStats
-         * @description What only a sentinel sidecar's stats have: the sidecar, and the model calls Inspect sent through it.
-         *
-         *     Experimental: not yet a stable API; may change without notice.
-         */
-        SentinelSidecarStats: {
+        SentinelRemoteStats: {
             /**
              * Model Calls
              * @default 0
              */
             model_calls: number;
-            /** Proxy */
-            proxy: string;
+            /** Proxy Url */
+            proxy_url: string;
+            /** Release */
+            release: ("whole" | "early") | string;
             /** Results Withheld */
             results_withheld?: boolean | null;
             /**
-             * Unknown Calls
+             * Unrecorded Calls
              * @default 0
              */
-            unknown_calls: number;
+            unrecorded_calls: number;
+            /** Version */
+            version: number;
         };
         /**
          * SentinelStats
-         * @description What a sentinel did over a sample, filled the same way whether it ran inside Inspect or in a sidecar.
+         * @description What a sentinel did over a sample, filled the same way whether it ran inside Inspect or outside the eval.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
@@ -4031,10 +4027,10 @@ export interface components {
              * @default true
              */
             complete: boolean;
-            human_reviews?: components["schemas"]["SentinelReviewCounts"] | null;
+            human_reviews?: components["schemas"]["SentinelHumanReviewCounts"] | null;
             /** Incomplete Reason */
             incomplete_reason?: string | null;
-            sidecar?: components["schemas"]["SentinelSidecarStats"] | null;
+            remote?: components["schemas"]["SentinelRemoteStats"] | null;
             /** Steps */
             steps?: {
                 [key: string]: components["schemas"]["SentinelStepCounts"];

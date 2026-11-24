@@ -927,6 +927,20 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("Escalated")).toBeTruthy();
   });
 
+  it("shows a status a later Inspect adds by its name, as recording no report", () => {
+    renderWithState(
+      <SentinelEventView
+        eventNode={node("later", {
+          status: "paused",
+          function: null,
+          action: null,
+        })}
+      />
+    );
+    expect(screen.getByText("paused")).toBeTruthy();
+    expect(screen.queryByText("Proceeded")).toBeNull();
+  });
+
   it("gives an event shown alone an honest verdict", () => {
     const { container } = renderWithState(
       <SentinelEventView

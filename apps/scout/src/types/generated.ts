@@ -3768,7 +3768,7 @@ export interface components {
             reason?: string | null;
             /** References */
             references: components["schemas"]["Reference"][];
-            sidecar?: components["schemas"]["SentinelSidecar"] | null;
+            remote?: components["schemas"]["SentinelRemote"] | null;
             /** Span Id */
             span_id?: string | null;
             /**
@@ -3776,11 +3776,8 @@ export interface components {
              * @enum {string}
              */
             stage: "model_input" | "model_output" | "tool_call" | "tool_result";
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged";
+            /** Status */
+            status: ("reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged") | string;
             /** Step Id */
             step_id: string;
             /** Suspicion */
@@ -3797,68 +3794,61 @@ export interface components {
             working_time?: number | null;
         };
         /**
-         * SentinelSidecar
-         * @description Where a report a sentinel sidecar made came from: the sidecar behind a model's proxy, and the agent's model call it judged.
+         * SentinelRemote
+         * @description Where a report from a sentinel running outside the eval came from: the model's proxy Inspect reached it through, and the agent's model call it judged.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelSidecar: {
+        SentinelRemote: {
+            /** Human Reviews */
+            human_reviews?: components["schemas"]["SentinelRemoteHumanReview"][] | null;
             /** Models */
-            models?: components["schemas"]["SentinelSidecarModel"][] | null;
-            /** Proxy */
-            proxy: string;
-            /**
-             * Release
-             * @enum {string}
-             */
-            release: "whole" | "early";
+            models?: components["schemas"]["SentinelRemoteModel"][] | null;
+            /** Proxy Url */
+            proxy_url: string;
             /** Reply Received */
             reply_received?: string | null;
             /** Request Id */
             request_id?: string | null;
             /** Request Received */
             request_received?: string | null;
-            /** Reviews */
-            reviews?: components["schemas"]["SentinelSidecarReview"][] | null;
             /**
              * Trimmed
              * @default false
              */
             trimmed: boolean;
-            /** Version */
-            version: number;
         };
         /**
-         * SentinelSidecarModel
-         * @description A model a sentinel sidecar's monitors and protocols called while judging a step.
+         * SentinelRemoteHumanReview
+         * @description A question a remote sentinel's `human()` asked a person about a step, and how it ended.
          *
          *     Experimental: not yet a stable API; may change without notice.
          */
-        SentinelSidecarModel: {
-            /** Model */
-            model: string;
-            /** Role */
-            role?: string | null;
-        };
-        /**
-         * SentinelSidecarReview
-         * @description A question a sentinel sidecar asked a person about a step, and how it ended.
-         *
-         *     Experimental: not yet a stable API; may change without notice.
-         */
-        SentinelSidecarReview: {
+        SentinelRemoteHumanReview: {
             /** Answered */
             answered?: string | null;
             /** Asked */
             asked?: string | null;
-            /** Cause */
-            cause?: string | null;
             /** Decision */
             decision?: string | null;
             /** Id */
             id: string;
+            /** Reason */
+            reason?: string | null;
             /** Resolution */
-            resolution?: ("answered" | "timed_out" | "cancelled") | null;
+            resolution?: ("answered" | "timed_out" | "cancelled") | string | null;
+        };
+        /**
+         * SentinelRemoteModel
+         * @description A model a remote sentinel's monitors and protocols called while judging a step.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemoteModel: {
+            /** Model */
+            model: string;
+            /** Role */
+            role?: string | null;
         };
         /**
          * SnapshotDetails

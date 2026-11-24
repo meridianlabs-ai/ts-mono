@@ -358,10 +358,18 @@ export interface SentinelRow {
   tookEffect: boolean;
 }
 
-type InactiveStatus = Exclude<SentinelEvent["status"], "reported">;
+/** The verdicts the viewer knows how to show. */
+export type KnownSentinelVerdict =
+  | "observe"
+  | "cancelled"
+  | "bypassed"
+  | "superseded"
+  | "error"
+  | "unjudged"
+  | NonNullable<SentinelEvent["action"]>;
 
-export type SentinelVerdict =
-  "observe" | InactiveStatus | NonNullable<SentinelEvent["action"]>;
+/** A known verdict, or a status a later Inspect adds, which records no report. */
+export type SentinelVerdict = string;
 
 /** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
@@ -560,9 +568,8 @@ const outcomeOf = (nodes: SentinelNode[]): SentinelNode | undefined => {
   return nodes.slice(bypassed + 1).findLast((n) => reported(n, "decision"));
 };
 
-const isInactive = (
-  status: SentinelEvent["status"]
-): status is InactiveStatus => status !== "reported";
+const isInactive = (status: SentinelEvent["status"]): boolean =>
+  status !== "reported";
 
 /**
  * The verdict of a step the runner returned no decision for: observed when
