@@ -1,14 +1,11 @@
-import { cpSync, existsSync, rmSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 
 import react from "@vitejs/plugin-react-swc";
-import pc from "picocolors";
-import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
 import {
-  findPythonRepoRoot,
+  copyDistToPythonRepo,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
@@ -18,26 +15,6 @@ import {
   rewriteLoopbackOrigin,
   VIEWER_CSP_DIRECTIVES,
 } from "../../tooling/vite-plugins/index.js";
-
-function copyToPythonRepo(): Plugin {
-  return {
-    name: "copy-to-python-repo",
-    closeBundle() {
-      // closeBundle runs, with no error, even when the build failed after
-      // emptying dist (e.g. contentSecurityPolicy rejecting eval); don't wipe
-      // the Python repo's viewer with it.
-      if (!existsSync("dist/index.html")) return;
-      const pythonRoot = findPythonRepoRoot("inspect_ai");
-      if (!pythonRoot) return;
-      const target = join(pythonRoot, "src/inspect_ai/_view/dist");
-      rmSync(target, { recursive: true, force: true });
-      cpSync("dist", target, { recursive: true });
-      console.log(
-        `${pc.cyan("[vite]")} ${pc.bold("Copied")} dist → ${pc.dim(target)}`
-      );
-    },
-  };
-}
 
 const viewServerUrl = "http://127.0.0.1:7575";
 
@@ -149,7 +126,7 @@ export default defineConfig(({ mode }) => {
         ),
         contentSecurityPolicy(VIEWER_CSP_DIRECTIVES),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
-        ...(isE2e ? [] : [copyToPythonRepo()]),
+        ...(isE2e ? [] : [copyDistToPythonRepo("inspect_ai")]),
       ],
       mode: "development",
       base: "",

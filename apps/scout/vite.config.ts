@@ -1,14 +1,11 @@
-import { cpSync, rmSync } from "fs";
-import { join, resolve } from "path";
+import { resolve } from "path";
 
 import react from "@vitejs/plugin-react-swc";
-import pc from "picocolors";
-import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
 import {
-  findPythonRepoRoot,
+  copyDistToPythonRepo,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
@@ -18,22 +15,6 @@ import {
   rewriteLoopbackOrigin,
   VIEWER_CSP_DIRECTIVES,
 } from "../../tooling/vite-plugins/index.js";
-
-function copyToPythonRepo(): Plugin {
-  return {
-    name: "copy-to-python-repo",
-    closeBundle() {
-      const pythonRoot = findPythonRepoRoot("inspect_scout");
-      if (!pythonRoot) return;
-      const target = join(pythonRoot, "src/inspect_scout/_view/dist");
-      rmSync(target, { recursive: true, force: true });
-      cpSync("dist", target, { recursive: true });
-      console.log(
-        `${pc.cyan("[vite]")} ${pc.bold("Copied")} dist → ${pc.dim(target)}`
-      );
-    },
-  };
-}
 
 const scoutServerUrl = "http://127.0.0.1:7576";
 
@@ -147,7 +128,7 @@ export default defineConfig(({ mode }) => {
           evalAllowedIn: unusedArqueroCodegen,
         }),
         warnIfWatchingWithoutSubmodule("inspect_scout"),
-        ...(isE2e ? [] : [copyToPythonRepo()]),
+        ...(isE2e ? [] : [copyDistToPythonRepo("inspect_scout")]),
       ],
       base: "",
       server: {

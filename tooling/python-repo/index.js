@@ -8,7 +8,7 @@
  * walks up to locate the Python repo root and verifies the package name
  * in pyproject.toml.
  */
-import { existsSync, readFileSync } from "fs";
+import { cpSync, existsSync, readFileSync, rmSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import pc from "picocolors";
@@ -95,6 +95,35 @@ export function warnIfWatchingWithoutSubmodule(packageName) {
       console.log(
         `\n${pc.red(pc.bold("⚠  pnpm watch outside a submodule mount has no effect!"))}\n${pc.red(`   dist will not be copied — mount ts-mono at src/${packageName}/_view/ts-mono/`)}\n`,
       );
+    },
+  };
+}
+
+/**
+ * Vite plugin: copy the built viewer into the Python repo's
+ * `src/<package>/_view/dist` when ts-mono is mounted as its submodule.
+ *
+ * @param {string} packageName - Expected `name` value in pyproject.toml.
+ * @returns {import("vite").Plugin}
+ */
+export function copyDistToPythonRepo(packageName) {
+  return {
+    name: "copy-to-python-repo",
+    // A failed build still calls closeBundle and can leave a stale dist, so
+    // copy only here: after every other plugin's writeBundle has succeeded.
+    writeBundle: {
+      sequential: true,
+      order: "post",
+      handler(options) {
+        const pythonRoot = findPythonRepoRoot(packageName);
+        if (!pythonRoot || !options.dir) return;
+        const target = join(pythonRoot, `src/${packageName}/_view/dist`);
+        rmSync(target, { recursive: true, force: true });
+        cpSync(options.dir, target, { recursive: true });
+        console.log(
+          `${pc.cyan("[vite]")} ${pc.bold("Copied")} ${options.dir} → ${pc.dim(target)}`,
+        );
+      },
     },
   };
 }

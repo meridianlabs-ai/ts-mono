@@ -146,8 +146,8 @@ caught locally. If you changed code, also run `pnpm test`.
   - In an opted-out function, existing manual memoization is
     load-bearing. Don't bulk-strip `useMemo`/`useCallback` from code you
     aren't otherwise changing.
-  - Unsupported syntax anywhere in a component/hook body bails out the
-    whole function — keep gnarly imperative code (`try/finally`,
+  - Unsupported syntax anywhere in a component/hook body fails the
+    whole function, and so the build — keep gnarly imperative code (`try/finally`,
     mutation-heavy loops, `for await`) in module-level helpers instead
     of inline in the component.
   - Vitest runs uncompiled code (the SWC plugin is vite-only); only e2e
