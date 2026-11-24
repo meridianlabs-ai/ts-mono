@@ -645,11 +645,12 @@ export function buildSentinelStep(
   const root = checks.find(
     (n) => n.event.path === "" && n.event.status !== "superseded"
   );
-  const unjudged = checks.find(
-    (n) => n.event.path === "" && n.event.status === "unjudged"
-  );
-
   const outcome = outcomeOf(checks);
+  // A decision the runner returned took effect, so it outranks a later
+  // unjudged marker for the same step.
+  const unjudged = outcome
+    ? undefined
+    : checks.find((n) => n.event.path === "" && n.event.status === "unjudged");
   const acted = !!outcome && outcome.event.action !== "proceed";
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
