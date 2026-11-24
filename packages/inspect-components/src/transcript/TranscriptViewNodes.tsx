@@ -276,16 +276,25 @@ export const TranscriptViewNodes = forwardRef<
     ? redirectEventId(initialEventId)
     : initialEventId;
 
-  const allNodes = flatTree(
-    eventNodes,
-    collapsedTranscript || defaultCollapsedIds
-  );
-  const flattenedNodes =
-    hiddenApprovalIds.size === 0 && hiddenSentinelIds.size === 0
-      ? allNodes
-      : allNodes.filter(
+  // Kept: the scroll effects depend on this array, so its identity must hold
+  // even where this runs uncompiled (Vitest, or a future "use no memo").
+  const flattenedNodes = useMemo(() => {
+    const all = flatTree(
+      eventNodes,
+      collapsedTranscript || defaultCollapsedIds
+    );
+    return hiddenApprovalIds.size === 0 && hiddenSentinelIds.size === 0
+      ? all
+      : all.filter(
           (n) => !hiddenApprovalIds.has(n.id) && !hiddenSentinelIds.has(n.id)
         );
+  }, [
+    eventNodes,
+    collapsedTranscript,
+    defaultCollapsedIds,
+    hiddenApprovalIds,
+    hiddenSentinelIds,
+  ]);
 
   const mergedEventNodeContext: Partial<EventNodeContext> = {
     ...eventNodeContext,
