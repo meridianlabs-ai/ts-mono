@@ -37,6 +37,8 @@ export type ScaledVirtualizerResult = {
 export function useScaledVirtualizer(
   opts: ScaledVirtualizerOptions
 ): ScaledVirtualizerResult {
+  // Opted out of the compiler; the react-hooks/incompatible-library disable in this file says why.
+  "use no memo";
   const scaleRef = useRef(1);
 
   // Intercept scroll-offset reads: the browser reports spacer-space

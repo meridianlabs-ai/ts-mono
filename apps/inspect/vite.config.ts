@@ -59,7 +59,10 @@ export default defineConfig(({ mode }) => {
         useAtYourOwnRisk_mutateSwcOptions(options) {
           options.jsc ??= {};
           options.jsc.transform ??= {};
-          options.jsc.transform.reactCompiler = true;
+          // Any function the compiler skips fails the build unless it says "use no memo".
+          options.jsc.transform.reactCompiler = {
+            panicThreshold: "all_errors",
+          };
         },
       }),
     ],

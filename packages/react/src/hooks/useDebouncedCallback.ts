@@ -23,6 +23,8 @@ export function useDebouncedCallback<A extends unknown[], R>(
   callback: (...args: A) => R,
   delay: number
 ): DebouncedFunc<(...args: A) => void> {
+  // Opted out of the compiler; the react-hooks/refs disable in this file says why.
+  "use no memo";
   const callbackRef = useRef(callback);
 
   // Keep ref pointing to latest callback (useLayoutEffect for synchronous update)

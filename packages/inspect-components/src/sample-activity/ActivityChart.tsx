@@ -238,6 +238,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   onHoverMarker,
   onOpenEvent,
 }) => {
+  // Opted out of the compiler; the react-hooks/invariant disable in this file says why.
+  "use no memo";
   const [width, setWidth] = useState(0);
   // Callback ref, not useResizeObserver — the chart renders null while every
   // band is toggled off, so a mount-only effect could observe nothing.

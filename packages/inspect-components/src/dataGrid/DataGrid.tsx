@@ -385,6 +385,8 @@ export function DataGrid<TRow extends RowData>({
   autoFocus = false,
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
+  // Opted out of the compiler; the react-hooks/incompatible-library disable in this file says why.
+  "use no memo";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const getRowHref = isVscode() ? undefined : getRowHrefProp;
 

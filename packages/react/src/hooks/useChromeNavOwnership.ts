@@ -147,6 +147,8 @@ export function useChromeNavOwnership(
     | ReadonlyArray<RefObject<HTMLElement | null>>,
   options: UseChromeNavOwnershipOptions
 ): UseChromeNavOwnershipResult {
+  // Opted out of the compiler; the react-hooks/todo disable in this file says why.
+  "use no memo";
   const { ownedForKey, findActiveRef, expandOnlyAtTop, extraTargets } = options;
   const resetKey = options.resetKey ?? null;
 
