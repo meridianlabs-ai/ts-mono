@@ -36,7 +36,8 @@ checklist behind. Git history keeps the original.
 Run `pnpm check` from the repo root before every push or PR. It runs the
 deterministic gates CI runs — manypkg, suppressions ledger, lint,
 typecheck, format — so CI doesn't false-start on failures you could have
-caught locally. If you changed code, also run `pnpm test`.
+caught locally. If you changed code, also run `pnpm test`, and run
+`pnpm build` too: lint misses some React Compiler bail-outs that fail it.
 
 ## Code Style — Type Safety
 
@@ -137,14 +138,17 @@ caught locally. If you changed code, also run `pnpm test`.
     *correctness* requirement TypeScript/compiler can't see (e.g. a
     render-time cache like `useKeyedMemo`/`useStableValue`, marked
     `"use no memo"`). Those carry a comment saying why.
-  - The compiler bails out per-function; in a bailed-out component,
-    existing manual memoization is load-bearing. Don't bulk-strip
-    `useMemo`/`useCallback` from code you aren't otherwise changing, and
-    before removing it from a component you are changing, confirm the
-    component compiles (React DevTools shows a ✨ badge; the
-    `react-hooks` ESLint rules flag most bail-out causes).
-  - Unsupported syntax anywhere in a component/hook body bails out the
-    whole function — keep gnarly imperative code (`try/finally`,
+  - A component or hook the compiler can't compile fails the vite build
+    and the dev server (`panicThreshold: "all_errors"`). Fix the cause,
+    or, when staying uncompiled is deliberate, make `"use no memo"` the
+    first statement of the function body (a file-level directive still
+    fails) with a comment saying why. The `react-hooks` ESLint rules
+    ignore the directive, so the site keeps its reasoned disable too.
+  - In an opted-out function, existing manual memoization is
+    load-bearing. Don't bulk-strip `useMemo`/`useCallback` from code you
+    aren't otherwise changing.
+  - Unsupported syntax anywhere in a component/hook body fails the
+    whole function, and so the build — keep gnarly imperative code (`try/finally`,
     mutation-heavy loops, `for await`) in module-level helpers instead
     of inline in the component.
   - Vitest runs uncompiled code (the SWC plugin is vite-only); only e2e

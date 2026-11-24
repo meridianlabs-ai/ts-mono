@@ -104,6 +104,8 @@ export const HistoryList: FC<HistoryListProps> = ({
   onHoverRow,
   sampleOpener,
 }) => {
+  // Opted out of the compiler; the react-hooks/incompatible-library disable in this file says why.
+  "use no memo";
   const counts = useMemo(() => {
     const map = new Map<HistoryCategory, number>();
     for (const row of rows) {

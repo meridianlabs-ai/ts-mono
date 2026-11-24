@@ -75,6 +75,8 @@ export function useScrollDirection(
     | ReadonlyArray<RefObject<HTMLElement | null>>,
   options?: UseScrollDirectionOptions
 ): UseScrollDirectionResult {
+  // Opted out of the compiler; the react-hooks/refs disable in this file says why.
+  "use no memo";
   const threshold = options?.threshold ?? 40;
   const transitionLockMs = options?.transitionLockMs ?? 250;
   const suppressRef = options?.suppressRef;

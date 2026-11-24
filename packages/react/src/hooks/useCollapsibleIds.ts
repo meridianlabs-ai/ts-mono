@@ -10,6 +10,8 @@ export const useCollapsibleIds = (
   (id: string, value: boolean) => void,
   () => void,
 ] => {
+  // Opted out of the compiler; the react-hooks/hooks disable in this file says why.
+  "use no memo";
   const { useEntries, useSetValue, useRemoveAll } = useComponentStateHooks();
 
   const entries = useEntries(key);

@@ -61,6 +61,8 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   offsetTop,
   chunked,
 }) => {
+  // Opted out of the compiler; the react-hooks/incompatible-library disable in this file says why.
+  "use no memo";
   const hiddenTypesStored = useStore(
     (state) => state.sample.eventFilter.filteredTypes
   );

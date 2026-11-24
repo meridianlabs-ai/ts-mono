@@ -24,6 +24,8 @@ export function useProperty<T>(
     defaultValue?: T;
   }
 ): [T | undefined, (value: T) => void, () => void] {
+  // Opted out of the compiler; the react-hooks/hooks disable in this file says why.
+  "use no memo";
   const { useValue, useSetValue, useRemoveValue } = useComponentStateHooks();
 
   const defaultValue = options?.defaultValue;

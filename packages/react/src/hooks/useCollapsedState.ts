@@ -8,6 +8,8 @@ export const useCollapsedState = (
   defaultValue?: boolean,
   scope?: string
 ): [boolean, (value: boolean) => void] => {
+  // Opted out of the compiler; the react-hooks/hooks disable in this file says why.
+  "use no memo";
   const { useValue, useSetValue } = useComponentStateHooks();
 
   const resolvedScope = scope || "collapse-state-scope";
