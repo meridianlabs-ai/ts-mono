@@ -10,7 +10,7 @@ import type { ListingQuery, LogsListingResult } from "./types";
  * rows (e.g. pending tasks, which have no database record) join a
  * database-produced page without forcing the whole listing back into memory.
  */
-export function mergeSortedRows<TRow>(
+export function mergeSortedRows<TRow extends object>(
   base: TRow[],
   overlay: TRow[],
   compare?: (a: TRow, b: TRow) => number

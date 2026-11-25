@@ -1,3 +1,5 @@
+import { expectDefined } from "@tsmono/util";
+
 import type { ItemMatchCount } from "./ExtendedFindContext";
 
 /** Identifies one match. Page text outside any list has `source: null` and
@@ -60,7 +62,7 @@ function sourceEntries(source: SourceMatches): MatchEntry[] {
   for (const { item, count } of source.dataCounts) counts.set(item, count);
   for (const item of source.rendered.keys()) counts.set(item, 0);
   const entries: MatchEntry[] = [];
-  for (const [item, count] of [...counts].sort(([a], [b]) => a - b)) {
+  for (const item of [...counts.keys()].sort((a, b) => a - b)) {
     const ranges = source.rendered.get(item);
     if (ranges) {
       entries.push({ source: source.id, item, count: ranges.length, ranges });
@@ -68,7 +70,7 @@ function sourceEntries(source: SourceMatches): MatchEntry[] {
       entries.push({
         source: source.id,
         item,
-        count,
+        count: expectDefined(counts.get(item), "a match count"),
         ranges: null,
       });
     }
