@@ -162,6 +162,7 @@ const toggleIcon = (
   if (node.children.length > 0) {
     return collapsed ? "chevronRight" : "chevronDown";
   }
+  return undefined;
 };
 
 export const iconForNode = (node: EventNode): IconName | undefined => {
@@ -187,6 +188,9 @@ export const iconForNode = (node: EventNode): IconName | undefined => {
 
     case "compaction":
       return "compaction";
+
+    default:
+      return undefined;
   }
 };
 
@@ -195,6 +199,7 @@ const tooltipForNode = (node: EventNode): string | undefined => {
   if (node.sourceSpan?.spanType === "agent" && node.sourceSpan.description) {
     return node.sourceSpan.description;
   }
+  return undefined;
 };
 
 const labelForNode = (node: EventNode): string => {

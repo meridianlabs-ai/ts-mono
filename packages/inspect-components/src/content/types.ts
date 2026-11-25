@@ -1,5 +1,3 @@
-// TODO: lint @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents */
 import { ReactNode } from "react";
 
 import { MarkdownReference } from "@tsmono/react/components";
@@ -15,15 +13,18 @@ export interface RenderOptions {
   previewRefsOnHover?: boolean;
 }
 
+export interface RenderEntry {
+  name: string;
+  value: unknown;
+}
+
 export interface ContentRenderer {
   bucket: number;
-  canRender: (content: any) => boolean;
+  /** Returns undefined when the entry isn't this renderer's kind. */
   render: (
     id: string,
-    content: any,
+    entry: RenderEntry,
     options: RenderOptions,
     references?: MarkdownReference[]
-  ) => {
-    rendered: string | number | bigint | boolean | object | ReactNode | null;
-  };
+  ) => { rendered: ReactNode } | undefined;
 }

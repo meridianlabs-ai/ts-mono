@@ -6,7 +6,15 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   testApprovalEvent,
@@ -25,6 +33,7 @@ import {
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
+import { loadMarkdownPipeline } from "@tsmono/react/testing/markdown";
 
 import { InMemoryStateWrapper } from "./testHelpers";
 import { ToolEventView } from "./ToolEventView";
@@ -60,6 +69,8 @@ const renderView = (fn: string, args: Record<string, JsonValue>) =>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
+
+beforeAll(loadMarkdownPipeline);
 
 describe("ToolEventView", () => {
   beforeEach(() => {

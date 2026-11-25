@@ -55,7 +55,9 @@ declare global {
 
 interface AppFixtures {
   network: NetworkFixture;
-  disableRetries: void;
+  /** On for a test that asserts an API error state, which React Query
+   *  retries would otherwise delay past the assertion timeout. */
+  disableRetries: boolean;
   /** Off for a test that triggers CSP violations on purpose; it then asserts
    *  `cspViolations` itself. */
   allowCspViolations: boolean;
@@ -64,9 +66,16 @@ interface AppFixtures {
 }
 
 export const test = base.extend<AppFixtures>({
+  disableRetries: [false, { option: true }],
+
   // Override page to inject SSE mock before any navigation
-  page: async ({ page }, use) => {
+  page: async ({ page, disableRetries }, use) => {
     await page.addInitScript(MOCK_EVENT_SOURCE_SCRIPT);
+    if (disableRetries) {
+      await page.addInitScript(() => {
+        globalThis.__TEST_DISABLE_RETRY = true;
+      });
+    }
     await use(page);
   },
 
@@ -117,17 +126,6 @@ export const test = base.extend<AppFixtures>({
       }
     },
     { auto: true },
-  ],
-
-  // Opt-in fixture: destructure in a test to disable React Query retries
-  disableRetries: [
-    async ({ page }, use) => {
-      await page.addInitScript(() => {
-        globalThis.__TEST_DISABLE_RETRY = true;
-      });
-      await use();
-    },
-    { auto: false },
   ],
 });
 

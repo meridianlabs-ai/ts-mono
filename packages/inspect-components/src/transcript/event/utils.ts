@@ -146,7 +146,7 @@ export const formatTitle = (
     subItems.push(`${formatNumber(total_tokens)} tokens`);
   }
   if (working_start) {
-    subItems.push(`${formatTime(working_start)}`);
+    subItems.push(formatTime(working_start));
   }
   const subtitle = subItems.length > 0 ? ` (${subItems.join(", ")})` : "";
   return `${titleWithRole}${subtitle}`;

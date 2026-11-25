@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -15,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { decodeBase64Url, encodeBase64Url, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
+import { kValidationSetQueryParam } from "../../../router/url";
 import { ApiProvider, createStore, StoreProvider } from "../../../state/store";
 import { server } from "../../../test/setup-msw";
 import {
@@ -30,6 +32,8 @@ import { ValidationCaseEditor } from "./ValidationCaseEditor";
 
 const setUri = "file:///proj/cases.csv";
 const casesEndpoint = `/api/v2/validations/${encodeBase64Url(setUri)}`;
+const otherSetUri = "file:///proj/other.csv";
+const otherCasesEndpoint = `/api/v2/validations/${encodeBase64Url(otherSetUri)}`;
 
 const appConfig: AppConfig = {
   filter: [],
@@ -50,7 +54,11 @@ const installCaseServer = (initial: Map<string, ValidationCase>) => {
       HttpResponse.json<AppConfig>(appConfig)
     ),
     http.get("/api/v2/validations", () =>
-      HttpResponse.json<string[]>([setUri])
+      HttpResponse.json<string[]>([setUri, otherSetUri])
+    ),
+    http.get(otherCasesEndpoint, () => HttpResponse.json<ValidationCase[]>([])),
+    http.get(`${otherCasesEndpoint}/:id`, () =>
+      HttpResponse.json({ detail: "Not Found" }, { status: 404 })
     ),
     http.get(casesEndpoint, () =>
       HttpResponse.json<ValidationCase[]>([...cases.values()])
@@ -106,18 +114,26 @@ const WhenConfigLoaded: FC<PropsWithChildren> = ({ children }) => {
   return data ? children : null;
 };
 
-const renderEditor = async (transcriptId: string) => {
+const renderEditor = async (
+  transcriptId: string,
+  {
+    url = "/",
+    storedSetUri,
+    readyText = "Target",
+  }: { url?: string; storedSetUri?: string; readyText?: string } = {}
+) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   const api = apiScoutServer();
   const store = createStore(api);
+  store.getState().setEditorSelectedValidationSetUri(storedSetUri);
 
   const Wrapper = ({ children }: PropsWithChildren) => (
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[url]}>
             <WhenConfigLoaded>{children}</WhenConfigLoaded>
           </MemoryRouter>
         </StoreProvider>
@@ -127,11 +143,12 @@ const renderEditor = async (transcriptId: string) => {
 
   const editor = (id: string) => <ValidationCaseEditor transcriptId={id} />;
   const utils = render(editor(transcriptId), { wrapper: Wrapper });
-  await screen.findByText("Target");
+  await screen.findByText(readyText);
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   return {
     rerenderFor: (id: string) => utils.rerender(editor(id)),
     queryClient,
+    store,
   };
 };
 
@@ -173,6 +190,41 @@ describe("ValidationCaseEditor", () => {
     expect(targetInput().value).toBe("foo");
     expect(radio("Other").checked).toBe(true);
   }, 15_000);
+
+  it("replaces a stored set the project no longer has with its first set", async () => {
+    installCaseServer(new Map());
+    const { store } = await renderEditor("t1", {
+      storedSetUri: "file:///gone/cases.csv",
+    });
+
+    expect(store.getState().editorSelectedValidationSetUri).toBe(setUri);
+  });
+
+  it("opens the set named in the URL over the stored one", async () => {
+    installCaseServer(new Map());
+    const { store } = await renderEditor("t1", {
+      url: `/?${kValidationSetQueryParam}=${encodeBase64Url(otherSetUri)}`,
+      storedSetUri: setUri,
+    });
+
+    expect(store.getState().editorSelectedValidationSetUri).toBe(otherSetUri);
+  });
+
+  it("clears a set stored late while the project has no sets", async () => {
+    installCaseServer(new Map());
+    server.use(
+      http.get("/api/v2/validations", () => HttpResponse.json<string[]>([]))
+    );
+    const { store } = await renderEditor("t1", { readyText: "Validation Set" });
+
+    act(() => {
+      store.getState().setEditorSelectedValidationSetUri(setUri);
+    });
+
+    await waitFor(() =>
+      expect(store.getState().editorSelectedValidationSetUri).toBeUndefined()
+    );
+  });
 
   it("keeps the unsaved draft out of the cache and off other transcripts", async () => {
     const { requests } = installCaseServer(new Map());

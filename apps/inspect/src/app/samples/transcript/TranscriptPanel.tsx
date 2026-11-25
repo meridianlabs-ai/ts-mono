@@ -26,6 +26,7 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import {
   useChromeNavOwnership,
+  useLatestRef,
   useOpenEventFocus,
   useReflectEventNavigationInUrl,
   type ChromeTarget,
@@ -262,8 +263,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // changes and flicker the swimlanes open/closed. Freeze headroom detection
   // while find is active (a ref so the scroll handler sees the live value).
   const showFind = useStore((state) => state.app.showFind);
-  const findActiveRef = useRef(showFind);
-  findActiveRef.current = showFind;
+  const findActiveRef = useLatestRef(showFind);
 
   // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
   // natural scroll detection while it owns it; a physical gesture hands

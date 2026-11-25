@@ -77,7 +77,7 @@ export const initializeStore = (
   const store = create<StoreState>()(
     devtools(
       persist(
-        immer((set, get, store) => ({
+        immer((set, get) => ({
           // Initialize
           initialize: (capabilities) => {
             // Initialize application slices
@@ -87,10 +87,10 @@ export const initializeStore = (
           },
 
           // Create the slices and merge them in
-          ...createAppSlice(set, get, store),
-          ...createLogsSlice(set, get, store),
-          ...createLogSlice(set, get, store),
-          ...createSampleSlice(set, get, store),
+          ...createAppSlice(set, get),
+          ...createLogsSlice(set, get),
+          ...createLogSlice(set, get),
+          ...createSampleSlice(set),
           ...createSearchSlice(set),
         })),
         {

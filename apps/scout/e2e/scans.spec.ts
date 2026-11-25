@@ -20,18 +20,21 @@ test("scans page shows an empty grid when no scans exist", async ({ page }) => {
   await expect(page.locator("#scan-job-footer")).toContainText("0 items");
 });
 
-test("scans page shows error panel on API failure", async ({
-  page,
-  network,
-  disableRetries: _,
-}) => {
-  network.use(
-    http.post("*/api/v2/scans/:dir", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 })
-    )
-  );
+test.describe("with React Query retries disabled", () => {
+  test.use({ disableRetries: true });
 
-  await page.goto("/#/scans");
+  test("scans page shows error panel on API failure", async ({
+    page,
+    network,
+  }) => {
+    network.use(
+      http.post("*/api/v2/scans/:dir", () =>
+        HttpResponse.text("Internal Server Error", { status: 500 })
+      )
+    );
 
-  await expect(page.getByText("Error Loading Scans")).toBeVisible();
+    await page.goto("/#/scans");
+
+    await expect(page.getByText("Error Loading Scans")).toBeVisible();
+  });
 });

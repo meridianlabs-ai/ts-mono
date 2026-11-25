@@ -170,9 +170,9 @@ export const EventPanel: FC<EventPanelProps> = ({
     : undefined;
   // Pill for the shared tab name; falls back to the first pill when this event
   // doesn't have that tab (e.g. remembered "API" on a panel without an API tab).
-  const sharedSelectedNav = pillId(
-    Math.max(0, sharedTab === undefined ? -1 : tabNames.indexOf(sharedTab))
-  );
+  const sharedIndex =
+    sharedTab === undefined ? -1 : tabNames.indexOf(sharedTab);
+  const sharedSelectedNav = pillId(Math.max(0, sharedIndex));
   const selectedNav = sharedTabActive ? sharedSelectedNav : storedNav;
   const setSelectedNav = (target: string) => {
     if (sharedTabActive && onSelectTab) {

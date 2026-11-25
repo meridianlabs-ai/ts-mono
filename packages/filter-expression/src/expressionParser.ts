@@ -157,7 +157,7 @@ const unquote = (literal: string): string => {
   let built = "";
   for (let i = 1; i < literal.length - 1; i++) {
     if (literal[i] === "\\") i++;
-    built += literal[i];
+    built += literal.charAt(i);
   }
   return built;
 };

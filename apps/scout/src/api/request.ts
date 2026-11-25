@@ -85,7 +85,7 @@ export function serverRequestApi(
 
     // By default, disable browser caching. When enableBrowserCache is true,
     // omit these headers to let the browser handle ETag-based caching.
-    const baseHeaders = request?.enableBrowserCache
+    const baseHeaders: Record<string, string> = request?.enableBrowserCache
       ? {
           Accept: "application/json",
           ...request.headers,
@@ -142,7 +142,7 @@ export function serverRequestApi(
   ): Promise<{ raw: string }> => {
     const url = buildApiUrl(path);
 
-    const baseHeaders = {
+    const baseHeaders: Record<string, string> = {
       Accept: "application/json",
       Pragma: "no-cache",
       Expires: "0",

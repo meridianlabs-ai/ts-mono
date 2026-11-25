@@ -61,8 +61,8 @@ const URL_ATTRIBUTES = new Set([
   "xlink:href",
 ]);
 
-// Browsers enumerate a parsed shorthand as its longhands (jsdom lists both),
-// so each allowlist below names the longhands too.
+// Browsers and jsdom enumerate a parsed shorthand as its longhands, so each
+// allowlist below names the longhands too.
 const BOX_EDGES = ["top", "right", "bottom", "left"];
 const BOX_LONGHANDS = [
   "overflow-x",
@@ -304,21 +304,33 @@ const sanitizeStyleAttribute = (style: string): string => {
   return safeDeclarations(scratch.style).join(" ");
 };
 
+// Firefox and jsdom 31 enumerate vertical-align as longhands; jsdom 31 also does text-align.
+const ENUMERATED_AS_LONGHANDS = ["text-align", "vertical-align"];
+
+const declaredProperties = (style: CSSStyleDeclaration): Set<string> => {
+  const properties = new Set(Array.from(style, (p) => p.toLowerCase()));
+  for (const shorthand of ENUMERATED_AS_LONGHANDS) {
+    if (style.getPropertyValue(shorthand)) {
+      properties.add(shorthand);
+    }
+  }
+  return properties;
+};
+
 const safeDeclarations = (style: CSSStyleDeclaration): string[] => {
   const declarations: string[] = [];
-  for (const property of Array.from(style)) {
-    const normalizedProperty = property.toLowerCase();
+  for (const property of declaredProperties(style)) {
     const value = style.getPropertyValue(property);
     if (
-      !INLINE_STYLE_PROPERTIES.has(normalizedProperty) ||
+      !INLINE_STYLE_PROPERTIES.has(property) ||
       !value ||
-      !isSafeStyleValue(normalizedProperty, value)
+      !isSafeStyleValue(property, value)
     ) {
       continue;
     }
     const priority = style.getPropertyPriority(property);
     declarations.push(
-      `${normalizedProperty}: ${value}${priority ? ` !${priority}` : ""};`
+      `${property}: ${value}${priority ? ` !${priority}` : ""};`
     );
   }
   return declarations;

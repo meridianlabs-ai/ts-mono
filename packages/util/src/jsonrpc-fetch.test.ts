@@ -26,7 +26,7 @@ function firstRequest(
   rpcClient: ReturnType<typeof mockRpcClient>
 ): HttpProxyRequest {
   const params = rpcClient.mock.calls[0]?.[1];
-  const request = Array.isArray(params) ? params[0] : undefined;
+  const request: unknown = Array.isArray(params) ? params[0] : undefined;
   if (!isHttpProxyRequest(request)) {
     throw new Error(`not an HttpProxyRequest: ${JSON.stringify(params)}`);
   }
@@ -215,15 +215,14 @@ describe("createJsonRpcFetch", () => {
       expect(request.body).toBe("binary data");
     });
 
-    it("converts other body types via toString", async () => {
+    it("rejects body types it can't send as text", async () => {
       const rpcClient = mockRpcClient(validResponse);
       const fetch = createJsonRpcFetch(rpcClient);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: this covers the runtime String() path for a body RequestInit's types forbid
-      await fetch("/api/test", { method: "POST", body: 12345 as never });
-
-      const request = firstRequest(rpcClient);
-      expect(request.body).toBe("12345");
+      await expect(
+        fetch("/api/test", { method: "POST", body: new Blob(["x"]) })
+      ).rejects.toThrow("Unsupported request body: [object Blob]");
+      expect(rpcClient).not.toHaveBeenCalled();
     });
 
     it("handles no body", async () => {

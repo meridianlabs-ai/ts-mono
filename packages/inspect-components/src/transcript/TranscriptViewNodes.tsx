@@ -154,6 +154,25 @@ const followRedirects = (
   return id;
 };
 
+// Module-level so the self-scheduling closure isn't inside a useCallback,
+// where the React Compiler reads the recursion as a missing dependency.
+const retryEachFrame = (retry: {
+  attempts: number;
+  find: () => number;
+  onFound: (index: number) => void;
+  onGiveUp: () => void;
+  isCancelled: () => boolean;
+}): void => {
+  requestAnimationFrame(() => {
+    if (retry.isCancelled()) return;
+    const index = retry.find();
+    if (index !== -1) retry.onFound(index);
+    else if (retry.attempts > 0)
+      retryEachFrame({ ...retry, attempts: retry.attempts - 1 });
+    else retry.onGiveUp();
+  });
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -215,12 +234,9 @@ export const TranscriptViewNodes = forwardRef<
     { defaultValue: null }
   );
 
-  const getCollapsed = useCallback(
-    (nodeId: string) => {
-      return (collapsedTranscript || defaultCollapsedIds)[nodeId] === true;
-    },
-    [collapsedTranscript, defaultCollapsedIds]
-  );
+  const getCollapsed = (nodeId: string) => {
+    return (collapsedTranscript || defaultCollapsedIds)[nodeId] === true;
+  };
 
   // Decided once per sample (`useEventNodes`), so a lane pairs as the whole
   // sample does; the nodes decide only for callers that render no sample.
@@ -230,6 +246,8 @@ export const TranscriptViewNodes = forwardRef<
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
+  // Kept: the hidden-id sets and redirect maps feed flattenedNodes and
+  // redirectEventId, which effects depend on, so they need stable identity.
   const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
     () => pairToolApprovals(eventNodes, recordsExecutions),
     [eventNodes, recordsExecutions]
@@ -258,6 +276,8 @@ export const TranscriptViewNodes = forwardRef<
     ? redirectEventId(initialEventId)
     : initialEventId;
 
+  // Kept: the scroll effects depend on this array, so its identity must hold
+  // even where this runs uncompiled (Vitest, or a future "use no memo").
   const flattenedNodes = useMemo(() => {
     const all = flatTree(
       eventNodes,
@@ -276,22 +296,13 @@ export const TranscriptViewNodes = forwardRef<
     hiddenSentinelIds,
   ]);
 
-  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
-    () => ({
-      ...eventNodeContext,
-      recordsExecutionIds: recordsExecutions,
-      toolApprovals,
-      toolSentinels,
-      standaloneSentinels,
-    }),
-    [
-      eventNodeContext,
-      recordsExecutions,
-      toolApprovals,
-      toolSentinels,
-      standaloneSentinels,
-    ]
-  );
+  const mergedEventNodeContext: Partial<EventNodeContext> = {
+    ...eventNodeContext,
+    recordsExecutionIds: recordsExecutions,
+    toolApprovals,
+    toolSentinels,
+    standaloneSentinels,
+  };
 
   // Ranges span the VISIBLE rows, as the user sees them.
   const rowSelection = useListRowSelection(selection, () =>
@@ -300,40 +311,27 @@ export const TranscriptViewNodes = forwardRef<
 
   // Turn map + anchors from the shared helper (collapse-independent
   // numbering; same event-type filtering as the sidebar).
-  const { computedTurnMap, turnAnchorIds, anchorIdByTurn } = useMemo(() => {
-    const {
-      turnMap: computed,
-      anchorIds,
-      anchorIdByTurn: byTurn,
-    } = computeTranscriptTurns(eventNodes, flattenedNodes, defaultCollapsedIds);
-    return {
-      computedTurnMap: computed,
-      turnAnchorIds: anchorIds,
-      anchorIdByTurn: byTurn,
-    };
-  }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
+  const {
+    turnMap: computedTurnMap,
+    anchorIds: turnAnchorIds,
+    anchorIdByTurn,
+  } = computeTranscriptTurns(eventNodes, flattenedNodes, defaultCollapsedIds);
 
-  const flattenedNodesLatest = useLatestRef<EventNode[]>(flattenedNodes);
+  const flattenedNodesRef = useLatestRef<EventNode[]>(flattenedNodes);
 
   // Latest turn lookup for scrollRowToTop's stamp: an expansion retry lands
   // after the turn map is recomputed, so closed-over values may be stale.
-  const turnLookupLatest = useLatestRef({ turnAnchorIds, computedTurnMap });
+  const turnLookupRef = useLatestRef({ turnAnchorIds, computedTurnMap });
 
   // The turn at the top of the viewport (tracked by useScrollTrack below);
   // seeded from the deep-link target so a keypress can't race the tracker's
   // first report (e.g. the "double f" right after a route transition).
   // Lazily seeded: a useRef initializer expression would re-run the
   // O(#turns) scan on every render just to be discarded.
-  const turnIndexSeededRef = useRef(false);
-  const currentTurnIndexRef = useRef(-1);
-  if (!turnIndexSeededRef.current) {
-    turnIndexSeededRef.current = true;
-    currentTurnIndexRef.current = anchorIndexForEvent(
-      turnAnchorIds,
-      computedTurnMap,
-      scrollEventId
-    );
-  }
+  const [seedTurnIndex] = useState(() =>
+    anchorIndexForEvent(turnAnchorIds, computedTurnMap, scrollEventId)
+  );
+  const currentTurnIndexRef = useRef(seedTurnIndex);
 
   // The one scroll primitive for every programmatic row scroll — and the
   // single choke point stamping the current turn, so a j/k/f fired before
@@ -345,9 +343,9 @@ export const TranscriptViewNodes = forwardRef<
       onAbandon?: () => void
     ): (() => void) => {
       onProgrammaticScroll?.(true);
-      const rowId = flattenedNodesLatest.current[index]?.id;
+      const rowId = flattenedNodesRef.current[index]?.id;
       if (rowId !== undefined) {
-        const lookup = turnLookupLatest.current;
+        const lookup = turnLookupRef.current;
         currentTurnIndexRef.current = anchorIndexForEvent(
           lookup.turnAnchorIds,
           lookup.computedTurnMap,
@@ -367,7 +365,7 @@ export const TranscriptViewNodes = forwardRef<
         onAbandon,
       });
     },
-    [onProgrammaticScroll, flattenedNodesLatest, turnLookupLatest]
+    [onProgrammaticScroll, flattenedNodesRef, turnLookupRef]
   );
 
   const scrollToEvent = useCallback(
@@ -411,24 +409,20 @@ export const TranscriptViewNodes = forwardRef<
         // Once a scroll starts (or the retries give up), it reports itself.
         let started = false;
         let cancelScroll = () => {};
-        const retryScroll = (attemptsLeft: number) => {
-          if (cancelled) return;
-          const newIdx = flattenedNodesLatest.current.findIndex(
-            (e) => e.id === eventId
-          );
-          if (newIdx !== -1) {
+        retryEachFrame({
+          attempts: 3,
+          find: () =>
+            flattenedNodesRef.current.findIndex((e) => e.id === eventId),
+          onFound: (newIdx) => {
             started = true;
             cancelScroll = tryScroll(newIdx);
-            return;
-          }
-          if (attemptsLeft > 0) {
-            requestAnimationFrame(() => retryScroll(attemptsLeft - 1));
-          } else {
+          },
+          onGiveUp: () => {
             started = true;
             callbacks?.onDone?.();
-          }
-        };
-        requestAnimationFrame(() => retryScroll(3));
+          },
+          isCancelled: () => cancelled,
+        });
         return () => {
           if (cancelled) return;
           cancelled = true;
@@ -457,7 +451,7 @@ export const TranscriptViewNodes = forwardRef<
       scrollRef,
       onProgrammaticScroll,
       onHeadroomSetHidden,
-      flattenedNodesLatest,
+      flattenedNodesRef,
     ]
   );
 
@@ -467,11 +461,11 @@ export const TranscriptViewNodes = forwardRef<
     ref,
     () => ({
       scrollToEvent,
-      getFlattenedNodes: () => flattenedNodesLatest.current,
+      getFlattenedNodes: () => flattenedNodesRef.current,
       getElement: () => rootRef.current,
       rowEventId: redirectEventId,
     }),
-    [scrollToEvent, flattenedNodesLatest, redirectEventId]
+    [scrollToEvent, flattenedNodesRef, redirectEventId]
   );
 
   // Expand a deep-link target's collapsed ancestors, once per target so a
@@ -592,54 +586,45 @@ export const TranscriptViewNodes = forwardRef<
   // Turn navigation (j/k + header chevrons)
   // ---------------------------------------------------------------------------
 
-  const goToTurn = useCallback(
-    (index: number, onDone?: () => void) => {
-      if (turnAnchorIds.length === 0) {
-        onDone?.();
-        return;
-      }
-      const clamped = Math.max(0, Math.min(turnAnchorIds.length - 1, index));
-      const flatIdx = flattenedNodesLatest.current.findIndex(
-        (n) => n.id === turnAnchorIds[clamped]
-      );
-      if (flatIdx === -1) {
-        onDone?.();
-        return;
-      }
-      // Collapse the chrome with the jump; the settle re-issues the jump each
-      // frame, so the collapse's height change is re-corrected until stable.
-      onHeadroomSetHidden?.(true);
-      scrollRowToTop(flatIdx, onDone);
-      const anchorId = turnAnchorIds[clamped];
-      if (anchorId && onNavigatedToEvent) {
-        // Prime the deep-link dedup so the resulting ?event= change doesn't
-        // re-scroll (we've already scrolled).
-        lastScrolledKeyRef.current = `${anchorId}:`;
-        onNavigatedToEvent(anchorId);
-      }
-    },
-    [
-      turnAnchorIds,
-      scrollRowToTop,
-      onNavigatedToEvent,
-      onHeadroomSetHidden,
-      flattenedNodesLatest,
-    ]
-  );
+  const goToTurn = (index: number, onDone?: () => void) => {
+    if (turnAnchorIds.length === 0) {
+      onDone?.();
+      return;
+    }
+    const clamped = Math.max(0, Math.min(turnAnchorIds.length - 1, index));
+    const flatIdx = flattenedNodesRef.current.findIndex(
+      (n) => n.id === turnAnchorIds[clamped]
+    );
+    if (flatIdx === -1) {
+      onDone?.();
+      return;
+    }
+    // Collapse the chrome with the jump; the settle re-issues the jump each
+    // frame, so the collapse's height change is re-corrected until stable.
+    onHeadroomSetHidden?.(true);
+    scrollRowToTop(flatIdx, onDone);
+    const anchorId = turnAnchorIds[clamped];
+    if (anchorId && onNavigatedToEvent) {
+      // Prime the deep-link dedup so the resulting ?event= change doesn't
+      // re-scroll (we've already scrolled).
+      lastScrolledKeyRef.current = `${anchorId}:`;
+      onNavigatedToEvent(anchorId);
+    }
+  };
 
   // `k` past turn 1: return to the very top of the transcript (the pre-turn
   // preamble) and re-expand the chrome, exactly as a manual scroll to the top
   // would. The scroll tracker then confirms the "above turn 1" index.
-  const goToVeryTop = useCallback(() => {
+  const goToVeryTop = () => {
     onProgrammaticScroll?.(true);
     // Instant, not smooth: the expand below is gated on actually being at the
     // top, which a smooth scroll only reaches many frames later.
     listHandle.current?.scrollTo({ top: 0, behavior: "auto" });
     onHeadroomSetHidden?.(false);
     currentTurnIndexRef.current = -1;
-  }, [onProgrammaticScroll, onHeadroomSetHidden]);
+  };
 
-  const onNext = useCallback(() => {
+  const onNext = () => {
     const nextIndex = currentTurnIndexRef.current + 1;
     // One more `j` past the last turn of a RUNNING sample arms live-tail
     // follow — the transcript analog of focus-mode's step-past-last arm (see
@@ -656,26 +641,17 @@ export const TranscriptViewNodes = forwardRef<
       return;
     }
     goToTurn(nextIndex);
-  }, [
-    goToTurn,
-    running,
-    turnAnchorIds.length,
-    transcriptFollow,
-    setTranscriptFollow,
-  ]);
+  };
   // Synchronous index decision, mirroring `onNext` — a confirm/settle round
   // trip here made held/rapid `k` presses race the settle and lose steps.
-  const goToPrevFrom = useCallback(
-    (idx: number) => {
-      if (idx <= 0) {
-        goToVeryTop();
-        return;
-      }
-      goToTurn(idx - 1);
-    },
-    [goToTurn, goToVeryTop]
-  );
-  const onPrev = useCallback(() => {
+  const goToPrevFrom = (idx: number) => {
+    if (idx <= 0) {
+      goToVeryTop();
+      return;
+    }
+    goToTurn(idx - 1);
+  };
+  const onPrev = () => {
     // `k` while live-following disarms follow — exactly symmetric with
     // onNext's arm-past-last branch and consistent with focus-mode's stepTurn
     // disarm (see useFocusTurnNavigation). One synchronous store write, before
@@ -684,7 +660,7 @@ export const TranscriptViewNodes = forwardRef<
     // keyboard-step analog.)
     if (running && transcriptFollow === true) setTranscriptFollow(false);
     goToPrevFrom(currentTurnIndexRef.current);
-  }, [goToPrevFrom, running, transcriptFollow, setTranscriptFollow]);
+  };
 
   const goToTurnBarRef = useRef<GoToTurnBarHandle | null>(null);
 
@@ -694,203 +670,151 @@ export const TranscriptViewNodes = forwardRef<
 
   // Per-event-header turn controls: several headers can be visible at once,
   // so each steps from ITS OWN turn number, never the shared current turn.
-  const onPrevTurn = useCallback(
-    (turnNumber: number) => {
-      goToPrevFrom(
-        anchorIndexForTurn(turnAnchorIds, computedTurnMap, turnNumber)
-      );
-    },
-    [turnAnchorIds, computedTurnMap, goToPrevFrom]
-  );
-  const onNextTurn = useCallback(
-    (turnNumber: number) => {
-      goToTurn(
-        anchorIndexForTurn(turnAnchorIds, computedTurnMap, turnNumber) + 1
-      );
-    },
-    [turnAnchorIds, computedTurnMap, goToTurn]
-  );
-  const onTurnLabelClick = useCallback((turnNumber: number) => {
+  const onPrevTurn = (turnNumber: number) => {
+    goToPrevFrom(
+      anchorIndexForTurn(turnAnchorIds, computedTurnMap, turnNumber)
+    );
+  };
+  const onNextTurn = (turnNumber: number) => {
+    goToTurn(
+      anchorIndexForTurn(turnAnchorIds, computedTurnMap, turnNumber) + 1
+    );
+  };
+  const onTurnLabelClick = (turnNumber: number) => {
     goToTurnBarRef.current?.open(turnNumber);
-  }, []);
+  };
 
   // A user switched an event's inner tab: land its row top under the sticky
   // chrome via the same primitive j/k use, so the new tab starts from its top.
-  const onTabSelected = useCallback(
-    (eventNodeId: string) => {
-      const idx = flattenedNodesLatest.current.findIndex(
-        (n) => n.id === eventNodeId
-      );
-      if (idx !== -1) scrollRowToTop(idx);
-    },
-    [scrollRowToTop, flattenedNodesLatest]
-  );
+  const onTabSelected = (eventNodeId: string) => {
+    const idx = flattenedNodesRef.current.findIndex(
+      (n) => n.id === eventNodeId
+    );
+    if (idx !== -1) scrollRowToTop(idx);
+  };
 
   // Last-known selected tab per anchor panel, reported by EventPanel, so the
   // keyboard `f` entry carries the same tab as the panel's header link.
   const anchorTabsRef = useRef(new Map<string, string>());
-  const onFocusTabChange = useCallback(
-    (eventNodeId: string, tabName: string | undefined) => {
-      if (tabName === undefined) anchorTabsRef.current.delete(eventNodeId);
-      else anchorTabsRef.current.set(eventNodeId, tabName);
-    },
-    []
-  );
+  const onFocusTabChange = (
+    eventNodeId: string,
+    tabName: string | undefined
+  ) => {
+    if (tabName === undefined) anchorTabsRef.current.delete(eventNodeId);
+    else anchorTabsRef.current.set(eventNodeId, tabName);
+  };
 
   // Entering focus while the transcript is live-tailing carries the armed
   // follow state (`follow=1`) so focus keeps following; one wrapper covers both
   // entries (`f` key, header icon). Conservative: arm ONLY when follow is
   // explicitly true — reading at the top of a running sample must not carry it.
-  const getEventFocusUrlArmed = useMemo(() => {
-    if (!getEventFocusUrl) return getEventFocusUrl;
-    const following = transcriptFollow === true;
-    return (eventId: string, selectedTab?: string) => {
-      const href = getEventFocusUrl(eventId, selectedTab);
-      if (!href || !running || !following) return href;
-      return `${href}${href.includes("?") ? "&" : "?"}follow=1`;
-    };
-  }, [getEventFocusUrl, running, transcriptFollow]);
+  const followArmed = transcriptFollow === true;
+  const getEventFocusUrlArmed = getEventFocusUrl
+    ? (eventId: string, selectedTab?: string) => {
+        const href = getEventFocusUrl(eventId, selectedTab);
+        if (!href || !running || !followArmed) return href;
+        return `${href}${href.includes("?") ? "&" : "?"}follow=1`;
+      }
+    : undefined;
 
-  const eventCallbacks = useMemo<EventPanelCallbacks>(
-    () => ({
-      onCollapse: onCollapseTranscript,
-      getCollapsed,
-      getEventUrl,
-      linkingEnabled,
-      getEventFocusUrl: getEventFocusUrlArmed,
-      onFocusTabChange,
-      onPrevTurn,
-      onNextTurn,
-      onTurnLabelClick,
-      onTabSelected,
-      onOpenEventFocus,
-      isJumpTarget: jumpTargetId
-        ? (eventNodeId: string) => eventNodeId === jumpTargetId
-        : undefined,
-    }),
-    [
-      onCollapseTranscript,
-      getCollapsed,
-      getEventUrl,
-      linkingEnabled,
-      getEventFocusUrlArmed,
-      onFocusTabChange,
-      onPrevTurn,
-      onNextTurn,
-      onTurnLabelClick,
-      onTabSelected,
-      onOpenEventFocus,
-      jumpTargetId,
-    ]
-  );
+  const eventCallbacks: EventPanelCallbacks = {
+    onCollapse: onCollapseTranscript,
+    getCollapsed,
+    getEventUrl,
+    linkingEnabled,
+    getEventFocusUrl: getEventFocusUrlArmed,
+    onFocusTabChange,
+    onPrevTurn,
+    onNextTurn,
+    onTurnLabelClick,
+    onTabSelected,
+    onOpenEventFocus,
+    isJumpTarget: jumpTargetId
+      ? (eventNodeId: string) => eventNodeId === jumpTargetId
+      : undefined,
+  };
 
   // A numbered bar jump must reach the REQUESTED turn even when it's hidden
   // in a user-collapsed region (the bar's range is collapse-independent):
   // scrollToEvent batch-expands the ancestors and retries, and the URL/ring
   // mark the requested anchor. anchorIndexForTurn's previous-visible-anchor
   // fallback stays right for j/k and the header chevrons.
-  const onGoToTurnJump = useCallback(
-    (n: number) => {
-      const anchorId = anchorIdByTurn.get(n);
-      if (anchorId !== undefined) {
-        // Prime the deep-link dedup (as goToTurn does) so the resulting
-        // ?event= change doesn't re-scroll.
-        lastScrolledKeyRef.current = `${anchorId}:`;
-        scrollToEvent(anchorId);
-        onNavigatedToEvent?.(anchorId);
-        setJumpTargetId(anchorId);
-        return;
-      }
-      // No model anchor recorded for this number (only possible for a
-      // backend-emitted turn span without a model child): previous behavior.
-      const idx = anchorIndexForTurn(turnAnchorIds, computedTurnMap, n);
-      goToTurn(idx);
-      setJumpTargetId(turnAnchorIds[idx] ?? null);
-    },
-    [
-      anchorIdByTurn,
-      scrollToEvent,
-      onNavigatedToEvent,
-      turnAnchorIds,
-      computedTurnMap,
-      goToTurn,
-    ]
-  );
+  const onGoToTurnJump = (n: number) => {
+    const anchorId = anchorIdByTurn.get(n);
+    if (anchorId !== undefined) {
+      // Prime the deep-link dedup (as goToTurn does) so the resulting
+      // ?event= change doesn't re-scroll.
+      lastScrolledKeyRef.current = `${anchorId}:`;
+      scrollToEvent(anchorId);
+      onNavigatedToEvent?.(anchorId);
+      setJumpTargetId(anchorId);
+      return;
+    }
+    // No model anchor recorded for this number (only possible for a
+    // backend-emitted turn span without a model child): previous behavior.
+    const idx = anchorIndexForTurn(turnAnchorIds, computedTurnMap, n);
+    goToTurn(idx);
+    setJumpTargetId(turnAnchorIds[idx] ?? null);
+  };
 
-  const onFirst = useCallback(() => goToTurn(0), [goToTurn]);
-  const onLast = useCallback(
-    () => goToTurn(turnAnchorIds.length - 1),
-    [goToTurn, turnAnchorIds.length]
-  );
+  const onFirst = () => goToTurn(0);
+  const onLast = () => goToTurn(turnAnchorIds.length - 1);
 
   // `f`: focus mode for the current turn — same route derivation as the
   // header control's plain click, keyed off the shared scroll tracker.
-  const onFocusCurrentTurn = useMemo(() => {
-    if (!getEventFocusUrl || !onOpenEventFocus) return undefined;
-    return () => {
-      // Already following a running transcript: `f` keeps following AT the
-      // newest turn (not the viewport-top turn). Otherwise above turn 1
-      // (index -1) clamps to turn 1, mirroring `j`, so `f` never looks dead
-      // just because the viewport is on the preamble.
-      const following = running && transcriptFollow === true;
-      const anchorId = following
-        ? turnAnchorIds[turnAnchorIds.length - 1]
-        : turnAnchorIds[Math.max(0, currentTurnIndexRef.current)];
-      if (!anchorId) return;
-      const href = getEventFocusUrlArmed?.(
-        anchorId,
-        anchorTabsRef.current.get(anchorId)
-      );
-      if (!href) return;
-      onOpenEventFocus(href);
-    };
-  }, [
-    getEventFocusUrl,
-    getEventFocusUrlArmed,
-    onOpenEventFocus,
-    turnAnchorIds,
-    running,
-    transcriptFollow,
-  ]);
+  const onFocusCurrentTurn =
+    getEventFocusUrl && onOpenEventFocus
+      ? () => {
+          // Already following a running transcript: `f` keeps following AT the
+          // newest turn (not the viewport-top turn). Otherwise above turn 1
+          // (index -1) clamps to turn 1, mirroring `j`, so `f` never looks dead
+          // just because the viewport is on the preamble.
+          const following = running && transcriptFollow === true;
+          const anchorId = following
+            ? turnAnchorIds[turnAnchorIds.length - 1]
+            : turnAnchorIds[Math.max(0, currentTurnIndexRef.current)];
+          if (!anchorId) return;
+          const href = getEventFocusUrlArmed?.(
+            anchorId,
+            anchorTabsRef.current.get(anchorId)
+          );
+          if (!href) return;
+          onOpenEventFocus(href);
+        }
+      : undefined;
 
   // Track every row, not just turn anchors: computedTurnMap maps tool/content
   // rows to their model's turn after its anchor scrolls out of the DOM.
-  const trackedEventIds = useMemo(
-    () => flattenedNodes.map((n) => n.id),
-    [flattenedNodes]
-  );
+  const trackedEventIds = flattenedNodes.map((n) => n.id);
   // Latches true the first time the user scrolls the container off its very
   // top. Before that, the tracker's mount-time report of the topmost row is a
   // passive load artifact, not a "user is here" signal — see onTopEvent.
   const userScrolledRef = useRef(false);
-  const onTopEvent = useCallback(
-    (eventId: string) => {
-      // A fresh mount reports the topmost row synchronously (useScrollTrack's
-      // single checkVisibility). Until the user has actually scrolled off the
-      // very top, that report must NOT overwrite the mount seed: in a log whose
-      // turn 1 IS the topmost row (no pre-turn preamble) there is no row that
-      // maps to "above turn 1" (-1), so an ungated report reads index 0 and the
-      // first `j` from load would skip to turn 2. We can't tell -1 from 0 by
-      // position at scrollTop 0, so the seed (fresh load: -1; deep link: the
-      // target) owns that state until the user engages. Programmatic nav drives
-      // currentTurnIndexRef directly (scrollRowToTop's stamp) and moves scrollTop
-      // off 0, so genuine reports resume on their own once the user scrolls —
-      // and `k` past turn 1 (goToVeryTop) keeps its -1 with no scroll.
-      // One-shot latch; no retry loop, no async round trip.
-      if ((scrollRef?.current?.scrollTop ?? 0) > 0) {
-        userScrolledRef.current = true;
-      }
-      if (!userScrolledRef.current) return;
-      // Same helper as the mount-time seed, so a confirmed report and an
-      // unseeded ref can't disagree on what "unknown" (-1) means.
-      currentTurnIndexRef.current = anchorIndexForEvent(
-        turnAnchorIds,
-        computedTurnMap,
-        eventId
-      );
-    },
-    [computedTurnMap, turnAnchorIds, scrollRef]
-  );
+  const onTopEvent = (eventId: string) => {
+    // A fresh mount reports the topmost row synchronously (useScrollTrack's
+    // single checkVisibility). Until the user has actually scrolled off the
+    // very top, that report must NOT overwrite the mount seed: in a log whose
+    // turn 1 IS the topmost row (no pre-turn preamble) there is no row that
+    // maps to "above turn 1" (-1), so an ungated report reads index 0 and the
+    // first `j` from load would skip to turn 2. We can't tell -1 from 0 by
+    // position at scrollTop 0, so the seed (fresh load: -1; deep link: the
+    // target) owns that state until the user engages. Programmatic nav drives
+    // currentTurnIndexRef directly (scrollRowToTop's stamp) and moves scrollTop
+    // off 0, so genuine reports resume on their own once the user scrolls —
+    // and `k` past turn 1 (goToVeryTop) keeps its -1 with no scroll.
+    // One-shot latch; no retry loop, no async round trip.
+    if ((scrollRef?.current?.scrollTop ?? 0) > 0) {
+      userScrolledRef.current = true;
+    }
+    if (!userScrolledRef.current) return;
+    // Same helper as the mount-time seed, so a confirmed report and an
+    // unseeded ref can't disagree on what "unknown" (-1) means.
+    currentTurnIndexRef.current = anchorIndexForEvent(
+      turnAnchorIds,
+      computedTurnMap,
+      eventId
+    );
+  };
   useScrollTrack(trackedEventIds, onTopEvent, scrollRef, {
     topOffset: offsetTop,
     // The default end-of-viewport advance reports a LATER turn near the end
@@ -922,11 +846,8 @@ export const TranscriptViewNodes = forwardRef<
 
   // Provide the sticky offset (and the scroll container, for the stuck-state
   // observer) to the event-panel sticky headers without threading them through
-  // every event-view layer. Memoized so it doesn't churn consumers each render.
-  const stickyScroll = useMemo(
-    () => ({ stickyTop: offsetTop, scrollRef }),
-    [offsetTop, scrollRef]
-  );
+  // every event-view layer.
+  const stickyScroll = { stickyTop: offsetTop, scrollRef };
 
   return (
     <StickyScrollProvider value={stickyScroll}>

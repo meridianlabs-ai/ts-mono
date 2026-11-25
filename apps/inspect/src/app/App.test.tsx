@@ -199,7 +199,7 @@ describe("log-authored markup", () => {
   afterEach(() => {
     planted.remove();
     // jsdom defines no execCommand, so restoring means removing the property.
-    delete (document as Partial<Document>).execCommand;
+    Reflect.deleteProperty(document, "execCommand");
   });
 
   it("cannot trigger a clipboard write by carrying copy-button classes", async () => {

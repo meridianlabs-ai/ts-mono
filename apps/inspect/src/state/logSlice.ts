@@ -55,8 +55,7 @@ const initialState = {
 // Create the app slice using StoreState directly
 export const createLogSlice = (
   set: (fn: (state: StoreState) => void) => void,
-  get: () => StoreState,
-  _store: unknown
+  get: () => StoreState
 ): LogSlice => {
   const slice = {
     // State

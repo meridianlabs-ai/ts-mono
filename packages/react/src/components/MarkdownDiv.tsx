@@ -38,7 +38,7 @@ interface MarkdownDivProps {
   style?: CSSProperties;
   className?: string | string[];
   postProcess?: (html: string) => string;
-  onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 const sanitizeMarkdown = (md: string): string => {
@@ -192,10 +192,7 @@ const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
     ]);
 
     return (
-      // The container is not itself a control: onClick delegates for the
-      // anchors inside the rendered markdown, which already fire click on
-      // Enter, so no separate key handler is needed.
-      // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- onClick delegates for the anchors in the rendered markdown, which already fire click on Enter; the container is not itself a control
       <div
         ref={ref}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}

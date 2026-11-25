@@ -109,20 +109,23 @@ test("transcripts page says when no transcripts directory is configured", async 
   ).toHaveText("No transcripts directory configured.");
 });
 
-test("transcripts page shows error panel on API failure", async ({
-  page,
-  network,
-  disableRetries: _,
-}) => {
-  network.use(
-    http.post("*/api/v2/transcripts/:dir", () =>
-      HttpResponse.text("Internal Server Error", { status: 500 })
-    )
-  );
+test.describe("with React Query retries disabled", () => {
+  test.use({ disableRetries: true });
 
-  await page.goto("/#/transcripts");
+  test("transcripts page shows error panel on API failure", async ({
+    page,
+    network,
+  }) => {
+    network.use(
+      http.post("*/api/v2/transcripts/:dir", () =>
+        HttpResponse.text("Internal Server Error", { status: 500 })
+      )
+    );
 
-  await expect(page.getByText("Error Loading Transcript")).toBeVisible();
+    await page.goto("/#/transcripts");
+
+    await expect(page.getByText("Error Loading Transcript")).toBeVisible();
+  });
 });
 
 test("the grid's funnels and headers take Enter, and arrowing off them then Enter opens a row", async ({

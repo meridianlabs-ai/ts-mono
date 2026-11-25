@@ -12,24 +12,10 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: [
-            "eslint.config.js",
-            "vitest.config.ts",
-            "vitest.setup.ts",
-          ],
+          allowDefaultProject: ["vitest.config.ts", "vitest.setup.ts"],
         },
         tsconfigRootDir: import.meta.dirname,
       },
-    },
-  },
-  // Test helpers / fixture files — allow _-prefixed unused vars for API compat
-  {
-    files: ["**/*.test.ts", "**/testHelpers.ts", "**/syntheticNodes.ts"],
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
     },
   }
 );

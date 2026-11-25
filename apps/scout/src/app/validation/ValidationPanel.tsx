@@ -5,7 +5,7 @@ import {
   VscodeSingleSelect,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import { FC, useCallback, useEffect, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 
 import {
   Modal,
@@ -13,7 +13,7 @@ import {
   TextInput,
   type TextInputChange,
 } from "@tsmono/react/components";
-import { useDocumentTitle } from "@tsmono/react/hooks";
+import { useDocumentTitle, useMirrorToStore } from "@tsmono/react/hooks";
 import { Icon } from "@tsmono/react/icons";
 
 import { useStore } from "../../state/store";
@@ -69,12 +69,10 @@ export const ValidationPanel: FC = () => {
   } = useValidationCases(selectedUri ?? skipToken);
 
   // Auto-select first validation set when loaded
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!selectedUri && validationSets && validationSets.length > 0) {
-      setSelectedUri(validationSets[0]);
-    }
-  }, [selectedUri, validationSets, setSelectedUri]);
+  useMirrorToStore(
+    selectedUri ? undefined : validationSets?.[0],
+    setSelectedUri
+  );
 
   // Mutations
   const updateMutation = useUpdateValidationCase(selectedUri ?? "");

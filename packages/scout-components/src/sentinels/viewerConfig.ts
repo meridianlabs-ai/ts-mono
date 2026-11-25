@@ -140,8 +140,6 @@ function scannerResultViewEntries(
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
   const raw = viewer.scanner_result_view;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
   const entries: Array<{ pattern: string; view: ScannerResultView }> = [];
@@ -211,8 +209,8 @@ function coerceFields(
  *   `"metadata.<key>"` → `MetadataField(key=<key>)`
  *   `"<builtin>"`      → `ScannerResultField(name=<builtin>)`
  *
- * Entries with an unknown `kind` (e.g. hand-edited eval logs) or invalid
- * builtin names are dropped defensively.
+ * Unknown strings and builtin entries with an invalid name are dropped.
+ * (`normalizeEvalSpec` already drops entries with an unknown `kind`.)
  */
 function coerceField(
   entry: ScannerResultField | MetadataField | string
@@ -237,11 +235,6 @@ function coerceField(
     }
     return null;
   }
-  if (entry.kind === "builtin") {
-    if (!kBuiltinNames.has(entry.name)) return null;
-    return entry;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (entry.kind === "metadata") return entry;
-  return null;
+  if (entry.kind === "builtin" && !kBuiltinNames.has(entry.name)) return null;
+  return entry;
 }

@@ -623,10 +623,8 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 
   return (
     <div className={styles.row} role="row">
-      {/* Label cell — depth-based indentation; clicking selects the whole row.
-          Keyboard selection is the grid's own Arrow/Escape handling, and the
-          cell takes tabIndex -1 so the grid keeps a single tab stop. */}
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
+      {/* Label cell — depth-based indentation; clicking selects the whole row. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events -- keyboard selection is the grid's own Arrow/Escape handler; the cell takes tabIndex -1 so the grid keeps a single tab stop */}
       <div
         className={clsx(
           styles.label,

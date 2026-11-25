@@ -4,6 +4,7 @@ import { ReactElement } from "react";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { TrustedContentWrapper } from "../test/content-trust";
+import { loadMarkdownPipeline } from "../test/markdown";
 
 import { MarkdownDiv } from "./MarkdownDiv";
 import { renderMarkdown } from "./markdownRendering";
@@ -16,6 +17,7 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
   // Pay the one-time lazy import of markdown-it-mathjax3 up front; on slow CI
   // runners it exceeds waitFor's default timeout inside the first math test.
   beforeAll(async () => {
+    await loadMarkdownPipeline();
     await renderMarkdown("$x$", "full");
   });
 

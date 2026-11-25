@@ -37,6 +37,7 @@ export const resultIdentifierStr = (
     }
     return result.join(" ");
   }
+  return undefined;
 };
 
 export const resultIdentifier = (

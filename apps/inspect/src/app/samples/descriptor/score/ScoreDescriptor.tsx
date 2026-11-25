@@ -30,6 +30,7 @@ export const getScoreDescriptorForValues = (
       return scoreDescriptor;
     }
   }
+  return undefined;
 };
 
 const scoreCategorizers: ScoreCategorizer[] = [
@@ -38,10 +39,11 @@ const scoreCategorizers: ScoreCategorizer[] = [
       if (types && types.length === 1 && types[0] === "boolean") {
         return booleanScoreDescriptor();
       }
+      return undefined;
     },
   },
   {
-    describe: (values: ScoreValue[], _types?: ScorerTypes[]) => {
+    describe: (values: ScoreValue[]) => {
       if (
         values.length === 2 &&
         values.every((val) => {
@@ -50,6 +52,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return numericScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -65,6 +68,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return passFailScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -77,6 +81,7 @@ const scoreCategorizers: ScoreCategorizer[] = [
       ) {
         return categoricalScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
@@ -84,21 +89,23 @@ const scoreCategorizers: ScoreCategorizer[] = [
       if (types && types.length === 1 && types[0] === "number") {
         return numericScoreDescriptor(values);
       }
+      return undefined;
     },
   },
   {
     describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
       if (types && types.length === 1 && types[0] === "object") {
         if (values.length > 0 && values.every(Array.isArray)) {
-          return listScoreDescriptor(values);
+          return listScoreDescriptor();
         } else if (values.every((value) => !Array.isArray(value))) {
           return objectScoreDescriptor(values);
         }
       }
+      return undefined;
     },
   },
   {
-    describe: (_values: ScoreValue[], _types?: ScorerTypes[]) => {
+    describe: () => {
       return otherScoreDescriptor();
     },
   },

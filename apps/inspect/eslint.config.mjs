@@ -39,22 +39,5 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
-  },
-  {
-    files: ["**/*.{ts,tsx}"],
-    rules: {
-      // The base rule is replaced by @typescript-eslint/no-unused-vars below
-      // (the canonical typescript-eslint pairing).
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          destructuredArrayIgnorePattern: "^_",
-        },
-      ],
-    },
   }
 );

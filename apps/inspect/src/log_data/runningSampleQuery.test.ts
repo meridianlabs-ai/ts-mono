@@ -36,7 +36,7 @@ const LOG_DIR = "/logs";
 const mockApi = {
   get_log_sample: vi.fn(),
   get_log_sample_data: vi.fn(),
-  log_message: vi.fn((_logFile: string, _message: string) => Promise.resolve()),
+  log_message: vi.fn(() => Promise.resolve()),
 };
 const api = testClientAPI(mockApi);
 

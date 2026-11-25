@@ -15,12 +15,12 @@ import type { StoreState } from "./store";
 
 export const testStoreState = (): StoreState =>
   create<StoreState>()(
-    immer((set, get, store) => ({
+    immer((set, get) => ({
       initialize: () => undefined,
-      ...createAppSlice(set, get, store),
-      ...createLogsSlice(set, get, store),
-      ...createLogSlice(set, get, store),
-      ...createSampleSlice(set, get, store),
+      ...createAppSlice(set, get),
+      ...createLogsSlice(set, get),
+      ...createLogSlice(set, get),
+      ...createSampleSlice(set),
       ...createSearchSlice(set),
     }))
   ).getState();

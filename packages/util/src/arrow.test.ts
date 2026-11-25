@@ -84,9 +84,11 @@ describe("castScanValue", () => {
     { value: " 3 ", type: "number", expected: 3 },
     { value: "n/a", type: "number", expected: null },
     { value: "", type: "number", expected: null },
+    { value: [3], type: "number", expected: null },
     { value: "TRUE", type: "boolean", expected: true },
     { value: "False", type: "boolean", expected: false },
     { value: "yes", type: "boolean", expected: null },
+    { value: ["true"], type: "boolean", expected: null },
     { value: 3, type: "string", expected: 3 },
     { value: undefined, type: "string", expected: null },
   ])("casts $value under $type to $expected", ({ value, type, expected }) => {

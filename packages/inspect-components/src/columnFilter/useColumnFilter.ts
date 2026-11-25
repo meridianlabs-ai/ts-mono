@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
   NO_VALUE_OPERATORS,
@@ -105,18 +105,25 @@ export function useColumnFilter({
     spec?.second?.value2 ?? ""
   );
 
-  // Track the previous columnId to detect when we switch to a different filter
-  const prevColumnIdRef = useRef(columnId);
-
   // Sync state when closed OR when switching to a different column while
   // opening. Because closing re-syncs from the applied spec, edits abandoned
-  // via click-outside are discarded.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const columnChanged = prevColumnIdRef.current !== columnId;
-    prevColumnIdRef.current = columnId;
-
-    if (!isOpen || columnChanged) {
+  // via click-outside are discarded. The spec compares by value: callers may
+  // build it inline, and an identity check would re-render without end.
+  const specKey = JSON.stringify(spec);
+  const [synced, setSynced] = useState({
+    specKey,
+    defaultOperator,
+    isOpen,
+    columnId,
+  });
+  if (
+    synced.specKey !== specKey ||
+    synced.defaultOperator !== defaultOperator ||
+    synced.isOpen !== isOpen ||
+    synced.columnId !== columnId
+  ) {
+    setSynced({ specKey, defaultOperator, isOpen, columnId });
+    if (!isOpen || synced.columnId !== columnId) {
       setOperator(spec?.operator ?? defaultOperator);
       setValue(spec?.value ?? "");
       setValue2(spec?.value2 ?? "");
@@ -125,7 +132,7 @@ export function useColumnFilter({
       setSecondValue(spec?.second?.value ?? "");
       setSecondValue2(spec?.second?.value2 ?? "");
     }
-  }, [spec, defaultOperator, isOpen, columnId]);
+  }
 
   const takesNoValue = NO_VALUE_OPERATORS.has(operator);
   const showSecond = takesNoValue || value.trim() !== "";

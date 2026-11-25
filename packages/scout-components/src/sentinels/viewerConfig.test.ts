@@ -180,7 +180,7 @@ describe("resolveScannerResultView", () => {
         ...Array.from(
           { length: 512 },
           (_, index): [string, ScannerResultView] => [
-            "*a".repeat(24) + index,
+            "*a".repeat(24) + String(index),
             { fields: [builtin("answer")], exclude_fields: [] },
           ]
         ),
@@ -241,7 +241,7 @@ describe("resolveScannerResultView", () => {
     const viewer: ViewerConfig = {
       scanner_result_view: Object.fromEntries<ScannerResultView>(
         Array.from({ length: 128 }, (_, index): [string, ScannerResultView] => [
-          "*" + "a".repeat(127) + index,
+          "*" + "a".repeat(127) + String(index),
           { fields: null, exclude_fields: [] },
         ])
       ),
@@ -450,21 +450,11 @@ describe("resolveScannerResultView", () => {
     );
   });
 
-  it("drops entries with unknown kind or invalid builtin names", () => {
-    // Intentionally malformed entry — runtime validation must drop it.
-    const bogus: { kind: string; name: string } = {
-      kind: "bogus",
-      name: "value",
-    };
+  it("drops strings that name no builtin", () => {
     const viewer: ViewerConfig = {
       scanner_result_view: {
         "*": {
-          fields: [
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: this case exists to prove runtime validation drops an entry no valid ScannerResultField could be
-            bogus as ScannerResultField,
-            builtin("value"),
-            "not_a_real_builtin",
-          ],
+          fields: [builtin("value"), "not_a_real_builtin"],
           exclude_fields: [],
         },
       },

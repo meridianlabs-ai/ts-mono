@@ -73,7 +73,7 @@ export class MetadataParseError extends Error {
   constructor(
     public readonly key: string,
     public readonly text: string,
-    public readonly cause: unknown
+    public override readonly cause: unknown
   ) {
     super(
       `Invalid JSON for "${key}". Use JSON syntax — quote keys and ` +

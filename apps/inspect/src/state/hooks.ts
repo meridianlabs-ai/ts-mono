@@ -6,7 +6,7 @@ import {
   EvalSample,
 } from "@tsmono/inspect-common/types";
 import { effectiveEvalConfig } from "@tsmono/inspect-common/utils";
-import { useUnmount } from "@tsmono/react/hooks";
+import { useMirrorToStore, useUnmount } from "@tsmono/react/hooks";
 import { AsyncData, createLogger, isRecord } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
@@ -164,8 +164,7 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      dir: stored.dir ?? "asc",
+      dir: stored.dir,
     };
   }, [stored]);
 };
@@ -393,18 +392,16 @@ export const useFilteredSamples = () => {
     };
   }, [samplesDescriptor, sampleSummaries, filter]);
 
-  // Publishing the error is a side effect, so it belongs in an effect rather
-  // than the memo above: a store write during render makes SampleFilter update
-  // while SamplesTab is rendering, and leaves the memo impure — which React
-  // Compiler is free to cache, stranding a stale error on the filter input.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (filterError) {
-      setFilterError(filterError);
+  // Mirrored after commit, not written from the memo: a store write during
+  // render updates SampleFilter mid-render and leaves the memo impure for the
+  // compiler to cache. `null`, not `undefined`, so clearing is mirrored too.
+  useMirrorToStore(filterError ?? null, (error) => {
+    if (error) {
+      setFilterError(error);
     } else {
       clearFilterError();
     }
-  }, [filterError, setFilterError, clearFilterError]);
+  });
 
   return samples;
 };

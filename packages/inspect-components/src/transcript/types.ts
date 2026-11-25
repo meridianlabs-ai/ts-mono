@@ -158,7 +158,7 @@ export interface EventNodeSpan {
 export class EventNode<T extends EventType = EventType> {
   id: string;
   event: T;
-  children: EventNode<EventType>[] = [];
+  children: EventNode[] = [];
   depth: number;
   /** Timeline span info, attached by app-level processing. */
   sourceSpan?: EventNodeSpan;

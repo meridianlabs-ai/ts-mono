@@ -244,11 +244,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      sample.invalidation.metadata &&
-      Object.keys(sample.invalidation.metadata).length > 0
-    ) {
+    if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
     sampleMetadatas.push(

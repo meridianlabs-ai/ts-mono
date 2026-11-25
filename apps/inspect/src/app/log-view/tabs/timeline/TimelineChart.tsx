@@ -1056,7 +1056,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
             : "Config change"
           : `${configMembers.length} config change` +
             `${configMembers.length === 1 ? "" : "s"} · ${logCount} edit` +
-            `${logCount === 1 ? "" : "s"}`;
+            (logCount === 1 ? "" : "s");
     const left = Math.min(
       Math.max(markerHover.x - 24, 0),
       Math.max(width - 300, 0)

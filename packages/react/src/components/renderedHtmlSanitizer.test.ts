@@ -138,6 +138,10 @@ describe("sanitizeRenderedHtml inline style attributes", () => {
     expect(kept).toContain("color: red");
   });
 
+  it("keeps text-align", () => {
+    expect(styleOf("text-align: center")).toBe("text-align: center;");
+  });
+
   it("keeps in-flow box longhands and drops a negative margin longhand", () => {
     const kept = styleOf(
       "padding-left: 2px; margin-top: 1em; margin-left: -1em; overflow-x: auto"

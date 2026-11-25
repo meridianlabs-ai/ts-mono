@@ -74,3 +74,11 @@ describe("ScoreValue object rows", () => {
     expect(screen.queryByRole("button", { name: /more|less/i })).toBeNull();
   });
 });
+
+describe("ScoreValue arrays", () => {
+  it("joins scalars and shows nested values as JSON", () => {
+    const { container } = renderScore(true, [1, "a", null, { b: [2] }]);
+
+    expect(container.textContent).toBe('1, a, null, {"b":[2]}');
+  });
+});

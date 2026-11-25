@@ -74,6 +74,11 @@ export const DataframeView: FC<DataframeViewProps> = ({
   onRowDoubleClicked,
   wrapText = false,
 }) => {
+  // Rows read column widths, order and pinning through TanStack's row and
+  // cell objects, which keep their identity when those change. Compiled, the
+  // cached row list skipped such changes and cells drifted from their headers
+  // (e2e/dataframe.spec.ts).
+  "use no memo";
   const state =
     useStore((store) => store.gridStates[GRID_STATE_NAME]) ??
     emptyDataframeState;
@@ -144,8 +149,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
     Math.min(selectedRow ?? 0, rows.length - 1)
   );
 
-  const autoSize = (columnId?: string, element = tableRef.current): void => {
-    const sizes = fitColumnSizes(element, columns, allRows);
+  const autoSize = (columnId?: string, element?: HTMLTableElement): void => {
+    const sizes = fitColumnSizes(element ?? tableRef.current, columns, allRows);
     updateGridState((previous) => ({
       columnSizing: columnId
         ? { ...previous.columnSizing, [columnId]: sizes[columnId] ?? 150 }

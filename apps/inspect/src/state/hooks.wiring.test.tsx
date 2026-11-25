@@ -68,7 +68,9 @@ describe("useSelectedRunningMetrics", () => {
 
 describe("useSelectedLogDetail", () => {
   it("serves the selected log's header", async () => {
-    const getLogDetails = vi.fn((_file: string) => Promise.resolve(details()));
+    const getLogDetails = vi.fn<ClientAPI["get_log_details"]>(() =>
+      Promise.resolve(details())
+    );
     start(testClientAPI({ get_log_details: getLogDetails }));
 
     const { result } = renderHook(() => useSelectedLogDetail(), {

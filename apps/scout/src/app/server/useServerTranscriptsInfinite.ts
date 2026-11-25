@@ -22,7 +22,7 @@ type ServerTranscriptsInfiniteParams = {
 
 export const useServerTranscriptsInfinite = (
   params: ServerTranscriptsInfiniteParams | typeof skipToken
-): UseInfiniteQueryResult<InfiniteData<TranscriptsResponse>, Error> => {
+): UseInfiniteQueryResult<InfiniteData<TranscriptsResponse>> => {
   const api = useApi();
   return useInfiniteQuery(
     transcriptsInfiniteQuery(
