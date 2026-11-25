@@ -234,12 +234,13 @@ describe("sentinel checks in a tool card", () => {
     );
     expect(screen.getByText("Rejected")).toBeTruthy();
     expect(screen.getByText("guard/network")).toBeTruthy();
+    const reason = container.querySelector(
+      '[class*="summary"] [class*="reason"]'
+    );
     await waitFor(() => {
-      expect(
-        container.querySelector('[class*="summary"] [class*="reason"]')
-          ?.textContent
-      ).toBe(own);
+      expect(reason?.querySelector("code")?.textContent).toBe("curl");
     });
+    expect(reason?.textContent.trim()).toBe(own.replaceAll("`", ""));
     expect(notRunText(container)).toContain(rewritten);
 
     fireEvent.click(pill(5));
