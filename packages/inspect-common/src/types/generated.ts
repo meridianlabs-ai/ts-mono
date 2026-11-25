@@ -882,6 +882,8 @@ export interface components {
             /** Content */
             content: string | (components["schemas"]["ContentText"] | components["schemas"]["ContentReasoning"] | components["schemas"]["ContentImage"] | components["schemas"]["ContentAudio"] | components["schemas"]["ContentVideo"] | components["schemas"]["ContentData"] | components["schemas"]["ContentToolUse"] | components["schemas"]["ContentDocument"])[];
             error?: components["schemas"]["ToolCallError"] | null;
+            /** Execution Id */
+            execution_id?: string | null;
             /** Function */
             function?: string | null;
             /** Id */
@@ -3830,6 +3832,8 @@ export interface components {
              * @default false
              */
             audit: boolean;
+            /** Call Digest */
+            call_digest?: string | null;
             /** Completed */
             completed?: string | null;
             /** Conversation */
@@ -3870,6 +3874,8 @@ export interface components {
             /** References */
             references: components["schemas"]["Reference"][];
             remote?: components["schemas"]["SentinelRemote"] | null;
+            /** Result Digest */
+            result_digest?: string | null;
             /** Span Id */
             span_id?: string | null;
             /**
