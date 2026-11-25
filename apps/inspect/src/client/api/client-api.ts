@@ -362,7 +362,10 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     last_message_pool?: number,
     last_call_pool?: number
   ): Promise<SampleDataResponse | undefined> => {
-    const { eval_log_sample_data, eval_log_sample_data_direct } = api;
+    // Bound so an implementation's methods keep `api` as their receiver.
+    const eval_log_sample_data = api.eval_log_sample_data?.bind(api);
+    const eval_log_sample_data_direct =
+      api.eval_log_sample_data_direct?.bind(api);
     if (!eval_log_sample_data) {
       throw new Error("API doesn't supported streamed sample data");
     }
@@ -444,14 +447,13 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     ? createMiddlewareWrapper([debugMiddleware])
     : <T extends AnyFn>(_name: string, fn: T): T => fn;
 
-  const {
-    download_log,
-    get_user_info,
-    edit_log,
-    list_searches,
-    post_search,
-    get_search_result,
-  } = api;
+  // Bound so an implementation's methods keep `api` as their receiver.
+  const download_log = api.download_log?.bind(api);
+  const get_user_info = api.get_user_info?.bind(api);
+  const edit_log = api.edit_log?.bind(api);
+  const list_searches = api.list_searches?.bind(api);
+  const post_search = api.post_search?.bind(api);
+  const get_search_result = api.get_search_result?.bind(api);
 
   return {
     client_events: middleware("client_events", () => {

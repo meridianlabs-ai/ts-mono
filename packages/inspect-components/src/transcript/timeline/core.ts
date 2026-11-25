@@ -1135,7 +1135,9 @@ function buildAgentFromSolversSpan(solversSpan: SpanNode): TimelineSpan | null {
         if (isSpanNode(item) && !isAgentSpan(item)) {
           const orphanContent: (TimelineEvent | TimelineSpan)[] = [];
           unrollSpan(item, orphanContent);
-          children.unshift(...orphanContent);
+          for (const orphan of orphanContent.toReversed()) {
+            children.unshift(orphan);
+          }
         } else {
           const node = treeItemToNode(item);
           if (node !== null) {

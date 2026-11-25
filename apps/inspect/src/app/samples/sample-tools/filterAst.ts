@@ -90,7 +90,6 @@ class Parser {
     return this.tokens[this.pos++];
   }
 
-  /** Consumes and returns the next token if it matches. */
   private accept(type: string, text?: string): Token | undefined {
     if (!this.match(type, text)) return undefined;
     return this.eat();
