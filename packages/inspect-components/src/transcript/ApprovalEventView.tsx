@@ -5,6 +5,7 @@ import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
 import { useCollapsedState } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
+import { expectDefined } from "@tsmono/util";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
@@ -114,9 +115,10 @@ interface ApprovalInsetProps {
  * A modify shows the call the approver was given, struck through.
  */
 export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
-  const final = chain.at(-1)!;
+  const first = expectDefined(chain[0], "an approval");
+  const final = expectDefined(chain.at(-1), "an approval");
   const [collapsed, setCollapsed] = useCollapsedState(
-    `${chain[0]!.id}-approval-chain`,
+    `${first.id}-approval-chain`,
     true
   );
   const event = final.event;

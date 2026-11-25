@@ -10,7 +10,7 @@ import type { ListingQuery, LogsListingResult } from "./types";
  * rows (e.g. pending tasks, which have no database record) join a
  * database-produced page without forcing the whole listing back into memory.
  */
-export function mergeSortedRows<TRow>(
+export function mergeSortedRows<TRow extends object>(
   base: TRow[],
   overlay: TRow[],
   compare?: (a: TRow, b: TRow) => number
@@ -20,14 +20,18 @@ export function mergeSortedRows<TRow>(
   const merged: TRow[] = [];
   let i = 0;
   let j = 0;
-  while (i < base.length && j < overlay.length) {
-    merged.push(
-      compare(base[i]!, overlay[j]!) <= 0 ? base[i++]! : overlay[j++]!
-    );
+  let a = base[i];
+  let b = overlay[j];
+  while (a !== undefined && b !== undefined) {
+    if (compare(a, b) <= 0) {
+      merged.push(a);
+      a = base[++i];
+    } else {
+      merged.push(b);
+      b = overlay[++j];
+    }
   }
-  while (i < base.length) merged.push(base[i++]!);
-  while (j < overlay.length) merged.push(overlay[j++]!);
-  return merged;
+  return merged.concat(base.slice(i), overlay.slice(j));
 }
 
 /**

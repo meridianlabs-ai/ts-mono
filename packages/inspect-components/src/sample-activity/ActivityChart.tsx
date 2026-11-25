@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { useDebouncedCallback } from "@tsmono/react/hooks";
+import { expectDefined } from "@tsmono/util";
 
 import styles from "./ActivityChart.module.css";
 import {
@@ -491,7 +492,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           parallel,
         }));
       }
-      const first = group[0]!;
+      const [first] = group;
+      if (!first) return [];
       const largest = group.reduce((a, b) => (b.value > a.value ? b : a));
       return [
         { point: largest, time: first.time, x: contextX(first), parallel },
@@ -522,7 +524,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   //    needs extra rail headroom, which shifts every band down) ──────────
   interface MarkerGroup {
     x: number;
-    members: ActivityMarker[];
+    members: [ActivityMarker, ...ActivityMarker[]];
   }
 
   /** Count-box width for a cluster ("×12" is wider than "×2"); singles
@@ -545,7 +547,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       : kClusterGapPx;
     if (last && mx - last.x < gap) {
       last.members.push(marker);
-      last.x = (xAt(last.members[0]!.time) + mx) / 2;
+      last.x = (xAt(last.members[0].time) + mx) / 2;
     } else {
       markerGroups.push({ x: mx, members: [marker] });
     }
@@ -655,12 +657,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         drop.after !== undefined ? [{ x: dropX(drop), value: drop.after }] : [];
     };
     for (const node of contextNodes(row)) {
-      while (
-        dropIndex < drops.length &&
-        (drops[dropIndex]?.time ?? Infinity) <= node.time
+      for (
+        let drop = drops[dropIndex];
+        drop && drop.time <= node.time;
+        drop = drops[++dropIndex]
       ) {
-        applyDrop(drops[dropIndex]!);
-        dropIndex += 1;
+        applyDrop(drop);
       }
       run.push({ x: node.x, value: node.point.value });
     }
@@ -669,7 +671,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     // past the cliff must hold the compacted size, not the pre-drop value.
     // eslint-disable-next-line react-hooks/invariant -- ActivityChart can't compile until its render-local caches and render-time ref reads move out (a separate refactor); rewriting this loop only uncovers those errors
     for (; dropIndex < drops.length; dropIndex += 1) {
-      applyDrop(drops[dropIndex]!);
+      applyDrop(expectDefined(drops[dropIndex], "a compaction drop"));
     }
     if (run.length > 0) runs.push(run);
     contextRunsCache.set(row.id, runs);
@@ -692,8 +694,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     }
     let held: number | undefined;
     for (const run of contextRuns(row)) {
-      for (let i = 0; i < run.length; i++) {
-        const a = run[i]!;
+      for (const [i, a] of run.entries()) {
         if (a.x > px) return held;
         const b = run[i + 1];
         if (b && b.x > px) {
@@ -1326,7 +1327,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         Math.floor((x(s.end) - plotLeft) / kDensityColWidth)
       );
       for (let c = c0; c <= c1; c++) {
-        const col = cols[c]!;
+        const col = expectDefined(cols[c], "a density column");
         if (s.kind === "model") col.model += 1;
         else col.tool += 1;
         if (s.failed) col.failed += 1;
@@ -1696,7 +1697,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         nCols - 1,
         Math.floor(((turn.index - 1) / nTurns) * nCols)
       );
-      const col = cols[c]!;
+      const col = expectDefined(cols[c], "a density column");
       if (turn.model) col.model += 1;
       col.tool += turn.tools.length;
       col.failed += turn.tools.filter((t) => t.failed).length;
@@ -2005,7 +2006,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return (
       <g key="markers">
         {markerGroups.map((group, i) => {
-          const head = group.members[0]!;
+          const head = group.members[0];
           const keys = group.members.map((m) => m.key);
           const color = kCategoryColor[head.category];
           const active =

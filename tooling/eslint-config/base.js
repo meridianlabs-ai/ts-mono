@@ -118,6 +118,14 @@ export default tseslint.config(
       "import-x/resolver-next": [createTypeScriptImportResolver()],
     },
   },
+  {
+    // Tests are exempt: a wrong `!` there fails the test that built the value.
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "e2e/**"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
   { ...prettierConfig, files: [jsish] },
   ...(typedLint
     ? []

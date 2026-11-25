@@ -41,7 +41,11 @@ export interface CurveValue {
 export type HoverTarget =
   | { kind: "span"; span: ActivitySpan; row: AgentRow }
   | { kind: "burst"; burst: ToolBurst; row: AgentRow; hovered: ActivitySpan }
-  | { kind: "marker"; members: ActivityMarker[]; compaction?: CompactionDrop }
+  | {
+      kind: "marker";
+      members: [ActivityMarker, ...ActivityMarker[]];
+      compaction?: CompactionDrop;
+    }
   | {
       kind: "context";
       point: ContextPoint;
@@ -547,10 +551,10 @@ const CompactionBody: FC<{
 };
 
 const MarkerBody: FC<{
-  members: ActivityMarker[];
+  members: [ActivityMarker, ...ActivityMarker[]];
   onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
 }> = ({ members, onOpenEvent }) => {
-  const head = members[0]!;
+  const [head] = members;
   if (members.length === 1) {
     return (
       <Card
@@ -574,7 +578,7 @@ const MarkerBody: FC<{
   return (
     <Card
       subject={`${members.length} events`}
-      time={`${fmtTimeSec(head.time)} → ${fmtTimeSec(members[members.length - 1]!.time)}`}
+      time={`${fmtTimeSec(head.time)} → ${fmtTimeSec((members.at(-1) ?? head).time)}`}
       uuid={firstUuid}
       footerLabel={kFooterFirst}
       onOpenEvent={onOpenEvent}
@@ -650,8 +654,8 @@ const CurveBody: FC<{
   values: CurveValue[];
 }> = ({ band, time, turn, turnsMode, values }) => {
   const headerText = headerTime(turn, turnsMode, time, time, false);
-  if (values.length === 1) {
-    const only = values[0]!;
+  const [only] = values;
+  if (values.length === 1 && only) {
     return (
       <Card
         subject={
@@ -729,7 +733,7 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
       body =
         target.compaction && target.members.length === 1 ? (
           <CompactionBody
-            marker={target.members[0]!}
+            marker={target.members[0]}
             drop={target.compaction}
             turnsMode={turnsMode}
             onOpenEvent={onOpenEvent}

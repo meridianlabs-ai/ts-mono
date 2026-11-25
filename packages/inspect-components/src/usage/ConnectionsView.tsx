@@ -59,8 +59,10 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
   onViewTimeline,
   timelineHref,
 }) => {
-  const models = Object.keys(lanes).sort();
-  if (models.length === 0) return null;
+  const entries = Object.entries(lanes).sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0
+  );
+  if (entries.length === 0) return null;
 
   const rolesFor = (model: string): string[] =>
     rolesForModel(role_aliases, model);
@@ -71,10 +73,9 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
       <div className={styles.headCell}>Average</div>
       <div className={styles.headCell}>Connections over time</div>
       <div className={styles.headCell} />
-      {models.map((model, index) => {
-        const lane = lanes[model]!;
+      {entries.map(([model, lane], index) => {
         const roles = rolesFor(model);
-        const last = index === models.length - 1;
+        const last = index === entries.length - 1;
         const cellClass = clsx(styles.cell, last && styles.lastRow);
         return (
           <Fragment key={model}>

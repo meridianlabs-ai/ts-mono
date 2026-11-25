@@ -1,3 +1,5 @@
+import { expectDefined } from "@tsmono/util";
+
 import { findVariantHits, normalizeFindText, searchVariants } from "./findText";
 
 // Elements whose text is never shown as page text.
@@ -100,8 +102,8 @@ export function findTextMatches(root: Element, term: string): Range[] {
       offsets
     );
     for (const hit of findVariantHits(text, variants)) {
-      const start = offsets[hit.start]!;
-      const end = offsets[hit.end - 1]! + 1;
+      const start = expectDefined(offsets[hit.start], "a hit start offset");
+      const end = expectDefined(offsets[hit.end - 1], "a hit end offset") + 1;
       const range = doc.createRange();
       const [startNode, startOffset] = locate(run, start, false);
       const [endNode, endOffset] = locate(run, end, true);
@@ -157,9 +159,12 @@ function locate(
   let high = run.starts.length - 1;
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);
-    const start = run.starts[mid]!;
+    const start = expectDefined(run.starts[mid], "a node start");
     if (isEnd ? start < position : start <= position) low = mid;
     else high = mid - 1;
   }
-  return [run.nodes[low]!, position - run.starts[low]!];
+  return [
+    expectDefined(run.nodes[low], "a text node"),
+    position - expectDefined(run.starts[low], "a node start"),
+  ];
 }

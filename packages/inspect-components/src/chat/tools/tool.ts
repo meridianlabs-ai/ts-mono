@@ -440,7 +440,7 @@ export const formatSubagentNotifications = (
   const regex = /<subagent_notification>([\s\S]*?)<\/subagent_notification>/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
-    const line = formatSubagentNotification(match[1]!);
+    const line = formatSubagentNotification(match[1] ?? "");
     if (line) {
       lines.push(line);
     }

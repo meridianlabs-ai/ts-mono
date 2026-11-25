@@ -35,8 +35,7 @@ export function correctRetryTimestamps(events: Event[]): Event[] {
   const lastModelTs = new Map<string | null, number>();
   let result: Event[] | null = null;
 
-  for (let i = 0; i < events.length; i++) {
-    const e = events[i]!;
+  for (const [i, e] of events.entries()) {
     if (e.event !== "model") continue;
     if (!e.timestamp) continue;
 

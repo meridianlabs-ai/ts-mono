@@ -1,3 +1,5 @@
+import { expectDefined } from "@tsmono/util";
+
 import type { ItemMatchCount } from "./ExtendedFindContext";
 
 /** Identifies one match. Page text outside any list has `source: null` and
@@ -42,13 +44,8 @@ export function buildEntries(
   const entries: MatchEntry[] = [];
   let next = 0;
   const pushPage = (until: number) => {
-    for (; next < until; next++) {
-      entries.push({
-        source: null,
-        item: next,
-        count: 1,
-        ranges: [pageRanges[next]!],
-      });
+    for (const range of pageRanges.slice(next, until)) {
+      entries.push({ source: null, item: next++, count: 1, ranges: [range] });
     }
   };
   for (const source of ordered) {
@@ -73,7 +70,7 @@ function sourceEntries(source: SourceMatches): MatchEntry[] {
       entries.push({
         source: source.id,
         item,
-        count: counts.get(item)!,
+        count: expectDefined(counts.get(item), "a match count"),
         ranges: null,
       });
     }
@@ -128,6 +125,8 @@ export function rangeOf(
   const entry = entries.find(
     (e) => e.source === key.source && e.item === key.item
   );
-  if (!entry?.ranges || entry.ranges.length === 0) return null;
-  return entry.ranges[Math.min(key.occurrence, entry.ranges.length - 1)]!;
+  if (!entry?.ranges) return null;
+  return (
+    entry.ranges[Math.min(key.occurrence, entry.ranges.length - 1)] ?? null
+  );
 }

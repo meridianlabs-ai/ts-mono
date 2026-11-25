@@ -145,10 +145,12 @@ export const expandGroupedMetrics = (
         continue;
       }
 
-      if (!metricsByBase.has(baseMetricName)) {
-        metricsByBase.set(baseMetricName, []);
+      let group = metricsByBase.get(baseMetricName);
+      if (!group) {
+        group = [];
+        metricsByBase.set(baseMetricName, group);
       }
-      metricsByBase.get(baseMetricName)!.push({
+      group.push({
         ...metric,
         name: normalizeMetricName(metric.name),
       });

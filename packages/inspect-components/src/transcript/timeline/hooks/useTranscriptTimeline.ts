@@ -14,6 +14,7 @@ import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
+import { expectDefined } from "@tsmono/util";
 
 import {
   canSplice,
@@ -206,7 +207,7 @@ export function useTranscriptTimeline(
 
   // timelines is always non-empty here (built from events or serverTimelines),
   // so activeTimeline is guaranteed to be defined.
-  const baseTimeline = activeTimeline!;
+  const baseTimeline = expectDefined(activeTimeline, "an active timeline");
 
   // Punch-down: each entry is a spliced standalone view of a branch.
   // `priorSelected` stashes the selection at push time so popView can restore it.
@@ -295,8 +296,9 @@ export function useTranscriptTimeline(
     // the selection.
     let selection = state.selected;
     let spans = getSelectedSpans(state.rows, selection);
-    if (spans.length === 0 && state.rows.length > 0) {
-      selection = state.rows[0]!.key;
+    const firstRow = state.rows[0];
+    if (spans.length === 0 && firstRow) {
+      selection = firstRow.key;
       spans = getSelectedSpans(state.rows, selection);
     }
     const parsed = parseSelection(selection);

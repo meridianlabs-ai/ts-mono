@@ -139,13 +139,15 @@ export function resolveEventTurnAnchor(
   // Depth of the sentinel span being scanned: its monitor calls are not turns.
   let sentinelDepth: number | undefined;
   for (const node of flattenedNodes) {
-    while (stack.length > 0 && node.depth <= stack[stack.length - 1]!.depth) {
+    let top = stack.at(-1);
+    while (top && node.depth <= top.depth) {
       stack.pop();
+      top = stack.at(-1);
     }
     if (sentinelDepth !== undefined && node.depth <= sentinelDepth) {
       sentinelDepth = undefined;
     }
-    const laneId = stack.length > 0 ? stack[stack.length - 1]!.laneId : null;
+    const laneId = top ? top.laneId : null;
     const event = node.event;
     if (event.event === "model" && sentinelDepth === undefined) {
       lastAnchorByLane.set(laneId, node.id);
@@ -188,8 +190,9 @@ export function focusedTurnNodes(
   // turn; keep it visible in the LAST turn's focus slice too (a focused tool
   // or a turn with later model turns is not "the end of the sample").
   const target = slice[0];
-  if (!target) return [];
-  const end = flat.indexOf(slice[slice.length - 1]!) + 1;
+  const last = slice.at(-1);
+  if (!target || !last) return [];
+  const end = flat.indexOf(last) + 1;
   const isLastTurn =
     target.event.event === "model" &&
     !flat.slice(end).some((n) => n.event.event === "model");

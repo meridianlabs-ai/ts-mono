@@ -128,11 +128,11 @@ interface HasTimeRange {
 export function computeTimeEnvelope<T extends HasTimeRange>(
   items: T[]
 ): { startTime: Date; endTime: Date } {
-  const first = items[0]!;
+  const [first, ...rest] = items;
+  if (!first) throw new Error("computeTimeEnvelope needs at least one item");
   let startTime = first.startTime();
   let endTime = first.endTime();
-  for (let i = 1; i < items.length; i++) {
-    const item = items[i]!;
+  for (const item of rest) {
     if (item.startTime() < startTime) startTime = item.startTime();
     if (item.endTime() > endTime) endTime = item.endTime();
   }
@@ -199,10 +199,11 @@ export function computeRowLayouts(
       // ParallelSpan: envelope from earliest start to latest end
       // Use includeBranches=false so each agent contributes only its own time range
       const agents = rowSpan.agents;
-      let envStart = agents[0]!.startTime(false);
-      let envEnd = agents[0]!.endTime(false);
-      for (let i = 1; i < agents.length; i++) {
-        const a = agents[i]!;
+      const [firstAgent, ...otherAgents] = agents;
+      if (!firstAgent) throw new Error("A parallel span has no agents");
+      let envStart = firstAgent.startTime(false);
+      let envEnd = firstAgent.endTime(false);
+      for (const a of otherAgents) {
         if (a.startTime(false) < envStart) envStart = a.startTime(false);
         if (a.endTime(false) > envEnd) envEnd = a.endTime(false);
       }
@@ -224,9 +225,7 @@ export function computeRowLayouts(
 
     // Derive row-level parallel count from spans
     const rowParallelCount =
-      spans.length === 1 && spans[0]!.parallelCount !== null
-        ? spans[0]!.parallelCount
-        : null;
+      spans.length === 1 ? (spans[0]?.parallelCount ?? null) : null;
 
     return {
       key: row.key,

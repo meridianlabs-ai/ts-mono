@@ -378,21 +378,15 @@ function transcriptToolsRunning(
   eventNodes: EventNode[],
   recordsExecutions: boolean
 ): boolean {
-  let lastModelIdx = -1;
-  for (let i = eventNodes.length - 1; i >= 0; i--) {
-    if (eventNodes[i]?.event.event === "model") {
-      lastModelIdx = i;
-      break;
-    }
-  }
-  if (lastModelIdx === -1) return false;
-  const modelEvent = eventNodes[lastModelIdx]!.event;
-  if (modelEvent.event !== "model" || modelEvent.pending) return false;
+  const lastModelIdx = eventNodes.findLastIndex(
+    (node) => node.event.event === "model"
+  );
+  const modelEvent = eventNodes[lastModelIdx]?.event;
+  if (modelEvent?.event !== "model" || modelEvent.pending) return false;
   const toolCalls = modelEvent.output.choices[0]?.message.tool_calls ?? [];
   if (toolCalls.length === 0) return false;
   const completedToolIds = new Set<string>();
-  for (let i = lastModelIdx + 1; i < eventNodes.length; i++) {
-    const ev = eventNodes[i]!.event;
+  for (const { event: ev } of eventNodes.slice(lastModelIdx + 1)) {
     if (ev.event === "tool" && !ev.pending) {
       completedToolIds.add(recordsExecutions ? proposalIdOf(ev) : ev.id);
     }

@@ -114,9 +114,9 @@ const ContinuesGlyph: FC = () => (
 export function forkNavToBranchPointProps(
   data: ForkNavData
 ): Pick<BranchPointProps, "parent" | "spawned" | "viewing"> | null {
-  const first = data.groups[0];
-  if (!first || first.options.length === 0) return null;
-  const parent = first.options[0]!.label;
+  const parentOption = data.groups[0]?.options[0];
+  if (!parentOption) return null;
+  const parent = parentOption.label;
 
   // Well-formed data has at most one group with selectedIndex > 0 (the cut
   // anchor's group). If more than one group somehow reports a selection,
@@ -125,11 +125,13 @@ export function forkNavToBranchPointProps(
   let viewing = parent;
   for (const group of data.groups) {
     // options[0] is the stay-on-segment pseudo-option (the parent) — skip it.
-    for (let i = 1; i < group.options.length; i++) {
-      spawned.push(group.options[i]!.label);
+    for (const option of group.options.slice(1)) {
+      spawned.push(option.label);
     }
-    if (group.selectedIndex > 0) {
-      viewing = group.options[group.selectedIndex]!.label;
+    const selected =
+      group.selectedIndex > 0 ? group.options[group.selectedIndex] : undefined;
+    if (selected) {
+      viewing = selected.label;
     }
   }
   if (spawned.length === 0) return null;

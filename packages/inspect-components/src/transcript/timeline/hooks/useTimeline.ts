@@ -54,8 +54,7 @@ export function findBranchesByBranchedFrom(
 ): BranchLookupResult | null {
   // Check this node's branches
   const matches: Array<{ branch: TimelineSpan; index: number }> = [];
-  for (let i = 0; i < node.branches.length; i++) {
-    const branch = node.branches[i]!;
+  for (const [i, branch] of node.branches.entries()) {
     if (branch.branchedFrom === branchedFrom) {
       matches.push({ branch, index: i + 1 });
     }

@@ -59,6 +59,17 @@ caught locally. If you changed code, also run `pnpm test`, and run
   an autofix; the fix is a type guard, a discriminant check, a real fixture,
   or `satisfies`.
 
+  **Non-null assertions are lint-banned in production code**
+  (`@typescript-eslint/no-non-null-assertion`; tests and e2e specs are
+  exempt). With `noUncheckedIndexedAccess` on, most `!`s silence an index
+  read. Restructure so the value is known instead: `for...of` rather than
+  an index loop, destructuring after a length check, `at(-1)` held in a
+  local, the result of `Map.get` rather than `has` then `get!`. Where a
+  real invariant holds that the types can't express (a binary search
+  within bounds, a key set a few lines up), call `expectDefined(value,
+  what)` from `@tsmono/util`, which throws naming `what`. Never swap a `!`
+  for a cast.
+
   A cast that is genuinely a boundary keeps an
   `eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion --`
   directive naming the boundary (see the normalizer's `boundary lift (#555)`

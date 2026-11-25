@@ -282,11 +282,14 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
       : plotLeft;
   };
 
-  interface Band {
-    kind: "active" | "connections" | "terminations";
-    model?: string;
-    top: number;
-  }
+  type Band =
+    | { kind: "active" | "terminations"; top: number }
+    | {
+        kind: "connections";
+        model: string;
+        lane: ConnectionLaneData;
+        top: number;
+      };
 
   // Bin terminations by ~8px time slice up front — the densest stack picks
   // the radius-ladder step and sets the band's height. Skipped until the
@@ -346,8 +349,9 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
     cursor += termPlotBottom + 12;
   }
   for (const model of connectionModels) {
-    if (lanes[model]) {
-      bands.push({ kind: "connections", model, top: cursor });
+    const lane = lanes[model];
+    if (lane) {
+      bands.push({ kind: "connections", model, lane, top: cursor });
       cursor += kBandHeight;
     }
   }
@@ -525,9 +529,9 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
     );
   };
 
-  const renderConnections = (band: Band) => {
-    const lane = lanes[band.model!]!;
-    const laneRetunes = retunes[band.model!] ?? [];
+  const renderConnections = (band: Extract<Band, { kind: "connections" }>) => {
+    const { lane } = band;
+    const laneRetunes = retunes[band.model] ?? [];
     // Shared helpers window-filter post-run retunes — a cap amended after
     // the run never inflates the y-scale or steps the guide.
     const capValues = laneCapValues(lane, laneRetunes, timeWindow.end);
@@ -697,7 +701,8 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
                   const dy = baseline - dotRadius - my;
                   const raw = Math.round(dy / dotPitch);
                   const row = Math.min(sorted.length - 1, Math.max(0, raw));
-                  const t = sorted[row]!;
+                  const t = sorted[row];
+                  if (t === undefined) return;
                   // Movement within one dot's slice keeps the open popover.
                   if (
                     popoverCloseTimer.current === null &&
@@ -806,7 +811,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
     /** Badge/diamond center x. */
     x: number;
     /** One marker, or a pixel-merged run of config markers. */
-    members: TimelineMarker[];
+    members: [TimelineMarker, ...TimelineMarker[]];
     postRun: boolean;
   }
 
@@ -834,7 +839,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
         m.kind === "config"
     );
     const first = configs[0];
-    if (!first) return `tag/metadata edit, ${group.members[0]!.label}`;
+    if (!first) return `tag/metadata edit, ${group.members[0].label}`;
     const logCount = group.members.length - configs.length;
     const suffix =
       logCount > 0
@@ -994,7 +999,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
           mx - last.x < Math.max(kClusterGapPx, boxGap)
         ) {
           last.members.push(marker);
-          last.x = (x(last.members[0]!.time) + mx) / 2;
+          last.x = (x(last.members[0].time) + mx) / 2;
         } else {
           groups.push({ x: mx, members: [marker], postRun: false });
         }

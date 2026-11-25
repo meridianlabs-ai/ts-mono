@@ -150,12 +150,11 @@ export const ValidationCasesList: FC<ValidationCasesListProps> = ({
       const splitB = b.split;
 
       // No split comes first
-      if (!splitA && splitB) return -1;
-      if (splitA && !splitB) return 1;
-      if (!splitA && !splitB) return 0;
+      if (!splitA) return splitB ? -1 : 0;
+      if (!splitB) return 1;
 
       // Both have splits - sort alphabetically
-      return splitA!.localeCompare(splitB!);
+      return splitA.localeCompare(splitB);
     });
   }, [cases, splitFilter, searchText, getTranscriptSafely]);
 

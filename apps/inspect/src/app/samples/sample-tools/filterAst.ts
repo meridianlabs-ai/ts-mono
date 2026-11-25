@@ -90,6 +90,11 @@ class Parser {
     return this.tokens[this.pos++];
   }
 
+  private accept(type: string, text?: string): Token | undefined {
+    if (!this.match(type, text)) return undefined;
+    return this.eat();
+  }
+
   private match(type: string, text?: string): boolean {
     const t = this.peek();
     if (!t || t.type !== type) return false;
@@ -104,7 +109,8 @@ class Parser {
         `Expected ${text ?? type}${t ? `, got "${t.text}"` : ""}`
       );
     }
-    return this.eat()!;
+    this.pos++;
+    return t;
   }
 
   private error(message: string): ParseFailure {
@@ -114,8 +120,9 @@ class Parser {
 
   parse(): FilterAst {
     const expr = this.parseOr();
-    if (this.pos < this.tokens.length) {
-      throw this.error(`Unexpected "${this.peek()!.text}"`);
+    const extra = this.peek();
+    if (extra) {
+      throw this.error(`Unexpected "${extra.text}"`);
     }
     return expr;
   }
@@ -152,9 +159,10 @@ class Parser {
   private parseInOrRelation(): FilterAst {
     const left = this.parseRelation();
     // postfix `in (a, b, c)` / `not in (a, b, c)`
-    if (this.match("keyword", "in") || this.match("keyword", "not in")) {
-      const negated = this.peek()!.text === "not in";
-      this.eat();
+    const inToken =
+      this.accept("keyword", "in") ?? this.accept("keyword", "not in");
+    if (inToken) {
+      const negated = inToken.text === "not in";
       this.consume("miscOperator", "(");
       const values: FilterAst[] = [];
       if (!this.match("miscOperator", ")")) {
@@ -183,8 +191,11 @@ class Parser {
 
   private parseAdd(): FilterAst {
     let left = this.parseMul();
-    while (this.match("miscOperator", "+") || this.match("miscOperator", "-")) {
-      const op = asBinaryOp(this.eat()!.text);
+    for (;;) {
+      const opToken =
+        this.accept("miscOperator", "+") ?? this.accept("miscOperator", "-");
+      if (!opToken) break;
+      const op = asBinaryOp(opToken.text);
       const right = this.parseMul();
       left = { kind: "binary", op, left, right };
     }
@@ -193,12 +204,13 @@ class Parser {
 
   private parseMul(): FilterAst {
     let left = this.parsePow();
-    while (
-      this.match("miscOperator", "*") ||
-      this.match("miscOperator", "/") ||
-      this.match("keyword", "mod")
-    ) {
-      const op = asBinaryOp(this.eat()!.text);
+    for (;;) {
+      const opToken =
+        this.accept("miscOperator", "*") ??
+        this.accept("miscOperator", "/") ??
+        this.accept("keyword", "mod");
+      if (!opToken) break;
+      const op = asBinaryOp(opToken.text);
       const right = this.parsePow();
       left = { kind: "binary", op, left, right };
     }
@@ -284,12 +296,13 @@ class Parser {
   /** Consume `.ident` repeats and return the joined identifier. */
   private parseDottedTail(head: string): string {
     let name = head;
-    while (
-      this.match("miscOperator", ".") &&
-      this.peek(1)?.type === "variable"
-    ) {
-      this.eat(); // dot
-      name += "." + this.eat()!.text;
+    for (;;) {
+      const segment = this.peek(1);
+      if (!this.match("miscOperator", ".") || segment?.type !== "variable") {
+        break;
+      }
+      this.pos += 2;
+      name += "." + segment.text;
     }
     return name;
   }

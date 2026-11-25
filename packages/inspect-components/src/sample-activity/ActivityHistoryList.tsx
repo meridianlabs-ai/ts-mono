@@ -94,6 +94,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   const renderRow = (index: number, row: ActivityHistoryRow) => {
     const selected = selectedKey === row.key;
     const washed = !selected && washKeys.includes(row.key);
+    const { uuid } = row;
     return (
       <div
         className={clsx(
@@ -133,7 +134,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
           {row.detail !== undefined && (
             <span className={styles.muted}> · {row.detail}</span>
           )}
-          {row.uuid !== undefined && onOpenEvent && (
+          {uuid !== undefined && onOpenEvent && (
             <Fragment>
               {" "}
               <button
@@ -141,7 +142,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
                 className={styles.openEvent}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onOpenEvent(row.uuid!, event);
+                  onOpenEvent(uuid, event);
                 }}
               >
                 open in transcript →

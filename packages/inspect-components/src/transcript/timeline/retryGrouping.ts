@@ -74,8 +74,7 @@ export function groupRetryAttempts(events: Event[]): RetryGroupingResult {
   const pendingFailed = new Map<string, PendingFailed[]>();
   const dropIndices = new Set<number>();
 
-  for (let i = 0; i < events.length; i++) {
-    const e = events[i]!;
+  for (const [i, e] of events.entries()) {
     if (e.event !== "model") continue;
 
     const m = e;
@@ -105,9 +104,6 @@ export function groupRetryAttempts(events: Event[]): RetryGroupingResult {
     return { events, attempts };
   }
 
-  const filtered: Event[] = [];
-  for (let i = 0; i < events.length; i++) {
-    if (!dropIndices.has(i)) filtered.push(events[i]!);
-  }
+  const filtered = events.filter((_, i) => !dropIndices.has(i));
   return { events: filtered, attempts };
 }

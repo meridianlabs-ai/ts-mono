@@ -1,3 +1,5 @@
+import { expectDefined } from "@tsmono/util";
+
 // Preserve the existing path/dot wildcard rules without log-authored regexes.
 const kMaxNameLength = 4096;
 const kMaxPatternLength = 4096;
@@ -26,7 +28,7 @@ type Token =
 function tokenize(pattern: string, budget: ScannerGlobBudget): Token[] {
   const tokens: Token[] = [];
   for (let i = 0; i < pattern.length; i++) {
-    const ch = pattern[i]!;
+    const ch = pattern.charAt(i);
     if (ch === "*") {
       const start = i;
       while (pattern[i + 1] === "*") i++;
@@ -39,7 +41,7 @@ function tokenize(pattern: string, budget: ScannerGlobBudget): Token[] {
     } else if (ch === "?") {
       tokens.push({ kind: "any" });
     } else if (ch === "\\" && i + 1 < pattern.length) {
-      tokens.push({ kind: "literal", value: pattern[++i]! });
+      tokens.push({ kind: "literal", value: pattern.charAt(++i) });
     } else if (ch === "[") {
       let end = i + 1;
       const negate = pattern[end] === "^";
@@ -61,7 +63,7 @@ function tokenize(pattern: string, budget: ScannerGlobBudget): Token[] {
       }
       const ranges: Array<[number, number]> = [];
       for (let j = 0; j < chars.length; j++) {
-        const start = chars[j]!.code;
+        const start = expectDefined(chars[j], "a class character").code;
         const dash = chars[j + 1];
         const last = chars[j + 2];
         if (dash?.code === 45 && !dash.escaped && last) {
@@ -126,7 +128,10 @@ function matchesSegment(
     if (token?.kind === "star") {
       starIndex = tokenIndex++;
       starEnd = valueIndex;
-    } else if (token && matchesCharacter(token, value[valueIndex]!, budget)) {
+    } else if (
+      token &&
+      matchesCharacter(token, value.charAt(valueIndex), budget)
+    ) {
       tokenIndex++;
       valueIndex++;
     } else if (starIndex >= 0) {
@@ -148,8 +153,7 @@ function matchesSegments(
 ): boolean {
   // Keep all reachable segment positions so multiple ** cannot cause backtracking.
   let reachable = new Set([0]);
-  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-    const segment = segments[segmentIndex]!;
+  for (const [segmentIndex, segment] of segments.entries()) {
     const next = new Set<number>();
     if (segment.length === 1 && segment[0]?.kind === "globstar") {
       // Picomatch requires the slash in */**, but allows a/** to match a.
@@ -199,10 +203,15 @@ export function scannerGlobMatches(
   if (pattern === value) return true;
   if (pattern.startsWith("./")) pattern = pattern.slice(2);
   const tokens = tokenize(pattern, budget);
-  const segments: Token[][] = [[]];
+  let segment: Token[] = [];
+  const segments: Token[][] = [segment];
   for (const token of tokens) {
-    if (token.kind === "literal" && token.value === "/") segments.push([]);
-    else segments[segments.length - 1]!.push(token);
+    if (token.kind === "literal" && token.value === "/") {
+      segment = [];
+      segments.push(segment);
+    } else {
+      segment.push(token);
+    }
   }
   const values = value.split("/");
   if (matchesSegments(segments, values, budget)) return true;

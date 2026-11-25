@@ -73,13 +73,7 @@ export function appendSampleTerminalEvents(
   events: Event[],
   laneEvents: Event[]
 ): Event[] {
-  let lastModel = -1;
-  for (let i = events.length - 1; i >= 0; i--) {
-    if (events[i]!.event === "model") {
-      lastModel = i;
-      break;
-    }
-  }
+  const lastModel = events.findLastIndex((e) => e.event === "model");
   if (lastModel === -1) return laneEvents;
   const present = new Set(laneEvents.map((e) => e.uuid));
   const trailing = events
