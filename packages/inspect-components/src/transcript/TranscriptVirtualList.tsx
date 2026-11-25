@@ -48,7 +48,6 @@ interface RenderedEventNodeProps {
   next?: EventNode;
   className?: string;
   context?: EventNodeContext;
-  onAutoCollapse?: (eventId: string) => void;
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   eventCallbacks?: EventPanelCallbacks;
 }
@@ -61,7 +60,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
   next,
   className,
   context,
-  onAutoCollapse,
   renderAgentCard,
   eventCallbacks,
 }) => {
@@ -155,7 +153,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <StateEventView
           eventNode={eventNodeOf(node, "state")}
           className={className}
-          onAutoCollapse={onAutoCollapse}
           eventCallbacks={eventCallbacks}
         />
       );
@@ -229,7 +226,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
         <StateEventView
           eventNode={eventNodeOf(node, "store")}
           className={className}
-          onAutoCollapse={onAutoCollapse}
           eventCallbacks={eventCallbacks}
         />
       );

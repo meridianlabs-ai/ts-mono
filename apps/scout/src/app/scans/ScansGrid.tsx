@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from "react";
+import { FC, useMemo } from "react";
 
 import { combineFilters } from "@tsmono/inspect-components/columnFilter";
 import { DataGrid } from "@tsmono/inspect-components/dataGrid";
@@ -53,9 +53,6 @@ export const ScansGrid: FC<ScansGridProps> = ({
   const navigate = useLoggingNavigate("ScansGrid");
   const tableState = useStore((state) => state.scansTableState);
   const setTableState = useStore((state) => state.setScansTableState);
-  const setVisibleScanJobCount = useStore(
-    (state) => state.setVisibleScanJobCount
-  );
   const {
     sorting,
     columnOrder,
@@ -74,12 +71,6 @@ export const ScansGrid: FC<ScansGridProps> = ({
       })),
     [scans, resultsDir]
   );
-
-  // Update visible count
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    setVisibleScanJobCount(data.length);
-  }, [data.length, setVisibleScanJobCount]);
 
   const routeOf = (row: ScanRow): string | undefined =>
     resultsDir ? scanRoute(resultsDir, row.relativeLocation) : undefined;

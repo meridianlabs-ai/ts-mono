@@ -10,7 +10,6 @@ import styles from "./MessageBand.module.css";
 interface MessageBandProps {
   id: string;
   message: string;
-  scope?: "sample" | "eval";
   type: "info" | "warning" | "error";
 }
 
@@ -20,13 +19,8 @@ const typeStyles: Record<MessageBandProps["type"], string> = {
   error: styles.error,
 };
 
-export const MessageBand: FC<MessageBandProps> = ({
-  id,
-  message,
-  type,
-  scope = "eval",
-}) => {
-  const [visible, setVisible] = useMessageVisibility(id, scope);
+export const MessageBand: FC<MessageBandProps> = ({ id, message, type }) => {
+  const [visible, setVisible] = useMessageVisibility(id);
   const handleClick = useCallback(() => {
     setVisible(false);
   }, [setVisible]);

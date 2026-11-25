@@ -18,10 +18,8 @@ export interface ScansTableState {
 
 // The list of scans (as opposed to one open scan, see scanSlice).
 export interface ScansSlice {
-  visibleScanJobCount?: number;
   scansTableState: ScansTableState;
 
-  setVisibleScanJobCount: (count: number) => void;
   setScansTableState: (
     updater: ScansTableState | ((prev: ScansTableState) => ScansTableState)
   ) => void;
@@ -37,10 +35,6 @@ export const createScansSlice: StoreSlice<ScansSlice> = (set) => ({
     columnFilters: {},
   },
 
-  setVisibleScanJobCount: (count: number) =>
-    set((state) => {
-      state.visibleScanJobCount = count;
-    }),
   setScansTableState(updater) {
     set((state) => {
       state.scansTableState =

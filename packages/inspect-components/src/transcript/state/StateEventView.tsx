@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode, useEffect, useMemo } from "react";
+import { FC, ReactNode, useMemo } from "react";
 
 import type {
   JsonChange,
@@ -23,7 +23,6 @@ interface StateEventViewProps {
   eventNode: EventNode<StateEvent | StoreEvent>;
   isStore?: boolean;
   className?: string;
-  onAutoCollapse?: (eventId: string) => void;
   eventCallbacks?: EventPanelCallbacks;
 }
 
@@ -34,7 +33,6 @@ type JsonChangeOp = JsonChange["op"];
 export const StateEventView: FC<StateEventViewProps> = ({
   eventNode,
   className,
-  onAutoCollapse,
   eventCallbacks,
 }) => {
   const event = eventNode.event;
@@ -49,13 +47,6 @@ export const StateEventView: FC<StateEventViewProps> = ({
   }, [event.changes, eventNode.event.event, eventNode.id]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (changePreview === undefined && onAutoCollapse) {
-      onAutoCollapse(eventNode.id);
-    }
-  }, [changePreview, onAutoCollapse, eventNode.id]);
 
   return (
     <EventPanel

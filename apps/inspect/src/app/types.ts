@@ -36,7 +36,6 @@ import { SampleSummary } from "../client/api/types";
 import type { SamplesViewState } from "./samples/list/samplesView";
 
 export interface AppState {
-  nativeFind?: boolean;
   showFind: boolean;
   tabs: {
     sample: string;

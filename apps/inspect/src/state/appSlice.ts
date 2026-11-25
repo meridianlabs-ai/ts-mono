@@ -13,7 +13,6 @@ export interface AppSlice {
   appActions: {
     setShowFind: (show: boolean) => void;
     hideFind: () => void;
-    setNativeFind: (nativeFind: boolean) => void;
 
     setShowingTranscriptFilterDialog: (showing: boolean) => void;
     setShowingOptionsDialog: (showing: boolean) => void;
@@ -120,10 +119,6 @@ export const createAppSlice = (
           state.app.showFind = false;
         });
       },
-      setNativeFind: (nativeFind: boolean) =>
-        set((state) => {
-          state.app.nativeFind = nativeFind;
-        }),
       setShowingTranscriptFilterDialog: (showing: boolean) => {
         const state = get();
         const isShowing = state.app.dialogs.transcriptFilter;

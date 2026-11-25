@@ -28,7 +28,6 @@ export const LogViewLayout: FC = () => {
   // Find
   const showFind = useStore((state) => state.app.showFind);
   const setShowFind = useStore((state) => state.appActions.setShowFind);
-  const nativeFind = useStore((state) => state.app.nativeFind);
   const hideFind = useStore((state) => state.appActions.hideFind);
 
   const { singleFileMode } = useAppConfig();
@@ -46,7 +45,6 @@ export const LogViewLayout: FC = () => {
   useFindBandShortcut(openFind, {
     onClose: hideFind,
     isOpen: showFind,
-    enabled: !nativeFind,
   });
 
   return (

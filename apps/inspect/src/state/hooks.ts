@@ -460,8 +460,7 @@ export const useCollapseSampleEvent = (
 };
 
 export const useMessageVisibility = (
-  id: string,
-  scope: "sample" | "eval"
+  id: string
 ): [boolean, (visible: boolean) => void] => {
   const visible = useStore((state) =>
     state.appActions.getMessageVisible(id, true)
@@ -487,29 +486,6 @@ export const useMessageVisibility = (
     log.debug("clear message (eval)", id);
     clearVisible(id);
   }, [selectedLogFile, clearVisible, id]);
-
-  // Maybe reset state if sample changes
-  const sampleHandle = useCurrentSampleHandle();
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    // Skip the first effect run for sample changes too
-    if (isFirstRender.current) {
-      return;
-    }
-
-    if (scope === "sample") {
-      log.debug("clear message (sample)", id);
-      clearVisible(id);
-    }
-  }, [
-    sampleHandle?.logFile,
-    sampleHandle?.id,
-    sampleHandle?.epoch,
-    clearVisible,
-    id,
-    scope,
-  ]);
 
   return useMemo(() => {
     log.debug("visibility", id, visible);

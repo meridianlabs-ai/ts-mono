@@ -5,7 +5,6 @@ import {
   ReactNode,
   RefObject,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -99,7 +98,6 @@ export interface ChatViewRowsVirtualListProps {
    *  Hosts pass false for unsuccessful finishes (error/cancelled): the
    *  error panel renders at the bottom, where the user is looking. */
   scrollToTopOnFinish?: boolean;
-  onNativeFindChanged?: (nativeFind: boolean) => void;
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
@@ -127,7 +125,6 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     running,
     backfilling,
     scrollToTopOnFinish = true,
-    onNativeFindChanged,
     display,
     labels,
     linking,
@@ -139,11 +136,6 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     // Frozen at mount, mirroring TranscriptViewNodes: a ?message= landing owns
     // the scroll position, so follow must not auto-arm from a live sample.
     const [navOwned] = useState(() => !!initialMessageId);
-
-    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-    useEffect(() => {
-      onNativeFindChanged?.(false);
-    }, [onNativeFindChanged]);
 
     useListKeyboardNavigation({
       listHandle,
