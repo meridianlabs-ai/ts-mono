@@ -8,7 +8,7 @@ bar, and scroll/header state while moving between samples.
 
 - `sample-identity` shows sample id/epoch and task/model context.
 - `sample-summary` renders input, target, answer, score, timing, limits,
-  retries, fallbacks, provenance, and error/cancelled state when present.
+  retries, fallbacks, and error/cancelled state when present.
 - `sample-header-collapse` condenses the summary while scrolling and starts
   collapsed for event/message deep links.
 - `sample-siblings` moves previous/next within the currently filtered sample
@@ -40,8 +40,8 @@ bar, and scroll/header state while moving between samples.
   (starts at top), then return later (fresh visit starts at top).
 - Deep-link to `?message=` or `?event=` and assert the target lands below the
   collapsed sticky header without a visible jump.
-- With config updates, assert the invalidation banner and the log-level
-  invalidation status agree.
+- With config updates, assert the sample's invalidation status in the
+  secondary bar and the log-level invalidation status agree.
 
 ## Code landmarks
 

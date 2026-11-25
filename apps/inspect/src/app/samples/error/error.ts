@@ -1,15 +1,7 @@
 /**
- * Extracts the error type from a given message.
- * If the message contains parentheses, it returns the substring before the first parenthesis.
- * Otherwise, it returns "Error".
+ * Extracts the exception type from an error message written as
+ * `repr(exception)`, e.g. `RuntimeError('boom')`. Returns "Error" for any
+ * other message, since inspect_ai stores `exception.message` when present.
  */
-export const errorType = (message?: string | null): string => {
-  if (!message) {
-    return "Error";
-  }
-
-  if (message.includes("(")) {
-    return message.split("(")[0] ?? "Error";
-  }
-  return "Error";
-};
+export const errorType = (message?: string | null): string =>
+  /^([A-Za-z_][\w.]*)\(/.exec(message ?? "")?.[1] ?? "Error";

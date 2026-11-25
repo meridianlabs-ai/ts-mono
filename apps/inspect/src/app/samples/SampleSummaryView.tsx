@@ -1,19 +1,12 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode } from "react";
 
-import {
-  EvalSample,
-  ModelFallback,
-  ProvenanceData,
-} from "@tsmono/inspect-common/types";
+import { ModelFallback } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { RenderedText } from "@tsmono/inspect-components/content";
 import { arrayToString } from "@tsmono/util";
 
-import {
-  EvalSampleTarget,
-  EvalSampleWorkingTime,
-} from "../../@types/extraInspect";
+import { EvalSampleTarget } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
 import { kScoreTypeOther } from "../../constants";
 import {
@@ -25,7 +18,7 @@ import {
   useSelectedScores,
 } from "../../state/hooks";
 import { formatModelText } from "../../utils/evalModel";
-import { formatDateTime, formatTime } from "../../utils/format";
+import { formatTime } from "../../utils/format";
 
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
@@ -42,7 +35,7 @@ const kTargetTruncate = 160;
 
 interface SampleSummaryViewProps {
   parent_id: string;
-  sample: SampleSummary | EvalSample;
+  sample: SampleSummary;
   /**
    * Render only the meta line (id · task · epoch · …). The fields row,
    * score panel, and error block are all hidden. The parent decides
@@ -61,67 +54,30 @@ interface SampleFields {
   limit_reason?: string;
   retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
-  working_time?: EvalSampleWorkingTime;
-  total_time?: EvalSample["total_time"];
+  working_time?: number;
+  total_time?: number;
   error?: string;
   cancelled?: boolean;
 }
 
-function isEvalSample(
-  sample: SampleSummary | EvalSample
-): sample is EvalSample {
-  return "store" in sample;
-}
-
 const resolveSample = (
-  sample: SampleSummary | EvalSample,
+  sample: SampleSummary,
   sampleDescriptor: SamplesDescriptor
-): SampleFields => {
-  const input = inputString(sample.input);
-  if (isEvalSample(sample) && sample.choices && sample.choices.length > 0) {
-    input.push("");
-    input.push(
-      ...sample.choices.map((choice, index) => {
-        return `${String.fromCharCode(65 + index)}) ${choice}`;
-      })
-    );
-  }
-
-  const target = sample.target;
-  const answer = sampleDescriptor.selectedScorerDescriptor(sample)?.answer();
-  // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
-  // summary branch is the one that renders — reading only the EvalSample side
-  // left the whole limit item dead
-  const limit = isEvalSample(sample)
-    ? sample.limit?.type
-    : (sample.limit ?? undefined);
-  const limit_reason = isEvalSample(sample)
-    ? (sample.limit?.reason ?? undefined)
-    : (sample.limit_reason ?? undefined);
-  const working_time = isEvalSample(sample) ? sample.working_time : undefined;
-  const total_time = isEvalSample(sample) ? sample.total_time : undefined;
-  const cancelled = isCancelled(sample);
-  const error = isEvalSample(sample) ? sample.error?.message : undefined;
-  const retries = isEvalSample(sample)
-    ? sample.error_retries?.length
-    : sample.retries;
-
-  return {
-    id: sample.id,
-    epoch: sample.epoch,
-    input,
-    target,
-    answer,
-    limit,
-    limit_reason,
-    retries,
-    model_fallbacks: sample.model_fallbacks,
-    working_time,
-    total_time,
-    error,
-    cancelled,
-  };
-};
+): SampleFields => ({
+  id: sample.id,
+  epoch: sample.epoch,
+  input: inputString(sample.input),
+  target: sample.target,
+  answer: sampleDescriptor.selectedScorerDescriptor(sample)?.answer(),
+  limit: sample.limit ?? undefined,
+  limit_reason: sample.limit_reason ?? undefined,
+  retries: sample.retries,
+  model_fallbacks: sample.model_fallbacks,
+  working_time: sample.working_time ?? undefined,
+  total_time: sample.total_time ?? undefined,
+  error: sample.error ?? undefined,
+  cancelled: isCancelled(sample),
+});
 
 interface MetaItem {
   key: string;
@@ -217,12 +173,12 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
           : undefined,
     });
   }
-  if (fields.total_time) {
+  if (fields.total_time !== undefined) {
     metaItems.push({
       key: "time",
       content: formatTime(fields.total_time),
       title:
-        fields.working_time !== undefined && fields.working_time !== null
+        fields.working_time !== undefined
           ? `Working time: ${formatTime(fields.working_time)}`
           : undefined,
     });
@@ -245,15 +201,9 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     metaItems.push({ key: "cancelled", content: "Cancelled" });
   }
 
-  // Check if sample is invalidated (only available on full EvalSample)
-  const invalidation: ProvenanceData | null | undefined = isEvalSample(sample)
-    ? sample.invalidation
-    : undefined;
-
   if (collapsed) {
     return (
       <div id={`sample-heading-${parent_id}`} className={styles.root}>
-        {invalidation && <InvalidationBanner invalidation={invalidation} />}
         <div className={styles.collapsedMeta}>
           <MetaLine items={metaItems} />
         </div>
@@ -305,7 +255,6 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   return (
     <div id={`sample-heading-${parent_id}`} className={styles.root}>
-      {invalidation && <InvalidationBanner invalidation={invalidation} />}
       <div
         className={clsx(
           styles.layout,
@@ -405,41 +354,6 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
           <SampleErrorView message={fields.error} />
         </div>
       ) : null}
-    </div>
-  );
-};
-
-/**
- * Banner component to display when a sample has been invalidated.
- */
-const InvalidationBanner: FC<{ invalidation: ProvenanceData }> = ({
-  invalidation,
-}) => {
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      return formatDateTime(new Date(timestamp));
-    } catch {
-      return timestamp;
-    }
-  };
-
-  return (
-    <div className={styles.invalidationBanner}>
-      <div className={styles.invalidationIcon}>⚠</div>
-      <div className={styles.invalidationContent}>
-        <div className={styles.invalidationTitle}>Sample Invalidated</div>
-        <div className={styles.invalidationDetails}>
-          {invalidation.author && <span>By: {invalidation.author}</span>}
-          {invalidation.timestamp && (
-            <span>On: {formatTimestamp(invalidation.timestamp)}</span>
-          )}
-          {invalidation.reason && (
-            <span className={styles.invalidationReason}>
-              Reason: {invalidation.reason}
-            </span>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
