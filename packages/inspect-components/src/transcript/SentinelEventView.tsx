@@ -22,11 +22,12 @@ import {
 } from "./ToolCheckInset";
 import {
   buildLoneSentinelStep,
+  isUnknownStatusVerdict,
   sortedScores,
   topScore,
+  type KnownSentinelVerdict,
   type SentinelRow,
   type SentinelStep,
-  type SentinelVerdict,
 } from "./transform/toolSentinels";
 import type { EventNode, EventNodeContext } from "./types";
 
@@ -223,6 +224,9 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
         <s>{event.action}</s> · superseded
       </span>
     );
+  }
+  if (event.status !== "reported") {
+    return <span>{event.status}</span>;
   }
   if (event.suspicion !== undefined && event.suspicion !== null) {
     const top = topScore(event.suspicion);
@@ -494,7 +498,7 @@ const rejectLook = {
   reasonClass: checkClasses.rejectReason,
 } as const;
 
-const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
+const verdictLooks: Record<KnownSentinelVerdict, VerdictLook> = {
   proceed: {
     icon: "sentinel",
     word: "Proceeded",
@@ -513,6 +517,11 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
   cancelled: {
     icon: "sentinel",
     word: "Cancelled",
+    tone: "neutral",
+  },
+  unjudged: {
+    icon: "sentinel",
+    word: "Not judged",
     tone: "neutral",
   },
   superseded: {
@@ -551,10 +560,21 @@ const unhandledEscalateLook: VerdictLook = {
   tone: "neutral",
 };
 
-const lookOf = (step: SentinelStep): VerdictLook =>
-  step.verdict === "escalate" && step.returned
+/** A status a later Inspect adds records no report, so it reads as one. */
+const unknownStatusLook = (status: string): VerdictLook => ({
+  icon: "sentinel",
+  word: status,
+  tone: "neutral",
+});
+
+const lookOf = ({ verdict, returned }: SentinelStep): VerdictLook => {
+  if (isUnknownStatusVerdict(verdict)) {
+    return unknownStatusLook(verdict.slice("status:".length));
+  }
+  return verdict === "escalate" && returned
     ? unhandledEscalateLook
-    : verdictLooks[step.verdict];
+    : verdictLooks[verdict];
+};
 
 const toneOfDecision = (
   decision: SentinelEvent["action"] | undefined

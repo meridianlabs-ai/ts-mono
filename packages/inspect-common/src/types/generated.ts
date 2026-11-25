@@ -1592,6 +1592,8 @@ export interface components {
             /** Score On Error */
             score_on_error?: boolean | null;
             sentinel?: components["schemas"]["SentinelConfig"] | null;
+            /** Sentinel Proxy */
+            sentinel_proxy?: ("auto" | "required" | "off") | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -1862,6 +1864,10 @@ export interface components {
             scores?: {
                 [key: string]: components["schemas"]["Score"];
             } | null;
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelStats"];
+            } | null;
             /** Setup */
             setup?: string | null;
             /** Started At */
@@ -1993,6 +1999,10 @@ export interface components {
             /** Scores */
             scores?: {
                 [key: string]: components["schemas"]["Score"];
+            } | null;
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelStats"];
             } | null;
             /** Started At */
             started_at?: string | null;
@@ -2255,6 +2265,10 @@ export interface components {
             role_usage: {
                 [key: string]: components["schemas"]["ModelUsage"];
             };
+            /** Sentinel Stats */
+            sentinel_stats?: {
+                [key: string]: components["schemas"]["SentinelEvalStats"];
+            } | null;
             /** Started At */
             started_at: string | "";
         };
@@ -3764,6 +3778,43 @@ export interface components {
             [key: string]: components["schemas"]["SentinelConfig"];
         };
         /**
+         * SentinelEvalStats
+         * @description A sentinel's stats added up over an eval's samples whose stats are complete: only the fields that add up.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelEvalStats: {
+            /** Actions */
+            actions?: {
+                [key: string]: number;
+            } | null;
+            human_reviews?: components["schemas"]["SentinelHumanReviewCounts"] | null;
+            /**
+             * Incomplete Samples
+             * @default 0
+             */
+            incomplete_samples: number;
+            /**
+             * Model Calls
+             * @default 0
+             */
+            model_calls: number;
+            /**
+             * Samples
+             * @default 0
+             */
+            samples: number;
+            /** Steps */
+            steps?: {
+                [key: string]: components["schemas"]["SentinelStepCounts"];
+            } | null;
+            /**
+             * Unrecorded Calls
+             * @default 0
+             */
+            unrecorded_calls: number;
+        };
+        /**
          * SentinelEvent
          * @description Report from a sentinel monitor or protocol about one step.
          *
@@ -3779,6 +3830,8 @@ export interface components {
              * @default false
              */
             audit: boolean;
+            /** Completed */
+            completed?: string | null;
             /** Conversation */
             conversation: string;
             /** Error */
@@ -3812,8 +3865,11 @@ export interface components {
             path: string;
             /** Pending */
             pending?: boolean | null;
+            /** Reason */
+            reason?: string | null;
             /** References */
             references: components["schemas"]["Reference"][];
+            remote?: components["schemas"]["SentinelRemote"] | null;
             /** Span Id */
             span_id?: string | null;
             /**
@@ -3821,11 +3877,8 @@ export interface components {
              * @enum {string}
              */
             stage: "model_input" | "model_output" | "tool_call" | "tool_result";
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            /** Status */
+            status: ("reported" | "cancelled" | "bypassed" | "superseded" | "error" | "unjudged") | string;
             /** Step Id */
             step_id: string;
             /** Suspicion */
@@ -3838,6 +3891,168 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+            /** Working Time */
+            working_time?: number | null;
+        };
+        /**
+         * SentinelHumanReviewCounts
+         * @description Questions a sentinel's `human()` asked a person, and how they ended.
+         *
+         *     Only reviews a sentinel's `human()` asked for. Approvals by `inspect_ai.approval` approvers and reviews by `inspect_ai.review` reviewers are not counted here.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelHumanReviewCounts: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered: number;
+            /**
+             * Cancelled
+             * @default 0
+             */
+            cancelled: number;
+            /**
+             * Timed Out
+             * @default 0
+             */
+            timed_out: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
+        /**
+         * SentinelRemote
+         * @description Where a report from a sentinel running outside the eval came from: the model's proxy Inspect reached it through, and the agent's model call it judged.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemote: {
+            /** Human Reviews */
+            human_reviews?: components["schemas"]["SentinelRemoteHumanReview"][] | null;
+            /** Models */
+            models?: components["schemas"]["SentinelRemoteModel"][] | null;
+            /** Proxy Url */
+            proxy_url: string;
+            /** Reply Received */
+            reply_received?: string | null;
+            /** Request Id */
+            request_id?: string | null;
+            /** Request Received */
+            request_received?: string | null;
+            /**
+             * Trimmed
+             * @default false
+             */
+            trimmed: boolean;
+        };
+        /**
+         * SentinelRemoteHumanReview
+         * @description A question a remote sentinel's `human()` asked a person about a step, and how it ended.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemoteHumanReview: {
+            /** Answered */
+            answered?: string | null;
+            /** Asked */
+            asked?: string | null;
+            /** Decision */
+            decision?: string | null;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason?: string | null;
+            /** Resolution */
+            resolution?: ("answered" | "timed_out" | "cancelled") | string | null;
+        };
+        /**
+         * SentinelRemoteModel
+         * @description A model a remote sentinel's monitors and protocols called while judging a step.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemoteModel: {
+            /** Model */
+            model: string;
+            /** Role */
+            role?: string | null;
+        };
+        /**
+         * SentinelRemoteStats
+         * @description What only a remote sentinel's stats have: how Inspect reached it, and the model calls Inspect sent through it.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelRemoteStats: {
+            /**
+             * Model Calls
+             * @default 0
+             */
+            model_calls: number;
+            /** Proxy Url */
+            proxy_url: string;
+            /** Release */
+            release: ("whole" | "early") | string;
+            /** Results Withheld */
+            results_withheld?: boolean | null;
+            /**
+             * Unrecorded Calls
+             * @default 0
+             */
+            unrecorded_calls: number;
+            /** Version */
+            version: number;
+        };
+        /**
+         * SentinelStats
+         * @description What a sentinel did over a sample, filled the same way whether it ran inside Inspect or outside the eval.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelStats: {
+            /** Actions */
+            actions?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            human_reviews?: components["schemas"]["SentinelHumanReviewCounts"] | null;
+            /** Incomplete Reason */
+            incomplete_reason?: string | null;
+            remote?: components["schemas"]["SentinelRemoteStats"] | null;
+            /** Steps */
+            steps?: {
+                [key: string]: components["schemas"]["SentinelStepCounts"];
+            } | null;
+        };
+        /**
+         * SentinelStepCounts
+         * @description Steps a sentinel saw at one stage, and whether each was judged.
+         *
+         *     Experimental: not yet a stable API; may change without notice.
+         */
+        SentinelStepCounts: {
+            /**
+             * Judged
+             * @default 0
+             */
+            judged: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /** Unjudged */
+            unjudged: {
+                [key: string]: number;
+            };
         };
         /**
          * SnapshotDetails
