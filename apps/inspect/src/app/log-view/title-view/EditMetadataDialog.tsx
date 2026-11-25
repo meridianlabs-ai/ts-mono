@@ -392,8 +392,7 @@ const MetaRow: FC<{
       !first && styles.rowDivider,
       entry.isNew && styles.rowNew
     )}
-    // Used by the dialog's "scroll-to-new-key" effect to locate this
-    // row's element via querySelector — keys are unique within the
+    // addKey finds the new row through this — keys are unique within the
     // editing session and are CSS.escape()'d on lookup so dots/quotes
     // are safe.
     data-meta-key={entry.key}

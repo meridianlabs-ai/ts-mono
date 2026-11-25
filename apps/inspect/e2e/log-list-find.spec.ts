@@ -126,30 +126,15 @@ test.describe("Log-list find band", () => {
 
     await page.keyboard.press("Escape");
     await expect(findInput(page)).toBeHidden();
+    // The match it closed on stays selected.
+    await expect(
+      page.getByRole("row").filter({ hasText: "task-beta" })
+    ).toHaveAttribute("aria-selected", "true");
 
     // Reopening starts clean — no stale term or counter.
     await openFindBand(page);
     await expect(findInput(page)).toHaveValue("");
     await expect(matchStatus(page)).toBeHidden();
-  });
-
-  test("closing the band keeps the found row selected", async ({
-    page,
-    network,
-  }) => {
-    setupLogListHandlers(network);
-    await page.goto("/");
-    await waitForGrid(page);
-
-    await openFindBand(page);
-    await findInput(page).fill("beta");
-    await expect(matchStatus(page)).toHaveText("1 of 1");
-
-    await findInput(page).press("Escape");
-    await expect(findInput(page)).toBeHidden();
-    await expect(
-      page.getByRole("row").filter({ hasText: "task-beta" })
-    ).toHaveAttribute("aria-selected", "true");
   });
 
   test("a row opened while the band is open is the selection on return", async ({
@@ -172,7 +157,9 @@ test.describe("Log-list find band", () => {
       .getByRole("gridcell")
       .first()
       .click();
-    await expect(page.getByRole("grid")).toBeHidden();
+    await page.waitForURL(/#\/tasks\/.+\.eval/);
+    // The list (and its band) has unmounted, not just changed URL.
+    await expect(findInput(page)).toBeHidden();
     await page.goBack();
     await waitForGrid(page);
 
