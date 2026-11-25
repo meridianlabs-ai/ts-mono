@@ -12,6 +12,7 @@ import type {
   Event,
   Timeline as ServerTimeline,
 } from "@tsmono/inspect-common/types";
+import { expectDefined } from "@tsmono/util";
 
 import type { Timeline } from "../core";
 import {
@@ -177,14 +178,17 @@ function buildOrphanContent(
     group.push(...items);
   }
 
+  // Every needed span was walked, so each sorted id has a depth.
+  const depthOf = (id: string) =>
+    expectDefined(spanDepths.get(id), "a span depth");
   // Leaves first. Ties list spans holding orphans before walked ancestors so
   // spans that start together keep a stable lane order.
   const sortedSpanIds = [
     ...new Set([...neededSpanIds, ...spanDepths.keys()]),
-  ].sort((a, b) => spanDepths.get(b)! - spanDepths.get(a)!);
+  ].sort((a, b) => depthOf(b) - depthOf(a));
 
   for (const spanId of sortedSpanIds) {
-    const info = spanLookup.get(spanId)!;
+    const info = expectDefined(spanLookup.get(spanId), "a walked span");
     const children = spanChildren.get(spanId) ?? [];
 
     // Sort children by start time
@@ -286,7 +290,8 @@ function attachOrphanedEvents(
     0,
     timelines.findIndex((tl) => tl.root.branches.length === 0)
   );
-  const host = timelines[hostIndex]!;
+  // attachOrphanedEvents returned early when there were no timelines.
+  const host = expectDefined(timelines[hostIndex], "a host timeline");
   const mergedContent = [...host.root.content, ...orphanContent];
   mergedContent.sort(
     (a, b) => a.startTime().getTime() - b.startTime().getTime()

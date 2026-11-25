@@ -209,15 +209,16 @@ export const applyNonFinitePaths = (
   const isRecord = (v: unknown): v is Record<string | number, unknown> =>
     typeof v === "object" && v !== null;
   for (const path of paths) {
+    const leaf = path.at(-1);
+    if (leaf === undefined) continue;
     let target: unknown = root;
-    for (let i = 0; i < path.length - 1; i++) {
+    for (const key of path.slice(0, -1)) {
       if (!isRecord(target)) break;
-      target = target[path[i]!];
+      target = target[key];
     }
     // paths come from a walk of this same graph, so a miss here means the
     // document changed underneath us — skip rather than throw.
     if (!isRecord(target)) continue;
-    const leaf = path[path.length - 1]!;
     const value = target[leaf];
     target[leaf] =
       value === sentinels.nan
@@ -250,8 +251,7 @@ export const findSentinelPaths = (
   };
   const paths: (string | number)[][] = [];
   const stack: Frame[] = [{ node: root, key: null, prev: null }];
-  while (stack.length > 0) {
-    const frame = stack.pop()!;
+  for (let frame = stack.pop(); frame; frame = stack.pop()) {
     const node = frame.node;
     if (typeof node === "string") {
       if (

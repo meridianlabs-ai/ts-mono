@@ -7,7 +7,7 @@ import type {
   ToolCall,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
-import { isRecord } from "@tsmono/util";
+import { expectDefined, isRecord } from "@tsmono/util";
 
 import { EventNode, eventNodeOf } from "../types";
 
@@ -164,8 +164,9 @@ export const bridgeOutputs = (): BridgeOutputs => {
       let hi = proposals.length;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
-        if (proposals[mid]!.order < order) lo = mid + 1;
-        else hi = mid;
+        if (expectDefined(proposals[mid], "a proposal").order < order) {
+          lo = mid + 1;
+        } else hi = mid;
       }
       return proposals[lo - 1]?.output;
     },
@@ -500,7 +501,10 @@ interface Credit {
  * they pass up.
  */
 const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
-  let current = tree.find((e) => e.node === outcome)!;
+  let current = expectDefined(
+    tree.find((e) => e.node === outcome),
+    "the outcome's tree node"
+  );
   let reason = explanationOf(outcome);
   let reasonSource = reason ? outcome : undefined;
   for (;;) {
@@ -534,11 +538,15 @@ const passedUp = (
 ): TreeNode | undefined => {
   if (!reason) return undefined;
   const sources = children
-    .map((child) => ({ child, text: explanationOf(child.node) }))
-    .filter(({ text }) => text !== undefined && reason.startsWith(text))
-    .sort((a, b) => b.text!.length - a.text!.length);
+    .flatMap((child) => {
+      const text = explanationOf(child.node);
+      return text !== undefined && reason.startsWith(text)
+        ? [{ child, text }]
+        : [];
+    })
+    .sort((a, b) => b.text.length - a.text.length);
   const [first, second] = sources;
-  if (!first || (second && second.text!.length === first.text!.length)) {
+  if (!first || (second && second.text.length === first.text.length)) {
     return undefined;
   }
   return first.child;
@@ -620,7 +628,9 @@ export function buildSentinelStep(
     : single?.event.suspicion != null
       ? [formatSuspicion(single.event.suspicion)].filter(Boolean)
       : observations.flatMap((n) => {
-          const top = topScore(n.event.suspicion!);
+          const suspicion = n.event.suspicion;
+          if (suspicion == null) return [];
+          const top = topScore(suspicion);
           if (!top.value) return [];
           return [
             `${top.dimension ?? n.event.factory.split("/").at(-1)} ${top.value}`,
@@ -649,8 +659,8 @@ export function buildSentinelStep(
     error: single?.event.error || undefined,
     reasonReferences: credit
       ? (credit.reasonSource?.event.references ?? [])
-      : explanationOf(single)
-        ? single!.event.references
+      : single && explanationOf(single)
+        ? single.event.references
         : [],
     scores,
     audit: nodes.some((n) => n.event.audit),
@@ -734,7 +744,10 @@ export function buildSentinelSteps(
     }
   });
   return new Map(
-    groups.map((nodes) => [nodes[0]!.event, buildSentinelStep(nodes)])
+    groups.flatMap((nodes) => {
+      const [first] = nodes;
+      return first ? [[first.event, buildSentinelStep(nodes)] as const] : [];
+    })
   );
 }
 
@@ -840,7 +853,7 @@ interface StepPlace {
 }
 
 const stepStart = (span: EventNode | undefined, nodes: SentinelNode[]) =>
-  (span ?? nodes[0]!).event.timestamp;
+  expectDefined(span ?? nodes[0], "a step event").event.timestamp;
 
 /**
  * Of the unclaimed tools under a step's id, in tree order, the one it judged.
@@ -1166,7 +1179,10 @@ function pairToolSentinelsByExecution(
           outputs.discarded(output)
         )
       : undefined;
-    const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
+    const hostId =
+      tool?.node.id ??
+      span?.node.id ??
+      expectDefined(nodes[0], "a step event").id;
     if (tool) {
       claimed.add(`${step.stage}\u0000${tool.node.id}`);
       const paired = toolSentinels.get(tool.node.id) ?? {};
@@ -1364,7 +1380,10 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
           bridge
         )
       : undefined;
-    const hostId = tool?.node.id ?? span?.node.id ?? nodes[0]!.id;
+    const hostId =
+      tool?.node.id ??
+      span?.node.id ??
+      expectDefined(nodes[0], "a step event").id;
     if (tool) {
       claimed.add(`${step.stage}\u0000${tool.node.id}`);
       const paired = toolSentinels.get(tool.node.id) ?? {

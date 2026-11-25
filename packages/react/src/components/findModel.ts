@@ -42,13 +42,8 @@ export function buildEntries(
   const entries: MatchEntry[] = [];
   let next = 0;
   const pushPage = (until: number) => {
-    for (; next < until; next++) {
-      entries.push({
-        source: null,
-        item: next,
-        count: 1,
-        ranges: [pageRanges[next]!],
-      });
+    for (const range of pageRanges.slice(next, until)) {
+      entries.push({ source: null, item: next++, count: 1, ranges: [range] });
     }
   };
   for (const source of ordered) {
@@ -65,7 +60,7 @@ function sourceEntries(source: SourceMatches): MatchEntry[] {
   for (const { item, count } of source.dataCounts) counts.set(item, count);
   for (const item of source.rendered.keys()) counts.set(item, 0);
   const entries: MatchEntry[] = [];
-  for (const item of [...counts.keys()].sort((a, b) => a - b)) {
+  for (const [item, count] of [...counts].sort(([a], [b]) => a - b)) {
     const ranges = source.rendered.get(item);
     if (ranges) {
       entries.push({ source: source.id, item, count: ranges.length, ranges });
@@ -73,7 +68,7 @@ function sourceEntries(source: SourceMatches): MatchEntry[] {
       entries.push({
         source: source.id,
         item,
-        count: counts.get(item)!,
+        count,
         ranges: null,
       });
     }
@@ -128,6 +123,8 @@ export function rangeOf(
   const entry = entries.find(
     (e) => e.source === key.source && e.item === key.item
   );
-  if (!entry?.ranges || entry.ranges.length === 0) return null;
-  return entry.ranges[Math.min(key.occurrence, entry.ranges.length - 1)]!;
+  if (!entry?.ranges) return null;
+  return (
+    entry.ranges[Math.min(key.occurrence, entry.ranges.length - 1)] ?? null
+  );
 }

@@ -8,7 +8,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
-import { nullProtoRecord } from "@tsmono/util";
+import { expectDefined, nullProtoRecord } from "@tsmono/util";
 
 // Direct file imports keep this module React-free (the usage barrel pulls
 // in component modules).
@@ -543,9 +543,10 @@ const valueText = (value: unknown): string =>
  *  value ("rm -rf build/"), several show `key: value` pairs. */
 const callArgsText = (args: Record<string, unknown>): string => {
   const entries = Object.entries(args);
+  const [only] = entries;
   const text =
-    entries.length === 1
-      ? valueText(entries[0]![1])
+    entries.length === 1 && only
+      ? valueText(only[1])
       : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
   return truncate(text.replace(/\s+/g, " ").trim(), 60);
 };
@@ -902,7 +903,7 @@ const collectSentinelDecisions = (
   };
   /** Slots of runs under an id other than the model's, by that id: one per
    *  run, as a bridged call's handout runs once per bridged tool it denotes. */
-  const executions = new Map<string, CallSlot[]>();
+  const executions = new Map<string, [CallSlot, ...CallSlot[]]>();
   /** The slot of the run under `id`, which is not the model's id in
    *  `chain`: the one an earlier event naming it took, else a new one. */
   const executionSlot = (
@@ -915,7 +916,7 @@ const collectSentinelDecisions = (
   ): CallSlot => {
     const key = chainKey(spanId, `${scope}\u0000${id}`);
     const slots = executions.get(key);
-    if (slots) return slots[0]!;
+    if (slots) return slots[0];
     const slot = takeRun(chain, stage, id, skip);
     executions.set(key, [slot]);
     return slot;
@@ -2304,7 +2305,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   for (const row of agentRows) {
     row.hue = row.role
       ? kScorerHue
-      : kAgentHues[hueIndex++ % kAgentHues.length]!;
+      : expectDefined(kAgentHues[hueIndex++ % kAgentHues.length], "a hue");
   }
   // A conversation nested inside another conversation that has its own row
   // is a sub-agent; its parent waits on it for the child span's extent.

@@ -96,7 +96,8 @@ export function useTranscriptSearchSource(
         )) {
           const index =
             eventIndex.get(rowEventId(match.eventId)) ??
-            eventIndex.get(match.eventId)!;
+            eventIndex.get(match.eventId);
+          if (index === undefined) continue;
           counts.set(index, (counts.get(index) ?? 0) + 1);
         }
         return [...counts]

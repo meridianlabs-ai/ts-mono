@@ -118,6 +118,18 @@ export default tseslint.config(
       "import-x/resolver-next": [createTypeScriptImportResolver()],
     },
   },
+  {
+    // A `!` tells the compiler a value can't be undefined without checking.
+    // Production code narrows instead, or calls `expectDefined` from
+    // @tsmono/util where an invariant holds that the types can't express.
+    // Tests and e2e specs are exempt: a wrong `!` there fails the test that
+    // built the value.
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "e2e/**"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
   { ...prettierConfig, files: [jsish] },
   ...(typedLint
     ? []

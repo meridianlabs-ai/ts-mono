@@ -192,19 +192,22 @@ export function computeMinimapSelection(
   if (!row) return undefined;
 
   // Determine which spans to include
+  const selectedSpan =
+    parsed.spanIndex !== null ? row.spans[parsed.spanIndex] : undefined;
   const spans =
     parsed.spanIndex !== null
-      ? row.spans[parsed.spanIndex]
-        ? [row.spans[parsed.spanIndex]!]
+      ? selectedSpan
+        ? [selectedSpan]
         : []
       : row.spans;
 
   const allAgents = spans.flatMap(getAgents);
-  if (allAgents.length === 0) return undefined;
+  const [firstAgent, ...otherAgents] = allAgents;
+  if (!firstAgent) return undefined;
 
   // Region-scoped minimap: narrow to the region's time range
-  if (parsed.regionIndex !== null && allAgents.length === 1) {
-    const agent = allAgents[0]!;
+  if (parsed.regionIndex !== null && otherAgents.length === 0) {
+    const agent = firstAgent;
     const regions = computeCompactionRegions(agent.content);
     const region = regions[parsed.regionIndex];
     if (region && region.length > 0) {
@@ -220,8 +223,8 @@ export function computeMinimapSelection(
     }
   }
 
-  if (allAgents.length === 1) {
-    const agent = allAgents[0]!;
+  if (otherAgents.length === 0) {
+    const agent = firstAgent;
     return {
       startTime: agent.startTime(false),
       endTime: agent.endTime(false),
@@ -231,10 +234,9 @@ export function computeMinimapSelection(
 
   // Compute envelope with includeBranches=false so each agent contributes
   // only its own time range
-  let envStart = allAgents[0]!.startTime(false);
-  let envEnd = allAgents[0]!.endTime(false);
-  for (let i = 1; i < allAgents.length; i++) {
-    const a = allAgents[i]!;
+  let envStart = firstAgent.startTime(false);
+  let envEnd = firstAgent.endTime(false);
+  for (const a of otherAgents) {
     if (a.startTime(false) < envStart) envStart = a.startTime(false);
     if (a.endTime(false) > envEnd) envEnd = a.endTime(false);
   }
@@ -310,19 +312,21 @@ export function collectRawEvents(
   const branchPrefix = options?.branchPrefix ?? "";
   const events: Event[] = [];
   const sourceSpans = new Map<string, TimelineSpan>();
-  if (spans.length === 1) {
+  const [onlySpan] = spans;
+  if (spans.length === 1 && onlySpan) {
     // When viewing a single agent span, the spawning ToolEvent (which wraps
     // the entire agent execution) duplicates the first MODEL CALL's input and
     // the last ASSISTANT response. Detect and skip it at the top level only.
-    const span = spans[0]!;
+    const span = onlySpan;
     const agentSpanId = span.spanType === "agent" ? span.id : undefined;
 
     // If a region is selected, window the content to that region
     let content: ReadonlyArray<TimelineEvent | TimelineSpan> = span.content;
     if (regionIndex !== null) {
       const regions = computeCompactionRegions(span.content);
-      if (regionIndex >= 0 && regionIndex < regions.length) {
-        content = regions[regionIndex]!;
+      const region = regionIndex >= 0 ? regions[regionIndex] : undefined;
+      if (region) {
+        content = region;
       }
     }
 
@@ -638,7 +642,7 @@ function emitInlineBranches(
  */
 export function getParentKeyFromBranch(branchKey: string): string | null {
   const match = /^(.+)\/branch-[^/]+$/.exec(branchKey);
-  return match ? match[1]! : null;
+  return match?.[1] ?? null;
 }
 
 // =============================================================================
@@ -705,13 +709,13 @@ function buildPath(rows: SwimlaneRow[], selectedKey: string): PathSegment[] {
     k = parent;
   }
   const segs: PathSegment[] = [];
-  for (let i = 0; i < keys.length; i++) {
-    const span = rowSpan(byKey.get(keys[i]!));
+  for (const [i, key] of keys.entries()) {
+    const span = rowSpan(byKey.get(key));
     if (!span) return segs;
     const next = rowSpan(byKey.get(keys[i + 1] ?? ""));
     segs.push({
       span,
-      rowKey: keys[i]!,
+      rowKey: key,
       cutAnchor: next?.branchedFrom ?? null,
     });
   }
@@ -781,8 +785,11 @@ function emitSyntheticSpan(events: Event[], opts: SyntheticSpanOpts): void {
  */
 function forkNavLabel(groups: ForkNavGroup[]): string {
   const children = groups.flatMap((g) => g.options.slice(1));
-  if (children.length <= 2) return children.map((c) => c.label).join(", ");
-  return `${children[0]!.label} +${children.length - 1}`;
+  const [first] = children;
+  if (children.length <= 2 || !first) {
+    return children.map((c) => c.label).join(", ");
+  }
+  return `${first.label} +${children.length - 1}`;
 }
 
 /**
@@ -807,8 +814,7 @@ export function collectPathWithNavigators(
   // child segment opens with a restart-style fork).
   let lastNavSegIdx: number | null = null;
 
-  for (let segIdx = 0; segIdx < path.length; segIdx++) {
-    const seg = path[segIdx]!;
+  for (const [segIdx, seg] of path.entries()) {
     const nextRowKey = path[segIdx + 1]?.rowKey;
     const forks = branchesByAnchor(seg.span, seg.rowKey);
     const suffix = `:${seg.span.id}`;
@@ -837,8 +843,7 @@ export function collectPathWithNavigators(
       // Anchors are structural markers (hidden by default) — the user
       // perceives two fork navs separated only by anchors as adjacent — so
       // skip them when checking adjacency.
-      let i = events.length - 1;
-      while (i >= 0 && events[i]!.event === "anchor") i--;
+      const i = events.findLastIndex((e) => e.event !== "anchor");
       const last = events[i];
       const prev = events[i - 1];
       if (
@@ -959,8 +964,7 @@ export function buildSpanSelectKeys(
   const keys = new Map<string, SpanSelectKey>();
   for (const row of rows) {
     const hasMultipleSpans = row.spans.length > 1;
-    for (let i = 0; i < row.spans.length; i++) {
-      const rowSpan = row.spans[i]!;
+    for (const [i, rowSpan] of row.spans.entries()) {
       const selectKey = hasMultipleSpans
         ? buildSelectionKey(row.key, i)
         : row.key;
@@ -991,18 +995,14 @@ export function findTerminatorTool(
 ): string | null {
   let begin = -1;
   let end = -1;
-  for (let i = 0; i < events.length; i++) {
-    const e = events[i]!;
+  for (const [i, e] of events.entries()) {
     if (e.span_id !== trajectorySpanId) continue;
     if (e.event === "span_begin" && begin === -1) begin = i;
     else if (e.event === "span_end") end = i;
   }
   if (begin === -1 || end === -1) return null;
-  for (let i = end - 1; i > begin; i--) {
-    const e = events[i]!;
-    if (e.event === "tool") return e.function;
-  }
-  return null;
+  const tool = events.slice(begin + 1, end).findLast((e) => e.event === "tool");
+  return tool?.event === "tool" ? tool.function : null;
 }
 
 /**

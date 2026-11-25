@@ -496,25 +496,24 @@ function computeBranchConnectors(
   const connectors = new Map<string, BranchConnector>();
 
   // Build index of layout positions by key for fast lookup.
-  const indexByKey = new Map<string, number>();
-  for (let i = 0; i < layouts.length; i++) {
-    indexByKey.set(layouts[i]!.key, i);
+  const byKey = new Map<string, { index: number; layout: RowLayout }>();
+  for (const [index, layout] of layouts.entries()) {
+    byKey.set(layout.key, { index, layout });
   }
 
-  for (let i = 0; i < layouts.length; i++) {
-    const layout = layouts[i]!;
+  for (const [i, layout] of layouts.entries()) {
     if (!layout.branch) continue;
 
     // Extract branchedFrom UUID from the branch key.
     const match = kBranchKeyPattern.exec(layout.key);
-    if (!match) continue;
-    const branchedFrom = match[1]!;
+    const branchedFrom = match?.[1];
+    if (branchedFrom === undefined) continue;
 
     // Find parent: strip the /branch-... suffix to get the parent key.
     const parentKey = layout.key.replace(kBranchKeyPattern, "");
-    const parentIndex = indexByKey.get(parentKey);
-    if (parentIndex === undefined) continue;
-    const parentLayout = layouts[parentIndex]!;
+    const parent = byKey.get(parentKey);
+    if (!parent) continue;
+    const { index: parentIndex, layout: parentLayout } = parent;
 
     // Find the branch marker on the parent with matching reference.
     const marker = parentLayout.markers.find(
@@ -804,6 +803,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
 }) => {
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
   const rootDisplay = node.name === "solvers" ? "main" : node.name;
+  const previousView = views?.stack.at(-1);
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsButtonEl, setOptionsButtonEl] =
@@ -821,7 +821,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
           <span className={styles.breadcrumbDivider}>/</span>
         </>
       )}
-      {views && views.stack.length > 0 && (
+      {views && previousView && (
         <>
           <button
             type="button"
@@ -830,7 +830,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
             title="Back to branch overview"
           >
             <Icon name="chevronLeft" />
-            {views.stack.at(-1)!.label}
+            {previousView.label}
           </button>
           <span className={styles.breadcrumbDivider}>/</span>
         </>

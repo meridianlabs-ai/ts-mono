@@ -525,18 +525,18 @@ export class FetchEngine {
     if (this._deps !== deps) {
       return;
     }
-    const names = Object.keys(failures).filter(
-      (name) =>
+    const current = Object.entries(failures).filter(
+      ([name]) =>
         claims[name] !== undefined &&
         claims[name] === this._latestDetailsClaim.get(name)
     );
-    if (names.length === 0) {
+    if (current.length === 0) {
       return;
     }
     const updates: Record<string, LogFetchState> = {};
-    for (const name of names) {
+    for (const [name, failure] of current) {
       const next: LogFetchState = {
-        ...withFailure(this._fetchStates[name], "details", failures[name]!),
+        ...withFailure(this._fetchStates[name], "details", failure),
         details_attempts: kMaxFetchAttempts,
       };
       this._fetchStates[name] = next;

@@ -1,5 +1,6 @@
 export * from "./api-error";
 export * from "./ansi";
+export * from "./assert";
 export * from "./array";
 export * from "./arrow";
 export * from "./asyncData";

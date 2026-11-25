@@ -218,9 +218,8 @@ export class FindSession {
           this.entries,
           Math.min(this.current.ordinal, total - 1)
         );
-        this.current = key
-          ? { key, ordinal: ordinalOf(this.entries, key)! }
-          : null;
+        const ordinal = key ? ordinalOf(this.entries, key) : null;
+        this.current = key && ordinal !== null ? { key, ordinal } : null;
         // The matches are gone (the content changed): land on the first one
         // when they come back.
         if (!this.current && this.term) this.awaitingMatch = true;
@@ -254,14 +253,15 @@ export class FindSession {
         (s): s is { id: string; source: FindSource; anchor: Element } =>
           s.anchor !== null
       );
-    const rendered = new Map<string, Map<number, Range[]>>(
-      sources.map((s) => [s.id, new Map()])
-    );
+    const rendered = sources.map((s) => ({
+      ...s,
+      items: new Map<number, Range[]>(),
+    }));
     const pageRanges: Range[] = [];
     for (const range of ranges) {
-      const owner = ownerOf(sources, range.startContainer);
+      const owner = ownerOf(rendered, range.startContainer);
       if (owner) {
-        const items = rendered.get(owner.id)!;
+        const { items } = owner.entry;
         const list = items.get(owner.item);
         if (list) list.push(range);
         else items.set(owner.item, [range]);
@@ -271,19 +271,21 @@ export class FindSession {
     }
     this.lastRendered.clear();
     this.anchors = new Map(sources.map((s) => [s.id, s.anchor]));
-    const matches: SourceMatches[] = sources.map(({ id, source, anchor }) => {
-      const renderedItems = source.renderedItems();
-      if (renderedItems.size > 0) {
-        this.lastRendered.set(id, Math.max(...renderedItems));
+    const matches: SourceMatches[] = rendered.map(
+      ({ id, source, anchor, items }) => {
+        const renderedItems = source.renderedItems();
+        if (renderedItems.size > 0) {
+          this.lastRendered.set(id, Math.max(...renderedItems));
+        }
+        return {
+          id,
+          position: pageMatchesBefore(pageRanges, anchor),
+          dataCounts: source.countByItem(term),
+          rendered: items,
+          renderedItems,
+        };
       }
-      return {
-        id,
-        position: pageMatchesBefore(pageRanges, anchor),
-        dataCounts: source.countByItem(term),
-        rendered: rendered.get(id)!,
-        renderedItems,
-      };
-    });
+    );
     return buildEntries(pageRanges, matches);
   }
 
@@ -335,11 +337,12 @@ export class FindSession {
 
   private navigate(ordinal: number, direction: FindDirection, skips: number) {
     const key = keyAt(this.entries, ordinal);
-    if (!key) return;
+    const keyOrdinal = key ? ordinalOf(this.entries, key) : null;
+    if (!key || keyOrdinal === null) return;
     this.awaitingMatch = false;
     this.cancelNavigation();
     const navigation = this.navigation;
-    this.current = { key, ordinal: ordinalOf(this.entries, key)! };
+    this.current = { key, ordinal: keyOrdinal };
     this.scrollPending = true;
     const source =
       key.source === null ? undefined : this.options.sources().get(key.source);
@@ -488,13 +491,13 @@ function reanchorPageMatch(
   return entry ? { ...key, item: entry.item } : key;
 }
 
-function ownerOf(
-  sources: readonly { id: string; source: FindSource }[],
+function ownerOf<S extends { source: FindSource }>(
+  sources: readonly S[],
   node: Node
-): { id: string; item: number } | null {
-  for (const { id, source } of sources) {
-    const item = source.itemOf(node);
-    if (item !== null) return { id, item };
+): { entry: S; item: number } | null {
+  for (const entry of sources) {
+    const item = entry.source.itemOf(node);
+    if (item !== null) return { entry, item };
   }
   return null;
 }

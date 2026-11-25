@@ -246,7 +246,8 @@ export function useSamplesView(
     const evalMap = new Map(evalCols.map((c) => [c.id, c.visible]));
     const nextColumns: SamplesViewState["columns"] = allColumns.map((col) => {
       const id = col.id;
-      if (evalMap.has(id)) return { id, visible: evalMap.get(id)! };
+      const evalVisible = evalMap.get(id);
+      if (evalVisible !== undefined) return { id, visible: evalVisible };
       return {
         id,
         visible: seedDefaultVisibility ? seedDefaultVisibility(col) : true,

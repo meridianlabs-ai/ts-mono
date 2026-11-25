@@ -118,21 +118,24 @@ export const HistoryList: FC<HistoryListProps> = ({
   // Haystacks are built once per row set — rebuilding them per keystroke
   // over thousands of rows is what made search typing lag. The deferred
   // query keeps the input responsive while the filter catches up.
-  const haystacks = useMemo(
-    () => rows.map((row) => rowHaystack(row).toLowerCase()),
+  const searchable = useMemo(
+    () =>
+      rows.map((row) => ({ row, haystack: rowHaystack(row).toLowerCase() })),
     [rows]
   );
   const deferredSearch = useDeferredValue(search);
   const query = deferredSearch.trim().toLowerCase();
   const ordered = useMemo(() => {
-    const visible = rows.filter(
-      (row, index) =>
-        (selectedCategories.size === 0 ||
-          selectedCategories.has(rowCategory(row))) &&
-        (query === "" || haystacks[index]!.includes(query))
-    );
+    const visible = searchable
+      .filter(
+        ({ row, haystack }) =>
+          (selectedCategories.size === 0 ||
+            selectedCategories.has(rowCategory(row))) &&
+          (query === "" || haystack.includes(query))
+      )
+      .map(({ row }) => row);
     return timeDescending ? visible.reverse() : visible;
-  }, [rows, haystacks, selectedCategories, query, timeDescending]);
+  }, [searchable, selectedCategories, query, timeDescending]);
 
   // Rows virtualize against the tab's scroll container; everything above
   // the list (chart, filter row) is accounted for by scrollMargin, kept
@@ -488,7 +491,8 @@ export const HistoryList: FC<HistoryListProps> = ({
             style={{ height: virtualizer.getTotalSize(), position: "relative" }}
           >
             {virtualizer.getVirtualItems().map((item) => {
-              const row = ordered[item.index]!;
+              const row = ordered[item.index];
+              if (row === undefined) return null;
               const key = rowKey(row);
               const category = rowCategory(row);
               const selected = key !== undefined && selectedEventKey === key;

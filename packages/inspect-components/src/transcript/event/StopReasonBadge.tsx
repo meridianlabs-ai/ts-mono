@@ -54,8 +54,9 @@ const detailEntries = (
   }
   const ordered: Record<string, string> = {};
   for (const k of ["category", "type"]) {
-    if (k in scalars) {
-      ordered[k] = scalars[k]!;
+    const value = scalars[k];
+    if (value !== undefined) {
+      ordered[k] = value;
       delete scalars[k];
     }
   }

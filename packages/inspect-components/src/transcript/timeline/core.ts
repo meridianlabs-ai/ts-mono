@@ -14,7 +14,7 @@ import type {
   TimelineEvent as ServerTimelineEvent,
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
-import { isRecord } from "@tsmono/util";
+import { expectDefined, isRecord } from "@tsmono/util";
 
 import { codexToolMarkdown } from "../../chat/tools/tool";
 
@@ -469,7 +469,7 @@ export function spliceToTimeline(
   });
   const events = content.flatMap((c) => (c.type === "event" ? [c.event] : []));
   if (events.length === content.length) return buildTimeline(events);
-  const host = path[0]!;
+  const host = path[0];
   return {
     name: host.name,
     description: "",
@@ -526,7 +526,7 @@ function forkIndex(node: TimelineSpan, anchorId: string): number {
 function branchPath(
   node: TimelineSpan,
   target: TimelineSpan
-): TimelineSpan[] | null {
+): [TimelineSpan, ...TimelineSpan[]] | null {
   if (node === target || node.id === target.id) return [node];
   for (const child of [...node.branches, ...node.content]) {
     if (child.type !== "span") continue;
@@ -652,20 +652,23 @@ export function computeIdleTime(
     idleMs += child.idleTime() * 1000;
   }
 
+  const [first, ...rest] = sorted;
+  if (!first) return 0;
+
   // Gap: span start → first child
-  const firstGap = sorted[0]!.startTime().getTime() - startTime.getTime();
+  const firstGap = first.startTime().getTime() - startTime.getTime();
   if (firstGap > IDLE_THRESHOLD_MS) idleMs += firstGap;
 
   // Gaps between consecutive children
-  for (let i = 1; i < sorted.length; i++) {
-    const gap =
-      sorted[i]!.startTime().getTime() - sorted[i - 1]!.endTime().getTime();
+  let previous = first;
+  for (const child of rest) {
+    const gap = child.startTime().getTime() - previous.endTime().getTime();
     if (gap > IDLE_THRESHOLD_MS) idleMs += gap;
+    previous = child;
   }
 
   // Gap: last child → span end
-  const lastGap =
-    endTime.getTime() - sorted[sorted.length - 1]!.endTime().getTime();
+  const lastGap = endTime.getTime() - previous.endTime().getTime();
   if (lastGap > IDLE_THRESHOLD_MS) idleMs += lastGap;
 
   return Math.max(0, idleMs / 1000);
@@ -750,12 +753,13 @@ function buildSpanTree(events: Event[]): TreeItem[] {
   // Main loop: build hierarchy and assign events to spans
   for (const event of events) {
     if (event.event === "span_begin") {
-      const span = spansById.get(event.id)!;
+      const span = expectDefined(spansById.get(event.id), "a begun span");
+      const parent = span.parentId ? spansById.get(span.parentId) : undefined;
 
       // Determine where to place this span
-      if (span.parentId && spansById.has(span.parentId)) {
+      if (parent) {
         // Parent span exists - add as child
-        spansById.get(span.parentId)!.children.push(span);
+        parent.children.push(span);
       } else if (spanStack.length > 0) {
         // No explicit parent but we have an open span - add to current span
         const currentSpan = spanStack[spanStack.length - 1];
@@ -779,9 +783,10 @@ function buildSpanTree(events: Event[]): TreeItem[] {
     } else {
       // Regular event - add to appropriate span based on span_id
       const spanId = (event as { span_id?: string | null }).span_id;
+      const owner = spanId ? spansById.get(spanId) : undefined;
 
-      if (spanId && spansById.has(spanId)) {
-        spansById.get(spanId)!.children.push(event);
+      if (owner) {
+        owner.children.push(event);
       } else if (spanStack.length > 0) {
         // No span_id but we have an open span - add to current span
         const currentSpan = spanStack[spanStack.length - 1];
@@ -1056,7 +1061,8 @@ function unwrapSolverSpan(span: SpanNode): SpanNode {
     const agentChildren = span.children.filter(
       (child): child is SpanNode => isSpanNode(child) && child.type === "agent"
     );
-    if (agentChildren.length !== 1) {
+    const [onlyAgent] = agentChildren;
+    if (agentChildren.length !== 1 || !onlyAgent) {
       break;
     }
     // Only collapse the redundant solver→agent nesting when the solver carries
@@ -1071,7 +1077,7 @@ function unwrapSolverSpan(span: SpanNode): SpanNode {
     ) {
       break;
     }
-    span = agentChildren[0]!;
+    span = onlyAgent;
   }
   return span;
 }
@@ -1129,9 +1135,7 @@ function buildAgentFromSolversSpan(solversSpan: SpanNode): TimelineSpan | null {
         if (isSpanNode(item) && !isAgentSpan(item)) {
           const orphanContent: (TimelineEvent | TimelineSpan)[] = [];
           unrollSpan(item, orphanContent);
-          for (let i = orphanContent.length - 1; i >= 0; i--) {
-            children.unshift(orphanContent[i]!);
-          }
+          children.unshift(...orphanContent);
         } else {
           const node = treeItemToNode(item);
           if (node !== null) {
@@ -1396,14 +1400,7 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
-  const choices = event.output.choices;
-  if (choices.length > 0) {
-    const msg = choices[0]!.message;
-    if (msg.tool_calls && msg.tool_calls.length > 0) {
-      return true;
-    }
-  }
-  return false;
+  return (event.output.choices[0]?.message.tool_calls?.length ?? 0) > 0;
 }
 
 /**
@@ -1747,8 +1744,7 @@ function extractToolEventResult(result: unknown): string | undefined {
  */
 function extractAgentResults(parent: TimelineSpan): void {
   const content = parent.content;
-  for (let i = 0; i < content.length; i++) {
-    const item = content[i]!;
+  for (const [i, item] of content.entries()) {
     if (item.type !== "span") continue;
     if (item.spanType !== "agent") {
       extractAgentResults(item);
@@ -1785,8 +1781,11 @@ function extractAgentResults(parent: TimelineSpan): void {
     const toolCallId = item.id.startsWith("agent-") ? item.id.slice(6) : null;
 
     if (!item.agentResult && toolCallId) {
-      for (let j = i + 1; j < content.length; j++) {
-        const nextItem = content[j]!;
+      for (
+        let j = i + 1, nextItem = content[j];
+        nextItem;
+        nextItem = content[++j]
+      ) {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;

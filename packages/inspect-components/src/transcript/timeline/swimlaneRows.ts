@@ -143,10 +143,13 @@ export function computeSwimlaneRows(
  * the maximum parallelism level (minimum possible).
  * Input must be sorted by start time.
  */
-export function assignToLanes(sorted: TimelineSpan[]): TimelineSpan[][] {
+export function assignToLanes(
+  sorted: TimelineSpan[]
+): [TimelineSpan, ...TimelineSpan[]][] {
   if (sorted.length === 0) return [];
 
-  const lanes: { spans: TimelineSpan[]; endTime: number }[] = [];
+  const lanes: { spans: [TimelineSpan, ...TimelineSpan[]]; endTime: number }[] =
+    [];
 
   for (const span of sorted) {
     const spanStart = span.startTime().getTime();
@@ -178,14 +181,13 @@ export function assignToLanes(sorted: TimelineSpan[]): TimelineSpan[][] {
  * Input must be sorted by start time.
  */
 function partitionIntoClusters(sorted: TimelineSpan[]): TimelineSpan[][] {
-  if (sorted.length === 0) return [];
-
+  const [head, ...rest] = sorted;
+  if (!head) return [];
   const clusters: TimelineSpan[][] = [];
-  let current: TimelineSpan[] = [sorted[0]!];
-  let clusterEnd = sorted[0]!.endTime().getTime();
+  let current: TimelineSpan[] = [head];
+  let clusterEnd = head.endTime().getTime();
 
-  for (let i = 1; i < sorted.length; i++) {
-    const span = sorted[i]!;
+  for (const span of rest) {
     if (span.startTime().getTime() < clusterEnd + OVERLAP_TOLERANCE_MS) {
       // Overlaps with current cluster
       current.push(span);
@@ -251,9 +253,10 @@ function buildRowFromGroup(
   }
 
   // Partition into overlapping clusters, then build RowSpans
-  const rowSpans = partitionIntoClusters(sorted).map((cluster): RowSpan =>
-    cluster.length === 1 ? { agent: cluster[0]! } : { agents: cluster }
-  );
+  const rowSpans = partitionIntoClusters(sorted).map((cluster): RowSpan => {
+    const [only] = cluster;
+    return cluster.length === 1 && only ? { agent: only } : { agents: cluster };
+  });
 
   // Compute aggregated time range and tokens
   const startTime = first.startTime(false);
@@ -380,17 +383,18 @@ function flattenChildren(
 
   for (const [displayName, spans] of groups) {
     const sorted = [...spans].sort(compareSpansByTime);
+    const [first] = sorted;
+    if (!first) continue;
     const baseName = displayName.toLowerCase();
     const clusters = partitionIntoClusters(sorted);
     const hasParallel = clusters.some((c) => c.length > 1);
     // Earliest start across the whole name group — used for sorting so
     // that all entries from the same agent name stay together.
-    const groupStartTime = sorted[0]!.startTime(false);
+    const groupStartTime = first.startTime(false);
 
     if (!hasParallel) {
       // All non-overlapping (iterative): one row with one bar per cluster
       const rowSpans: RowSpan[] = sorted.map((s) => ({ agent: s }));
-      const first = sorted[0]!;
       const endTime = sorted.reduce(
         (latest, s) =>
           s.endTime(false).getTime() > latest.getTime()
@@ -414,11 +418,12 @@ function flattenChildren(
       // Each lane becomes one row with multiple non-overlapping bars.
       const lanes = assignToLanes(sorted);
 
-      if (lanes.length === 1) {
+      const [onlyLane] = lanes;
+      if (lanes.length === 1 && onlyLane) {
         // All spans fit in one lane — treat as iterative (no number suffix)
-        const laneSpans = lanes[0]!;
+        const laneSpans = onlyLane;
         const rowSpans: RowSpan[] = laneSpans.map((s) => ({ agent: s }));
-        const first = laneSpans[0]!;
+        const [first] = laneSpans;
         const endTime = laneSpans.reduce(
           (latest, s) =>
             s.endTime(false).getTime() > latest.getTime()
@@ -442,10 +447,9 @@ function flattenChildren(
         });
       } else {
         // Multiple lanes needed: one numbered row per lane
-        for (let i = 0; i < lanes.length; i++) {
-          const laneSpans = lanes[i]!;
+        for (const [i, laneSpans] of lanes.entries()) {
           const rowSpans: RowSpan[] = laneSpans.map((s) => ({ agent: s }));
-          const first = laneSpans[0]!;
+          const [first] = laneSpans;
           const endTime = laneSpans.reduce(
             (latest, s) =>
               s.endTime(false).getTime() > latest.getTime()
@@ -491,8 +495,7 @@ function flattenChildren(
   // Branches are kept in the order the producer listed them (creation order).
   if (showBranches) {
     for (const node of nodes) {
-      for (let i = 0; i < node.branches.length; i++) {
-        const branch = node.branches[i]!;
+      for (const [i, branch] of node.branches.entries()) {
         const label = `${branchPrefix}${i + 1}`;
         const branchSpan = createBranchSpan(branch, label);
         const branchKey = `${parentKey}/branch-${branch.branchedFrom}-${i + 1}`;

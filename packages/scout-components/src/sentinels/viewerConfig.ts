@@ -144,13 +144,14 @@ function scannerResultViewEntries(
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
   const entries: Array<{ pattern: string; view: ScannerResultView }> = [];
   for (const pattern in raw) {
-    if (!Object.hasOwn(raw, pattern)) continue;
+    const view = raw[pattern];
+    if (!Object.hasOwn(raw, pattern) || view === undefined) continue;
     if (entries.length === kMaxScannerPatterns) {
       throw new Error(
         "Scanner result view must contain at most 1024 glob patterns."
       );
     }
-    entries.push({ pattern, view: raw[pattern]! });
+    entries.push({ pattern, view });
   }
   return entries;
 }

@@ -9,7 +9,11 @@ import { TranscriptsResponse } from "../../types/api-types";
 
 import { useServerTranscriptsInfinite } from "./useServerTranscriptsInfinite";
 
-type Position = { pageIndex: number; itemIndex: number };
+type Position = {
+  page: TranscriptsResponse;
+  pageIndex: number;
+  itemIndex: number;
+};
 
 /**
  * Returns prev/next transcript IDs relative to the given ID.
@@ -79,7 +83,7 @@ const findPosition = (
     const page = pages[p];
     if (!page) continue;
     const i = page.items.findIndex((item) => item.transcript_id === id);
-    if (i >= 0) return { pageIndex: p, itemIndex: i };
+    if (i >= 0) return { page, pageIndex: p, itemIndex: i };
   }
   return null;
 };
@@ -88,7 +92,7 @@ const getAdjacentIds = (
   pages: TranscriptsResponse[],
   pos: Position
 ): [string | undefined, string | undefined] => {
-  const page = pages[pos.pageIndex]!;
+  const { page } = pos;
   // Note: prevId is undefined at position 0; reverse paging not yet supported
   const prevId =
     pos.itemIndex > 0
@@ -106,4 +110,4 @@ const isLastLoadedItem = (
   pos: Position
 ): boolean =>
   pos.pageIndex === pages.length - 1 &&
-  pos.itemIndex === pages[pos.pageIndex]!.items.length - 1;
+  pos.itemIndex === pos.page.items.length - 1;

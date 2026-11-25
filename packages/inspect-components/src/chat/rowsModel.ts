@@ -275,10 +275,8 @@ export const countRowBlocks = (
 ): number => {
   if (toolCallStyle !== "complete") return 1;
   const message = resolved.message;
-  const hasToolCalls =
-    message.role === "assistant" && !!message.tool_calls?.length;
-  const skipChatMessage = hasToolCalls && !hasVisibleContent(message);
-  return (
-    (skipChatMessage ? 0 : 1) + (hasToolCalls ? message.tool_calls!.length : 0)
-  );
+  const toolCallCount =
+    message.role === "assistant" ? (message.tool_calls?.length ?? 0) : 0;
+  const skipChatMessage = toolCallCount > 0 && !hasVisibleContent(message);
+  return (skipChatMessage ? 0 : 1) + toolCallCount;
 };

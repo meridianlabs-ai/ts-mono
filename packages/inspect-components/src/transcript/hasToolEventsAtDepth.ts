@@ -45,16 +45,12 @@ export function computeHasToolEventsAtDepth(
 
     // Pop every entry at this depth or deeper; whatever remains is the nearest
     // preceding node strictly shallower than `depth`.
-    while (
-      shallowerStack.length > 0 &&
-      shallowerStack[shallowerStack.length - 1]!.depth >= depth
-    ) {
+    let top = shallowerStack.at(-1);
+    while (top && top.depth >= depth) {
       shallowerStack.pop();
+      top = shallowerStack.at(-1);
     }
-    const prevShallower =
-      shallowerStack.length > 0
-        ? shallowerStack[shallowerStack.length - 1]!.index
-        : -1;
+    const prevShallower = top ? top.index : -1;
     shallowerStack.push({ index: i, depth });
 
     if (node.event.event === "tool") {
@@ -112,16 +108,12 @@ function toolIdsAtLevel(
     const node = eventNodes[i];
     if (!node) continue;
     const depth = node.depth;
-    while (
-      shallowerStack.length > 0 &&
-      shallowerStack[shallowerStack.length - 1]!.depth >= depth
-    ) {
+    let top = shallowerStack.at(-1);
+    while (top && top.depth >= depth) {
       shallowerStack.pop();
+      top = shallowerStack.at(-1);
     }
-    const parent =
-      shallowerStack.length > 0
-        ? shallowerStack[shallowerStack.length - 1]!.index
-        : -1;
+    const parent = top ? top.index : -1;
     shallowerStack.push({ index: i, depth });
 
     const levelKey = `${parent}:${depth}`;

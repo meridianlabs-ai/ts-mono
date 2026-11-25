@@ -245,7 +245,9 @@ class JsonWorkerPool {
     for (const pending of this.pendingRequests.values()) {
       inflight.set(pending.worker, (inflight.get(pending.worker) ?? 0) + 1);
     }
-    let best = candidates[this.nextRequestId % candidates.length]!;
+    let best = candidates[this.nextRequestId % candidates.length];
+    // parse/parseBytes fall back to the main thread when none are started.
+    if (best === undefined) throw new Error("No started JSON worker");
     let bestCount = inflight.get(best) ?? 0;
     for (const worker of candidates) {
       const count = inflight.get(worker) ?? 0;

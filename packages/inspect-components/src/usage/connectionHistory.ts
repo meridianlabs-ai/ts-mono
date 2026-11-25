@@ -177,8 +177,11 @@ export const buildConnectionLanes = (
 
   for (const [model, events] of byModel) {
     events.sort((a, b) => a.timestamp - b.timestamp);
-    const start = events[0]!.old_limit;
-    const final = events[events.length - 1]!.new_limit;
+    const first = events[0];
+    const lastEvent = events.at(-1);
+    if (!first || !lastEvent) continue;
+    const start = first.old_limit;
+    const final = lastEvent.new_limit;
 
     let peak = start;
     let rateLimitCount = 0;

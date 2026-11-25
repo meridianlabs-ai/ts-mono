@@ -588,9 +588,10 @@ export function DataGrid<TRow extends RowData>({
       if (c.id !== undefined) byId.set(c.id, c);
     }
     const rest = effectiveColumnOrder.filter((id) => !pinnedStart.has(id));
-    return [...columnPinning.start, ...rest]
-      .filter((id) => (columnVisibility?.[id] ?? true) && byId.has(id))
-      .map((id) => byId.get(id)!);
+    return [...columnPinning.start, ...rest].flatMap((id) => {
+      const def = byId.get(id);
+      return def && (columnVisibility?.[id] ?? true) ? [def] : [];
+    });
   }, [
     columns,
     columnVisibility,

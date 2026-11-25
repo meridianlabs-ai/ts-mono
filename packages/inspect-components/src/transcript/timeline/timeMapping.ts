@@ -6,6 +6,8 @@
  * horizontal space. Uses the same 5-min threshold as computeIdleTime.
  */
 
+import { expectDefined } from "@tsmono/util";
+
 import type { TimelineEvent, TimelineSpan } from "./core";
 
 // =============================================================================
@@ -112,12 +114,11 @@ function computeViewRange(node: TimelineSpan): { start: Date; end: Date } {
   // includeBranches=false, we compute the envelope from content-only times
   // of the node itself plus its branches (which get their own bar rows).
   // This ensures the timeline fills its full width without empty margins.
-  const items: TimelineSpan[] = [node];
-  collectBranches(node, items);
-  let start = items[0]!.startTime(false);
-  let end = items[0]!.endTime(false);
-  for (let i = 1; i < items.length; i++) {
-    const s = items[i]!;
+  const branches: TimelineSpan[] = [];
+  collectBranches(node, branches);
+  let start = node.startTime(false);
+  let end = node.endTime(false);
+  for (const s of branches) {
     // Skip empty spans whose startTime(false) returns epoch (no content)
     if (s.content.length === 0) continue;
     const st = s.startTime(false);
@@ -208,8 +209,9 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
   let gapIdx = 0;
 
   // Leading gap (nodeStart → first active region)
-  if (rawGaps.length > 0 && rawGaps[0]!.startMs === nodeStartMs) {
-    const gap = rawGaps[0]!;
+  const leadingGap = rawGaps[0];
+  if (leadingGap?.startMs === nodeStartMs) {
+    const gap = leadingGap;
     const percentEnd = currentPercent + gapPercentEach;
     segments.push({
       startMs: gap.startMs,
@@ -228,8 +230,7 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
     gapIdx = 1;
   }
 
-  for (let i = 0; i < activeRegions.length; i++) {
-    const region = activeRegions[i]!;
+  for (const region of activeRegions) {
     const regionDurationMs = region.endMs - region.startMs;
     const regionPercent =
       totalActiveMs > 0
@@ -246,8 +247,8 @@ export function computeTimeMapping(node: TimelineSpan): TimeMapping {
     currentPercent = percentEnd;
 
     // Gap after this active region (if any)
-    if (gapIdx < rawGaps.length) {
-      const gap = rawGaps[gapIdx]!;
+    const gap = rawGaps[gapIdx];
+    if (gap) {
       // Verify this gap follows the current active region
       if (gap.startMs >= region.endMs - 1) {
         const gapPercentEnd = currentPercent + gapPercentEach;
@@ -353,20 +354,18 @@ function extractIntervals(
 
 /** Sort intervals by start time and merge overlapping ones. */
 function mergeIntervals(intervals: ActiveInterval[]): ActiveInterval[] {
-  if (intervals.length === 0) return [];
+  const [head, ...rest] = [...intervals].sort((a, b) => a.startMs - b.startMs);
+  if (!head) return [];
+  let last = { ...head };
+  const merged: ActiveInterval[] = [last];
 
-  const sorted = [...intervals].sort((a, b) => a.startMs - b.startMs);
-  const merged: ActiveInterval[] = [{ ...sorted[0]! }];
-
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i]!;
-    const last = merged[merged.length - 1]!;
-
+  for (const current of rest) {
     if (current.startMs <= last.endMs) {
       // Overlapping or adjacent — extend
       last.endMs = Math.max(last.endMs, current.endMs);
     } else {
-      merged.push({ ...current });
+      last = { ...current };
+      merged.push(last);
     }
   }
 
@@ -381,29 +380,26 @@ function findGaps(
 ): ActiveInterval[] {
   const gaps: ActiveInterval[] = [];
 
+  const [first, ...rest] = activeRegions;
+  if (!first) return gaps;
+
   // Leading gap: node start → first active region
-  if (activeRegions.length > 0) {
-    const firstStart = activeRegions[0]!.startMs;
-    if (firstStart - nodeStartMs > GAP_THRESHOLD_MS) {
-      gaps.push({ startMs: nodeStartMs, endMs: firstStart });
-    }
+  if (first.startMs - nodeStartMs > GAP_THRESHOLD_MS) {
+    gaps.push({ startMs: nodeStartMs, endMs: first.startMs });
   }
 
   // Gaps between consecutive active regions
-  for (let i = 1; i < activeRegions.length; i++) {
-    const prevEnd = activeRegions[i - 1]!.endMs;
-    const nextStart = activeRegions[i]!.startMs;
-    if (nextStart - prevEnd > GAP_THRESHOLD_MS) {
-      gaps.push({ startMs: prevEnd, endMs: nextStart });
+  let prevEnd = first.endMs;
+  for (const region of rest) {
+    if (region.startMs - prevEnd > GAP_THRESHOLD_MS) {
+      gaps.push({ startMs: prevEnd, endMs: region.startMs });
     }
+    prevEnd = region.endMs;
   }
 
   // Trailing gap: last active region → node end
-  if (activeRegions.length > 0) {
-    const lastEnd = activeRegions[activeRegions.length - 1]!.endMs;
-    if (nodeEndMs - lastEnd > GAP_THRESHOLD_MS) {
-      gaps.push({ startMs: lastEnd, endMs: nodeEndMs });
-    }
+  if (nodeEndMs - prevEnd > GAP_THRESHOLD_MS) {
+    gaps.push({ startMs: prevEnd, endMs: nodeEndMs });
   }
 
   return gaps;
@@ -419,7 +415,7 @@ function findSegment(
 
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
-    const seg = segments[mid]!;
+    const seg = expectDefined(segments[mid], "a mapping segment");
 
     if (ms < seg.startMs) {
       hi = mid - 1;
@@ -432,7 +428,5 @@ function findSegment(
 
   // Timestamp falls between segments (shouldn't happen with correct gap detection,
   // but handle gracefully by returning the nearest segment)
-  if (lo < segments.length) return segments[lo]!;
-  if (hi >= 0) return segments[hi]!;
-  return null;
+  return segments[lo] ?? segments[hi] ?? null;
 }

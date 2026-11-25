@@ -362,12 +362,13 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     last_message_pool?: number,
     last_call_pool?: number
   ): Promise<SampleDataResponse | undefined> => {
-    if (!api.eval_log_sample_data) {
+    const { eval_log_sample_data, eval_log_sample_data_direct } = api;
+    if (!eval_log_sample_data) {
       throw new Error("API doesn't supported streamed sample data");
     }
 
     const fetchViaProxy = () =>
-      api.eval_log_sample_data!(
+      eval_log_sample_data(
         log_file,
         id,
         epoch,
@@ -389,9 +390,9 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     };
 
     let path = sampleDataPathByLog.get(log_file);
-    if (path === undefined && api.eval_log_sample_data_direct) {
+    if (path === undefined && eval_log_sample_data_direct) {
       try {
-        const probe = await api.eval_log_sample_data_direct(
+        const probe = await eval_log_sample_data_direct(
           log_file,
           id,
           epoch,
@@ -413,9 +414,9 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
       sampleDataPathByLog.set(log_file, path);
     }
 
-    if (path === "direct") {
+    if (path === "direct" && eval_log_sample_data_direct) {
       try {
-        const result = await api.eval_log_sample_data_direct!(
+        const result = await eval_log_sample_data_direct(
           log_file,
           id,
           epoch,
@@ -442,6 +443,15 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
   const middleware = debug
     ? createMiddlewareWrapper([debugMiddleware])
     : <T extends AnyFn>(_name: string, fn: T): T => fn;
+
+  const {
+    download_log,
+    get_user_info,
+    edit_log,
+    list_searches,
+    post_search,
+    get_search_result,
+  } = api;
 
   return {
     client_events: middleware("client_events", () => {
@@ -498,9 +508,9 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
         return api.download_file(download_file, file_contents);
       }
     ),
-    download_log: api.download_log
+    download_log: download_log
       ? middleware("download_log", (log_file: string) => {
-          return api.download_log!(log_file);
+          return download_log(log_file);
         })
       : undefined,
     log_message: middleware(
@@ -515,11 +525,11 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
     get_log_sample_data: api.eval_log_sample_data
       ? middleware("get_log_sample_data", get_log_sample_data)
       : undefined,
-    get_user_info: api.get_user_info
-      ? middleware("get_user_info", () => api.get_user_info!())
+    get_user_info: get_user_info
+      ? middleware("get_user_info", () => get_user_info())
       : undefined,
     get_app_config: middleware("get_app_config", () => api.get_app_config()),
-    edit_log: api.edit_log
+    edit_log: edit_log
       ? middleware(
           "edit_log",
           async (
@@ -531,7 +541,7 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
             // edit for this log if the caller didn't pass one. See the
             // `editEtagByLog` block above for why this exists.
             const effective = if_match_etag ?? editEtagByLog.get(log_file);
-            const result = await api.edit_log!(log_file, update, effective);
+            const result = await edit_log(log_file, update, effective);
             // Remember the new etag for the next call. A response
             // without an etag (e.g. local-filesystem edit) leaves the
             // cache as-is so a subsequent S3-backed edit on the same
@@ -559,26 +569,21 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
           }
         )
       : undefined,
-    list_searches: api.list_searches
+    list_searches: list_searches
       ? middleware("list_searches", (search_type, count) =>
-          api.list_searches!(search_type, count)
+          list_searches(search_type, count)
         )
       : undefined,
-    post_search: api.post_search
+    post_search: post_search
       ? middleware("post_search", (transcriptDir, transcriptId, request) =>
-          api.post_search!(transcriptDir, transcriptId, request)
+          post_search(transcriptDir, transcriptId, request)
         )
       : undefined,
-    get_search_result: api.get_search_result
+    get_search_result: get_search_result
       ? middleware(
           "get_search_result",
           (transcriptDir, transcriptId, search_id, scope) =>
-            api.get_search_result!(
-              transcriptDir,
-              transcriptId,
-              search_id,
-              scope
-            )
+            get_search_result(transcriptDir, transcriptId, search_id, scope)
         )
       : undefined,
   };

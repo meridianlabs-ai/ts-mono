@@ -557,10 +557,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
         flush();
         run = [event];
         flush();
-      } else if (
-        run.length > 0 &&
-        run[run.length - 1]!.reason === event.reason
-      ) {
+      } else if (run.at(-1)?.reason === event.reason) {
         run.push(event);
       } else {
         flush();

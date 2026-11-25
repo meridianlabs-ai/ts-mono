@@ -47,10 +47,8 @@ const dedupeStoreEventEchoes = (events: Event[]): Event[] => {
       return true;
     }
     let j = i + 1;
-    while (j < events.length && echoTransparent(events[j]!)) {
-      j++;
-    }
-    const next = events[j];
+    let next = events[j];
+    while (next && echoTransparent(next)) next = events[++j];
     return !(
       next?.event === "store" &&
       JSON.stringify(next.changes) === JSON.stringify(event.changes)

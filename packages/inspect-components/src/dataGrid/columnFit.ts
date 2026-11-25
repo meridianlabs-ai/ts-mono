@@ -1,3 +1,5 @@
+import { expectDefined } from "@tsmono/util";
+
 /**
  * Pure fit-to-width layout for DataGrid columns, kept free of React/DOM so
  * the distribution rules are unit-testable (same split as columnReorder.ts).
@@ -62,11 +64,13 @@ export function resolveColumnWidths(
       override === undefined ? baseWidth(c) : renderedWidth(override, c);
   }
   if (availableWidth <= 0) return widths;
+  const widthOf = (c: FitColumn): number =>
+    expectDefined(widths[c.id], "a column width");
 
   const fitted = columns.filter((c) => overrides[c.id] === undefined);
   if (fitted.length === 0) return widths;
   const overriddenTotal = columns.reduce(
-    (sum, c) => (overrides[c.id] === undefined ? sum : sum + widths[c.id]!),
+    (sum, c) => (overrides[c.id] === undefined ? sum : sum + widthOf(c)),
     0
   );
 
@@ -75,7 +79,7 @@ export function resolveColumnWidths(
   if (flexCols.length > 0) {
     const flexSet = new Set(flexCols);
     const nonFlexTotal = columns.reduce(
-      (sum, c) => (flexSet.has(c) ? sum : sum + widths[c.id]!),
+      (sum, c) => (flexSet.has(c) ? sum : sum + widthOf(c)),
       0
     );
     distribute(
@@ -89,14 +93,9 @@ export function resolveColumnWidths(
   // Stage 2: grow every fitted column proportionally from its current
   // width until the total fills the available width. Skipped when the
   // columns already fill (or overflow — no shrinking) the viewport.
-  const total = columns.reduce((sum, c) => sum + widths[c.id]!, 0);
+  const total = columns.reduce((sum, c) => sum + widthOf(c), 0);
   if (total < availableWidth) {
-    distribute(
-      fitted,
-      availableWidth - overriddenTotal,
-      (c) => widths[c.id]!,
-      widths
-    );
+    distribute(fitted, availableWidth - overriddenTotal, widthOf, widths);
   }
   return widths;
 }
@@ -136,7 +135,9 @@ function distribute(
     }
     // No clamping (or nothing left to rebalance against): shares are final.
     if (clamped.length === 0 || clamped.length === active.length) break;
-    for (const c of clamped) remaining -= exact.get(c.id)!;
+    for (const c of clamped) {
+      remaining -= expectDefined(exact.get(c.id), "a clamped width");
+    }
     const clampedSet = new Set(clamped);
     active = active.filter((c) => !clampedSet.has(c));
   }
@@ -144,18 +145,17 @@ function distribute(
   // Integers: floor the exact shares, then hand the lost pixels back (where
   // the max allows) so the total lands flush against the target instead of
   // a few px short.
-  let sum = 0;
-  for (const c of cols) {
-    const w = Math.floor(exact.get(c.id)!);
-    out[c.id] = w;
-    sum += w;
-  }
-  let spare = Math.floor(target) - sum;
-  for (const c of cols) {
+  const floored = cols.map((c) => ({
+    c,
+    w: Math.floor(expectDefined(exact.get(c.id), "a column share")),
+  }));
+  let spare = Math.floor(target) - floored.reduce((sum, { w }) => sum + w, 0);
+  for (const f of floored) {
     if (spare <= 0) break;
-    if (out[c.id]! + 1 <= hi(c)) {
-      out[c.id]! += 1;
+    if (f.w + 1 <= hi(f.c)) {
+      f.w += 1;
       spare -= 1;
     }
   }
+  for (const { c, w } of floored) out[c.id] = w;
 }

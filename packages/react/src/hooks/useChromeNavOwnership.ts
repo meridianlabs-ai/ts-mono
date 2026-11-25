@@ -144,7 +144,10 @@ export interface UseChromeNavOwnershipResult {
 export function useChromeNavOwnership(
   scrollRef:
     | RefObject<HTMLElement | null>
-    | ReadonlyArray<RefObject<HTMLElement | null>>,
+    | readonly [
+        RefObject<HTMLElement | null>,
+        ...RefObject<HTMLElement | null>[],
+      ],
   options: UseChromeNavOwnershipOptions
 ): UseChromeNavOwnershipResult {
   // Opted out of the compiler; the react-hooks/todo disable in this file says why.
@@ -176,7 +179,7 @@ export function useChromeNavOwnership(
   });
 
   // The release-gesture container is the primary (first) scroller.
-  const primaryRef = isReadonlyArray(scrollRef) ? scrollRef[0]! : scrollRef;
+  const primaryRef = isReadonlyArray(scrollRef) ? scrollRef[0] : scrollRef;
   useChromeNavOwnershipRelease(navOwnsRef, primaryRef);
 
   const extraTargetsRef = useRef(extraTargets);

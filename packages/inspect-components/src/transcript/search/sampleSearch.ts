@@ -44,8 +44,7 @@ function recordRowEvents(
   out: Map<string, string>
 ): void {
   const stack: TimelineSpan[] = [agent];
-  while (stack.length > 0) {
-    const span = stack.pop()!;
+  for (let span = stack.pop(); span; span = stack.pop()) {
     for (const item of span.content) {
       if (item.type === "event") {
         // Use uuid (matching EventNode.id derivation in treeify.ts). Events without uuid get

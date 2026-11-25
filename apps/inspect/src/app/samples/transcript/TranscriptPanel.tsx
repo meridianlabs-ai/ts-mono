@@ -256,7 +256,10 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // also participates in headroom-direction detection.
   const outlineScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollRefs = useMemo(() => [scrollRef, outlineScrollRef], [scrollRef]);
+  const scrollRefs = useMemo(
+    () => [scrollRef, outlineScrollRef] as const,
+    [scrollRef]
+  );
 
   // While the find band is open it scrolls matches into view (Ctrl+F → next /
   // prev); those programmatic scrolls would otherwise read as user direction
