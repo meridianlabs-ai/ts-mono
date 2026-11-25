@@ -132,4 +132,55 @@ test.describe("Log-list find band", () => {
     await expect(findInput(page)).toHaveValue("");
     await expect(matchStatus(page)).toBeHidden();
   });
+
+  test("closing the band keeps the found row selected", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await waitForGrid(page);
+
+    await openFindBand(page);
+    await findInput(page).fill("beta");
+    await expect(matchStatus(page)).toHaveText("1 of 1");
+
+    await findInput(page).press("Escape");
+    await expect(findInput(page)).toBeHidden();
+    await expect(
+      page.getByRole("row").filter({ hasText: "task-beta" })
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("a row opened while the band is open is the selection on return", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await waitForGrid(page);
+
+    await openFindBand(page);
+    await findInput(page).fill("beta");
+    await expect(matchStatus(page)).toHaveText("1 of 1");
+
+    // Opening a row leaves the list with the band still open; the click, not
+    // the stale match, is what the list should come back to.
+    await page
+      .getByRole("row")
+      .filter({ hasText: "task-gamma" })
+      .getByRole("gridcell")
+      .first()
+      .click();
+    await expect(page.getByRole("grid")).toBeHidden();
+    await page.goBack();
+    await waitForGrid(page);
+
+    await expect(
+      page.getByRole("row").filter({ hasText: "task-gamma" })
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("row").filter({ hasText: "task-beta" })
+    ).toHaveAttribute("aria-selected", "false");
+  });
 });
