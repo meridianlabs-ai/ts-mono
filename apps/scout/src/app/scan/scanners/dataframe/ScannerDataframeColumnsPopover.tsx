@@ -233,6 +233,12 @@ const columnsMatch = (a: string[], b: string[]): boolean =>
 
 const MAX_PRESET_NAME_LENGTH = 20;
 
+// Module-level so its identity is stable: React calls it only when the input
+// attaches (saving starts) and, with null, when it detaches.
+const focusOnMount = (el: HTMLInputElement | null) => {
+  el?.focus();
+};
+
 const InlinePresets: FC<{
   filtered: string[];
   presets: ColumnPreset[];
@@ -244,15 +250,6 @@ const InlinePresets: FC<{
   const [isSaving, setIsSaving] = useState(false);
   const [presetName, setPresetName] = useState("");
   const [saveError, setSaveError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (isSaving && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isSaving]);
-
   const matchingColumnPreset = presets.find((p) =>
     columnsMatch(p.columns, filtered)
   );
@@ -334,7 +331,7 @@ const InlinePresets: FC<{
           {" | "}
           <span className={styles.presetSaveRow}>
             <input
-              ref={inputRef}
+              ref={focusOnMount}
               className={styles.presetInput}
               type="text"
               placeholder="Preset name"
