@@ -35,10 +35,10 @@ history for this file.
 - `app/routing/loaders/SampleLoadController.tsx`: watches selection identity
   to drop per-sample UI bags. Fix: do the resets in the `selectSample` action
   (it already has an identity-changed branch) and delete the controller.
-- `state/hooks.ts` `useMessageVisibility`: clears visibility on
-  `selectedLogFile` / `selectedSampleHandle` change using a first-render ref,
-  so remounted instances skip the clear and leak stale state. Fix: clear
-  centrally in the `selectLogFile` / `selectSample` actions.
+- `state/hooks.ts` `useMessageVisibility`: clears visibility on a
+  `selectedLogFile` change using a first-render ref, so remounted instances
+  skip the clear and leak stale state. Fix: key the stored dismissal by log
+  file instead of clearing it on change.
 
 ## Data flow
 
