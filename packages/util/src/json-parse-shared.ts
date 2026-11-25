@@ -212,9 +212,9 @@ export const applyNonFinitePaths = (
     const leaf = path.at(-1);
     if (leaf === undefined) continue;
     let target: unknown = root;
-    for (const key of path.slice(0, -1)) {
-      if (!isRecord(target)) break;
-      target = target[key];
+    for (let i = 0; i < path.length - 1 && isRecord(target); i++) {
+      const key = path[i];
+      target = key === undefined ? undefined : target[key];
     }
     // paths come from a walk of this same graph, so a miss here means the
     // document changed underneath us — skip rather than throw.
