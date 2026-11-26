@@ -721,11 +721,14 @@ export function buildSentinelStep(
 
 /**
  * The step of one event shown without the rest of its step (e.g. in the
- * chunked transcript), whose verdict is the event's own result.
+ * chunked transcript), whose verdict and time are the event's own.
  */
 export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
-  const step = buildSentinelStep([node]);
   const event = node.event;
+  const step = {
+    ...buildSentinelStep([node]),
+    workingTime: event.working_time ?? undefined,
+  };
   if (!reported(node, "decision") || step.outcome) return step;
   const verdict = event.action ?? "proceed";
   const acted = verdict !== "proceed";

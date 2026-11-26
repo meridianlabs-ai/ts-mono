@@ -145,7 +145,7 @@ export const ModelTab: FC<ModelTabProps> = ({
           onViewTimeline={showTimelineForModel}
           timelineHref={timelineHref}
         />
-        <SentinelStatsPanel stats={evalStats?.sentinel_stats} />
+        <SentinelStatsPanel kind="eval" stats={evalStats?.sentinel_stats} />
       </div>
     </div>
   );

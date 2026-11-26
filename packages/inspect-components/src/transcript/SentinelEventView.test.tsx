@@ -1075,6 +1075,24 @@ describe("SentinelEventView", () => {
     expect(screen.queryByText("Proceeded")).toBeNull();
   });
 
+  it.each([
+    { name: "a child's check", path: "guard/mon", status: "reported" },
+    { name: "a superseded root decision", path: "", status: "superseded" },
+  ])("gives $name shown alone its own time", ({ path, status }) => {
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={node("alone", {
+          path,
+          factory: "guard",
+          status,
+          action: "terminate",
+          working_time: 2,
+        })}
+      />
+    );
+    expect(container.textContent).toContain("Sentinel (2 sec)");
+  });
+
   it("gives an event shown alone an honest verdict", () => {
     const { container } = renderWithState(
       <SentinelEventView

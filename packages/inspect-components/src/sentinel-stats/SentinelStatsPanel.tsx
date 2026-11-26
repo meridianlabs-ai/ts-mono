@@ -12,37 +12,47 @@ import { sentinelStageLabels } from "../transcript/transform/toolSentinels";
 
 import styles from "./SentinelStatsPanel.module.css";
 
-interface SentinelStatsPanelProps {
-  /** Each sentinel's stats, by name: a sample's, or an eval's added up. */
-  stats?: Record<string, SentinelStats | SentinelEvalStats> | null;
-  className?: string;
-}
+/** Each sentinel's stats, by name: a sample's, or an eval's added up. */
+type SentinelStatsPanelProps = { className?: string } & (
+  | { kind: "sample"; stats?: Record<string, SentinelStats> | null }
+  | { kind: "eval"; stats?: Record<string, SentinelEvalStats> | null }
+);
+
+type Entry =
+  | { kind: "sample"; name: string; stats: SentinelStats }
+  | { kind: "eval"; name: string; stats: SentinelEvalStats };
+
+const sampleEntry = ([name, stats]: [string, SentinelStats]): Entry => ({
+  kind: "sample",
+  name,
+  stats,
+});
+
+const evalEntry = ([name, stats]: [string, SentinelEvalStats]): Entry => ({
+  kind: "eval",
+  name,
+  stats,
+});
 
 /** What each sentinel did over a sample or an eval: its steps, decisions and questions for a person, and for a sentinel outside the eval, the calls Inspect sent through it. */
-export const SentinelStatsPanel: FC<SentinelStatsPanelProps> = ({
-  stats,
-  className,
-}) => {
-  const entries = Object.entries(stats ?? {});
+export const SentinelStatsPanel: FC<SentinelStatsPanelProps> = (props) => {
+  const entries =
+    props.kind === "eval"
+      ? Object.entries(props.stats ?? {}).map(evalEntry)
+      : Object.entries(props.stats ?? {}).map(sampleEntry);
   if (entries.length === 0) return null;
   return (
-    <div className={clsx(styles.panel, className)}>
+    <div className={clsx(styles.panel, props.className)}>
       <div className={clsx("text-style-label", styles.title)}>Sentinels</div>
-      {entries.map(([name, entry]) => (
-        <SentinelStatsEntry key={name} name={name} stats={entry} />
+      {entries.map((entry) => (
+        <SentinelStatsEntry key={entry.name} entry={entry} />
       ))}
     </div>
   );
 };
 
-const isEvalStats = (
-  stats: SentinelStats | SentinelEvalStats
-): stats is SentinelEvalStats => "samples" in stats;
-
-const SentinelStatsEntry: FC<{
-  name: string;
-  stats: SentinelStats | SentinelEvalStats;
-}> = ({ name, stats }) => {
+const SentinelStatsEntry: FC<{ entry: Entry }> = ({ entry }) => {
+  const { name, stats } = entry;
   const steps = stats.steps ? orderedStages(stats.steps) : undefined;
   const actions = stats.actions ? orderedActions(stats.actions) : [];
   const reviews = stats.human_reviews;
@@ -50,18 +60,18 @@ const SentinelStatsEntry: FC<{
     <section className={styles.entry} aria-label={name}>
       <div className={styles.head}>
         <span className={styles.name}>{name}</span>
-        {isEvalStats(stats) ? (
+        {entry.kind === "eval" ? (
           <span className={styles.note}>
-            {plural(stats.samples, "sample")} counted
-            {stats.incomplete_samples > 0
-              ? ` · ${formatNumber(stats.incomplete_samples)} left out as incomplete`
+            {plural(entry.stats.samples, "sample")} counted
+            {entry.stats.incomplete_samples > 0
+              ? ` · ${formatNumber(entry.stats.incomplete_samples)} left out as incomplete`
               : null}
           </span>
         ) : null}
-        {!isEvalStats(stats) && !stats.complete ? (
+        {entry.kind === "sample" && !entry.stats.complete ? (
           <span className={styles.incomplete}>
-            {stats.incomplete_reason
-              ? `Incomplete: ${stats.incomplete_reason}`
+            {entry.stats.incomplete_reason
+              ? `Incomplete: ${entry.stats.incomplete_reason}`
               : "Incomplete"}
           </span>
         ) : null}
@@ -109,25 +119,25 @@ const SentinelStatsEntry: FC<{
           ].join(" · ")}
         </Line>
       ) : null}
-      {isEvalStats(stats) ? (
-        stats.model_calls > 0 ? (
+      {entry.kind === "eval" ? (
+        entry.stats.model_calls > 0 ? (
           <Line label="Remote">
-            {plural(stats.model_calls, "model call")}
-            {unrecordedText(stats.unrecorded_calls)}
+            {plural(entry.stats.model_calls, "model call")}
+            {unrecordedText(entry.stats.unrecorded_calls)}
           </Line>
         ) : null
-      ) : stats.remote ? (
+      ) : entry.stats.remote ? (
         <Line label="Remote">
-          <span className={styles.mono}>{stats.remote.proxy_url}</span>
-          {` · ${plural(stats.remote.model_calls, "model call")}`}
-          {unrecordedText(stats.remote.unrecorded_calls)}
-          {stats.remote.results_withheld === true
+          <span className={styles.mono}>{entry.stats.remote.proxy_url}</span>
+          {` · ${plural(entry.stats.remote.model_calls, "model call")}`}
+          {unrecordedText(entry.stats.remote.unrecorded_calls)}
+          {entry.stats.remote.results_withheld === true
             ? " · results withheld from the eval"
             : null}
-          {stats.remote.results_withheld === false
+          {entry.stats.remote.results_withheld === false
             ? " · results sent to the eval"
             : null}
-          {stats.remote.results_withheld == null
+          {entry.stats.remote.results_withheld == null
             ? " · results withheld: not reported"
             : null}
         </Line>

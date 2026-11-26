@@ -23,7 +23,7 @@ const sampleStats: SentinelStats = {
 
 describe("SentinelStatsPanel", () => {
   it("shows a sample's steps by stage, its decisions and its questions", () => {
-    render(<SentinelStatsPanel stats={{ guard: sampleStats }} />);
+    render(<SentinelStatsPanel kind="sample" stats={{ guard: sampleStats }} />);
     const entry = screen.getByRole("region", { name: "guard" });
     const rows = within(entry)
       .getAllByRole("row")
@@ -43,7 +43,10 @@ describe("SentinelStatsPanel", () => {
 
   it("draws no table for a sentinel that reached no step", () => {
     render(
-      <SentinelStatsPanel stats={{ guard: { ...sampleStats, steps: {} } }} />
+      <SentinelStatsPanel
+        kind="sample"
+        stats={{ guard: { ...sampleStats, steps: {} } }}
+      />
     );
     const entry = screen.getByRole("region", { name: "guard" });
     expect(entry.textContent).toContain("No steps.");
@@ -54,6 +57,7 @@ describe("SentinelStatsPanel", () => {
   it("says why a remote sentinel's stats are incomplete, and what it saw", () => {
     render(
       <SentinelStatsPanel
+        kind="sample"
         stats={{
           "http://127.0.0.1:4000": {
             steps: null,
@@ -90,6 +94,7 @@ describe("SentinelStatsPanel", () => {
     (withheld, text) => {
       render(
         <SentinelStatsPanel
+          kind="sample"
           stats={{
             guard: {
               ...sampleStats,
@@ -119,7 +124,7 @@ describe("SentinelStatsPanel", () => {
       samples: 9,
       incomplete_samples: 1,
     };
-    render(<SentinelStatsPanel stats={{ guard: evalStats }} />);
+    render(<SentinelStatsPanel kind="eval" stats={{ guard: evalStats }} />);
     const entry = screen.getByRole("region", { name: "guard" });
     expect(entry.textContent).toContain(
       "9 samples counted · 1 left out as incomplete"
@@ -130,8 +135,29 @@ describe("SentinelStatsPanel", () => {
     expect(entry.textContent).not.toContain("Incomplete");
   });
 
+  it("shows a sample's stats as a sample's, whatever other fields they carry", () => {
+    render(
+      <SentinelStatsPanel
+        kind="sample"
+        stats={{
+          guard: {
+            ...sampleStats,
+            complete: false,
+            incomplete_reason: "timeout",
+            ...{ samples: 2 },
+          },
+        }}
+      />
+    );
+    const entry = screen.getByRole("region", { name: "guard" });
+    expect(entry.textContent).toContain("Incomplete: timeout");
+    expect(entry.textContent).not.toContain("samples counted");
+  });
+
   it("renders nothing without stats", () => {
-    const { container } = render(<SentinelStatsPanel stats={null} />);
+    const { container } = render(
+      <SentinelStatsPanel kind="sample" stats={null} />
+    );
     expect(container.textContent).toBe("");
   });
 });

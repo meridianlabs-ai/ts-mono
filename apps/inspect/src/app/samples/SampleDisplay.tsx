@@ -1526,6 +1526,7 @@ const usageViewsForSample = (
   if (sample.sentinel_stats && Object.keys(sample.sentinel_stats).length > 0) {
     views.push(
       <SentinelStatsPanel
+        kind="sample"
         key={`sample-sentinel-stats-${id}`}
         stats={sample.sentinel_stats}
       />
