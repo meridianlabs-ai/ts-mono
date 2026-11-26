@@ -216,8 +216,9 @@ export const normalizeSampleSummary = (
   // current writers) set the field explicitly, so only vintage settled
   // rows hit this fill.
   if (typeof raw["completed"] !== "boolean") fix("completed", true);
-  if ("sentinel_stats" in raw) {
-    fix("sentinel_stats", normalizeSentinelStats(raw["sentinel_stats"]));
+  const sentinelStats = normalizeSentinelStats(raw["sentinel_stats"]);
+  if (sentinelStats !== raw["sentinel_stats"]) {
+    fix("sentinel_stats", sentinelStats);
   }
   const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
   if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);

@@ -59,6 +59,42 @@ describe("sentinel_stats defaults", () => {
     expect(stats?.["guard"]).toHaveProperty("samples");
   });
 
+  it("keeps fields the viewer doesn't know while filling the rest", () => {
+    const stats = normalizeEvalSample({
+      ...row,
+      sentinel_stats: {
+        guard: {
+          future: "kept",
+          steps: { tool_call: { total: 1, future: "kept" } },
+        },
+      },
+    }).sentinel_stats;
+    expect(stats).toMatchObject({
+      guard: {
+        future: "kept",
+        complete: true,
+        steps: { tool_call: { total: 1, judged: 0, future: "kept" } },
+      },
+    });
+  });
+
+  it.each([
+    { name: "complete stats", stats: filledSample },
+    { name: "null stats", stats: null },
+  ])("passes a summary with $name through as it came", ({ stats }) => {
+    const raw = {
+      ...row,
+      scores: null,
+      metadata: {},
+      completed: true,
+      model_usage: {},
+      role_usage: {},
+      model_fallbacks: [],
+      sentinel_stats: stats,
+    };
+    expect(normalizeSampleSummary(raw)).toBe(raw);
+  });
+
   it("fills a remote entry's counts, and drops one missing a field with no default", () => {
     const read = (remote: unknown) =>
       normalizeEvalSample({ ...row, sentinel_stats: { guard: { remote } } })

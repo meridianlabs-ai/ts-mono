@@ -884,6 +884,13 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText("5 sec")).toBeNull();
   });
 
+  it("gives a step no time of its own when only a child reported, since the step took at least as long as its slowest check", () => {
+    renderTool([
+      observation("fast", "fast", "llm_suspicion", 0.1, { working_time: 1 }),
+    ]);
+    expect(screen.queryByText("1 sec")).toBeNull();
+  });
+
   it("shows how long each check took in its row, and when it completed in its detail", () => {
     renderTool([
       observation("mon", "monitor", "suspicion", 0.2, {

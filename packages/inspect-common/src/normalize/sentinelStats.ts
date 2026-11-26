@@ -6,118 +6,201 @@ type SentinelStepCounts = NonNullable<SentinelStats["steps"]>[string];
 type SentinelHumanReviewCounts = NonNullable<SentinelStats["human_reviews"]>;
 type SentinelRemoteStats = NonNullable<SentinelStats["remote"]>;
 
-const count = (raw: unknown): number => (typeof raw === "number" ? raw : 0);
+const isOptional = <T>(
+  value: unknown,
+  isT: (value: unknown) => value is T
+): value is T | null | undefined => value == null || isT(value);
+
+const isNumber = (value: unknown): value is number => typeof value === "number";
+
+const isString = (value: unknown): value is string => typeof value === "string";
+
+const isBoolean = (value: unknown): value is boolean =>
+  typeof value === "boolean";
+
+const isCounts = (value: unknown): value is Record<string, number> =>
+  isRecord(value) && Object.values(value).every(isNumber);
+
+const isStepCounts = (value: unknown): value is SentinelStepCounts =>
+  isRecord(value) &&
+  isNumber(value["total"]) &&
+  isNumber(value["judged"]) &&
+  isCounts(value["unjudged"]);
+
+const isSteps = (value: unknown): value is Record<string, SentinelStepCounts> =>
+  isRecord(value) && Object.values(value).every(isStepCounts);
+
+const isHumanReviews = (value: unknown): value is SentinelHumanReviewCounts =>
+  isRecord(value) &&
+  isNumber(value["total"]) &&
+  isNumber(value["answered"]) &&
+  isNumber(value["timed_out"]) &&
+  isNumber(value["cancelled"]);
+
+const isRemote = (value: unknown): value is SentinelRemoteStats =>
+  isRecord(value) &&
+  isString(value["proxy_url"]) &&
+  isNumber(value["version"]) &&
+  isString(value["release"]) &&
+  isNumber(value["model_calls"]) &&
+  isNumber(value["unrecorded_calls"]) &&
+  isOptional(value["results_withheld"], isBoolean);
+
+const isSampleEntry = (value: unknown): value is SentinelStats =>
+  isRecord(value) &&
+  isBoolean(value["complete"]) &&
+  isOptional(value["incomplete_reason"], isString) &&
+  isOptional(value["steps"], isSteps) &&
+  isOptional(value["actions"], isCounts) &&
+  isOptional(value["human_reviews"], isHumanReviews) &&
+  isOptional(value["remote"], isRemote);
+
+const isEvalEntry = (value: unknown): value is SentinelEvalStats =>
+  isRecord(value) &&
+  isNumber(value["samples"]) &&
+  isNumber(value["incomplete_samples"]) &&
+  isNumber(value["model_calls"]) &&
+  isNumber(value["unrecorded_calls"]) &&
+  isOptional(value["steps"], isSteps) &&
+  isOptional(value["actions"], isCounts) &&
+  isOptional(value["human_reviews"], isHumanReviews);
+
+const count = (value: unknown): number => (isNumber(value) ? value : 0);
 
 /** A map of counts; entries that aren't numbers are dropped. */
-const counts = (raw: unknown): Record<string, number> => {
+const counts = (value: unknown): Record<string, number> => {
+  if (isCounts(value)) return value;
   const entries = new Map<string, number>();
-  if (isRecord(raw)) {
-    for (const [key, value] of Object.entries(raw)) {
-      if (typeof value === "number") entries.set(key, value);
+  if (isRecord(value)) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (isNumber(entry)) entries.set(key, entry);
     }
   }
   return nullProtoRecord(entries);
 };
 
-const stepCounts = (raw: unknown): SentinelStepCounts | undefined =>
-  isRecord(raw)
-    ? {
-        total: count(raw["total"]),
-        judged: count(raw["judged"]),
-        unjudged: counts(raw["unjudged"]),
-      }
-    : undefined;
+const optionalCounts = (value: unknown): Record<string, number> | null =>
+  isRecord(value) ? counts(value) : null;
 
-/** Steps by stage; `null` stays `null`, as it means the counts are unavailable. */
-const steps = (raw: unknown): SentinelStats["steps"] => {
-  if (!isRecord(raw)) return null;
+const stepCounts = (value: Record<string, unknown>): SentinelStepCounts =>
+  isStepCounts(value)
+    ? value
+    : {
+        ...value,
+        total: count(value["total"]),
+        judged: count(value["judged"]),
+        unjudged: counts(value["unjudged"]),
+      };
+
+/** Steps by stage; `null` means the counts are unavailable. */
+const steps = (value: unknown): SentinelStats["steps"] => {
+  if (!isRecord(value)) return null;
+  if (isSteps(value)) return value;
   const entries = new Map<string, SentinelStepCounts>();
-  for (const [stage, value] of Object.entries(raw)) {
-    const filled = stepCounts(value);
-    if (filled) entries.set(stage, filled);
+  for (const [stage, entry] of Object.entries(value)) {
+    if (isRecord(entry)) entries.set(stage, stepCounts(entry));
   }
   return nullProtoRecord(entries);
 };
 
-const humanReviews = (raw: unknown): SentinelHumanReviewCounts | null =>
-  isRecord(raw)
-    ? {
-        total: count(raw["total"]),
-        answered: count(raw["answered"]),
-        timed_out: count(raw["timed_out"]),
-        cancelled: count(raw["cancelled"]),
-      }
-    : null;
+const humanReviews = (value: unknown): SentinelHumanReviewCounts | null => {
+  if (!isRecord(value)) return null;
+  if (isHumanReviews(value)) return value;
+  return {
+    ...value,
+    total: count(value["total"]),
+    answered: count(value["answered"]),
+    timed_out: count(value["timed_out"]),
+    cancelled: count(value["cancelled"]),
+  };
+};
 
 // proxy_url, version and release have no default, so an entry missing one
 // would refuse to parse upstream and is dropped rather than shown half-filled
-const remote = (raw: unknown): SentinelRemoteStats | null => {
+const remote = (value: unknown): SentinelRemoteStats | null => {
+  if (isRemote(value)) return value;
   if (
-    !isRecord(raw) ||
-    typeof raw["proxy_url"] !== "string" ||
-    typeof raw["version"] !== "number" ||
-    typeof raw["release"] !== "string"
+    !isRecord(value) ||
+    !isString(value["proxy_url"]) ||
+    !isNumber(value["version"]) ||
+    !isString(value["release"])
   ) {
     return null;
   }
-  const withheld = raw["results_withheld"];
+  const withheld = value["results_withheld"];
   return {
-    proxy_url: raw["proxy_url"],
-    version: raw["version"],
-    release: raw["release"],
-    model_calls: count(raw["model_calls"]),
-    unrecorded_calls: count(raw["unrecorded_calls"]),
-    results_withheld: typeof withheld === "boolean" ? withheld : null,
+    ...value,
+    proxy_url: value["proxy_url"],
+    version: value["version"],
+    release: value["release"],
+    model_calls: count(value["model_calls"]),
+    unrecorded_calls: count(value["unrecorded_calls"]),
+    results_withheld: isBoolean(withheld) ? withheld : null,
   };
 };
 
-const actions = (raw: unknown): SentinelStats["actions"] =>
-  isRecord(raw) ? counts(raw) : null;
-
-const sampleEntry = (raw: Record<string, unknown>): SentinelStats => {
-  const reason = raw["incomplete_reason"];
+const sampleEntry = (value: Record<string, unknown>): SentinelStats => {
+  if (isSampleEntry(value)) return value;
+  const reason = value["incomplete_reason"];
   return {
-    steps: steps(raw["steps"]),
-    actions: actions(raw["actions"]),
-    human_reviews: humanReviews(raw["human_reviews"]),
-    complete: typeof raw["complete"] === "boolean" ? raw["complete"] : true,
-    incomplete_reason: typeof reason === "string" ? reason : null,
-    remote: remote(raw["remote"]),
+    ...value,
+    steps: steps(value["steps"]),
+    actions: optionalCounts(value["actions"]),
+    human_reviews: humanReviews(value["human_reviews"]),
+    complete: isBoolean(value["complete"]) ? value["complete"] : true,
+    incomplete_reason: isString(reason) ? reason : null,
+    remote: remote(value["remote"]),
   };
 };
 
-const evalEntry = (raw: Record<string, unknown>): SentinelEvalStats => ({
-  steps: steps(raw["steps"]),
-  actions: actions(raw["actions"]),
-  human_reviews: humanReviews(raw["human_reviews"]),
-  model_calls: count(raw["model_calls"]),
-  unrecorded_calls: count(raw["unrecorded_calls"]),
-  samples: count(raw["samples"]),
-  incomplete_samples: count(raw["incomplete_samples"]),
-});
+const evalEntry = (value: Record<string, unknown>): SentinelEvalStats =>
+  isEvalEntry(value)
+    ? value
+    : {
+        ...value,
+        steps: steps(value["steps"]),
+        actions: optionalCounts(value["actions"]),
+        human_reviews: humanReviews(value["human_reviews"]),
+        model_calls: count(value["model_calls"]),
+        unrecorded_calls: count(value["unrecorded_calls"]),
+        samples: count(value["samples"]),
+        incomplete_samples: count(value["incomplete_samples"]),
+      };
 
 const byName = <T>(
-  raw: unknown,
-  entry: (raw: Record<string, unknown>) => T
-): Record<string, T> | null => {
-  if (!isRecord(raw)) return null;
+  value: unknown,
+  isEntry: (value: unknown) => value is T,
+  entry: (value: Record<string, unknown>) => T
+): Record<string, T> | null | undefined => {
+  if (value === undefined || value === null) return value;
+  if (!isRecord(value)) return null;
+  if (isByName(value, isEntry)) return value;
   const entries = new Map<string, T>();
-  for (const [name, value] of Object.entries(raw)) {
-    if (isRecord(value)) entries.set(name, entry(value));
+  for (const [name, stats] of Object.entries(value)) {
+    if (isRecord(stats)) entries.set(name, entry(stats));
   }
   return nullProtoRecord(entries);
 };
+
+const isByName = <T>(
+  value: Record<string, unknown>,
+  isEntry: (value: unknown) => value is T
+): value is Record<string, T> => Object.values(value).every(isEntry);
 
 /**
  * A sample's (or its summary's) `sentinel_stats`, with every defaulted field
  * filled as pydantic fills it, so the stats panel reads them unguarded.
- * Entries that aren't records are dropped.
+ * Entries that aren't records are dropped, and fields the viewer doesn't know
+ * are kept. Absent and `null` stay as they are, and stats that need nothing
+ * filled are returned as they came.
  */
 export const normalizeSentinelStats = (
-  raw: unknown
-): Record<string, SentinelStats> | null => byName(raw, sampleEntry);
+  value: unknown
+): Record<string, SentinelStats> | null | undefined =>
+  byName(value, isSampleEntry, sampleEntry);
 
 /** `EvalStats.sentinel_stats`, filled as `normalizeSentinelStats` fills a sample's. */
 export const normalizeSentinelEvalStats = (
-  raw: unknown
-): Record<string, SentinelEvalStats> | null => byName(raw, evalEntry);
+  value: unknown
+): Record<string, SentinelEvalStats> | null | undefined =>
+  byName(value, isEvalEntry, evalEntry);
