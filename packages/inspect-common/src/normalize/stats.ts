@@ -2,6 +2,7 @@ import { isRecord } from "@tsmono/util";
 
 import type { ConnectionLimitChange, EvalStats } from "../types";
 
+import { normalizeSentinelEvalStats } from "./sentinelStats";
 import { normalizeModelUsageMap } from "./summary";
 
 export interface NormalizedEvalStats extends EvalStats {
@@ -66,6 +67,9 @@ export const normalizeEvalStats = (
       typeof raw["completed_at"] === "string" ? raw["completed_at"] : "",
     model_usage: normalizeModelUsageMap(raw["model_usage"]),
     role_usage: normalizeModelUsageMap(raw["role_usage"]),
+    ...("sentinel_stats" in raw
+      ? { sentinel_stats: normalizeSentinelEvalStats(raw["sentinel_stats"]) }
+      : {}),
     connectionHistoryError: undefined,
     ...normalizeConnectionHistory(raw["connection_limit_history"]),
   };

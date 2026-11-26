@@ -314,7 +314,7 @@ describe("synthesizeErroredSampleFromSummary", () => {
       baseSummary({ sentinel_stats })
     );
 
-    expect(sample.sentinel_stats).toEqual(sentinel_stats);
+    expect(sample.sentinel_stats).toMatchObject(sentinel_stats);
   });
 
   it("does not propagate the summary's string limit (EvalSample.limit is an object | null)", () => {

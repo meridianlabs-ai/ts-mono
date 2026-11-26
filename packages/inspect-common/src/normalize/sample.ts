@@ -6,6 +6,7 @@ import { normalizeMessagesContent } from "./content";
 import { normalizeEvents, normalizeModelOutput } from "./events";
 import { normalizeProvenance } from "./log";
 import { normalizeSampleScores } from "./scores";
+import { normalizeSentinelStats } from "./sentinelStats";
 import {
   normalizeModelFallbacks,
   normalizeModelUsageMap,
@@ -64,6 +65,9 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   // Usage entries carry their own required-with-default token fields.
   for (const field of ["model_usage", "role_usage"]) {
     sample[field] = normalizeModelUsageMap(sample[field]);
+  }
+  if ("sentinel_stats" in sample) {
+    sample["sentinel_stats"] = normalizeSentinelStats(sample["sentinel_stats"]);
   }
   sample["events"] = normalizeEvents(sample["events"]);
   // Timelines are optional on a sample — absent stays absent — but each span
