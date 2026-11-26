@@ -66,7 +66,7 @@ const SentinelStatsEntry: FC<{
           </span>
         ) : null}
       </div>
-      {steps ? (
+      {steps && steps.length > 0 ? (
         <table className={styles.steps}>
           <thead>
             <tr>

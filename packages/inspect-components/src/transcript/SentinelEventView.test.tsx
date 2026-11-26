@@ -34,6 +34,7 @@ import {
 } from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 import { loadMarkdownPipeline } from "@tsmono/react/testing/markdown";
+import { formatDateTime } from "@tsmono/util";
 
 import { SentinelEventView } from "./SentinelEventView";
 import { InMemoryStateWrapper } from "./testHelpers";
@@ -850,6 +851,21 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText("Observed")).toBeNull();
   });
 
+  it("times a step that wasn't judged by its unjudged marker, not an earlier root check", () => {
+    renderTool([
+      observation("first", "", "llm_suspicion", 0.1, { working_time: 1 }),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+        working_time: 7,
+      }),
+    ]);
+    expect(screen.getByText("7 sec")).toBeTruthy();
+    expect(screen.queryByText("1 sec")).toBeNull();
+  });
+
   it("shows how long each check took in its row, and when it completed in its detail", () => {
     renderTool([
       observation("mon", "monitor", "suspicion", 0.2, {
@@ -862,7 +878,11 @@ describe("sentinel checks in a tool card", () => {
     expect(rowButton(/monitor/).textContent).toContain("3 sec");
     expect(rowButton(/\(top\)/).textContent).toContain("7 sec");
     fireEvent.click(rowButton(/monitor/));
-    expect(screen.getByText(/working time 3 sec · completed/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        `working time 3 sec · completed ${formatDateTime(new Date("2026-11-24T10:00:05Z"))}`
+      )
+    ).toBeTruthy();
   });
 
   it("shows a lone check's time in a tool card's summary", () => {

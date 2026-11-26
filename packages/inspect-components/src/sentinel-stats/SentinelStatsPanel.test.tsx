@@ -41,6 +41,15 @@ describe("SentinelStatsPanel", () => {
     expect(entry.textContent).not.toContain("Remote");
   });
 
+  it("draws no table for a sentinel that reached no step", () => {
+    render(
+      <SentinelStatsPanel stats={{ guard: { ...sampleStats, steps: {} } }} />
+    );
+    const entry = screen.getByRole("region", { name: "guard" });
+    expect(entry.textContent).toContain("No step counts.");
+    expect(within(entry).queryByRole("table")).toBeNull();
+  });
+
   it("says why a remote sentinel's stats are incomplete, and what it saw", () => {
     render(
       <SentinelStatsPanel

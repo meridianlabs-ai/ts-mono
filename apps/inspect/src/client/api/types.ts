@@ -165,6 +165,7 @@ export interface SampleSummary {
   completed_at?: string | null;
   total_time?: number | null;
   working_time?: number | null;
+  sentinel_stats?: EvalSample["sentinel_stats"];
 }
 
 // Hand-coded — generated EventData.event is JsonValue, losing the

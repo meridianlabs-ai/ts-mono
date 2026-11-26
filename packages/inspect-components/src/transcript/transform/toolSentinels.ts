@@ -423,7 +423,7 @@ export interface SentinelStep {
   failed: number;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
-  /** How long the step's root check took, which includes its children; unset when not recorded. */
+  /** How long the check that settled the step took: its returned decision, else its unjudged marker, else its root check, which includes its children; unset when not recorded. */
   workingTime?: number;
 }
 
@@ -706,7 +706,8 @@ export function buildSentinelStep(
     audit: nodes.some((n) => n.event.audit),
     failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
-    workingTime: (root ?? single)?.event.working_time ?? undefined,
+    workingTime:
+      (outcome ?? unjudged ?? root ?? single)?.event.working_time ?? undefined,
   };
 }
 

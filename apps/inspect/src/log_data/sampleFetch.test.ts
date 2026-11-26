@@ -303,6 +303,20 @@ describe("synthesizeErroredSampleFromSummary", () => {
     );
   });
 
+  it("keeps the summary's sentinel stats, which the sample's Info tab shows", () => {
+    const sentinel_stats = {
+      guard: {
+        steps: { tool_call: { total: 1, judged: 1, unjudged: {} } },
+        complete: true,
+      },
+    };
+    const sample = synthesizeErroredSampleFromSummary(
+      baseSummary({ sentinel_stats })
+    );
+
+    expect(sample.sentinel_stats).toEqual(sentinel_stats);
+  });
+
   it("does not propagate the summary's string limit (EvalSample.limit is an object | null)", () => {
     const sample = synthesizeErroredSampleFromSummary(
       baseSummary({ limit: "context" })
