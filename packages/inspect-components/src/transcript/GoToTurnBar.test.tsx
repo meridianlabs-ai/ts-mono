@@ -143,4 +143,17 @@ describe("GoToTurnBar", () => {
     expect(input.selectionStart).toBe(0);
     expect(input.selectionEnd).toBe(1);
   });
+
+  it("open() on an open bar selects the input text again", () => {
+    const ref = createRef<GoToTurnBarHandle>();
+    render(<GoToTurnBar ref={ref} totalTurns={80} onJump={() => {}} />);
+    act(() => ref.current!.open(3));
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    fireEvent.change(input, { target: { value: "35" } });
+    input.setSelectionRange(2, 2);
+
+    act(() => ref.current!.open());
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(2);
+  });
 });

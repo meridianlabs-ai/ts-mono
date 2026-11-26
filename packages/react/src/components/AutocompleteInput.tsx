@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { useEventListener } from "../hooks/useEventListener";
+import { useMountEffect } from "../hooks/useMountEffect";
 import { Icon } from "../icons";
 
 import { AnchoredPopover } from "./AnchoredPopover";
@@ -108,14 +109,13 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
     setHighlightedIndex(-1);
   }
 
-  // Select all text when autoFocus is enabled (show start of text, not end)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (autoFocus && inputRef.current) {
-      inputRef.current.select();
-      inputRef.current.scrollLeft = 0;
-    }
-  }, [autoFocus]);
+  // Mount-only: callers pass autoFocus as a constant. scrollLeft = 0 keeps the start in view.
+  useMountEffect(() => {
+    const input = inputRef.current;
+    if (!autoFocus || !input) return;
+    input.select();
+    input.scrollLeft = 0;
+  });
 
   // Show dropdown when input is focused and has suggestions (only if user has typed)
   const handleFocus = useCallback(() => {
