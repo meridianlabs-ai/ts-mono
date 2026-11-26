@@ -88,7 +88,9 @@ const SentinelStatsEntry: FC<{
           </tbody>
         </table>
       ) : (
-        <div className={styles.note}>No step counts.</div>
+        <div className={styles.note}>
+          {steps ? "No steps." : "No step counts."}
+        </div>
       )}
       {actions.length > 0 ? (
         <Line label="Decisions">

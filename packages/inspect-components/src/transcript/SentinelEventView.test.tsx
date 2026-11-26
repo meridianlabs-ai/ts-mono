@@ -866,6 +866,24 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText("1 sec")).toBeNull();
   });
 
+  it("times a step a protocol below the root finalized by that protocol's decision", () => {
+    renderTool([
+      node("root", {
+        path: "",
+        factory: "guard",
+        status: "bypassed",
+        function: null,
+        action: null,
+        working_time: 1,
+      }),
+      decision("final", "finalizes", "finalizes", "reject", {
+        working_time: 5,
+      }),
+    ]);
+    expect(screen.getAllByText("5 sec").length).toBeGreaterThan(0);
+    expect(screen.queryByText("1 sec")).toBeNull();
+  });
+
   it("shows how long each check took in its row, and when it completed in its detail", () => {
     renderTool([
       observation("mon", "monitor", "suspicion", 0.2, {

@@ -46,7 +46,8 @@ describe("SentinelStatsPanel", () => {
       <SentinelStatsPanel stats={{ guard: { ...sampleStats, steps: {} } }} />
     );
     const entry = screen.getByRole("region", { name: "guard" });
-    expect(entry.textContent).toContain("No step counts.");
+    expect(entry.textContent).toContain("No steps.");
+    expect(entry.textContent).not.toContain("No step counts.");
     expect(within(entry).queryByRole("table")).toBeNull();
   });
 
