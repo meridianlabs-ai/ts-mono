@@ -423,7 +423,7 @@ export interface SentinelStep {
   failed: number;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
-  /** How long the check that settled the step took: its returned decision, else its unjudged marker, else its root check, which includes its children; unset when not recorded. */
+  /** How long the step's root took, which includes its children: from its returned decision, else its bypassed record where a protocol below finalized the step, else its unjudged marker, else its root check; unset when not recorded. */
   workingTime?: number;
 }
 
@@ -651,6 +651,9 @@ export function buildSentinelStep(
   const unjudged = outcome
     ? undefined
     : checks.find((n) => n.event.path === "" && n.event.status === "unjudged");
+  const bypassedRoot = checks.find(
+    (n) => n.event.path === "" && n.event.status === "bypassed"
+  );
   const acted = !!outcome && outcome.event.action !== "proceed";
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
@@ -707,7 +710,13 @@ export function buildSentinelStep(
     failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
     workingTime:
-      (outcome ?? unjudged ?? root ?? single)?.event.working_time ?? undefined,
+      (
+        (outcome?.event.path === "" ? outcome : undefined) ??
+        bypassedRoot ??
+        unjudged ??
+        root ??
+        single
+      )?.event.working_time ?? undefined,
   };
 }
 
