@@ -851,6 +851,30 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText("Observed")).toBeNull();
   });
 
+  it("shows a cancelled step's root once, as not judged, and keeps the checks it cancelled", () => {
+    renderTool([
+      observation("mon", "audit", "suspicion", 0.1, {
+        status: "cancelled",
+        function: null,
+      }),
+      node("cancelled", {
+        path: "",
+        status: "cancelled",
+        function: null,
+        action: null,
+      }),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(screen.getAllByRole("button", { name: /\(top\)/ })).toHaveLength(1);
+    expect(rowButton(/audit/).textContent).toContain("cancelled");
+  });
+
   it("times a step that wasn't judged by its unjudged marker, not an earlier root check", () => {
     renderTool([
       observation("first", "", "llm_suspicion", 0.1, { working_time: 1 }),

@@ -640,17 +640,26 @@ export function buildSentinelStep(
       else standing.set(key, [node]);
     }
   }
-  const checks = nodes.filter((n) => !replaced.has(n));
-  const tree = buildTree(checks);
-  const root = checks.find(
-    (n) => n.event.path === "" && n.event.status !== "superseded"
-  );
-  const outcome = outcomeOf(checks);
+  const recorded = nodes.filter((n) => !replaced.has(n));
+  const outcome = outcomeOf(recorded);
   // A decision the runner returned took effect, so it outranks a later
   // unjudged marker for the same step.
   const unjudged = outcome
     ? undefined
-    : checks.find((n) => n.event.path === "" && n.event.status === "unjudged");
+    : recorded.find(
+        (n) => n.event.path === "" && n.event.status === "unjudged"
+      );
+  // the unjudged marker already says the step was cancelled, so the root's
+  // own cancelled record isn't shown beside it as a second root row
+  const checks = unjudged
+    ? recorded.filter(
+        (n) => !(n.event.path === "" && n.event.status === "cancelled")
+      )
+    : recorded;
+  const tree = buildTree(checks);
+  const root = checks.find(
+    (n) => n.event.path === "" && n.event.status !== "superseded"
+  );
   const bypassedRoot = checks.find(
     (n) => n.event.path === "" && n.event.status === "bypassed"
   );
