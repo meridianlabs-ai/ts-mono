@@ -16,6 +16,7 @@
     "./dataGrid": "./src/dataGrid/index.ts",
     "./sample-activity": "./src/sample-activity/index.ts",
     "./selection": "./src/selection/index.ts",
+    "./sentinel-stats": "./src/sentinel-stats/index.ts",
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",

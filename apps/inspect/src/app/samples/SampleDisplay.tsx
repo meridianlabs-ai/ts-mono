@@ -28,6 +28,7 @@ import {
   SampleActivityPanel,
 } from "@tsmono/inspect-components/sample-activity";
 import { SelectTool } from "@tsmono/inspect-components/selection";
+import { SentinelStatsPanel } from "@tsmono/inspect-components/sentinel-stats";
 import {
   dynamicDefaultExcludeEvents,
   eventsToStr,
@@ -1518,6 +1519,16 @@ const usageViewsForSample = (
         id={id}
         sample={sample}
         evalSpec={evalSpec}
+      />
+    );
+  }
+
+  if (sample.sentinel_stats && Object.keys(sample.sentinel_stats).length > 0) {
+    views.push(
+      <SentinelStatsPanel
+        kind="sample"
+        key={`sample-sentinel-stats-${id}`}
+        stats={sample.sentinel_stats}
       />
     );
   }

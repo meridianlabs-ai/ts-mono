@@ -103,6 +103,7 @@ export const synthesizeErroredSampleFromSummary = (
     completed_at: summary.completed_at ?? null,
     total_time: summary.total_time ?? null,
     working_time: summary.working_time ?? null,
+    sentinel_stats: summary.sentinel_stats ?? null,
     // SampleSummary.limit is a string but EvalSample.limit is an object,
     // so don't propagate it.
     limit: null,

@@ -1,0 +1,83 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--bs-light-border-subtle);
+  font-size: var(--inspect-font-size-small);
+  font-weight: 600;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--inspect-font-size-small);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.name {
+  font-weight: 600;
+  font-family: var(--bs-font-monospace);
+}
+
+.note {
+  color: var(--bs-secondary);
+}
+
+.incomplete {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.steps {
+  width: max-content;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps th,
+.steps td {
+  padding: 2px 16px 2px 0;
+  text-align: right;
+  font-weight: normal;
+}
+
+.steps th:first-child {
+  text-align: left;
+}
+
+.steps thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary);
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary);
+}
+
+.mono {
+  font-family: var(--bs-font-monospace);
+}

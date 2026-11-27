@@ -75,6 +75,10 @@
   color: var(--bs-secondary-color);
 }
 
+.time {
+  color: rgba(var(--bs-body-color-rgb), 0.5);
+}
+
 .inactive .proceed {
   color: inherit;
 }

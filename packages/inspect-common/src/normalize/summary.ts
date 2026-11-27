@@ -11,6 +11,7 @@ import type {
 import { normalizeMessagesContent } from "./content";
 import { normalizeModelUsage } from "./events";
 import { normalizeSampleScores } from "./scores";
+import { normalizeSentinelStats } from "./sentinelStats";
 
 /**
  * Normalize a raw model-usage map (model name → ModelUsage): token defaults
@@ -215,6 +216,10 @@ export const normalizeSampleSummary = (
   // current writers) set the field explicitly, so only vintage settled
   // rows hit this fill.
   if (typeof raw["completed"] !== "boolean") fix("completed", true);
+  const sentinelStats = normalizeSentinelStats(raw["sentinel_stats"]);
+  if (sentinelStats !== raw["sentinel_stats"]) {
+    fix("sentinel_stats", sentinelStats);
+  }
   const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
   if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);
 

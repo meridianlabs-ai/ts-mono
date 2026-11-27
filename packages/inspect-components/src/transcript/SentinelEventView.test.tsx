@@ -34,6 +34,7 @@ import {
 } from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 import { loadMarkdownPipeline } from "@tsmono/react/testing/markdown";
+import { formatDateTime } from "@tsmono/util";
 
 import { SentinelEventView } from "./SentinelEventView";
 import { InMemoryStateWrapper } from "./testHelpers";
@@ -835,6 +836,127 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.queryByText(/failed$/)).toBeNull();
   });
 
+  it("says why a step was not judged, whatever the root recorded first", async () => {
+    renderTool([
+      observation("first", "", "llm_suspicion", 0.1),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    expect(screen.getByText("Not judged")).toBeTruthy();
+    expect(await screen.findByText("cancelled")).toBeTruthy();
+    expect(screen.queryByText("Observed")).toBeNull();
+  });
+
+  it("shows a cancelled step's root once, as not judged, and keeps the checks it cancelled", () => {
+    renderTool([
+      observation("mon", "audit", "suspicion", 0.1, {
+        status: "cancelled",
+        function: null,
+      }),
+      node("cancelled", {
+        path: "",
+        status: "cancelled",
+        function: null,
+        action: null,
+      }),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(screen.getAllByRole("button", { name: /\(top\)/ })).toHaveLength(1);
+    expect(rowButton(/audit/).textContent).toContain("cancelled");
+  });
+
+  it("times a step that wasn't judged by its unjudged marker, not an earlier root check", () => {
+    renderTool([
+      observation("first", "", "llm_suspicion", 0.1, { working_time: 1 }),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+        working_time: 7,
+      }),
+    ]);
+    expect(screen.getByText("7 sec")).toBeTruthy();
+    expect(screen.queryByText("1 sec")).toBeNull();
+  });
+
+  it("times a step a protocol below the root finalized by the bypassed root, which includes its children", () => {
+    renderTool([
+      node("root", {
+        path: "",
+        factory: "guard",
+        status: "bypassed",
+        function: null,
+        action: null,
+        working_time: 9,
+      }),
+      decision("final", "finalizes", "finalizes", "reject", {
+        working_time: 5,
+      }),
+    ]);
+    expect(screen.getByText("9 sec")).toBeTruthy();
+    expect(screen.queryByText("5 sec")).toBeNull();
+  });
+
+  it("gives a step no time of its own when only a child reported, since the step took at least as long as its slowest check", () => {
+    renderTool([
+      observation("fast", "fast", "llm_suspicion", 0.1, { working_time: 1 }),
+    ]);
+    expect(screen.queryByText("1 sec")).toBeNull();
+  });
+
+  it("shows how long each check took in its row, and when it completed in its detail", () => {
+    renderTool([
+      observation("mon", "monitor", "suspicion", 0.2, {
+        working_time: 3,
+        completed: "2026-11-24T10:00:05Z",
+      }),
+      decision("root", "", "threshold", "proceed", { working_time: 7 }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(rowButton(/monitor/).textContent).toContain("3 sec");
+    expect(rowButton(/\(top\)/).textContent).toContain("7 sec");
+    fireEvent.click(rowButton(/monitor/));
+    expect(
+      screen.getByText(
+        `working time 3 sec · completed ${formatDateTime(new Date("2026-11-24T10:00:05Z"))}`
+      )
+    ).toBeTruthy();
+  });
+
+  it("shows a lone check's time in a tool card's summary", () => {
+    renderTool([
+      decision("root", "", "threshold", "proceed", { working_time: 4 }),
+    ]);
+    expect(screen.getByText("4 sec")).toBeTruthy();
+  });
+
+  it("names the call a remote sentinel's report is about, and says it was trimmed", () => {
+    renderTool([
+      decision("root", "", "sidecar_guard", "proceed", {
+        function: "",
+        remote: {
+          proxy_url: "http://127.0.0.1:4000",
+          request_id: "irid-42",
+          trimmed: true,
+        },
+      }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "details" }));
+    expect(screen.getByText("irid-42")).toBeTruthy();
+    expect(screen.getByText(/trimmed/)).toBeTruthy();
+  });
+
   it("folds the step's monitor model calls into a line at the end", () => {
     const tool = toolNode();
     const span = new EventNode(
@@ -908,6 +1030,23 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("(top)")).toBeTruthy();
   });
 
+  it("gives a standalone step's title the time its root took", () => {
+    const root = decision("m1", "", "threshold", "proceed", {
+      stage: "model_output",
+      step_id: "msg_1",
+      working_time: 12,
+    });
+    const { standaloneSentinels } = pairToolSentinels([root]);
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={root}
+        step={standaloneSentinels.get("m1")}
+      />
+    );
+    expect(container.textContent).toContain("Sentinel (12 sec)");
+    expect(container.textContent.match(/12 sec/g)).toHaveLength(1);
+  });
+
   it("links the cites of a standalone step's reason through its context", async () => {
     const nodes = [
       decision("m1", "", "threshold", "reject", {
@@ -958,6 +1097,24 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("reject")).toBeTruthy();
     expect(screen.queryByText("Rejected")).toBeNull();
     expect(screen.queryByText("Proceeded")).toBeNull();
+  });
+
+  it.each([
+    { name: "a child's check", path: "guard/mon", status: "reported" },
+    { name: "a superseded root decision", path: "", status: "superseded" },
+  ])("gives $name shown alone its own time", ({ path, status }) => {
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={node("alone", {
+          path,
+          factory: "guard",
+          status,
+          action: "terminate",
+          working_time: 2,
+        })}
+      />
+    );
+    expect(container.textContent).toContain("Sentinel (2 sec)");
   });
 
   it("gives an event shown alone an honest verdict", () => {

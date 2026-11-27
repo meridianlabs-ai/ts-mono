@@ -1,14 +1,20 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import type { SentinelEvent, ToolCall } from "@tsmono/inspect-common/types";
+import type {
+  SentinelEvent,
+  SentinelRemote,
+  ToolCall,
+} from "@tsmono/inspect-common/types";
 import { resolveToolInput } from "@tsmono/inspect-components/chat";
 import { MarkdownDivWithReferences } from "@tsmono/react/components";
 import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
+import { formatDateTime, formatTime } from "@tsmono/util";
 
 import { citeReferences, type MakeCiteUrl } from "./citeReferences";
 import { EventRow } from "./event/EventRow";
+import { formatTitle } from "./event/utils";
 import { ModelEventView } from "./ModelEventView";
 import styles from "./SentinelEventView.module.css";
 import {
@@ -23,6 +29,7 @@ import {
 import {
   buildLoneSentinelStep,
   isUnknownStatusVerdict,
+  sentinelStageLabels,
   sortedScores,
   topScore,
   type KnownSentinelVerdict,
@@ -41,6 +48,8 @@ interface SentinelInsetProps {
   judged?: ToolCall;
   /** Whether the judged call is an approver's replacement rather than the model's proposal. */
   judgedReplaced?: boolean;
+  /** False where the step's time is already in the title around the inset. */
+  showTime?: boolean;
 }
 
 /**
@@ -53,6 +62,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   context,
   judged,
   judgedReplaced,
+  showTime = true,
 }) => {
   const [collapsed, setCollapsed] = useCollapsedState(
     `${step.id}-sentinel-checks`,
@@ -80,6 +90,11 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         flagged={step.audit}
         failed={single ? 0 : step.failed}
         clampReason={collapsed}
+        time={
+          showTime && step.workingTime != null
+            ? formatTime(step.workingTime)
+            : undefined
+        }
         toggle={{
           label: single ? "details" : `${step.rows.length} checks`,
           open: !collapsed,
@@ -191,6 +206,9 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
         <span className={styles.name}>{event.factory}</span>
       </span>
       <span className={styles.result}>
+        {event.working_time != null ? (
+          <span className={styles.time}>{formatTime(event.working_time)}</span>
+        ) : null}
         <CheckResult row={row} />
         <Icon
           name={open ? "chevronDown" : "chevronRight"}
@@ -214,6 +232,9 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   ) : null;
   if (event.status === "bypassed" || event.status === "cancelled") {
     return <span>{event.status}</span>;
+  }
+  if (event.status === "unjudged") {
+    return <span>not judged</span>;
   }
   if (event.status === "error") {
     return <span className={styles.failed}>failed</span>;
@@ -274,6 +295,14 @@ const CheckDetail: FC<CheckDetailProps> = ({
     event.status === "superseded" ? "superseded" : null,
   ].filter(Boolean);
   const reportedBy = showFunction ? event.function : null;
+  const timing = [
+    event.working_time != null
+      ? `working time ${formatTime(event.working_time)}`
+      : null,
+    event.completed
+      ? `completed ${formatDateTime(new Date(event.completed))}`
+      : null,
+  ].filter(Boolean);
   const scores =
     event.suspicion !== null &&
     typeof event.suspicion === "object" &&
@@ -302,6 +331,10 @@ const CheckDetail: FC<CheckDetailProps> = ({
             ) : null}
           </div>
         ) : null}
+        {timing.length ? (
+          <div className={styles.meta}>{timing.join(" · ")}</div>
+        ) : null}
+        {event.remote ? <RemoteMeta remote={event.remote} /> : null}
         {scores ? (
           <div className={styles.scoreGrid}>
             {scores.map(([dimension, value]) => (
@@ -325,6 +358,10 @@ const CheckDetail: FC<CheckDetailProps> = ({
               effectTone === "reject" && checkClasses.rejectReason
             )}
           />
+        ) : event.status === "unjudged" ? (
+          <div className={styles.noExplanation}>
+            {event.reason ? `Not judged: ${event.reason}` : "Not judged."}
+          </div>
         ) : (
           <div className={styles.noExplanation}>No explanation recorded.</div>
         )}
@@ -350,6 +387,23 @@ const CheckDetail: FC<CheckDetailProps> = ({
     </div>
   );
 };
+
+const RemoteMeta: FC<{ remote: SentinelRemote }> = ({ remote }) => (
+  <div className={styles.meta}>
+    remote
+    {remote.request_id ? (
+      <>
+        {" · x-irid "}
+        <span className={checkClasses.mono}>{remote.request_id}</span>
+      </>
+    ) : null}
+    {remote.trimmed ? (
+      <span title="The remote sentinel withheld this step's reports from the eval and sent only its decision.">
+        {" · trimmed"}
+      </span>
+    ) : null}
+  </div>
+);
 
 /** Paths of the instances that reported from more than one function on this step. */
 const groupedPaths = (rows: SentinelRow[]): Set<string> => {
@@ -442,12 +496,21 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
 }) => (
   <EventRow
     eventNodeId={eventNodeId}
-    title="Sentinel"
+    title={formatTitle("Sentinel", undefined, step.workingTime)}
     icon="sentinel"
     className={className}
-    below={<SentinelInset step={step} region="output" context={context} />}
+    below={
+      <SentinelInset
+        step={step}
+        region="output"
+        context={context}
+        showTime={false}
+      />
+    }
   >
-    <span className="text-style-secondary">{stageLabels[step.stage]}</span>
+    <span className="text-style-secondary">
+      {sentinelStageLabels[step.stage]}
+    </span>
   </EventRow>
 );
 
@@ -473,13 +536,6 @@ export const SentinelEventView: FC<SentinelEventViewProps> = ({
     className={className}
   />
 );
-
-const stageLabels: Record<SentinelEvent["stage"], string> = {
-  model_input: "model input",
-  model_output: "model output",
-  tool_call: "before call",
-  tool_result: "after call",
-};
 
 interface VerdictLook {
   icon: IconName;
