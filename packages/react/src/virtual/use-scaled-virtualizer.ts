@@ -32,6 +32,11 @@ export type ScaledVirtualizerResult = {
   spacerHeight: number;
   toContentScroll: (spacerScroll: number) => number;
   toSpacerScroll: (contentScroll: number) => number;
+  /** Push the scroll element's current scrollTop into TanStack now, after a
+   *  direct `scrollTop` write. TanStack otherwise learns of the write from the
+   *  scroll event a frame later; rows it measures in between are compensated
+   *  against the old offset, which writes that offset back to the DOM. */
+  syncScrollOffset: () => void;
 };
 
 export function useScaledVirtualizer(
@@ -40,6 +45,9 @@ export function useScaledVirtualizer(
   // Opted out of the compiler; the react-hooks/incompatible-library disable in this file says why.
   "use no memo";
   const scaleRef = useRef(1);
+  const offsetListenerRef = useRef<
+    ((offset: number, isScrolling: boolean) => void) | null
+  >(null);
 
   // Intercept scroll-offset reads: the browser reports spacer-space
   // scrollTop, we multiply by scale so TanStack sees content-space.
@@ -51,6 +59,7 @@ export function useScaledVirtualizer(
       ) => {
         const el = instance.scrollElement;
         if (!el) return;
+        offsetListenerRef.current = cb;
 
         const onScroll = () => {
           cb(el.scrollTop * scaleRef.current, true);
@@ -65,6 +74,8 @@ export function useScaledVirtualizer(
         el.addEventListener("scroll", onScroll, { passive: true });
         el.addEventListener("scrollend", onScrollEnd, { passive: true });
         return () => {
+          if (offsetListenerRef.current === cb)
+            offsetListenerRef.current = null;
           el.removeEventListener("scroll", onScroll);
           el.removeEventListener("scrollend", onScrollEnd);
         };
@@ -144,5 +155,18 @@ export function useScaledVirtualizer(
     []
   );
 
-  return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };
+  const syncScrollOffset = useCallback(() => {
+    const el = virtualizer.scrollElement;
+    if (!el) return;
+    offsetListenerRef.current?.(el.scrollTop * scaleRef.current, false);
+  }, [virtualizer]);
+
+  return {
+    virtualizer,
+    scale,
+    spacerHeight,
+    toContentScroll,
+    toSpacerScroll,
+    syncScrollOffset,
+  };
 }
