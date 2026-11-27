@@ -4,11 +4,10 @@ import {
   FC,
   KeyboardEvent,
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { Icon } from "@tsmono/react/icons";
 
@@ -175,12 +174,6 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   const [removed, setRemoved] = useState<string[]>([]);
   const [newKey, setNewKey] = useState("");
   const [newType, setNewType] = useState<NewType>("string");
-  // Captures the most recently added key so an effect can scroll the
-  // new row into view and focus its value textarea once it's in the
-  // DOM. A ref (not state): it never needs to trigger a render — the
-  // entries update from addKey re-runs the focus effect below.
-  const pendingFocusKeyRef = useRef<string | null>(null);
-
   // Reset whenever the dialog opens (or the log's metadata changes under
   // us). Render-adjust rather than an effect so the reset lands before paint.
   const [prevReset, setPrevReset] = useState({ showing, initialEntries });
@@ -231,40 +224,31 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       return;
     }
     const wasPreviouslyRemoved = removed.includes(k);
-    if (wasPreviouslyRemoved) {
-      setRemoved((r) => r.filter((x) => x !== k));
-    }
-    setEntries((prev) => [
-      ...prev,
-      {
-        key: k,
-        text: toEditableString(seedFor(newType)),
-        // Remember the user's chosen type so the value is serialized
-        // back the same way on save — picking `string` and typing `43`
-        // must yield "43", not 43.
-        isString: newType === "string",
-        isNew: true,
-        dirty: true,
-      },
-    ]);
-    setNewKey("");
-    setNewType("string");
-    // Trigger a scroll-into-view + focus on the freshly inserted row
-    // once it's in the DOM (handled by the effect below).
-    pendingFocusKeyRef.current = k;
-  };
-
-  // Scroll the just-added row into view and focus its textarea so the
-  // user can type the value immediately. Runs after the row's been
-  // committed to the DOM; we look it up by `data-meta-key` rather than
-  // taking a ref so we don't need to thread a ref handler through
-  // every MetaRow.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const pendingFocusKey = pendingFocusKeyRef.current;
-    if (pendingFocusKey == null) return;
-    pendingFocusKeyRef.current = null;
-    const selector = `[data-meta-key="${CSS.escape(pendingFocusKey)}"]`;
+    // Commit the new row now so it can be focused below; the user types
+    // its value straight away.
+    flushSync(() => {
+      if (wasPreviouslyRemoved) {
+        setRemoved((r) => r.filter((x) => x !== k));
+      }
+      setEntries((prev) => [
+        ...prev,
+        {
+          key: k,
+          text: toEditableString(seedFor(newType)),
+          // Remember the user's chosen type so the value is serialized
+          // back the same way on save — picking `string` and typing `43`
+          // must yield "43", not 43.
+          isString: newType === "string",
+          isNew: true,
+          dirty: true,
+        },
+      ]);
+      setNewKey("");
+      setNewType("string");
+    });
+    // Looked up by `data-meta-key` rather than a ref so no ref handler has
+    // to be threaded through every MetaRow.
+    const selector = `[data-meta-key="${CSS.escape(k)}"]`;
     const row = document.querySelector<HTMLElement>(selector);
     const textarea = row?.querySelector<HTMLTextAreaElement>("textarea");
     if (textarea) {
@@ -273,7 +257,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       textarea.scrollIntoView({ behavior: "smooth", block: "nearest" });
       textarea.focus();
     }
-  }, [entries]);
+  };
 
   const handleNewKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -408,8 +392,7 @@ const MetaRow: FC<{
       !first && styles.rowDivider,
       entry.isNew && styles.rowNew
     )}
-    // Used by the dialog's "scroll-to-new-key" effect to locate this
-    // row's element via querySelector — keys are unique within the
+    // addKey finds the new row through this — keys are unique within the
     // editing session and are CSS.escape()'d on lookup so dots/quotes
     // are safe.
     data-meta-key={entry.key}

@@ -7,11 +7,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-list/grid/LogListGrid.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-list/listing/useLogsListingQuery.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -33,11 +28,6 @@
   "apps/inspect/src/app/log-view/tabs/timeline/timelineData.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 2
-    }
-  },
-  "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/log-view/title-view/TagStrip.tsx": {

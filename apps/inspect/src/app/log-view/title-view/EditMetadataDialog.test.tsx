@@ -9,7 +9,15 @@
  */
 
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  onTestFinished,
+  test,
+  vi,
+} from "vitest";
 
 import { testEvalLog } from "@tsmono/inspect-common/testing";
 import { ResizeObserverStub } from "@tsmono/react/testing";
@@ -340,5 +348,36 @@ describe("EditMetadataDialog save", () => {
     ).toBeVisible();
     expect(edit_log).not.toHaveBeenCalled();
     expect(setShowing).not.toHaveBeenCalled();
+  });
+
+  test("adding a key focuses and reveals its value field", () => {
+    // jsdom has no scrollIntoView; put back whatever was there afterwards.
+    const original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollIntoView"
+    );
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    onTestFinished(() => {
+      if (original) {
+        Object.defineProperty(Element.prototype, "scrollIntoView", original);
+      } else {
+        Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+      }
+    });
+    renderDialog({});
+
+    fireEvent.change(screen.getByPlaceholderText("Add a key…"), {
+      target: { value: "fresh" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add key" }));
+
+    const textarea = document.querySelector('[data-meta-key="fresh"] textarea');
+    expect(textarea).not.toBeNull();
+    expect(document.activeElement).toBe(textarea);
+    expect(scrollIntoView.mock.contexts).toEqual([textarea]);
   });
 });
