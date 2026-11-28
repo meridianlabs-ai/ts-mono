@@ -36,6 +36,7 @@ import {
   sentinelStageLabels,
   sortedScores,
   topScore,
+  unjudgedReasonText,
   type KnownSentinelVerdict,
   type SentinelRow,
   type SentinelStep,
@@ -166,13 +167,6 @@ const stepTimeTitle = (step: SentinelStep): string | undefined => {
   ].filter(Boolean);
   return lines.length ? lines.join("\n") : undefined;
 };
-
-const kUnjudgedReasons: Record<string, string> = {
-  cancelled: "cancelled before judging finished",
-};
-
-const unjudgedReasonText = (reason: string): string =>
-  kUnjudgedReasons[reason] ?? reason;
 
 const RemoteChip: FC<{ remote: SentinelRemote }> = ({ remote }) => (
   <span

@@ -13,7 +13,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router";
 
-import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import { EvalSample, EvalSpec, Event } from "@tsmono/inspect-common/types";
 import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import {
   ChatViewRowsVirtualList,
@@ -28,7 +28,10 @@ import {
   SampleActivityPanel,
 } from "@tsmono/inspect-components/sample-activity";
 import { SelectTool } from "@tsmono/inspect-components/selection";
-import { SentinelStatsPanel } from "@tsmono/inspect-components/sentinel-stats";
+import {
+  notableSteps,
+  SentinelStatsPanel,
+} from "@tsmono/inspect-components/sentinel-stats";
 import {
   dynamicDefaultExcludeEvents,
   eventsToStr,
@@ -393,7 +396,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         (agent) => agent.id === pickedTerminalAgent
       ) ?? terminalSample.agents[0])
     : undefined;
-  const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataRecordsForSample(sample);
 
   const tabsetId = `task-sample-details-tab-${id}`;
@@ -518,6 +520,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     setSelectedTab(kSampleTranscriptTabId);
     navigate(url);
   };
+  const sampleUsages = usageViewsForSample(
+    `${baseId}-${id}`,
+    sample,
+    evalSpec,
+    sampleEvents,
+    openEventInTranscript
+  );
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
@@ -1504,7 +1513,9 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
 const usageViewsForSample = (
   id: string,
   sample?: EvalSample,
-  evalSpec?: EvalSpec
+  evalSpec?: EvalSpec,
+  events: Event[] = [],
+  onOpenEvent?: (uuid: string, event: MouseEvent) => void
 ) => {
   if (!sample) return [];
   const views = [];
@@ -1529,6 +1540,9 @@ const usageViewsForSample = (
         kind="sample"
         key={`sample-sentinel-stats-${id}`}
         stats={sample.sentinel_stats}
+        config={evalSpec?.config.sentinel}
+        steps={notableSteps(events)}
+        onOpenEvent={onOpenEvent}
       />
     );
   }

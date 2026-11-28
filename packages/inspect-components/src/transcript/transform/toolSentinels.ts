@@ -1494,6 +1494,14 @@ export const sentinelStageLabels: Record<SentinelEvent["stage"], string> = {
   tool_result: "after call",
 };
 
+const kUnjudgedReasons: Record<string, string> = {
+  cancelled: "cancelled before judging finished",
+};
+
+/** Why a step wasn't judged, phrased for a reader; a reason this viewer doesn't know reads as recorded. */
+export const unjudgedReasonText = (reason: string): string =>
+  kUnjudgedReasons[reason] ?? reason;
+
 /** The instance path, or the factory's registry name at the root. */
 export const instanceLabel = (event: SentinelEvent): string =>
   event.path || event.factory;
