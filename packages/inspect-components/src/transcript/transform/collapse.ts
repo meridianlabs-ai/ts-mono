@@ -1,7 +1,7 @@
 /**
  * Collapse policy for the transcript event tree: which nodes start collapsed
  * by default, and which nodes are collapsible at all (for bulk collapse).
- * Pure functions over EventNode trees; no React.
+ * Pure functions over EventNode trees.
  */
 
 import type {
@@ -40,7 +40,6 @@ const collapseFilters: Array<
   (event) => event.event === "subtask",
 ];
 
-// A state or store change with no preview renderer is only a JSON diff.
 const isDiffOnlyStateChange = (event: EventType): boolean =>
   (event.event === "state" || event.event === "store") &&
   findChangeRenderer(event.changes, event.event === "store") === undefined;

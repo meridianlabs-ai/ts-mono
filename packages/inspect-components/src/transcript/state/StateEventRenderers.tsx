@@ -17,7 +17,7 @@ interface Signature {
   add: string[];
 }
 
-export interface ChangeType {
+interface ChangeType {
   type: string;
   /** Render events matching this signature under the Default event filter
    *  (rich previews like the human-baseline terminal session). */
