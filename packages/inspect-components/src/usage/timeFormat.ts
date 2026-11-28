@@ -53,3 +53,23 @@ export const fmtClock = (iso?: string | null, showDate = false): string => {
     return iso;
   }
 };
+
+/** A duration to a tenth of a second under a minute ("0.4s", "12.3s", "3s"),
+ *  `fmtCompactDuration` from there; undefined for no value, so a missing
+ *  time renders nothing rather than "0s". */
+export const fmtShortDuration = (s?: number | null): string | undefined => {
+  if (s == null || !Number.isFinite(s)) return undefined;
+  const tenths = Math.round(s * 10);
+  if (tenths < 1) return "<0.1s";
+  if (tenths < 600)
+    return `${tenths % 10 ? (tenths / 10).toFixed(1) : tenths / 10}s`;
+  return fmtCompactDuration(s);
+};
+
+/** A local date and time to the millisecond, for tooltips on short durations. */
+export const fmtInstant = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const ms = String(d.getMilliseconds()).padStart(3, "0");
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString(undefined, { hour12: false })}.${ms}`;
+};

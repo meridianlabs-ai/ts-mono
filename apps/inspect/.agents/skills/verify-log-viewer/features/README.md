@@ -45,7 +45,7 @@ Deep-link instead of clicking through when the feature under proof isn't the
 navigation itself:
 `/#/logs/<encodeURIComponent(file)>/samples/sample/<id>/<epoch>/<tab>`.
 Sample tab ids: `messages transcript scoring activity usage metadata error retries json`.
-Log workspace tab ids: `samples json info models task timeline error` (the
+Log workspace tab ids: `samples json info models sentinels task timeline error` (the
 `timeline` tab is labeled "Activity" in the UI; the id is unchanged).
 
 Readiness is always a web-first assertion on content (`expect(...).toBeVisible()`),
@@ -81,6 +81,7 @@ Start from what the user can see, not from a guessed component name:
 | Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                                                 |
 | Tokens, cost, model roles, connections                | [Models and usage](./models-and-usage.md), [Sample usage and metadata](./sample-usage-and-metadata.md)                |
 | Run history, markers, lanes, config changes           | [Evaluation timeline](./evaluation-timeline.md)                                                                       |
+| Sentinel checks, step times, Sentinels tab            | [Sentinels](./sentinels.md)                                                                                           |
 | Sample input/target/answer header or prev/next        | [Sample summary and navigation](./sample-summary-and-navigation.md)                                                   |
 | Conversation bubbles, tool calls, markdown, images    | [Sample messages](./sample-messages.md), [Rendered content and media](./rendered-content-and-media.md)                |
 | Event outline, swimlanes, focus mode, turn controls   | [Transcript](./transcript.md), [Transcript events and focus](./transcript-events-and-focus.md)                        |
@@ -134,6 +135,8 @@ the change. Finish with the cross-surface journeys.
   navigation in a sample's Transcript tab.
 - [Scores](./scores.md) — score column in the log list, log-level scoring
   detail, and the sample Scoring tab.
+- [Sentinels](./sentinels.md) — the Sentinels tab, a sample's sentinel
+  panel, and the sentinel step card in the transcript.
 - [Evaluation timeline](./evaluation-timeline.md) — run-level activity,
   samples, model connections, retries, and configuration changes over time.
 - [Export, JSON, and print](./export-json-print.md) — raw/rendered mode, JSON

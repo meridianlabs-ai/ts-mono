@@ -1,0 +1,21 @@
+.container {
+  width: 100%;
+  padding: 0.5em 1em 1em 1em;
+}
+
+.openSample {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--bs-link-color);
+  cursor: pointer;
+}
+
+.openSample:hover {
+  text-decoration: underline;
+  color: var(--bs-link-color);
+}

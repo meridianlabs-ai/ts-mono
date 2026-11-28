@@ -99,6 +99,36 @@ describe("buildSentinelStep", () => {
     return node;
   };
 
+  it.each([
+    [
+      "an observation",
+      observation("first", "", "llm_suspicion", 0.1),
+      "unjudged",
+      "cancelled",
+    ],
+    [
+      "a decision",
+      decision("first", "", "threshold", "proceed"),
+      "proceed",
+      undefined,
+    ],
+  ])(
+    "lets an unjudged root after %s decide only when nothing was returned",
+    (_, first, verdict, reason) => {
+      const step = buildSentinelStep([
+        first,
+        sentinel("root", {
+          status: "unjudged",
+          reason: "cancelled",
+          function: null,
+          action: null,
+        }),
+      ]);
+      expect(step.verdict).toBe(verdict);
+      expect(step.reason).toBe(reason);
+    }
+  );
+
   it("orders checks as a tree with guides and depth", () => {
     const step = buildSentinelStep([
       decision("net", "guard/network", "no_network", "proceed"),

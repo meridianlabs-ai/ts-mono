@@ -6,6 +6,7 @@ export const kLogViewSamplesTabId = "samples";
 export const kLogViewJsonTabId = "json";
 export const kLogViewInfoTabId = "info";
 export const kLogViewModelsTabId = "models";
+export const kLogViewSentinelsTabId = "sentinels";
 export const kLogViewTaskTabId = "task";
 export const kLogViewTimelineTabId = "timeline";
 export const kLogViewErrorTabId = "error";
@@ -15,6 +16,7 @@ export const kWorkspaceTabs = [
   kLogViewJsonTabId,
   kLogViewInfoTabId,
   kLogViewModelsTabId,
+  kLogViewSentinelsTabId,
   kLogViewTaskTabId,
   kLogViewTimelineTabId,
   kLogViewErrorTabId,

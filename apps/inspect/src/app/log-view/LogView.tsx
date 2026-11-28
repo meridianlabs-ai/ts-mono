@@ -27,6 +27,7 @@ import { useInfoTabConfig } from "./tabs/InfoTab";
 import { useJsonTabConfig } from "./tabs/JsonTab";
 import { useModelsTab } from "./tabs/ModelsTab";
 import { useSamplesTabConfig } from "./tabs/SamplesTab";
+import { useSentinelsTab } from "./tabs/SentinelsTab";
 import { useTaskTabConfig } from "./tabs/TaskTab";
 import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
@@ -76,6 +77,11 @@ export const LogView: FC = () => {
     selectedLogDetails?.config_updates
   );
 
+  const sentinelsTabConfig = useSentinelsTab(
+    evalSpec,
+    selectedLogDetails?.stats
+  );
+
   const timelineTabConfig = useTimelineTab(
     evalSpec,
     selectedLogDetails?.stats,
@@ -91,6 +97,7 @@ export const LogView: FC = () => {
     samples: samplesTabConfig,
     task: taskTabConfig,
     model: modelsTabConfig,
+    ...(sentinelsTabConfig ? { sentinels: sentinelsTabConfig } : {}),
     timeline: timelineTabConfig,
     config: intoTabConfig,
     ...(selectedLogDetails?.error ? { error: errorTabConfig } : {}),

@@ -281,3 +281,8 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.time {
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+}

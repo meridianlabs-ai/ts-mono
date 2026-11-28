@@ -4,6 +4,7 @@ import type {
   ModelEvent,
   Reference,
   SentinelEvent,
+  SentinelRemote,
   ToolCall,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
@@ -409,7 +410,7 @@ export interface SentinelStep {
   decider?: SentinelNode;
   /** The check that made the step's decision; unset when every check proceeded. */
   effective?: SentinelNode;
-  /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's. */
+  /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's; for a step not judged, why. */
   reason?: string;
   /** The references of the check the reason comes from, which link its cites. */
   reasonReferences: Reference[];
@@ -423,6 +424,13 @@ export interface SentinelStep {
   failed: number;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
+  /** How long the step's root took, which includes its children: from its returned decision, else its bypassed record where a protocol below finalized the step, else its unjudged marker, else its root check; unset when the root recorded no time, as when only a child reported. */
+  workingTime?: number;
+  /** When the event that gives `workingTime` started and reported. */
+  started?: string;
+  completed?: string;
+  /** Where a remote sentinel's report of the step came from: the root's, else the first check's that has one. */
+  remote?: SentinelRemote;
 }
 
 export interface ToolSentinels {
@@ -638,13 +646,38 @@ export function buildSentinelStep(
       else standing.set(key, [node]);
     }
   }
-  const checks = nodes.filter((n) => !replaced.has(n));
+  const recorded = nodes.filter((n) => !replaced.has(n));
+  const outcome = outcomeOf(recorded);
+  // A decision the runner returned took effect, so it outranks a later
+  // unjudged marker for the same step.
+  const unjudged = outcome
+    ? undefined
+    : recorded.find(
+        (n) => n.event.path === "" && n.event.status === "unjudged"
+      );
+  // the unjudged marker already says the step was cancelled, so the root's
+  // own cancelled record isn't shown beside it as a second root row
+  const checks = unjudged
+    ? recorded.filter(
+        (n) => !(n.event.path === "" && n.event.status === "cancelled")
+      )
+    : recorded;
   const tree = buildTree(checks);
-
-  const outcome = outcomeOf(checks);
+  const root = checks.find(
+    (n) => n.event.path === "" && n.event.status !== "superseded"
+  );
+  const bypassedRoot = checks.find(
+    (n) => n.event.path === "" && n.event.status === "bypassed"
+  );
   const acted = !!outcome && outcome.event.action !== "proceed";
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
+
+  const timed =
+    (outcome?.event.path === "" ? outcome : undefined) ??
+    bypassedRoot ??
+    unjudged ??
+    root;
 
   const single = checks.length === 1 ? checks[0] : undefined;
   const observations = checks.filter(
@@ -677,32 +710,48 @@ export function buildSentinelStep(
     })),
     verdict: outcome
       ? (outcome.event.action ?? "proceed")
-      : quietVerdict(checks),
+      : unjudged
+        ? "unjudged"
+        : quietVerdict(checks),
     outcome,
     returned: !!outcome,
     decider: effective ?? outcome,
     effective,
-    reason: credit ? credit.reason : explanationOf(single),
+    reason: credit
+      ? credit.reason
+      : (unjudged?.event.reason ?? explanationOf(single)),
     error: single?.event.error || undefined,
     reasonReferences: credit
       ? (credit.reasonSource?.event.references ?? [])
-      : single && explanationOf(single)
+      : !unjudged && single && explanationOf(single)
         ? single.event.references
         : [],
     scores,
     audit: nodes.some((n) => n.event.audit),
     failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
+    workingTime: timed?.event.working_time ?? undefined,
+    started: timed?.event.timestamp,
+    completed: timed?.event.completed ?? undefined,
+    remote:
+      root?.event.remote ??
+      checks.find((n) => n.event.remote)?.event.remote ??
+      undefined,
   };
 }
 
 /**
  * The step of one event shown without the rest of its step (e.g. in the
- * chunked transcript), whose verdict is the event's own result.
+ * chunked transcript), whose verdict and time are the event's own.
  */
 export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
-  const step = buildSentinelStep([node]);
   const event = node.event;
+  const step = {
+    ...buildSentinelStep([node]),
+    workingTime: event.working_time ?? undefined,
+    started: event.timestamp,
+    completed: event.completed ?? undefined,
+  };
   if (!reported(node, "decision") || step.outcome) return step;
   const verdict = event.action ?? "proceed";
   const acted = verdict !== "proceed";
@@ -1437,6 +1486,21 @@ function pairToolSentinelsLegacy(eventNodes: EventNode[]): ToolSentinelPairing {
     sentinelScrollRedirects,
   };
 }
+
+export const sentinelStageLabels: Record<SentinelEvent["stage"], string> = {
+  model_input: "model input",
+  model_output: "model output",
+  tool_call: "before call",
+  tool_result: "after call",
+};
+
+const kUnjudgedReasons: Record<string, string> = {
+  cancelled: "cancelled before judging finished",
+};
+
+/** Why a step wasn't judged, phrased for a reader; a reason this viewer doesn't know reads as recorded. */
+export const unjudgedReasonText = (reason: string): string =>
+  kUnjudgedReasons[reason] ?? reason;
 
 /** The instance path, or the factory's registry name at the root. */
 export const instanceLabel = (event: SentinelEvent): string =>
