@@ -40,7 +40,7 @@ const collapseFilters: Array<
   (event) => event.event === "subtask",
 ];
 
-const isDiffOnlyStateChange = (event: EventType): boolean =>
+export const isDiffOnlyStateChange = (event: EventType): boolean =>
   (event.event === "state" || event.event === "store") &&
   findChangeRenderer(event.changes, event.event === "store") === undefined;
 
@@ -70,6 +70,18 @@ export const computeDefaultCollapsedIds = (
   findCollapsibleEvents(eventNodes);
   return defaultCollapsedIds;
 };
+
+/**
+ * The collapse state to render: the user's recorded choices over the
+ * defaults. A node with no recorded choice, including one that joined the
+ * tree after the user last toggled (an event type turned on in the filter, a
+ * streamed event), gets its default.
+ */
+export const effectiveCollapsedIds = (
+  defaults: Record<string, boolean>,
+  recorded: Record<string, boolean> | undefined
+): Record<string, boolean> =>
+  recorded ? { ...defaults, ...recorded } : defaults;
 
 /**
  * Collect every collapsible node ID in the tree (tree-collapsible and

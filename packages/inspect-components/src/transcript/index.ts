@@ -22,6 +22,7 @@ export type {
 } from "./types";
 
 // Transform utilities
+export { isDiffOnlyStateChange } from "./transform/collapse";
 export { fixupEventStream, kSandboxSignalName } from "./transform/fixups";
 export { flatTree } from "./transform/flatten";
 export { FocusTurnView } from "./FocusTurnView";

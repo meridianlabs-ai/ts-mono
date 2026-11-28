@@ -2,8 +2,10 @@
  * View-model hook for transcript collapse state.
  *
  * Bridges the app store's collapse callbacks (TranscriptCollapseState) to the
- * event list: bulk collapse/expand, lazy default seeding on the first
- * individual toggle, and batched expansion for deep links.
+ * event list: bulk collapse/expand and batched expansion for deep links. The
+ * store holds only the user's choices; defaults are applied on read
+ * (`effectiveCollapsedIds`), so a node that joins the tree later still gets
+ * its default.
  */
 
 import { useCallback, useEffect } from "react";
@@ -14,8 +16,6 @@ import type { EventNode, TranscriptCollapseState } from "../types";
 export interface UseTranscriptCollapseOptions {
   /** The EventNode tree (source of collapsible ids). */
   eventNodes: EventNode[];
-  /** Node IDs collapsed by default. */
-  defaultCollapsedIds: Record<string, true>;
   /** Collapse state and callbacks from the app store. */
   collapseState?: TranscriptCollapseState;
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -25,7 +25,7 @@ export interface UseTranscriptCollapseOptions {
 }
 
 export interface TranscriptCollapse {
-  /** Collapse/expand a single node, seeding defaults on the first toggle. */
+  /** Record the user's collapse/expand of a single node. */
   onCollapseTranscript: (nodeId: string, collapsed: boolean) => void;
   /** Batched expansion for deep links into collapsed regions. Undefined when
    *  the store provides no bulk setter. */
@@ -35,13 +35,7 @@ export interface TranscriptCollapse {
 export function useTranscriptCollapse(
   options: UseTranscriptCollapseOptions
 ): TranscriptCollapse {
-  const {
-    eventNodes,
-    defaultCollapsedIds,
-    collapseState,
-    bulkCollapse,
-    eventCount,
-  } = options;
+  const { eventNodes, collapseState, bulkCollapse, eventCount } = options;
 
   const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -49,51 +43,33 @@ export function useTranscriptCollapse(
     if (eventCount <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
-    if (bulkCollapse === "expand") {
-      onSetTranscriptCollapsed({});
-    } else {
-      const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      onSetTranscriptCollapsed(allCollapsibleIds);
+    const collapsed = bulkCollapse === "collapse";
+    const ids: Record<string, boolean> = {};
+    for (const id of Object.keys(collectAllCollapsibleIds(eventNodes))) {
+      ids[id] = collapsed;
     }
+    onSetTranscriptCollapsed(ids);
   }, [eventNodes, bulkCollapse, onSetTranscriptCollapsed, eventCount]);
 
-  // Lazy-seed: when the user toggles an individual node for the first time
-  // (store scope is empty), seed the store with defaults before applying the
-  // toggle so that all other nodes retain their default collapsed state.
   const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
-  const transcriptCollapsed = collapseState?.transcript;
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
-      if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!transcriptCollapsed) {
-        // First toggle — seed defaults then apply the toggle
-        onSetTranscriptCollapsed({
-          ...defaultCollapsedIds,
-          [nodeId]: collapsed,
-        });
-      } else {
-        onCollapseTranscriptRaw(nodeId, collapsed);
-      }
+      onCollapseTranscriptRaw?.(nodeId, collapsed);
     },
-    [
-      onCollapseTranscriptRaw,
-      onSetTranscriptCollapsed,
-      transcriptCollapsed,
-      defaultCollapsedIds,
-    ]
+    [onCollapseTranscriptRaw]
   );
 
-  // Bulk-expand for deep links into collapsed regions. One batched update —
-  // sequential onCollapseTranscript calls would each re-seed defaults and
-  // clobber the previous call's expansion while the store is unseeded.
+  // One batched update: sequential onCollapseTranscript calls would each
+  // re-render the list before the next ancestor opens.
+  const transcriptCollapsed = collapseState?.transcript;
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
-      const next = { ...(transcriptCollapsed ?? defaultCollapsedIds) };
+      const next = { ...transcriptCollapsed };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);
     },
-    [onSetTranscriptCollapsed, transcriptCollapsed, defaultCollapsedIds]
+    [onSetTranscriptCollapsed, transcriptCollapsed]
   );
 
   return {

@@ -4,7 +4,11 @@ import { ComponentProps, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
-import { testErrorEvent } from "@tsmono/inspect-common/testing";
+import {
+  testErrorEvent,
+  testStateEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import {
@@ -18,8 +22,15 @@ import { RetryAttemptCard } from "./RetryAttemptCard";
 // TranscriptLayout is a virtualized list, which renders no rows without
 // layout in jsdom; stub it with a marker so this test can see which view the
 // card shows.
+const layoutProps = vi.hoisted(() => ({
+  current: undefined as
+    { collapseState?: { transcript?: Record<string, boolean> } } | undefined,
+}));
 vi.mock("@tsmono/inspect-components/transcript", () => ({
-  TranscriptLayout: () => <div data-testid="transcript-layout" />,
+  TranscriptLayout: (props: typeof layoutProps.current) => {
+    layoutProps.current = props;
+    return <div data-testid="transcript-layout" />;
+  },
 }));
 
 const baseRetry: EvalRetryError = {
@@ -91,6 +102,25 @@ describe("RetryAttemptCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
     expect(screen.queryByText("RuntimeError: Simulated failure")).toBeNull();
+  });
+
+  it("opens every event expanded except state and store bodies", () => {
+    renderCard({
+      retry: {
+        ...baseRetry,
+        events: [
+          testToolEvent({ uuid: "tool-1" }),
+          testStateEvent({ uuid: "state-1" }),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
+    // Recorded up front: the transcript's own defaults would otherwise
+    // collapse the successful tool call.
+    expect(layoutProps.current?.collapseState?.transcript).toEqual({
+      "tool-1": false,
+      "state-1": true,
+    });
   });
 
   it("toggling the view does not collapse the card", () => {

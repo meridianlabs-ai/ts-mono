@@ -352,6 +352,7 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
                     <ChunkedRowView
                       row={slot.row}
                       eventCallbacks={eventCallbacks}
+                      collapsedOverrides={collapsedOverrides}
                     />
                   </div>
                 ) : (

@@ -13,7 +13,7 @@ import { createSampleSlice } from "./sampleSlice";
 import { createSearchSlice } from "./searchSlice";
 import type { StoreState } from "./store";
 
-export const testStoreState = (): StoreState =>
+export const createTestStore = () =>
   create<StoreState>()(
     immer((set, get) => ({
       initialize: () => undefined,
@@ -23,4 +23,6 @@ export const testStoreState = (): StoreState =>
       ...createSampleSlice(set),
       ...createSearchSlice(set),
     }))
-  ).getState();
+  );
+
+export const testStoreState = (): StoreState => createTestStore().getState();

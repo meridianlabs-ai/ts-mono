@@ -16,6 +16,7 @@ import { eventNode } from "../testHelpers";
 import {
   collectAllCollapsibleIds,
   computeDefaultCollapsedIds,
+  effectiveCollapsedIds,
 } from "./collapse";
 import { kSandboxSignalName } from "./fixups";
 
@@ -174,5 +175,31 @@ describe("collectAllCollapsibleIds", () => {
       [model.id]: true,
       [state.id]: true,
     });
+  });
+});
+
+// =============================================================================
+// effectiveCollapsedIds
+// =============================================================================
+
+describe("effectiveCollapsedIds", () => {
+  it("is the defaults while nothing is recorded", () => {
+    const defaults = { a: true };
+    expect(effectiveCollapsedIds(defaults, undefined)).toBe(defaults);
+  });
+
+  it("lets a recorded choice override its default", () => {
+    expect(effectiveCollapsedIds({ a: true }, { a: false, b: true })).toEqual({
+      a: false,
+      b: true,
+    });
+  });
+
+  it("applies a default for a node that appeared after a recorded choice", () => {
+    // State events hidden by the filter join the tree only when the user
+    // turns them on, usually after they have toggled something else.
+    expect(
+      effectiveCollapsedIds({ tool: true, state: true }, { tool: false })
+    ).toEqual({ tool: false, state: true });
   });
 });

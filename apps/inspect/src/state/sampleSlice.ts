@@ -118,11 +118,8 @@ export const createSampleSlice = (
             state.sample.collapsedEvents[scope] = {};
           }
 
-          if (collapsed) {
-            state.sample.collapsedEvents[scope][id] = true;
-          } else {
-            delete state.sample.collapsedEvents[scope][id];
-          }
+          // An explicit false overrides a node that starts collapsed.
+          state.sample.collapsedEvents[scope][id] = collapsed;
         });
       },
       setCollapsedIds: (key: string, collapsed: Record<string, true>) => {

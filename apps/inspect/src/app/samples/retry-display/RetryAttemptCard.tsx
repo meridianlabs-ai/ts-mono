@@ -137,14 +137,13 @@ const RetryEventsView: FC<{
   listId: string;
   scrollRef: RefObject<HTMLDivElement | null>;
 }> = ({ retry, listId, scrollRef }) => {
-  // Pre-seed collapsed state for state/store events so their collapsibleContent
-  // bodies start hidden — mirrors the main transcript, where they're hidden
-  // inside collapsed parent containers.
+  // Everything opens expanded except state/store bodies, which mirror the
+  // main transcript, where they're hidden inside collapsed parent containers.
   const initialCollapsed = useMemo(() => {
     const ids: Record<string, boolean> = {};
     for (const event of retry.events || []) {
-      if ((event.event === "state" || event.event === "store") && event.uuid) {
-        ids[event.uuid] = true;
+      if (event.uuid) {
+        ids[event.uuid] = event.event === "state" || event.event === "store";
       }
     }
     return ids;
@@ -153,31 +152,18 @@ const RetryEventsView: FC<{
   const [transcriptCollapsed, setTranscriptCollapsed] = useState<
     Record<string, boolean> | undefined
   >(undefined);
-  const [bulkCollapse, setBulkCollapse] = useState<
-    "collapse" | "expand" | undefined
-  >("expand");
-
-  const effectiveCollapsed = useMemo(
-    () =>
-      transcriptCollapsed
-        ? { ...initialCollapsed, ...transcriptCollapsed }
-        : Object.keys(initialCollapsed).length > 0
-          ? initialCollapsed
-          : undefined,
-    [transcriptCollapsed, initialCollapsed]
-  );
 
   const collapseState = useMemo<TranscriptCollapseState>(
     () => ({
-      transcript: effectiveCollapsed,
+      transcript: transcriptCollapsed ?? initialCollapsed,
       onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
-        setTranscriptCollapsed((prev) => ({ ...prev, [nodeId]: collapsed })),
-      onSetTranscriptCollapsed: (ids: Record<string, boolean>) => {
-        setTranscriptCollapsed(ids);
-        setBulkCollapse(undefined);
-      },
+        setTranscriptCollapsed((prev) => ({
+          ...(prev ?? initialCollapsed),
+          [nodeId]: collapsed,
+        })),
+      onSetTranscriptCollapsed: setTranscriptCollapsed,
     }),
-    [effectiveCollapsed]
+    [transcriptCollapsed, initialCollapsed]
   );
 
   return (
@@ -189,7 +175,6 @@ const RetryEventsView: FC<{
         embedded
         timeline={{ showSwimlanes: false }}
         collapseState={collapseState}
-        bulkCollapse={bulkCollapse}
         eventNodeContext={{ inlineExpansionUX: true }}
         keyboardNavDisabled={true}
       />
