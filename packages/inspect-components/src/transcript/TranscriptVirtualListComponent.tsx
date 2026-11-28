@@ -6,9 +6,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
@@ -65,8 +63,6 @@ interface TranscriptVirtualListComponentProps {
    *  agent span and would otherwise inherit that span's indentation. */
   relativeIndent?: boolean;
   disableVirtualization?: boolean;
-  onNativeFindChanged?: (nativeFind: boolean) => void;
-  onAutoCollapse?: (eventId: string) => void;
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   eventCallbacks?: EventPanelCallbacks;
   /** Extra context fields merged into every EventNodeContext entry. */
@@ -96,8 +92,6 @@ export const TranscriptVirtualListComponent: FC<
   turnMap,
   relativeIndent,
   disableVirtualization,
-  onNativeFindChanged,
-  onAutoCollapse,
   renderAgentCard,
   eventCallbacks,
   eventNodeContext,
@@ -110,11 +104,6 @@ export const TranscriptVirtualListComponent: FC<
   // container — making swimlane / outline navigation appear broken on small
   // event lists. VirtualList handles short lists fine.
   const useVirtualization = !disableVirtualization;
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    onNativeFindChanged?.(!useVirtualization);
-  }, [onNativeFindChanged, useVirtualization]);
 
   // Mount-time anchor for the virtual list's layout. Captured once and frozen —
   // runtime URL→event navigation is handled imperatively in
@@ -145,18 +134,6 @@ export const TranscriptVirtualListComponent: FC<
     }),
     [eventNodes]
   );
-
-  // Non-virtual scroll-into-view for initial event
-  const nonVirtualGridRef = useRef<HTMLDivElement | null>(null);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!useVirtualization && initialEventId) {
-      const row = nonVirtualGridRef.current?.querySelector(
-        `[id="${initialEventId}"]`
-      );
-      row?.scrollIntoView({ block: "start" });
-    }
-  }, [initialEventId, useVirtualization]);
 
   // Pre-compute context objects for all event nodes to maintain stable references
   const contextMap = useMemo(() => {
@@ -249,7 +226,6 @@ export const TranscriptVirtualListComponent: FC<
                 depthRootClass
               )}
               context={context}
-              onAutoCollapse={onAutoCollapse}
               renderAgentCard={renderAgentCard}
               eventCallbacks={eventCallbacks}
             />
@@ -280,7 +256,6 @@ export const TranscriptVirtualListComponent: FC<
     [
       eventNodes,
       contextMap,
-      onAutoCollapse,
       renderAgentCard,
       eventCallbacks,
       eventLabels,
@@ -328,7 +303,7 @@ export const TranscriptVirtualListComponent: FC<
       components={components}
     />
   ) : (
-    <div ref={nonVirtualGridRef}>
+    <div>
       {eventNodes.map((node, index) => {
         const row = renderRow(index, node);
         return row;

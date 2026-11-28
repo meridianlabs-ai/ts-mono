@@ -79,7 +79,6 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   const showFind = useStore((state) => state.app.showFind);
   const setShowFind = useStore((state) => state.appActions.setShowFind);
   const hideFind = useStore((state) => state.appActions.hideFind);
-  const nativeFind = useStore((state) => state.app.nativeFind);
 
   // Sample tab synchronization
   const setSampleTab = useStore((state) => state.appActions.setSampleTab);
@@ -90,7 +89,6 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   useFindBandShortcut(openFind, {
     onClose: hideFind,
     isOpen: showFind,
-    enabled: !nativeFind,
   });
 
   return (

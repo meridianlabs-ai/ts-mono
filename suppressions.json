@@ -77,7 +77,7 @@
   },
   "apps/inspect/src/app/samples/SampleDisplay.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/inspect/src/app/samples/transcript/chunked/ChunkedTranscriptPanel.tsx": {
@@ -216,7 +216,7 @@
   },
   "apps/inspect/src/state/hooks.ts": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/state/logsSlice.test.ts": {
@@ -290,11 +290,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/scans/ScansGrid.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/server/useAdjacentTranscriptIds.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -362,11 +357,6 @@
   },
   "packages/inspect-common/src/utils/effectiveConfig.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "packages/inspect-components/src/chat/ChatViewVirtualList.tsx": {
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
@@ -516,11 +506,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/state/StateEventView.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/transcript/timeline/components/TimelineSwimLanes.tsx": {
     "jsx-a11y/click-events-have-key-events": {
       "count": 1
@@ -537,11 +522,6 @@
     }
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 2
-    }
-  },
-  "packages/inspect-components/src/transcript/TranscriptVirtualListComponent.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
     }

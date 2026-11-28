@@ -152,7 +152,6 @@ interface SampleDisplayProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
   showActivity: boolean;
-  focusOnLoad?: boolean;
 }
 
 type ActivityRailItemId = "search" | "scans";
@@ -167,7 +166,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
-  focusOnLoad,
 }) => {
   // Tab ids
   const baseId = `sample-display`;
@@ -305,14 +303,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   );
   const exportMessages = useMessagesExport(sampleData);
 
-  // Focus the panel when it loads
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!focusOnLoad) return;
-    const id = setTimeout(() => scrollRef.current?.focus(), 10);
-    return () => clearTimeout(id);
-  }, [focusOnLoad, scrollRef]);
-
   // Tab selection
   const sampleUrlBuilder = useSampleUrlBuilder();
   const sampleTabHref = (tabId: string) =>
@@ -341,8 +331,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       navigate,
     ]
   );
-
-  const setNativeFind = useStore((state) => state.appActions.setNativeFind);
 
   // Absolute URL (origin + host path + hash route): ChatMessage copies this
   // value to the clipboard as a shareable link.
@@ -1156,7 +1144,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     display={chatDisplay}
                     labels={messagesSearchLabels}
                     linking={chatLinking}
-                    onNativeFindChanged={setNativeFind}
                     scrollRef={scrollRef}
                     tools={chatTools}
                     running={running}

@@ -264,7 +264,10 @@ describe("persisted state", () => {
 
     state.setShowFind(true);
     state.setSelectedScanLocation("scans/one");
-    state.setVisibleScanJobCount(3);
+    state.setScansTableState((prev) => ({
+      ...prev,
+      columnOrder: ["location"],
+    }));
     state.setSelectedScanner("scanner-a");
     state.setVisibleScannerResults([]);
     state.setPropertyValue("panel", "open", true);
@@ -283,10 +286,12 @@ describe("persisted state", () => {
         "selectedValidationSetUri",
         "showFind",
         "transcriptsDir",
-        "visibleScanJobCount",
       ].sort()
     );
     expect(persisted.selectedScanner).toBe("scanner-a");
+    expect(persisted.scansTableState).toMatchObject({
+      columnOrder: ["location"],
+    });
     expect(persisted.properties).toEqual({ panel: { open: true } });
   });
 
