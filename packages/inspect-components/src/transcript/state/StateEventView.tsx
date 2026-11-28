@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, ReactNode, useMemo } from "react";
+import { FC, useMemo } from "react";
 
 import type {
   JsonChange,
@@ -12,11 +12,7 @@ import { EventPanel } from "../event/EventPanel";
 import { EventNode, EventPanelCallbacks } from "../types";
 
 import { StateDiffView } from "./StateDiffView";
-import {
-  matchesChangeSignature,
-  RenderableChangeTypes,
-  StoreSpecificRenderableTypes,
-} from "./StateEventRenderers";
+import { findChangeRenderer } from "./StateEventRenderers";
 import styles from "./StateEventView.module.css";
 
 interface StateEventViewProps {
@@ -74,35 +70,13 @@ export const StateEventView: FC<StateEventViewProps> = ({
   );
 };
 
-/**
- * Renders the value of a change based on its type.
- */
 const generatePreview = (
   changes: JsonChange[],
   isStore: boolean,
   eventNodeId: string
 ) => {
-  const results: ReactNode[] = [];
-  for (const changeType of [
-    ...RenderableChangeTypes,
-    ...(isStore ? StoreSpecificRenderableTypes : []),
-  ]) {
-    if (changeType.signature) {
-      if (matchesChangeSignature(changes, changeType.signature)) {
-        const el = changeType.render(changes, eventNodeId);
-        results.push(el);
-        break;
-      }
-    } else if (changeType.match) {
-      const matches = changeType.match(changes);
-      if (matches) {
-        const el = changeType.render(changes, eventNodeId);
-        results.push(el);
-        break;
-      }
-    }
-  }
-  return results.length > 0 ? results : undefined;
+  const changeType = findChangeRenderer(changes, isStore);
+  return changeType ? [changeType.render(changes, eventNodeId)] : undefined;
 };
 
 /**

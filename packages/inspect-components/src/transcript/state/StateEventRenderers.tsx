@@ -17,7 +17,7 @@ interface Signature {
   add: string[];
 }
 
-interface ChangeType {
+export interface ChangeType {
   type: string;
   /** Render events matching this signature under the Default event filter
    *  (rich previews like the human-baseline terminal session). */
@@ -328,6 +328,21 @@ export const matchesChangeSignature = (
   }
   return required > 0 && matching === required;
 };
+
+/** The renderer that previews a state or store event's changes, if any;
+ *  without one the event shows only its JSON diff. */
+export const findChangeRenderer = (
+  changes: JsonChange[],
+  isStore: boolean
+): ChangeType | undefined =>
+  [
+    ...RenderableChangeTypes,
+    ...(isStore ? StoreSpecificRenderableTypes : []),
+  ].find((changeType) =>
+    changeType.signature
+      ? matchesChangeSignature(changes, changeType.signature)
+      : (changeType.match?.(changes) ?? false)
+  );
 
 /** Whether a store event's changes match a renderer marked default-visible
  *  (e.g. the human-baseline terminal session view). */

@@ -11,8 +11,10 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
+import { findChangeRenderer } from "../state/StateEventRenderers";
 import {
   EventNode,
+  EventType,
   isCollapsibleEvent,
   kCollapsibleEventTypes,
   kContentCollapsibleEventTypes,
@@ -38,9 +40,15 @@ const collapseFilters: Array<
   (event) => event.event === "subtask",
 ];
 
+// A state or store change with no preview renderer is only a JSON diff.
+const isDiffOnlyStateChange = (event: EventType): boolean =>
+  (event.event === "state" || event.event === "store") &&
+  findChangeRenderer(event.changes, event.event === "store") === undefined;
+
 /**
  * Compute the node IDs that start collapsed by default (system messages,
- * init spans, successful non-agent tool calls, subtasks).
+ * init spans, successful non-agent tool calls, subtasks, and state or store
+ * changes that only have a JSON diff to show).
  */
 export const computeDefaultCollapsedIds = (
   eventNodes: EventNode[]
@@ -51,8 +59,9 @@ export const computeDefaultCollapsedIds = (
       // Bound to a const so the narrowing survives into the callback below.
       const event = node.event;
       if (
-        isCollapsibleEvent(event) &&
-        collapseFilters.some((filter) => filter(event))
+        (isCollapsibleEvent(event) &&
+          collapseFilters.some((filter) => filter(event))) ||
+        isDiffOnlyStateChange(event)
       ) {
         defaultCollapsedIds[node.id] = true;
       }

@@ -6,6 +6,7 @@ import {
   testSpanBeginEvent,
   testStateEvent,
   testStepEvent,
+  testStoreEvent,
   testSubtaskEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -77,6 +78,56 @@ describe("computeDefaultCollapsedIds", () => {
     {
       desc: "plain agent span",
       event: testSpanBeginEvent({ name: "agent", type: "agent" }),
+      collapsed: false,
+    },
+    {
+      desc: "state event with only a JSON diff",
+      event: testStateEvent({
+        changes: [
+          { op: "replace", path: "/completed", value: true, replaced: false },
+        ],
+      }),
+      collapsed: true,
+    },
+    {
+      desc: "state event previewed as a new user message",
+      event: testStateEvent({
+        changes: [
+          {
+            op: "add",
+            path: "/messages/3",
+            value: { role: "user", content: "next question" },
+            replaced: null,
+          },
+        ],
+      }),
+      collapsed: false,
+    },
+    {
+      desc: "store event with only a JSON diff",
+      event: testStoreEvent({
+        changes: [{ op: "add", path: "/count", value: 1, replaced: null }],
+      }),
+      collapsed: true,
+    },
+    {
+      desc: "store event previewed as a human-baseline session",
+      event: testStoreEvent({
+        changes: [
+          {
+            op: "add",
+            path: "/HumanAgentState:logs",
+            value: {},
+            replaced: null,
+          },
+          {
+            op: "add",
+            path: "/HumanAgentState:answer",
+            value: "x",
+            replaced: null,
+          },
+        ],
+      }),
       collapsed: false,
     },
   ] as const)(
