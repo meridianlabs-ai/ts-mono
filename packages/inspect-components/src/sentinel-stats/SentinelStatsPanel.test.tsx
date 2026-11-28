@@ -239,6 +239,43 @@ describe("SentinelStatsPanel", () => {
     );
   });
 
+  it("lists an eval's samples worth opening, a page at a time", () => {
+    const evalStats: SentinelEvalStats = {
+      steps: { tool_call: { total: 10, judged: 10, unjudged: {} } },
+      actions: { proceed: 10 },
+      samples: 12,
+      incomplete_samples: 0,
+      model_calls: 0,
+      unrecorded_calls: 0,
+    };
+    const samples = Array.from({ length: 12 }, (_, i) => ({
+      id: `s${i}`,
+      epoch: 1,
+      sentinel_stats: {
+        guard: { ...sampleStats, actions: { terminate: 1 } },
+      },
+    }));
+    renderPanel(
+      <SentinelStatsPanel
+        kind="eval"
+        stats={{ guard: evalStats }}
+        samples={samples}
+        renderOpenSample={(sample) => (
+          <button type="button">open {sample.id}</button>
+        )}
+      />
+    );
+    const entry = screen.getByRole("region", { name: "guard" });
+    const opens = () =>
+      within(entry).getAllByRole("button", { name: /^open / });
+    expect(opens()).toHaveLength(10);
+    expect(part(entry, "Samples")).toContain(
+      "terminateds0 · epoch 1the sentinel ended the sampleopen s0"
+    );
+    fireEvent.click(within(entry).getByRole("button", { name: "show all 12" }));
+    expect(opens()).toHaveLength(12);
+  });
+
   it("renders nothing without stats", () => {
     const { container } = renderPanel(
       <SentinelStatsPanel kind="sample" stats={null} />

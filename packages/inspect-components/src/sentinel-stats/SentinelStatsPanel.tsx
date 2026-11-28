@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, MouseEvent, ReactNode } from "react";
+import { FC, Fragment, MouseEvent, ReactNode, useState } from "react";
 
 import type {
   SentinelEvalStats,
@@ -13,6 +13,12 @@ import { formatNumber } from "@tsmono/util";
 
 import type { MetaItem } from "../usage/UsagePanel";
 
+import {
+  notableSamples,
+  type NotableSample,
+  type SampleStatus,
+  type SentinelSampleSummary,
+} from "./notableSamples";
 import type { NotableStatus, NotableStep } from "./notableSteps";
 import { configuredSentinel, type ConfiguredSentinel } from "./sentinelConfig";
 import styles from "./SentinelStatsPanel.module.css";
@@ -95,6 +101,10 @@ type SentinelStatsPanelProps = {
       kind: "eval";
       stats?: Record<string, SentinelEvalStats> | null;
       meta?: MetaItem[];
+      /** The eval's sample summaries, whose stats name the samples worth opening. */
+      samples?: readonly SentinelSampleSummary[];
+      /** A link that opens a sample. */
+      renderOpenSample?: (sample: NotableSample) => ReactNode;
     }
 );
 
@@ -188,7 +198,13 @@ export const SentinelStatsPanel: FC<SentinelStatsPanelProps> = (props) => {
             )}
             onOpenEvent={props.onOpenEvent}
           />
-        ) : null}
+        ) : (
+          <SamplesPart
+            key={entry.name}
+            samples={notableSamples(props.samples ?? [], entry.name)}
+            renderOpenSample={props.renderOpenSample}
+          />
+        )}
       </section>
     </div>
   );
@@ -523,6 +539,57 @@ const StepsPart: FC<{
       </div>
     </Part>
   ) : null;
+
+const kSampleStatusTone: Record<SampleStatus, string | undefined> = {
+  terminated: styles.pillReject,
+  "not checked": styles.pillNeutral,
+  "left out": styles.pillWarning,
+};
+
+/** Rows shown before "show all", so a large eval's list stays a summary. */
+const kSamplesShown = 10;
+
+const SamplesPart: FC<{
+  samples: NotableSample[];
+  renderOpenSample?: (sample: NotableSample) => ReactNode;
+}> = ({ samples, renderOpenSample }) => {
+  const [all, setAll] = useState(false);
+  if (samples.length === 0) return null;
+  const shown = all ? samples : samples.slice(0, kSamplesShown);
+  return (
+    <Part label="Samples">
+      <div className={styles.list}>
+        {shown.map((sample) => (
+          <div
+            key={`${sample.id}-${sample.epoch}`}
+            className={clsx(styles.listRow, styles.sampleRow)}
+          >
+            <span
+              className={clsx(styles.pill, kSampleStatusTone[sample.status])}
+            >
+              {sample.status}
+            </span>
+            <span className={styles.listSubject}>
+              <span className={styles.mono}>{sample.id}</span>
+              <span className={styles.muted}> · epoch {sample.epoch}</span>
+            </span>
+            <span className={styles.listReason}>{sample.reason}</span>
+            {renderOpenSample ? renderOpenSample(sample) : <span />}
+          </div>
+        ))}
+        {samples.length > kSamplesShown ? (
+          <button
+            type="button"
+            className={clsx(styles.link, styles.more)}
+            onClick={() => setAll(!all)}
+          >
+            {all ? "show fewer" : `show all ${formatNumber(samples.length)}`}
+          </button>
+        ) : null}
+      </div>
+    </Part>
+  );
+};
 
 /** The stage names the sentinel docs use. */
 const kStageNames: Record<SentinelEvent["stage"], string> = {

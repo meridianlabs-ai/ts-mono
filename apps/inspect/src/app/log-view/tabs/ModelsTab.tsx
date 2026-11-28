@@ -6,7 +6,6 @@ import {
   EvalStats,
 } from "@tsmono/inspect-common/types";
 import { modelRoleNames } from "@tsmono/inspect-common/utils";
-import { SentinelStatsPanel } from "@tsmono/inspect-components/sentinel-stats";
 import {
   buildArgsByModel,
   buildArgsByRole,
@@ -145,7 +144,6 @@ export const ModelTab: FC<ModelTabProps> = ({
           onViewTimeline={showTimelineForModel}
           timelineHref={timelineHref}
         />
-        <SentinelStatsPanel kind="eval" stats={evalStats?.sentinel_stats} />
       </div>
     </div>
   );

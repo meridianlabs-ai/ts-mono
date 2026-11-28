@@ -371,6 +371,24 @@
   border-color: var(--inspect-check-result-border);
 }
 
+.pillWarning {
+  color: var(--bs-warning-text-emphasis);
+  background-color: var(--bs-warning-bg-subtle);
+  border-color: var(--bs-warning-border-subtle);
+}
+
+.sampleRow {
+  grid-template-columns:
+    6.5rem minmax(12rem, max-content) minmax(0, 1fr)
+    max-content;
+}
+
+.more {
+  align-self: flex-start;
+  padding: 6px 0;
+  font-size: 0.75rem;
+}
+
 .link {
   padding: 0;
   border: 0;
