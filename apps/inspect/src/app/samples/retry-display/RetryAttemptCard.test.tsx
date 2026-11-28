@@ -130,9 +130,7 @@ describe("RetryAttemptCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(layoutProps.current?.bulkCollapse).toBe("expand");
 
-    // What TranscriptLayout's expand-all writes: every collapsible node,
-    // including a generated group with no uuid, recorded as expanded. Its
-    // effect can run twice (StrictMode, a re-render) before bulk clears.
+    // TranscriptLayout's expand-all payload, written twice as StrictMode does.
     const expandAll =
       layoutProps.current?.collapseState?.onSetTranscriptCollapsed;
     const allExpanded = {

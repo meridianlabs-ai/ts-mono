@@ -92,8 +92,7 @@ export const ChunkedRowView: FC<ChunkedRowViewProps> = ({
   }
 
   if (!node) return null;
-  // Same default as the full transcript (computeDefaultCollapsedIds); the
-  // chunked tree is built from spans, so each event row applies its own.
+  // Chunked rows come from spans, so each event row applies its own default.
   const callbacks =
     eventCallbacks && isDiffOnlyStateChange(node.event)
       ? {

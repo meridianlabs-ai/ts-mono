@@ -137,9 +137,7 @@ const RetryEventsView: FC<{
   listId: string;
   scrollRef: RefObject<HTMLDivElement | null>;
 }> = ({ retry, listId, scrollRef }) => {
-  // Pre-seed collapsed state for state/store events so their collapsibleContent
-  // bodies start hidden — mirrors the main transcript, where they're hidden
-  // inside collapsed parent containers.
+  // State/store bodies stay collapsed through the opening expand-all.
   const initialCollapsed = useMemo(() => {
     const ids: Record<string, boolean> = {};
     for (const event of retry.events || []) {
@@ -167,8 +165,7 @@ const RetryEventsView: FC<{
           [nodeId]: collapsed,
         })),
       onSetTranscriptCollapsed: (ids: Record<string, boolean>) => {
-        // The opening expand-all (which can run more than once) records
-        // every node as expanded; keep the state/store bodies collapsed.
+        // StrictMode can run the opening expand-all twice; merge on each.
         setTranscriptCollapsed(
           bulkCollapse === "expand" ? { ...ids, ...initialCollapsed } : ids
         );

@@ -914,3 +914,36 @@ describe("TranscriptViewNodes scrollToEvent settling", () => {
     expect(cb.onDone).not.toHaveBeenCalled();
   });
 });
+
+describe("TranscriptViewNodes collapse defaults", () => {
+  it("applies a default to a node the user has no recorded choice for", () => {
+    // "joined-later" arrived after the user's choice, e.g. via the filter.
+    const eventNodes = [
+      agentSpan("expanded", [model("m1", 1)]),
+      agentSpan("joined-later", [model("m2", 1)]),
+    ];
+    const ref = createRef<TranscriptViewNodesHandle>();
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <div ref={scrollRef}>
+        <TranscriptViewNodes
+          ref={ref}
+          id="test"
+          eventNodes={eventNodes}
+          defaultCollapsedIds={{ expanded: true, "joined-later": true }}
+          collapsedTranscript={{ expanded: false }}
+          scrollRef={scrollRef}
+        />
+      </div>,
+      { wrapper: StateWrapper }
+    );
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "expanded",
+      "m1",
+      "joined-later",
+    ]);
+    expect(capturedEventCallbacks?.getCollapsed?.("joined-later")).toBe(true);
+    expect(capturedEventCallbacks?.getCollapsed?.("expanded")).toBe(false);
+  });
+});

@@ -71,7 +71,7 @@ export const computeDefaultCollapsedIds = (
   return defaultCollapsedIds;
 };
 
-// Recorded choices over defaults, so a node that joins the tree later (an event type turned on in the filter, a streamed event) still gets its default.
+// Applied on read, so a node that joins the tree later still gets its default.
 export const effectiveCollapsedIds = (
   defaults: Record<string, boolean>,
   recorded: Record<string, boolean> | undefined

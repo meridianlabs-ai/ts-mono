@@ -59,8 +59,7 @@ export function useTranscriptCollapse(
     [onCollapseTranscriptRaw]
   );
 
-  // One batched update: sequential onCollapseTranscript calls would each
-  // re-render the list before the next ancestor opens.
+  // One update for all ancestors, not a re-render per ancestor.
   const transcriptCollapsed = collapseState?.transcript;
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {

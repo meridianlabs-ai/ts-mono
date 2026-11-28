@@ -79,8 +79,7 @@ export interface TranscriptViewNodesProps {
   /** Navigate to a focus URL in the current window. */
   onOpenEventFocus?: (focusRoute: string) => void;
 
-  // The user's recorded collapse choices (app store, already scope-specific);
-  // defaultCollapsedIds fill in every node without one.
+  // The user's choices; defaultCollapsedIds fill in every other node.
   collapsedTranscript?: Record<string, boolean>;
   onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
   /** Expand several nodes in one state update — used to reveal deep-link

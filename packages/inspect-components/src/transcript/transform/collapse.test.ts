@@ -196,8 +196,7 @@ describe("effectiveCollapsedIds", () => {
   });
 
   it("applies a default for a node that appeared after a recorded choice", () => {
-    // State events hidden by the filter join the tree only when the user
-    // turns them on, usually after they have toggled something else.
+    // e.g. State turned on in the filter after the user toggled a tool call.
     expect(
       effectiveCollapsedIds({ tool: true, state: true }, { tool: false })
     ).toEqual({ tool: false, state: true });
