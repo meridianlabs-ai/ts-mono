@@ -249,7 +249,8 @@ export interface EventPanelCallbacks {
  * to know about scope string constants.
  */
 export interface TranscriptCollapseState {
-  /** Current collapsed node IDs for the transcript event list. */
+  /** The user's collapse choices for the transcript event list; nodes
+   *  without one get their default (see `effectiveCollapsedIds`). */
   transcript?: Record<string, boolean>;
   /** Current collapsed node IDs for the outline. */
   outline?: Record<string, boolean>;

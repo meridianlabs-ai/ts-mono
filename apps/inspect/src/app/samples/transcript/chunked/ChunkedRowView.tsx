@@ -3,6 +3,7 @@ import { FC, useMemo } from "react";
 import {
   EventNode,
   EventPanel,
+  isDiffOnlyStateChange,
   RenderedEventNode,
   type EventPanelCallbacks,
 } from "@tsmono/inspect-components/transcript";
@@ -37,6 +38,8 @@ const summarizeChildren = (span: SkeletonSpan): string => {
 interface ChunkedRowViewProps {
   row: ViewRow;
   eventCallbacks?: EventPanelCallbacks;
+  /** The user's recorded collapse choices, over each event's default. */
+  collapsedOverrides?: Record<string, boolean>;
 }
 
 /**
@@ -48,6 +51,7 @@ interface ChunkedRowViewProps {
 export const ChunkedRowView: FC<ChunkedRowViewProps> = ({
   row,
   eventCallbacks,
+  collapsedOverrides,
 }) => {
   const node = useMemo(
     () =>
@@ -87,7 +91,17 @@ export const ChunkedRowView: FC<ChunkedRowViewProps> = ({
     );
   }
 
-  return node ? (
-    <RenderedEventNode node={node} eventCallbacks={eventCallbacks} />
-  ) : null;
+  if (!node) return null;
+  // Chunked rows come from spans, so each event row applies its own default.
+  const callbacks =
+    eventCallbacks && isDiffOnlyStateChange(node.event)
+      ? {
+          ...eventCallbacks,
+          getCollapsed: (id: string) =>
+            id === node.id
+              ? (collapsedOverrides?.[id] ?? true)
+              : (eventCallbacks.getCollapsed?.(id) ?? false),
+        }
+      : eventCallbacks;
+  return <RenderedEventNode node={node} eventCallbacks={callbacks} />;
 };

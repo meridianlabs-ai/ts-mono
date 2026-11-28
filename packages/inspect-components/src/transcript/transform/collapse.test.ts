@@ -6,6 +6,7 @@ import {
   testSpanBeginEvent,
   testStateEvent,
   testStepEvent,
+  testStoreEvent,
   testSubtaskEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -15,6 +16,7 @@ import { eventNode } from "../testHelpers";
 import {
   collectAllCollapsibleIds,
   computeDefaultCollapsedIds,
+  effectiveCollapsedIds,
 } from "./collapse";
 import { kSandboxSignalName } from "./fixups";
 
@@ -79,6 +81,56 @@ describe("computeDefaultCollapsedIds", () => {
       event: testSpanBeginEvent({ name: "agent", type: "agent" }),
       collapsed: false,
     },
+    {
+      desc: "state event with only a JSON diff",
+      event: testStateEvent({
+        changes: [
+          { op: "replace", path: "/completed", value: true, replaced: false },
+        ],
+      }),
+      collapsed: true,
+    },
+    {
+      desc: "state event previewed as a new user message",
+      event: testStateEvent({
+        changes: [
+          {
+            op: "add",
+            path: "/messages/3",
+            value: { role: "user", content: "next question" },
+            replaced: null,
+          },
+        ],
+      }),
+      collapsed: false,
+    },
+    {
+      desc: "store event with only a JSON diff",
+      event: testStoreEvent({
+        changes: [{ op: "add", path: "/count", value: 1, replaced: null }],
+      }),
+      collapsed: true,
+    },
+    {
+      desc: "store event previewed as a human-baseline session",
+      event: testStoreEvent({
+        changes: [
+          {
+            op: "add",
+            path: "/HumanAgentState:logs",
+            value: {},
+            replaced: null,
+          },
+          {
+            op: "add",
+            path: "/HumanAgentState:answer",
+            value: "x",
+            replaced: null,
+          },
+        ],
+      }),
+      collapsed: false,
+    },
   ] as const)(
     "$desc → collapsed by default: $collapsed",
     ({ event, collapsed }) => {
@@ -123,5 +175,30 @@ describe("collectAllCollapsibleIds", () => {
       [model.id]: true,
       [state.id]: true,
     });
+  });
+});
+
+// =============================================================================
+// effectiveCollapsedIds
+// =============================================================================
+
+describe("effectiveCollapsedIds", () => {
+  it("is the defaults while nothing is recorded", () => {
+    const defaults = { a: true };
+    expect(effectiveCollapsedIds(defaults, undefined)).toBe(defaults);
+  });
+
+  it("lets a recorded choice override its default", () => {
+    expect(effectiveCollapsedIds({ a: true }, { a: false, b: true })).toEqual({
+      a: false,
+      b: true,
+    });
+  });
+
+  it("applies a default for a node that appeared after a recorded choice", () => {
+    // e.g. State turned on in the filter after the user toggled a tool call.
+    expect(
+      effectiveCollapsedIds({ tool: true, state: true }, { tool: false })
+    ).toEqual({ tool: false, state: true });
   });
 });

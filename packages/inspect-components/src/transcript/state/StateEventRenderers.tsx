@@ -329,6 +329,20 @@ export const matchesChangeSignature = (
   return required > 0 && matching === required;
 };
 
+// Without a renderer the event shows only its JSON diff.
+export const findChangeRenderer = (
+  changes: JsonChange[],
+  isStore: boolean
+): ChangeType | undefined =>
+  [
+    ...RenderableChangeTypes,
+    ...(isStore ? StoreSpecificRenderableTypes : []),
+  ].find((changeType) =>
+    changeType.signature
+      ? matchesChangeSignature(changes, changeType.signature)
+      : (changeType.match?.(changes) ?? false)
+  );
+
 /** Whether a store event's changes match a renderer marked default-visible
  *  (e.g. the human-baseline terminal session view). */
 export const storeEventHasDefaultVisiblePreview = (

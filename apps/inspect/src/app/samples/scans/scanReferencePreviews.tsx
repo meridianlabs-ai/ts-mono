@@ -16,12 +16,13 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
   id,
   events,
 }) => {
-  const { eventNodes, defaultCollapsedIds } = useEventNodes(events, false);
+  const { eventNodes } = useEventNodes(events, false);
   return (
     <TranscriptViewNodes
       id={id}
       eventNodes={eventNodes}
-      defaultCollapsedIds={defaultCollapsedIds}
+      // A cited event previews fully expanded.
+      defaultCollapsedIds={EMPTY_COLLAPSE}
       collapsedTranscript={EMPTY_COLLAPSE}
       onCollapseTranscript={noopCollapse}
       keyboardNavDisabled={true}

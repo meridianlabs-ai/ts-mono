@@ -137,9 +137,7 @@ const RetryEventsView: FC<{
   listId: string;
   scrollRef: RefObject<HTMLDivElement | null>;
 }> = ({ retry, listId, scrollRef }) => {
-  // Pre-seed collapsed state for state/store events so their collapsibleContent
-  // bodies start hidden — mirrors the main transcript, where they're hidden
-  // inside collapsed parent containers.
+  // State/store bodies stay collapsed through the opening expand-all.
   const initialCollapsed = useMemo(() => {
     const ids: Record<string, boolean> = {};
     for (const event of retry.events || []) {
@@ -153,31 +151,28 @@ const RetryEventsView: FC<{
   const [transcriptCollapsed, setTranscriptCollapsed] = useState<
     Record<string, boolean> | undefined
   >(undefined);
+  // Opens everything else, including generated groups that have no uuid.
   const [bulkCollapse, setBulkCollapse] = useState<
     "collapse" | "expand" | undefined
   >("expand");
 
-  const effectiveCollapsed = useMemo(
-    () =>
-      transcriptCollapsed
-        ? { ...initialCollapsed, ...transcriptCollapsed }
-        : Object.keys(initialCollapsed).length > 0
-          ? initialCollapsed
-          : undefined,
-    [transcriptCollapsed, initialCollapsed]
-  );
-
   const collapseState = useMemo<TranscriptCollapseState>(
     () => ({
-      transcript: effectiveCollapsed,
+      transcript: transcriptCollapsed ?? initialCollapsed,
       onCollapseTranscript: (nodeId: string, collapsed: boolean) =>
-        setTranscriptCollapsed((prev) => ({ ...prev, [nodeId]: collapsed })),
+        setTranscriptCollapsed((prev) => ({
+          ...(prev ?? initialCollapsed),
+          [nodeId]: collapsed,
+        })),
       onSetTranscriptCollapsed: (ids: Record<string, boolean>) => {
-        setTranscriptCollapsed(ids);
+        // StrictMode can run the opening expand-all twice; merge on each.
+        setTranscriptCollapsed(
+          bulkCollapse === "expand" ? { ...ids, ...initialCollapsed } : ids
+        );
         setBulkCollapse(undefined);
       },
     }),
-    [effectiveCollapsed]
+    [transcriptCollapsed, initialCollapsed, bulkCollapse]
   );
 
   return (

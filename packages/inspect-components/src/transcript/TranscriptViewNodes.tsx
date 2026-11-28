@@ -26,6 +26,7 @@ import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
 import { isSelectableEvent } from "./selection/transcriptSelection";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
+import { effectiveCollapsedIds } from "./transform/collapse";
 import { findCollapsedAncestors, flatTree } from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
 import {
@@ -78,7 +79,7 @@ export interface TranscriptViewNodesProps {
   /** Navigate to a focus URL in the current window. */
   onOpenEventFocus?: (focusRoute: string) => void;
 
-  // Collapse state (app provides via its store, already scope-specific)
+  // The user's choices; defaultCollapsedIds fill in every other node.
   collapsedTranscript?: Record<string, boolean>;
   onCollapseTranscript?: (nodeId: string, collapsed: boolean) => void;
   /** Expand several nodes in one state update — used to reveal deep-link
@@ -234,9 +235,12 @@ export const TranscriptViewNodes = forwardRef<
     { defaultValue: null }
   );
 
-  const getCollapsed = (nodeId: string) => {
-    return (collapsedTranscript || defaultCollapsedIds)[nodeId] === true;
-  };
+  // Kept: flattenedNodes and the scroll effects depend on this map's identity.
+  const collapsedIds = useMemo(
+    () => effectiveCollapsedIds(defaultCollapsedIds, collapsedTranscript),
+    [defaultCollapsedIds, collapsedTranscript]
+  );
+  const getCollapsed = (nodeId: string) => collapsedIds[nodeId] === true;
 
   // Decided once per sample (`useEventNodes`), so a lane pairs as the whole
   // sample does; the nodes decide only for callers that render no sample.
@@ -279,22 +283,13 @@ export const TranscriptViewNodes = forwardRef<
   // Kept: the scroll effects depend on this array, so its identity must hold
   // even where this runs uncompiled (Vitest, or a future "use no memo").
   const flattenedNodes = useMemo(() => {
-    const all = flatTree(
-      eventNodes,
-      collapsedTranscript || defaultCollapsedIds
-    );
+    const all = flatTree(eventNodes, collapsedIds);
     return hiddenApprovalIds.size === 0 && hiddenSentinelIds.size === 0
       ? all
       : all.filter(
           (n) => !hiddenApprovalIds.has(n.id) && !hiddenSentinelIds.has(n.id)
         );
-  }, [
-    eventNodes,
-    collapsedTranscript,
-    defaultCollapsedIds,
-    hiddenApprovalIds,
-    hiddenSentinelIds,
-  ]);
+  }, [eventNodes, collapsedIds, hiddenApprovalIds, hiddenSentinelIds]);
 
   const mergedEventNodeContext: Partial<EventNodeContext> = {
     ...eventNodeContext,
@@ -393,13 +388,12 @@ export const TranscriptViewNodes = forwardRef<
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
       if (idx !== -1) return tryScroll(idx);
 
-      // Hidden in a collapsed region: expand ancestors in ONE batched update
-      // (sequential toggles clobber each other while the store is unseeded),
+      // Hidden in a collapsed region: expand ancestors in one batched update,
       // then retry once the flattened list updates.
       const collapsedAncestors = findCollapsedAncestors(
         eventNodes,
         eventId,
-        collapsedTranscript ?? defaultCollapsedIds
+        collapsedIds
       );
       if (collapsedAncestors.length > 0 && onExpandNodes) {
         onExpandNodes(collapsedAncestors);
@@ -444,8 +438,7 @@ export const TranscriptViewNodes = forwardRef<
       redirectEventId,
       flattenedNodes,
       eventNodes,
-      collapsedTranscript,
-      defaultCollapsedIds,
+      collapsedIds,
       onExpandNodes,
       scrollRowToTop,
       scrollRef,
@@ -479,19 +472,12 @@ export const TranscriptViewNodes = forwardRef<
     const collapsedAncestors = findCollapsedAncestors(
       eventNodes,
       scrollEventId,
-      collapsedTranscript ?? defaultCollapsedIds
+      collapsedIds
     );
     if (collapsedAncestors.length === 0) return;
     expandedForTargetRef.current = scrollEventId;
     onExpandNodes(collapsedAncestors);
-  }, [
-    scrollEventId,
-    onExpandNodes,
-    flattenedNodes,
-    eventNodes,
-    collapsedTranscript,
-    defaultCollapsedIds,
-  ]);
+  }, [scrollEventId, onExpandNodes, flattenedNodes, eventNodes, collapsedIds]);
 
   // Runtime URL→event scroll (deep link / outline / sidebar turn link). Dedup by
   // target so re-renders from filter/collapse don't re-fire an already-handled

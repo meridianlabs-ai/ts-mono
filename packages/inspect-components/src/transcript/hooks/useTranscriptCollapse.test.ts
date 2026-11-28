@@ -25,8 +25,6 @@ function makeCollapseState(overrides?: Partial<TranscriptCollapseState>) {
   };
 }
 
-const defaultCollapsedIds: Record<string, true> = { a: true, b: true };
-
 function render(
   options: Partial<Parameters<typeof useTranscriptCollapse>[0]> = {}
 ) {
@@ -36,7 +34,6 @@ function render(
     {
       initialProps: {
         eventNodes: [],
-        defaultCollapsedIds,
         eventCount: 1,
         ...options,
       },
@@ -49,29 +46,13 @@ function render(
 // =============================================================================
 
 describe("useTranscriptCollapse → onCollapseTranscript", () => {
-  it("seeds defaults on the first toggle of an unseeded store", () => {
+  it("records only the toggle, so defaults keep applying to other nodes", () => {
     const collapseState = makeCollapseState();
     const { result } = render({ collapseState });
 
     result.current.onCollapseTranscript("c", true);
 
-    // One batched set: the defaults plus the toggle, so all other nodes
-    // retain their default collapsed state.
-    expect(collapseState.onSetTranscriptCollapsed).toHaveBeenCalledWith({
-      a: true,
-      b: true,
-      c: true,
-    });
-    expect(collapseState.onCollapseTranscript).not.toHaveBeenCalled();
-  });
-
-  it("passes through once the store is seeded", () => {
-    const collapseState = makeCollapseState({ transcript: { a: true } });
-    const { result } = render({ collapseState });
-
-    result.current.onCollapseTranscript("a", false);
-
-    expect(collapseState.onCollapseTranscript).toHaveBeenCalledWith("a", false);
+    expect(collapseState.onCollapseTranscript).toHaveBeenCalledWith("c", true);
     expect(collapseState.onSetTranscriptCollapsed).not.toHaveBeenCalled();
   });
 });
@@ -81,22 +62,22 @@ describe("useTranscriptCollapse → onCollapseTranscript", () => {
 // =============================================================================
 
 describe("useTranscriptCollapse → onExpandNodes", () => {
-  it("expands in one batched update over the seeded state", () => {
+  it("adds the expansions to the recorded choices in one update", () => {
     const collapseState = makeCollapseState({
-      transcript: { a: true, b: true, c: true },
+      transcript: { a: true, c: true },
     });
     const { result } = render({ collapseState });
 
-    result.current.onExpandNodes?.(["a", "c"]);
+    result.current.onExpandNodes?.(["a", "b"]);
 
     expect(collapseState.onSetTranscriptCollapsed).toHaveBeenCalledWith({
       a: false,
-      b: true,
-      c: false,
+      b: false,
+      c: true,
     });
   });
 
-  it("bases expansion on defaults while the store is unseeded", () => {
+  it("records only the expansions while nothing is recorded", () => {
     const collapseState = makeCollapseState();
     const { result } = render({ collapseState });
 
@@ -104,7 +85,6 @@ describe("useTranscriptCollapse → onExpandNodes", () => {
 
     expect(collapseState.onSetTranscriptCollapsed).toHaveBeenCalledWith({
       a: false,
-      b: true,
     });
   });
 
@@ -121,10 +101,20 @@ describe("useTranscriptCollapse → onExpandNodes", () => {
 // =============================================================================
 
 describe("useTranscriptCollapse → bulkCollapse", () => {
-  it("bulk-expands by clearing the store", () => {
+  it("bulk-expands by recording every collapsible node as expanded", () => {
+    const tool = eventNode(testToolEvent());
+    const model = eventNode(testModelEvent());
+    const info = eventNode(testInfoEvent());
     const collapseState = makeCollapseState();
-    render({ collapseState, bulkCollapse: "expand" });
-    expect(collapseState.onSetTranscriptCollapsed).toHaveBeenCalledWith({});
+    render({
+      collapseState,
+      bulkCollapse: "expand",
+      eventNodes: [tool, model, info],
+    });
+    expect(collapseState.onSetTranscriptCollapsed).toHaveBeenCalledWith({
+      [tool.id]: false,
+      [model.id]: false,
+    });
   });
 
   it("bulk-collapses every collapsible node", () => {

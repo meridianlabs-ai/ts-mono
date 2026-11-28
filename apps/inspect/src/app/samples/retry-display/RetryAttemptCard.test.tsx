@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { ComponentProps, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
-import { testErrorEvent } from "@tsmono/inspect-common/testing";
+import {
+  testErrorEvent,
+  testStateEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import {
@@ -18,8 +28,22 @@ import { RetryAttemptCard } from "./RetryAttemptCard";
 // TranscriptLayout is a virtualized list, which renders no rows without
 // layout in jsdom; stub it with a marker so this test can see which view the
 // card shows.
+interface LayoutProps {
+  bulkCollapse?: "collapse" | "expand";
+  collapseState?: {
+    transcript?: Record<string, boolean>;
+    onSetTranscriptCollapsed?: (ids: Record<string, boolean>) => void;
+  };
+}
+const layoutProps = vi.hoisted(() => {
+  const ref: { current: LayoutProps | undefined } = { current: undefined };
+  return ref;
+});
 vi.mock("@tsmono/inspect-components/transcript", () => ({
-  TranscriptLayout: () => <div data-testid="transcript-layout" />,
+  TranscriptLayout: (props: LayoutProps) => {
+    layoutProps.current = props;
+    return <div data-testid="transcript-layout" />;
+  },
 }));
 
 const baseRetry: EvalRetryError = {
@@ -91,6 +115,40 @@ describe("RetryAttemptCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Events" }));
     expect(screen.getByTestId("transcript-layout")).toBeDefined();
     expect(screen.queryByText("RuntimeError: Simulated failure")).toBeNull();
+  });
+
+  it("keeps state and store bodies collapsed through the opening expand-all", () => {
+    renderCard({
+      retry: {
+        ...baseRetry,
+        events: [
+          testToolEvent({ uuid: "tool-1" }),
+          testStateEvent({ uuid: "state-1" }),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Events" }));
+    expect(layoutProps.current?.bulkCollapse).toBe("expand");
+
+    // TranscriptLayout's expand-all payload, written twice as StrictMode does.
+    const expandAll =
+      layoutProps.current?.collapseState?.onSetTranscriptCollapsed;
+    const allExpanded = {
+      "tool-1": false,
+      "sandbox-group": false,
+      "state-1": false,
+    };
+    act(() => {
+      expandAll?.(allExpanded);
+      expandAll?.(allExpanded);
+    });
+
+    expect(layoutProps.current?.bulkCollapse).toBeUndefined();
+    expect(layoutProps.current?.collapseState?.transcript).toEqual({
+      "tool-1": false,
+      "sandbox-group": false,
+      "state-1": true,
+    });
   });
 
   it("toggling the view does not collapse the card", () => {

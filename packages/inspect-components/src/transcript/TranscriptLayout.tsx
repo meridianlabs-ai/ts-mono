@@ -607,7 +607,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const { onCollapseTranscript, onExpandNodes } = useTranscriptCollapse({
     eventNodes,
-    defaultCollapsedIds,
     collapseState,
     bulkCollapse,
     eventCount: events.length,

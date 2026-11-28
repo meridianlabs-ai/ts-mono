@@ -1,7 +1,7 @@
 /**
  * Collapse policy for the transcript event tree: which nodes start collapsed
  * by default, and which nodes are collapsible at all (for bulk collapse).
- * Pure functions over EventNode trees; no React.
+ * Pure functions over EventNode trees.
  */
 
 import type {
@@ -11,8 +11,10 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
+import { findChangeRenderer } from "../state/StateEventRenderers";
 import {
   EventNode,
+  EventType,
   isCollapsibleEvent,
   kCollapsibleEventTypes,
   kContentCollapsibleEventTypes,
@@ -38,9 +40,14 @@ const collapseFilters: Array<
   (event) => event.event === "subtask",
 ];
 
+export const isDiffOnlyStateChange = (event: EventType): boolean =>
+  (event.event === "state" || event.event === "store") &&
+  findChangeRenderer(event.changes, event.event === "store") === undefined;
+
 /**
  * Compute the node IDs that start collapsed by default (system messages,
- * init spans, successful non-agent tool calls, subtasks).
+ * init spans, successful non-agent tool calls, subtasks, and state or store
+ * changes that only have a JSON diff to show).
  */
 export const computeDefaultCollapsedIds = (
   eventNodes: EventNode[]
@@ -51,8 +58,9 @@ export const computeDefaultCollapsedIds = (
       // Bound to a const so the narrowing survives into the callback below.
       const event = node.event;
       if (
-        isCollapsibleEvent(event) &&
-        collapseFilters.some((filter) => filter(event))
+        (isCollapsibleEvent(event) &&
+          collapseFilters.some((filter) => filter(event))) ||
+        isDiffOnlyStateChange(event)
       ) {
         defaultCollapsedIds[node.id] = true;
       }
@@ -62,6 +70,13 @@ export const computeDefaultCollapsedIds = (
   findCollapsibleEvents(eventNodes);
   return defaultCollapsedIds;
 };
+
+// Applied on read, so a node that joins the tree later still gets its default.
+export const effectiveCollapsedIds = (
+  defaults: Record<string, boolean>,
+  recorded: Record<string, boolean> | undefined
+): Record<string, boolean> =>
+  recorded ? { ...defaults, ...recorded } : defaults;
 
 /**
  * Collect every collapsible node ID in the tree (tree-collapsible and
