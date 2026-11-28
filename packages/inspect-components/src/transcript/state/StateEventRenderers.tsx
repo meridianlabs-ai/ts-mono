@@ -329,8 +329,7 @@ export const matchesChangeSignature = (
   return required > 0 && matching === required;
 };
 
-/** The renderer that previews a state or store event's changes, if any;
- *  without one the event shows only its JSON diff. */
+// Without a renderer the event shows only its JSON diff.
 export const findChangeRenderer = (
   changes: JsonChange[],
   isStore: boolean

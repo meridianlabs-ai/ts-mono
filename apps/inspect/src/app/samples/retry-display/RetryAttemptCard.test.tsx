@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { ComponentProps, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,12 +28,19 @@ import { RetryAttemptCard } from "./RetryAttemptCard";
 // TranscriptLayout is a virtualized list, which renders no rows without
 // layout in jsdom; stub it with a marker so this test can see which view the
 // card shows.
-const layoutProps = vi.hoisted(() => ({
-  current: undefined as
-    { collapseState?: { transcript?: Record<string, boolean> } } | undefined,
-}));
+interface LayoutProps {
+  bulkCollapse?: "collapse" | "expand";
+  collapseState?: {
+    transcript?: Record<string, boolean>;
+    onSetTranscriptCollapsed?: (ids: Record<string, boolean>) => void;
+  };
+}
+const layoutProps = vi.hoisted(() => {
+  const ref: { current: LayoutProps | undefined } = { current: undefined };
+  return ref;
+});
 vi.mock("@tsmono/inspect-components/transcript", () => ({
-  TranscriptLayout: (props: typeof layoutProps.current) => {
+  TranscriptLayout: (props: LayoutProps) => {
     layoutProps.current = props;
     return <div data-testid="transcript-layout" />;
   },
@@ -104,7 +117,7 @@ describe("RetryAttemptCard", () => {
     expect(screen.queryByText("RuntimeError: Simulated failure")).toBeNull();
   });
 
-  it("opens every event expanded except state and store bodies", () => {
+  it("keeps state and store bodies collapsed through the opening expand-all", () => {
     renderCard({
       retry: {
         ...baseRetry,
@@ -115,10 +128,27 @@ describe("RetryAttemptCard", () => {
       },
     });
     fireEvent.click(screen.getByRole("button", { name: "Events" }));
-    // Recorded up front: the transcript's own defaults would otherwise
-    // collapse the successful tool call.
+    expect(layoutProps.current?.bulkCollapse).toBe("expand");
+
+    // What TranscriptLayout's expand-all writes: every collapsible node,
+    // including a generated group with no uuid, recorded as expanded. Its
+    // effect can run twice (StrictMode, a re-render) before bulk clears.
+    const expandAll =
+      layoutProps.current?.collapseState?.onSetTranscriptCollapsed;
+    const allExpanded = {
+      "tool-1": false,
+      "sandbox-group": false,
+      "state-1": false,
+    };
+    act(() => {
+      expandAll?.(allExpanded);
+      expandAll?.(allExpanded);
+    });
+
+    expect(layoutProps.current?.bulkCollapse).toBeUndefined();
     expect(layoutProps.current?.collapseState?.transcript).toEqual({
       "tool-1": false,
+      "sandbox-group": false,
       "state-1": true,
     });
   });

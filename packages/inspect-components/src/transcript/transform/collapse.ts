@@ -71,12 +71,7 @@ export const computeDefaultCollapsedIds = (
   return defaultCollapsedIds;
 };
 
-/**
- * The collapse state to render: the user's recorded choices over the
- * defaults. A node with no recorded choice, including one that joined the
- * tree after the user last toggled (an event type turned on in the filter, a
- * streamed event), gets its default.
- */
+// Recorded choices over defaults, so a node that joins the tree later (an event type turned on in the filter, a streamed event) still gets its default.
 export const effectiveCollapsedIds = (
   defaults: Record<string, boolean>,
   recorded: Record<string, boolean> | undefined

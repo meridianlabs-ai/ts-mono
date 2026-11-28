@@ -389,8 +389,7 @@ export const TranscriptViewNodes = forwardRef<
       const idx = flattenedNodes.findIndex((e) => e.id === eventId);
       if (idx !== -1) return tryScroll(idx);
 
-      // Hidden in a collapsed region: expand ancestors in ONE batched update
-      // (sequential toggles clobber each other while the store is unseeded),
+      // Hidden in a collapsed region: expand ancestors in one batched update,
       // then retry once the flattened list updates.
       const collapsedAncestors = findCollapsedAncestors(
         eventNodes,

@@ -137,13 +137,14 @@ const RetryEventsView: FC<{
   listId: string;
   scrollRef: RefObject<HTMLDivElement | null>;
 }> = ({ retry, listId, scrollRef }) => {
-  // Everything opens expanded except state/store bodies, which mirror the
-  // main transcript, where they're hidden inside collapsed parent containers.
+  // Pre-seed collapsed state for state/store events so their collapsibleContent
+  // bodies start hidden — mirrors the main transcript, where they're hidden
+  // inside collapsed parent containers.
   const initialCollapsed = useMemo(() => {
     const ids: Record<string, boolean> = {};
     for (const event of retry.events || []) {
-      if (event.uuid) {
-        ids[event.uuid] = event.event === "state" || event.event === "store";
+      if ((event.event === "state" || event.event === "store") && event.uuid) {
+        ids[event.uuid] = true;
       }
     }
     return ids;
@@ -152,6 +153,10 @@ const RetryEventsView: FC<{
   const [transcriptCollapsed, setTranscriptCollapsed] = useState<
     Record<string, boolean> | undefined
   >(undefined);
+  // Opens everything else, including generated groups that have no uuid.
+  const [bulkCollapse, setBulkCollapse] = useState<
+    "collapse" | "expand" | undefined
+  >("expand");
 
   const collapseState = useMemo<TranscriptCollapseState>(
     () => ({
@@ -161,9 +166,16 @@ const RetryEventsView: FC<{
           ...(prev ?? initialCollapsed),
           [nodeId]: collapsed,
         })),
-      onSetTranscriptCollapsed: setTranscriptCollapsed,
+      onSetTranscriptCollapsed: (ids: Record<string, boolean>) => {
+        // The opening expand-all (which can run more than once) records
+        // every node as expanded; keep the state/store bodies collapsed.
+        setTranscriptCollapsed(
+          bulkCollapse === "expand" ? { ...ids, ...initialCollapsed } : ids
+        );
+        setBulkCollapse(undefined);
+      },
     }),
-    [transcriptCollapsed, initialCollapsed]
+    [transcriptCollapsed, initialCollapsed, bulkCollapse]
   );
 
   return (
@@ -175,6 +187,7 @@ const RetryEventsView: FC<{
         embedded
         timeline={{ showSwimlanes: false }}
         collapseState={collapseState}
+        bulkCollapse={bulkCollapse}
         eventNodeContext={{ inlineExpansionUX: true }}
         keyboardNavDisabled={true}
       />
