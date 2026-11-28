@@ -47,6 +47,8 @@ interface CheckSummaryProps {
   iconClassName?: string;
   verdict: string;
   verdictClassName?: string;
+  /** Shown right after the verdict, e.g. where the decision came from. */
+  badge?: ReactNode;
   /** Who made the decision; monospace unless `whoSuffix` is all there is. */
   who?: string;
   whoSuffix?: string;
@@ -64,8 +66,10 @@ interface CheckSummaryProps {
   toggle?: CheckToggle;
   /** Clamps a long reason to two lines while the detail holding it in full is closed. */
   clampReason?: boolean;
-  /** How long the checks took, formatted. */
+  /** How long the checks took, with its label ("judged in 3.1s"). */
   time?: string;
+  /** The exact start and finish behind `time`. */
+  timeTitle?: string;
 }
 
 /** One row naming the result that took effect for a stage. */
@@ -74,6 +78,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   iconClassName,
   verdict,
   verdictClassName,
+  badge,
   who,
   whoSuffix,
   reason,
@@ -86,6 +91,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   toggle,
   clampReason,
   time,
+  timeTitle,
 }) => {
   const [reasonOpen, setReasonOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -105,6 +111,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
     <div className={styles.summary}>
       <Icon name={icon} className={clsx(styles.icon, iconClassName)} />
       <span className={clsx(styles.verdict, verdictClassName)}>{verdict}</span>
+      {badge}
       {who ? (
         <span className={styles.who}>
           by <span className={styles.mono}>{who}</span>
@@ -143,7 +150,11 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
       ) : null}
       {flagged || failed || toggle || time ? (
         <span className={styles.trailing}>
-          {time ? <span className={styles.time}>{time}</span> : null}
+          {time ? (
+            <span className={styles.time} title={timeTitle}>
+              {time}
+            </span>
+          ) : null}
           {flagged ? (
             <span className={styles.chip}>
               <Icon name="flag" />

@@ -4,6 +4,7 @@ import type {
   ModelEvent,
   Reference,
   SentinelEvent,
+  SentinelRemote,
   ToolCall,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
@@ -425,6 +426,11 @@ export interface SentinelStep {
   modelCalls: EventNode<ModelEvent>[];
   /** How long the step's root took, which includes its children: from its returned decision, else its bypassed record where a protocol below finalized the step, else its unjudged marker, else its root check; unset when the root recorded no time, as when only a child reported. */
   workingTime?: number;
+  /** When the event that gives `workingTime` started and reported. */
+  started?: string;
+  completed?: string;
+  /** Where a remote sentinel's report of the step came from: the root's, else the first check's that has one. */
+  remote?: SentinelRemote;
 }
 
 export interface ToolSentinels {
@@ -667,6 +673,12 @@ export function buildSentinelStep(
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
 
+  const timed =
+    (outcome?.event.path === "" ? outcome : undefined) ??
+    bypassedRoot ??
+    unjudged ??
+    root;
+
   const single = checks.length === 1 ? checks[0] : undefined;
   const observations = checks.filter(
     (n) => reported(n, "observation") && n.event.suspicion != null
@@ -718,13 +730,13 @@ export function buildSentinelStep(
     audit: nodes.some((n) => n.event.audit),
     failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
-    workingTime:
-      (
-        (outcome?.event.path === "" ? outcome : undefined) ??
-        bypassedRoot ??
-        unjudged ??
-        root
-      )?.event.working_time ?? undefined,
+    workingTime: timed?.event.working_time ?? undefined,
+    started: timed?.event.timestamp,
+    completed: timed?.event.completed ?? undefined,
+    remote:
+      root?.event.remote ??
+      checks.find((n) => n.event.remote)?.event.remote ??
+      undefined,
   };
 }
 
@@ -737,6 +749,8 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
   const step = {
     ...buildSentinelStep([node]),
     workingTime: event.working_time ?? undefined,
+    started: event.timestamp,
+    completed: event.completed ?? undefined,
   };
   if (!reported(node, "decision") || step.outcome) return step;
   const verdict = event.action ?? "proceed";

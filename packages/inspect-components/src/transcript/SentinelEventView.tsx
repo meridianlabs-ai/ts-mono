@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment } from "react";
+import { FC, Fragment, ReactNode } from "react";
 
 import type {
   SentinelEvent,
@@ -7,14 +7,18 @@ import type {
   ToolCall,
 } from "@tsmono/inspect-common/types";
 import { resolveToolInput } from "@tsmono/inspect-components/chat";
-import { MarkdownDivWithReferences } from "@tsmono/react/components";
+import {
+  CopyButton,
+  MarkdownDivWithReferences,
+} from "@tsmono/react/components";
 import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
 import { Icon, IconName } from "@tsmono/react/icons";
-import { formatDateTime, formatTime } from "@tsmono/util";
+import { formatDateTime } from "@tsmono/util";
+
+import { fmtInstant, fmtShortDuration } from "../usage/timeFormat";
 
 import { citeReferences, type MakeCiteUrl } from "./citeReferences";
 import { EventRow } from "./event/EventRow";
-import { formatTitle } from "./event/utils";
 import { ModelEventView } from "./ModelEventView";
 import styles from "./SentinelEventView.module.css";
 import {
@@ -71,9 +75,13 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   const look = lookOf(step);
   const tone: CheckTone = step.effective ? look.tone : "neutral";
   const single = step.rows.length === 1 ? step.rows[0] : undefined;
+  // A trimmed report is only the decision: there are no checks to expand.
+  const trimmed = !!step.remote?.trimmed && step.rows.length <= 1;
   const who = (single?.node ?? step.decider)?.event.path || undefined;
   const modified = step.effective ? step.outcome?.event.modified : undefined;
   const makeCiteUrl = context?.makeCiteUrl;
+  const duration = showTime ? fmtShortDuration(step.workingTime) : undefined;
+  const unjudged = step.verdict === "unjudged";
   return (
     <CheckInset region={region} tone={tone}>
       <CheckSummary
@@ -81,9 +89,14 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         iconClassName={look.iconClass}
         verdict={look.word}
         verdictClassName={look.textClass}
+        badge={step.remote ? <RemoteChip remote={step.remote} /> : null}
         who={who}
         scores={step.scores}
-        reason={step.reason}
+        reason={
+          unjudged && step.reason
+            ? `— ${unjudgedReasonText(step.reason)}`
+            : step.reason
+        }
         reasonClassName={look.reasonClass}
         references={citeReferences(step.reasonReferences, makeCiteUrl)}
         error={step.error}
@@ -91,15 +104,20 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         failed={single ? 0 : step.failed}
         clampReason={collapsed}
         time={
-          showTime && step.workingTime != null
-            ? formatTime(step.workingTime)
+          duration
+            ? `${unjudged ? "stopped after" : "judged in"} ${duration}`
             : undefined
         }
-        toggle={{
-          label: single ? "details" : `${step.rows.length} checks`,
-          open: !collapsed,
-          onToggle: () => setCollapsed(!collapsed),
-        }}
+        timeTitle={stepTimeTitle(step)}
+        toggle={
+          trimmed
+            ? undefined
+            : {
+                label: single ? "details" : `${step.rows.length} checks`,
+                open: !collapsed,
+                onToggle: () => setCollapsed(!collapsed),
+              }
+        }
       />
       {step.verdict === "modify" &&
       modified &&
@@ -110,14 +128,23 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
           label={judgedReplaced ? "replaced" : "proposed"}
         />
       ) : null}
-      {!collapsed && single ? (
+      {trimmed && step.remote ? (
+        <div className={clsx(styles.detail, toneDetailClass(tone))}>
+          <div className={styles.noExplanation}>
+            The remote sentinel sent only its decision, not its checks&apos;
+            reports.
+          </div>
+          <Facts facts={remoteFacts(step.remote)} />
+        </div>
+      ) : null}
+      {!trimmed && !collapsed && single ? (
         <CheckDetail
           row={single}
           showFunction={false}
           makeCiteUrl={makeCiteUrl}
         />
       ) : null}
-      {!collapsed && !single ? (
+      {!trimmed && !collapsed && !single ? (
         <CheckTree step={step} tone={tone} makeCiteUrl={makeCiteUrl} />
       ) : null}
       {step.modelCalls[0] ? (
@@ -131,6 +158,64 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   );
 };
 
+/** "Started …" and "Finished …" on two lines, for a step's time. */
+const stepTimeTitle = (step: SentinelStep): string | undefined => {
+  const lines = [
+    step.started ? `Started ${fmtInstant(step.started)}` : null,
+    step.completed ? `Finished ${fmtInstant(step.completed)}` : null,
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : undefined;
+};
+
+const kUnjudgedReasons: Record<string, string> = {
+  cancelled: "cancelled before judging finished",
+};
+
+const unjudgedReasonText = (reason: string): string =>
+  kUnjudgedReasons[reason] ?? reason;
+
+const RemoteChip: FC<{ remote: SentinelRemote }> = ({ remote }) => (
+  <span
+    className={styles.chip}
+    title={[
+      `Proxy ${remote.proxy_url}`,
+      remote.request_id ? `x-irid ${remote.request_id}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n")}
+  >
+    remote
+  </span>
+);
+
+/** The span of a step's checks, where every check recorded when it started and finished. */
+interface Timeline {
+  start: number;
+  span: number;
+}
+
+/**
+ * Bars need every check's own times. A remote step's events carry the time
+ * Inspect wrote them, not when each check ran (inspect_sentinel#229), so
+ * they get durations only.
+ */
+const timelineOf = (step: SentinelStep): Timeline | undefined => {
+  if (step.remote || step.rows.some((r) => r.node.event.remote)) {
+    return undefined;
+  }
+  let start = Infinity;
+  let end = -Infinity;
+  for (const { node } of step.rows) {
+    const from = Date.parse(node.event.timestamp);
+    const to = node.event.completed ? Date.parse(node.event.completed) : NaN;
+    if (Number.isNaN(from) || Number.isNaN(to)) return undefined;
+    start = Math.min(start, from);
+    end = Math.max(end, to);
+  }
+  const span = end - start;
+  return span > 0 ? { start, span } : undefined;
+};
+
 interface CheckTreeProps {
   step: SentinelStep;
   tone: CheckTone;
@@ -139,6 +224,7 @@ interface CheckTreeProps {
 
 const CheckTree: FC<CheckTreeProps> = ({ step, tone, makeCiteUrl }) => {
   const grouped = groupedPaths(step.rows);
+  const timeline = timelineOf(step);
   const [openRow, setOpenRow] = useProperty<string | null>(
     step.id,
     "sentinel-open-row",
@@ -148,23 +234,31 @@ const CheckTree: FC<CheckTreeProps> = ({ step, tone, makeCiteUrl }) => {
     <div
       className={clsx(
         styles.tree,
+        timeline && styles.timed,
         tone === "reject" && styles.reject,
         tone === "modify" && styles.modify
       )}
     >
       {step.rows.map((row) => {
-        const open = openRow === row.node.id;
+        const showFunction = grouped.has(row.node.event.path);
+        const expandable = hasDetail(row, showFunction);
+        const open = expandable && openRow === row.node.id;
         return (
           <Fragment key={row.node.id}>
             <CheckRowView
               row={row}
               open={open}
-              onToggle={() => setOpenRow(open ? null : row.node.id)}
+              timeline={timeline}
+              onToggle={
+                expandable
+                  ? () => setOpenRow(open ? null : row.node.id)
+                  : undefined
+              }
             />
             {open ? (
               <CheckDetail
                 row={row}
-                showFunction={grouped.has(row.node.event.path)}
+                showFunction={showFunction}
                 makeCiteUrl={makeCiteUrl}
               />
             ) : null}
@@ -175,25 +269,44 @@ const CheckTree: FC<CheckTreeProps> = ({ step, tone, makeCiteUrl }) => {
   );
 };
 
+/**
+ * Whether a row's detail would add to the row. A reported check always opens,
+ * to its explanation or the note that it gave none; a check that reported
+ * nothing opens only to what it recorded besides its times and provenance,
+ * which the row and the step's summary already show.
+ */
+const hasDetail = (row: SentinelRow, showFunction: boolean): boolean => {
+  const event = row.node.event;
+  return (
+    event.status === "reported" ||
+    event.status === "superseded" ||
+    showFunction ||
+    !!event.explanation?.trim() ||
+    !!event.error ||
+    !!event.message ||
+    !!event.modified ||
+    event.audit
+  );
+};
+
 interface CheckRowViewProps {
   row: SentinelRow;
   open: boolean;
-  onToggle: () => void;
+  /** The step's span, which places the row's bar; unset where the row shows its duration alone. */
+  timeline?: Timeline;
+  /** Unset for a row with no detail to open. */
+  onToggle?: () => void;
 }
 
-const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
+const CheckRowView: FC<CheckRowViewProps> = ({
+  row,
+  open,
+  timeline,
+  onToggle,
+}) => {
   const event = row.node.event;
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      className={clsx(
-        styles.row,
-        open && styles.open,
-        isInactive(event) && styles.inactive
-      )}
-      onClick={onToggle}
-    >
+  const cells = (
+    <>
       <span className={styles.rowLabel}>
         {row.guides ? (
           <span className={styles.guides}>{row.guides}</span>
@@ -205,17 +318,58 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
         <b>{event.path || "(top)"}</b>{" "}
         <span className={styles.name}>{event.factory}</span>
       </span>
-      <span className={styles.result}>
-        {event.working_time != null ? (
-          <span className={styles.time}>{formatTime(event.working_time)}</span>
-        ) : null}
-        <CheckResult row={row} />
-        <Icon
-          name={open ? "chevronDown" : "chevronRight"}
-          className={styles.rowChevron}
-        />
+      {timeline ? <TimeBar event={event} timeline={timeline} /> : null}
+      <span className={styles.time}>
+        {fmtShortDuration(event.working_time)}
       </span>
+      <span className={styles.result}>
+        <CheckResult row={row} />
+      </span>
+      <span className={styles.rowChevron}>
+        {onToggle ? (
+          <Icon name={open ? "chevronDown" : "chevronRight"} />
+        ) : null}
+      </span>
+    </>
+  );
+  const className = clsx(
+    styles.row,
+    open && styles.open,
+    isInactive(event) && styles.inactive
+  );
+  return onToggle ? (
+    <button
+      type="button"
+      aria-expanded={open}
+      className={clsx(className, styles.toggles)}
+      onClick={onToggle}
+    >
+      {cells}
     </button>
+  ) : (
+    <div className={className}>{cells}</div>
+  );
+};
+
+const TimeBar: FC<{ event: SentinelEvent; timeline: Timeline }> = ({
+  event,
+  timeline,
+}) => {
+  const from = Date.parse(event.timestamp) - timeline.start;
+  const to =
+    (event.completed ? Date.parse(event.completed) : NaN) - timeline.start;
+  const left = (from / timeline.span) * 100;
+  const width = ((to - from) / timeline.span) * 100;
+  return (
+    <span
+      className={styles.track}
+      title={`+${fmtShortDuration(from / 1000)} → +${fmtShortDuration(to / 1000)}`}
+    >
+      <span
+        className={styles.bar}
+        style={{ left: `${left}%`, width: `max(3px, ${width}%)` }}
+      />
+    </span>
   );
 };
 
@@ -259,7 +413,7 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
           {top.value}
         </span>
         {top.more > 0 ? (
-          <span className={styles.moreScores}>
+          <span className={styles.chip}>
             {top.more === 1 ? "1 more score" : `${top.more} more scores`}
           </span>
         ) : null}
@@ -274,6 +428,51 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
     </>
   );
 };
+
+interface Fact {
+  label: string;
+  value: ReactNode;
+}
+
+/** Labelled rows in one aligned table, each left out when it has no value. */
+const Facts: FC<{ facts: (Fact | null)[] }> = ({ facts }) => {
+  const shown = facts.filter((fact): fact is Fact => fact !== null);
+  if (shown.length === 0) return null;
+  return (
+    <div className={styles.facts}>
+      {shown.map(({ label, value }) => (
+        <Fragment key={label}>
+          <span className={clsx(checkClasses.label, styles.factLabel)}>
+            {label}
+          </span>
+          <span className={styles.factValue}>{value}</span>
+        </Fragment>
+      ))}
+    </div>
+  );
+};
+
+const remoteFacts = (remote: SentinelRemote): (Fact | null)[] => [
+  {
+    label: "Remote",
+    value: <span className={checkClasses.mono}>{remote.proxy_url}</span>,
+  },
+  remote.request_id
+    ? {
+        label: "Request",
+        value: (
+          <>
+            <span className={checkClasses.mono}>{remote.request_id}</span>
+            <CopyButton
+              value={remote.request_id}
+              className={styles.copy}
+              ariaLabel="Copy request id"
+            />
+          </>
+        ),
+      }
+    : null,
+];
 
 interface CheckDetailProps {
   row: SentinelRow;
@@ -295,27 +494,19 @@ const CheckDetail: FC<CheckDetailProps> = ({
     event.status === "superseded" ? "superseded" : null,
   ].filter(Boolean);
   const reportedBy = showFunction ? event.function : null;
-  const timing = [
-    event.working_time != null
-      ? `working time ${formatTime(event.working_time)}`
-      : null,
-    event.completed
-      ? `completed ${formatDateTime(new Date(event.completed))}`
-      : null,
-  ].filter(Boolean);
   const scores =
     event.suspicion !== null &&
     typeof event.suspicion === "object" &&
     Object.keys(event.suspicion).length > 1
       ? sortedScores(event.suspicion)
       : undefined;
+  const workingTime = fmtShortDuration(event.working_time);
   return (
     <div className={styles.detailWrap} style={{ paddingLeft: indent(row) }}>
       <div
         className={clsx(
           styles.detail,
-          effectTone === "reject" && styles.rejectDetail,
-          effectTone === "modify" && styles.modifyDetail,
+          effectTone && toneDetailClass(effectTone),
           !effectTone && event.stage === "tool_result" && styles.afterDetail
         )}
       >
@@ -331,10 +522,6 @@ const CheckDetail: FC<CheckDetailProps> = ({
             ) : null}
           </div>
         ) : null}
-        {timing.length ? (
-          <div className={styles.meta}>{timing.join(" · ")}</div>
-        ) : null}
-        {event.remote ? <RemoteMeta remote={event.remote} /> : null}
         {scores ? (
           <div className={styles.scoreGrid}>
             {scores.map(([dimension, value]) => (
@@ -358,52 +545,46 @@ const CheckDetail: FC<CheckDetailProps> = ({
               effectTone === "reject" && checkClasses.rejectReason
             )}
           />
-        ) : event.status === "unjudged" ? (
-          <div className={styles.noExplanation}>
-            {event.reason ? `Not judged: ${event.reason}` : "Not judged."}
-          </div>
-        ) : (
+        ) : event.status === "reported" ? (
           <div className={styles.noExplanation}>No explanation recorded.</div>
-        )}
-        {event.message ? (
-          <div className={styles.labelled}>
-            <span className={clsx(checkClasses.label, checkClasses.rejectText)}>
-              told the agent
-            </span>
-            <span>{event.message}</span>
-          </div>
         ) : null}
-        {event.modified ? (
-          <div className={styles.labelled}>
-            <span className={clsx(checkClasses.label, checkClasses.modifyText)}>
-              modified
-            </span>
-            <span className={checkClasses.mono}>
-              {replacementText(event.modified)}
-            </span>
-          </div>
-        ) : null}
+        <Facts
+          facts={[
+            event.message
+              ? { label: "Told the agent", value: event.message }
+              : null,
+            event.modified
+              ? {
+                  label: "Modified",
+                  value: (
+                    <span className={checkClasses.mono}>
+                      {replacementText(event.modified)}
+                    </span>
+                  ),
+                }
+              : null,
+            workingTime ? { label: "Working time", value: workingTime } : null,
+            // A remote check's time is when Inspect wrote it (inspect_sentinel#229).
+            event.completed && !event.remote
+              ? {
+                  label: "Completed",
+                  value: formatDateTime(new Date(event.completed)),
+                }
+              : null,
+            ...(event.remote ? remoteFacts(event.remote) : []),
+          ]}
+        />
       </div>
     </div>
   );
 };
 
-const RemoteMeta: FC<{ remote: SentinelRemote }> = ({ remote }) => (
-  <div className={styles.meta}>
-    remote
-    {remote.request_id ? (
-      <>
-        {" · x-irid "}
-        <span className={checkClasses.mono}>{remote.request_id}</span>
-      </>
-    ) : null}
-    {remote.trimmed ? (
-      <span title="The remote sentinel withheld this step's reports from the eval and sent only its decision.">
-        {" · trimmed"}
-      </span>
-    ) : null}
-  </div>
-);
+const toneDetailClass = (tone: CheckTone): string | undefined =>
+  tone === "reject"
+    ? styles.rejectDetail
+    : tone === "modify"
+      ? styles.modifyDetail
+      : undefined;
 
 /** Paths of the instances that reported from more than one function on this step. */
 const groupedPaths = (rows: SentinelRow[]): Set<string> => {
@@ -493,26 +674,37 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
   context,
   eventNodeId,
   className,
-}) => (
-  <EventRow
-    eventNodeId={eventNodeId}
-    title={formatTitle("Sentinel", undefined, step.workingTime)}
-    icon="sentinel"
-    className={className}
-    below={
-      <SentinelInset
-        step={step}
-        region="output"
-        context={context}
-        showTime={false}
-      />
-    }
-  >
-    <span className="text-style-secondary">
-      {sentinelStageLabels[step.stage]}
-    </span>
-  </EventRow>
-);
+}) => {
+  const duration = fmtShortDuration(step.workingTime);
+  return (
+    <EventRow
+      eventNodeId={eventNodeId}
+      title={
+        duration ? (
+          <span title={stepTimeTitle(step)}>
+            Sentinel (<span className={styles.titleTime}>{duration}</span>)
+          </span>
+        ) : (
+          "Sentinel"
+        )
+      }
+      icon="sentinel"
+      className={className}
+      below={
+        <SentinelInset
+          step={step}
+          region="output"
+          context={context}
+          showTime={false}
+        />
+      }
+    >
+      <span className="text-style-secondary">
+        {sentinelStageLabels[step.stage]}
+      </span>
+    </EventRow>
+  );
+};
 
 interface SentinelEventViewProps {
   eventNode: EventNode<SentinelEvent>;

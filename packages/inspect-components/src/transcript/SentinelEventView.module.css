@@ -1,6 +1,8 @@
 .tree {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 1ch;
+  column-gap: 10px;
+  align-items: baseline;
   min-width: 0;
   margin-top: 2px;
   padding: 4px;
@@ -10,6 +12,10 @@
   font-family: var(--bs-font-monospace);
   font-size: 0.78rem;
   line-height: 1.7;
+}
+
+.tree.timed {
+  grid-template-columns: minmax(0, 1fr) minmax(40px, 120px) auto auto 1ch;
 }
 
 .tree.reject {
@@ -22,8 +28,9 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  column-gap: 14px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
   width: 100%;
   padding: 0 8px;
   border: none;
@@ -32,10 +39,13 @@
   font: inherit;
   text-align: left;
   color: var(--bs-body-color);
+}
+
+.row.toggles {
   cursor: pointer;
 }
 
-.row:hover {
+.row.toggles:hover {
   background-color: var(--bs-tertiary-bg);
 }
 
@@ -68,7 +78,25 @@
 .result {
   display: inline-flex;
   align-items: baseline;
+  justify-content: flex-end;
   gap: 8px;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  align-self: center;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--inspect-check-chip-bg);
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background-color: rgba(var(--bs-body-color-rgb), 0.3);
 }
 
 .proceed {
@@ -76,6 +104,10 @@
 }
 
 .time {
+  justify-self: end;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: rgba(var(--bs-body-color-rgb), 0.5);
 }
 
@@ -98,6 +130,7 @@
 }
 
 .rowChevron {
+  justify-self: end;
   font-size: 0.75em;
   color: rgba(var(--bs-body-color-rgb), 0.45);
 }
@@ -107,7 +140,7 @@
   color: var(--inspect-check-modify-icon);
 }
 
-.moreScores {
+.chip {
   padding: 0 7px;
   border: 1px solid var(--inspect-check-result-border);
   border-radius: 999px;
@@ -119,6 +152,7 @@
 }
 
 .detailWrap {
+  grid-column: 1 / -1;
   padding: 2px 8px 6px;
 }
 
@@ -184,17 +218,27 @@
   color: rgba(var(--bs-body-color-rgb), 0.55);
 }
 
-.labelled {
+.facts {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: baseline;
-  column-gap: 10px;
+  column-gap: 12px;
   font-size: 0.78rem;
 }
 
-.labelled > :last-child {
+.factLabel {
+  color: rgba(var(--bs-body-color-rgb), 0.6);
+}
+
+.factValue {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.copy {
+  margin-left: 6px;
+  font-size: 0.85em;
+  vertical-align: baseline;
 }
 
 .foldedToggle {
@@ -222,4 +266,9 @@
   row-gap: 0.5em;
   margin-top: 0.35em;
   font-size: var(--inspect-font-size-base);
+}
+
+/* The event title is uppercased; a duration's unit stays as written ("1.8s"). */
+.titleTime {
+  text-transform: none;
 }

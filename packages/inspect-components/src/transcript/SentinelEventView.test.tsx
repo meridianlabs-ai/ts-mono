@@ -156,6 +156,30 @@ const pill = (count: number) =>
 const rowButton = (label: RegExp) =>
   screen.getByRole("button", { name: label });
 
+/** The open detail's labelled rows, label → text. */
+const facts = (): Map<string, string> => {
+  const table = document.querySelector('[class*="facts"]');
+  const cells = [...(table?.children ?? [])];
+  const out = new Map<string, string>();
+  for (let i = 0; i + 1 < cells.length; i += 2) {
+    out.set(cells[i]?.textContent ?? "", cells[i + 1]?.textContent ?? "");
+  }
+  return out;
+};
+
+/** A tree row by its visible label, whether or not it opens to a detail. */
+const checkRow = (label: RegExp): HTMLElement => {
+  const rows = [
+    ...document.querySelectorAll<HTMLElement>(
+      '[class*="tree"] > [class*="row"]'
+    ),
+  ].filter((row) => label.test(row.textContent));
+  expect(rows).toHaveLength(1);
+  const [row] = rows;
+  if (!row) throw new Error(`no check row matches ${String(label)}`);
+  return row;
+};
+
 const rejectEvents = () => [
   decision("net", "guard/network", "no_network", "proceed"),
   decision("llm", "guard/llm", "inspect_sentinel/threshold", "reject", {
@@ -269,7 +293,7 @@ describe("sentinel checks in a tool card", () => {
     );
     fireEvent.click(pill(2));
     const detail = container.querySelector('[class*="detail"]');
-    expect(detail?.textContent).toContain("told the agent");
+    expect(detail?.textContent).toContain("Told the agent");
     expect(detail?.textContent).toContain("USE_X_INSTEAD");
     expect(detail?.textContent).toContain("INTERNAL_REASON");
   });
@@ -585,7 +609,7 @@ describe("sentinel checks in a tool card", () => {
     fireEvent.click(details);
     expect(details.getAttribute("aria-expanded")).toBe("true");
     const detail = container.querySelector('[class*="detail"]');
-    expect(detail?.textContent).toContain("told the agent");
+    expect(detail?.textContent).toContain("Told the agent");
     expect(detail?.textContent).toContain("USE_X_INSTEAD");
     expect(screen.queryByText("(top)")).toBeNull();
   });
@@ -628,7 +652,7 @@ describe("sentinel checks in a tool card", () => {
     expect(container.textContent).toContain("RESULT_TEXT");
 
     fireEvent.click(pill(2));
-    expect(screen.getByText("modified")).toBeTruthy();
+    expect(facts().get("Modified")).toContain("cp /cache/data.csv");
     expect(container.textContent).not.toContain("took effect");
   });
 
@@ -784,11 +808,11 @@ describe("sentinel checks in a tool card", () => {
     expect(screen.getByText("bypassed")).toBeTruthy();
     expect(rowButton(/review/).textContent).toContain("escalate · superseded");
     for (const label of [/gate/, /slow/, /review/]) {
-      expect(rowButton(label).className).toContain("inactive");
+      expect(checkRow(label).className).toContain("inactive");
     }
     expect(rowButton(/\(top\)/).className).not.toContain("inactive");
     const icon = (label: RegExp) =>
-      rowButton(label).querySelector('i[class*="kindIcon"]')?.className;
+      checkRow(label).querySelector('i[class*="kindIcon"]')?.className;
     expect(icon(/slow/)).toContain("bi-activity");
     expect(icon(/gate/)).toContain("bi-signpost-split");
   });
@@ -805,7 +829,7 @@ describe("sentinel checks in a tool card", () => {
       decision("root", "", "concurrent", "proceed"),
     ]);
     fireEvent.click(pill(2));
-    const row = rowButton(/gate/);
+    const row = checkRow(/gate/);
     expect(row.textContent).toContain("paused");
     expect(row.className).toContain("inactive");
   });
@@ -847,7 +871,9 @@ describe("sentinel checks in a tool card", () => {
       }),
     ]);
     expect(screen.getByText("Not judged")).toBeTruthy();
-    expect(await screen.findByText("cancelled")).toBeTruthy();
+    expect(
+      await screen.findByText("— cancelled before judging finished")
+    ).toBeTruthy();
     expect(screen.queryByText("Observed")).toBeNull();
   });
 
@@ -871,8 +897,27 @@ describe("sentinel checks in a tool card", () => {
       }),
     ]);
     fireEvent.click(pill(2));
-    expect(screen.getAllByRole("button", { name: /\(top\)/ })).toHaveLength(1);
-    expect(rowButton(/audit/).textContent).toContain("cancelled");
+    const root = checkRow(/\(top\)/);
+    expect(root.textContent).toContain("not judged");
+    expect(checkRow(/audit/).textContent).toContain("cancelled");
+  });
+
+  it("gives a row nothing to open when its reason is already the step's", () => {
+    renderTool([
+      observation("mon", "audit", "suspicion", 0.1, {
+        status: "cancelled",
+        function: null,
+      }),
+      node("root", {
+        status: "unjudged",
+        reason: "cancelled",
+        function: null,
+        action: null,
+      }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(checkRow(/\(top\)/).tagName).not.toBe("BUTTON");
+    expect(checkRow(/audit/).tagName).not.toBe("BUTTON");
   });
 
   it("times a step that wasn't judged by its unjudged marker, not an earlier root check", () => {
@@ -886,8 +931,8 @@ describe("sentinel checks in a tool card", () => {
         working_time: 7,
       }),
     ]);
-    expect(screen.getByText("7 sec")).toBeTruthy();
-    expect(screen.queryByText("1 sec")).toBeNull();
+    expect(screen.getByText("stopped after 7s")).toBeTruthy();
+    expect(screen.queryByText(/1s$/)).toBeNull();
   });
 
   it("times a step a protocol below the root finalized by the bypassed root, which includes its children", () => {
@@ -904,15 +949,15 @@ describe("sentinel checks in a tool card", () => {
         working_time: 5,
       }),
     ]);
-    expect(screen.getByText("9 sec")).toBeTruthy();
-    expect(screen.queryByText("5 sec")).toBeNull();
+    expect(screen.getByText("judged in 9s")).toBeTruthy();
+    expect(screen.queryByText(/5s$/)).toBeNull();
   });
 
   it("gives a step no time of its own when only a child reported, since the step took at least as long as its slowest check", () => {
     renderTool([
       observation("fast", "fast", "llm_suspicion", 0.1, { working_time: 1 }),
     ]);
-    expect(screen.queryByText("1 sec")).toBeNull();
+    expect(screen.queryByText(/judged in/)).toBeNull();
   });
 
   it("shows how long each check took in its row, and when it completed in its detail", () => {
@@ -924,24 +969,90 @@ describe("sentinel checks in a tool card", () => {
       decision("root", "", "threshold", "proceed", { working_time: 7 }),
     ]);
     fireEvent.click(pill(2));
-    expect(rowButton(/monitor/).textContent).toContain("3 sec");
-    expect(rowButton(/\(top\)/).textContent).toContain("7 sec");
+    expect(rowButton(/monitor/).textContent).toContain("3s");
+    expect(rowButton(/\(top\)/).textContent).toContain("7s");
     fireEvent.click(rowButton(/monitor/));
-    expect(
-      screen.getByText(
-        `working time 3 sec · completed ${formatDateTime(new Date("2026-11-24T10:00:05Z"))}`
-      )
-    ).toBeTruthy();
+    const detail = facts();
+    expect(detail.get("Working time")).toBe("3s");
+    expect(detail.get("Completed")).toBe(
+      formatDateTime(new Date("2026-11-24T10:00:05Z"))
+    );
+  });
+
+  it("places each check's bar within the step's span, when every check recorded its times", () => {
+    renderTool([
+      observation("fast", "fast", "suspicion", 0.1, {
+        timestamp: "2026-11-24T10:00:00Z",
+        completed: "2026-11-24T10:00:01Z",
+        working_time: 1,
+      }),
+      observation("slow", "slow", "suspicion", 0.2, {
+        timestamp: "2026-11-24T10:00:01Z",
+        completed: "2026-11-24T10:00:04Z",
+        working_time: 3,
+      }),
+    ]);
+    fireEvent.click(pill(2));
+    const track = (label: RegExp) =>
+      rowButton(label).querySelector<HTMLElement>('[class*="track"]');
+    expect(track(/fast/)?.title).toBe("+<0.1s → +1s");
+    expect(track(/slow/)?.title).toBe("+1s → +4s");
+    const bar = track(/slow/)?.firstElementChild;
+    expect(bar instanceof HTMLElement && bar.style.left).toBe("25%");
+  });
+
+  it("shows durations without bars for a remote step, whose times are when Inspect wrote them", () => {
+    const remote = { proxy_url: "http://127.0.0.1:4000", trimmed: false };
+    renderTool([
+      observation("mon", "monitor", "suspicion", 0.2, {
+        timestamp: "2026-11-24T10:00:00Z",
+        completed: "2026-11-24T10:00:01Z",
+        working_time: 0.4,
+        remote,
+      }),
+      decision("root", "", "concurrent", "proceed", {
+        timestamp: "2026-11-24T10:00:00Z",
+        completed: "2026-11-24T10:00:01Z",
+        working_time: 0.8,
+        remote,
+      }),
+    ]);
+    fireEvent.click(pill(2));
+    expect(rowButton(/monitor/).textContent).toContain("0.4s");
+    expect(document.querySelector('[class*="track"]')).toBeNull();
+    fireEvent.click(rowButton(/monitor/));
+    expect(facts().has("Completed")).toBe(false);
+    expect(facts().get("Remote")).toBe("http://127.0.0.1:4000");
   });
 
   it("shows a lone check's time in a tool card's summary", () => {
     renderTool([
       decision("root", "", "threshold", "proceed", { working_time: 4 }),
     ]);
-    expect(screen.getByText("4 sec")).toBeTruthy();
+    expect(screen.getByText("judged in 4s")).toBeTruthy();
   });
 
-  it("names the call a remote sentinel's report is about, and says it was trimmed", () => {
+  it("marks a remote step on its summary, naming its proxy and call", () => {
+    renderTool([
+      decision("root", "", "sidecar_guard", "proceed", {
+        remote: {
+          proxy_url: "http://127.0.0.1:4000",
+          request_id: "irid-42",
+          trimmed: false,
+        },
+      }),
+    ]);
+    expect(screen.getByText("remote").title).toBe(
+      "Proxy http://127.0.0.1:4000\nx-irid irid-42"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "details" }));
+    expect(facts().get("Request")).toBe("irid-42");
+    expect(
+      screen.getByRole("button", { name: "Copy request id" })
+    ).toBeTruthy();
+  });
+
+  it("shows a trimmed step's provenance without a toggle, saying its checks' reports were withheld", () => {
     renderTool([
       decision("root", "", "sidecar_guard", "proceed", {
         function: "",
@@ -952,9 +1063,14 @@ describe("sentinel checks in a tool card", () => {
         },
       }),
     ]);
-    fireEvent.click(screen.getByRole("button", { name: "details" }));
-    expect(screen.getByText("irid-42")).toBeTruthy();
-    expect(screen.getByText(/trimmed/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "details" })).toBeNull();
+    expect(
+      screen.getByText(
+        "The remote sentinel sent only its decision, not its checks' reports."
+      )
+    ).toBeTruthy();
+    expect(facts().get("Request")).toBe("irid-42");
+    expect(screen.queryByText("No explanation recorded.")).toBeNull();
   });
 
   it("folds the step's monitor model calls into a line at the end", () => {
@@ -1043,8 +1159,8 @@ describe("SentinelEventView", () => {
         step={standaloneSentinels.get("m1")}
       />
     );
-    expect(container.textContent).toContain("Sentinel (12 sec)");
-    expect(container.textContent.match(/12 sec/g)).toHaveLength(1);
+    expect(container.textContent).toContain("Sentinel (12s)");
+    expect(container.textContent.match(/12s/g)).toHaveLength(1);
   });
 
   it("links the cites of a standalone step's reason through its context", async () => {
@@ -1114,7 +1230,7 @@ describe("SentinelEventView", () => {
         })}
       />
     );
-    expect(container.textContent).toContain("Sentinel (2 sec)");
+    expect(container.textContent).toContain("Sentinel (2s)");
   });
 
   it("gives an event shown alone an honest verdict", () => {

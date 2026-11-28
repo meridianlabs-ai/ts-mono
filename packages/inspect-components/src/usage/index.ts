@@ -36,4 +36,10 @@ export type {
 } from "./connectionHistory";
 export { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
 export { ConnectionLogModal } from "./ConnectionLogModal";
-export { fmtClock, fmtCompactDuration, fmtDayClock } from "./timeFormat";
+export {
+  fmtClock,
+  fmtCompactDuration,
+  fmtDayClock,
+  fmtInstant,
+  fmtShortDuration,
+} from "./timeFormat";
